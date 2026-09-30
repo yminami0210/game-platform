@@ -1,0 +1,65 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "Agent",
+      "Skill",
+      "mcp__Claude_Code_Remote__create_session",
+      "mcp__Claude_Code_Remote__get_session",
+      "mcp__Claude_Code_Remote__list_sessions",
+      "mcp__Claude_Code_Remote__list_environments",
+      "mcp__Claude_Code_Remote__list_repos",
+      "mcp__Claude_Code_Remote__set_session_title",
+      "mcp__Claude_Code_Remote__set_session_tags",
+      "mcp__Claude_Code_Remote__archive_session",
+      "mcp__Claude_Code_Remote__interrupt_session",
+      "mcp__Claude_Code_Remote__send_later",
+      "mcp__github__create_pull_request",
+      "mcp__github__update_pull_request",
+      "mcp__github__pull_request_read",
+      "mcp__github__get_file_contents",
+      "mcp__github__list_pull_requests",
+      "mcp__github__list_branches"
+    ],
+    "ask": [
+      "mcp__Gmail__send_message",
+      "mcp__Gmail__forward",
+      "mcp__Gmail__reply",
+      "mcp__Google_Drive__share_file",
+      "mcp__github__merge_pull_request",
+      "mcp__github__create_repository",
+      "mcp__Claude_Code_Remote__delete_trigger"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Bash(sudo rm:*)",
+      "Bash(git push --force origin main:*)",
+      "Bash(git push --force origin master:*)",
+      "Bash(git push -f origin main:*)",
+      "Bash(git push -f origin master:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
