@@ -2,4 +2,4 @@
 
 | 日付 | session_id | タイトル | 目的 | 状態 |
 |---|---|---|---|---|
-| 2026-09-30 | session_0184HUkL5XDkadrC4QUtieki | [partner] 動作確認 | 委任の仕組みの疎通テスト（読み取り専用） | 実行中 |
+| 2026-09-30 | session_0184HUkL5XDkadrC4QUtieki | [partner] 動作確認 | 委任の仕組みの疎通テスト（読み取り専用） | 完了（停止ライン要約・/partner 認識を確認） |
