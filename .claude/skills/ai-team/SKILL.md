@@ -33,7 +33,7 @@ description: 5人のAI社員（リサーチ・記事生成・素材挿入・品�
 全工程が合格したら、監査役を stage `audit` で起動する（学びを各担当の `learnings.md` に追記し、次のアクションを書く）。終わったら `team.py set $RUN audit pass <品質スコア>`。
 
 ## 3. 保存と報告
-1. `python3 ai-team/bin/team.py status $RUN` で最終状態を確認する。
+1. `python3 ai-team/bin/team.py preview $RUN` で note 投稿用の PNG がそろっていることを確認し、`python3 ai-team/bin/team.py status $RUN` で最終状態を確認する。
 2. 変更（`ai-team/runs/<run>/` と `learnings.md`）を commit し、作業ブランチに push する。main には直接 push しない。
 3. オーナーに日本語で報告する: 結論（記事タイトルと合否）→ 各工程の結果（差し戻し回数）→ 公開前に確認してほしいこと → 次のアクション。
 

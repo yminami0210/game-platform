@@ -9,11 +9,15 @@
   team.py check <run_dir> <stage>     stage の成果物を機械チェック（失敗で exit 1）
   team.py set <run_dir> <stage> <state> [note]
                                       進行状況を更新（state: todo/working/revise/pass/fail）
+  team.py preview <run_dir>           assets/*.svg を PNG にして png/ に出す（目視確認・note 投稿用）
   team.py status [run_dir]            オフィスの様子（進行状況）を表示。省略時は最新の実行
 """
 import datetime
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -50,8 +54,9 @@ def body_chars(text: str) -> int:
 
 
 def x_weight(text: str) -> int:
-    """X の文字数カウント（全角=2、半角=1、URL=23）。"""
-    n = 0
+    """X の文字数カウント（全角=2、半角=1、URL と {URL} は 23）。"""
+    n = 23 * text.count("{URL}")
+    text = text.replace("{URL}", "")
     for url in URL_RE.findall(text):
         n += 23
         text = text.replace(url, "", 1)
@@ -232,6 +237,33 @@ def cmd_status(run: Path) -> None:
             print(f"  {f['at']}  {dict(STAGES)[f['stage']]}: {STATES[f['state']]} {f['note']}")
 
 
+def find_chrome() -> str:
+    shells = sorted(Path("/opt/pw-browsers").glob("chromium_headless_shell-*/chrome-linux/headless_shell"))
+    for c in (os.environ.get("CHROME_PATH", ""), *map(str, shells), "/opt/pw-browsers/chromium",
+              shutil.which("chromium") or "",
+              shutil.which("google-chrome") or ""):
+        if c and Path(c).exists():
+            return c
+    sys.exit("Chromium が見つかりません（CHROME_PATH で指定できます）")
+
+
+def cmd_preview(run: Path) -> None:
+    """assets/*.svg を同じサイズの PNG にして <run>/png/ に出す（目視確認用、かつ note に上げる画像）。
+
+    headless_shell はウィンドウと表示領域が一致するので、PNG が SVG と同じサイズになる。
+    """
+    chrome = find_chrome()
+    out = run / "png"
+    out.mkdir(exist_ok=True)
+    for svg in sorted((run / "assets").glob("*.svg")):
+        png = out / f"{svg.stem}.png"
+        size = ET.parse(svg).getroot().get("viewBox", "0 0 1200 675").split()[2:]
+        subprocess.run([chrome, *([] if chrome.endswith("headless_shell") else ["--headless"]), "--no-sandbox", "--disable-gpu", "--hide-scrollbars",
+                        f"--screenshot={png}", f"--window-size={int(float(size[0]))},{int(float(size[1]))}",
+                        svg.resolve().as_uri()], check=True, capture_output=True, timeout=60)
+        print(png)
+
+
 def main(argv: list) -> None:
     if len(argv) < 2:
         sys.exit(__doc__)
@@ -248,6 +280,8 @@ def main(argv: list) -> None:
         print("OK")
     elif cmd == "set" and len(argv) >= 5:
         cmd_set(Path(argv[2]), argv[3], argv[4], " ".join(argv[5:]))
+    elif cmd == "preview" and len(argv) == 3:
+        cmd_preview(Path(argv[2]))
     elif cmd == "status":
         cmd_status(Path(argv[2]) if len(argv) > 2 else latest_run())
     else:

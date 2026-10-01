@@ -23,13 +23,14 @@
 - 手動: Claude Code で `/ai-team`（テーマ指定は `/ai-team Claude Code のスキル入門` のように）
 - 自動: 毎週月曜 9:00 前（日本時間）に Routine が新しいセッションで `/ai-team` を実行し、結果をブランチ `ai-team/weekly` に push する
 - 進行状況（オフィスの様子）: `python3 ai-team/bin/team.py status`
+- 図を PNG に書き出す: `python3 ai-team/bin/team.py preview ai-team/runs/<run>`
 
 ## 成果物（`ai-team/runs/<日付>-<slug>/`）
 | ファイル | 担当 |
 |---|---|
 | `01-research.md` | リサーチ（テーマ・読者・要点・出典） |
 | `02-draft.md` | 記事生成（初稿、図の差し込み指示つき） |
-| `03-article.md`, `assets/*.svg` | 素材挿入（自作の図解と見出し画像） |
+| `03-article.md`, `assets/*.svg`, `png/*.png` | 素材挿入（自作の図解と見出し画像。note には png/ を上げる） |
 | `04-quality.md`, **`final.md`** | 品質チェック（完成稿） |
 | **`05-promo.md`** | 集客（X 告知文 3 パターン・タグ・投稿タイミング） |
 | `audit.md`, `status.json` | 監査記録と進行状況 |

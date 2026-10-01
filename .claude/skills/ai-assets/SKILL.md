@@ -18,7 +18,8 @@ description: AI社員チームの「03 素材挿入担当」。初稿の [[図: 
    - 配色は落ち着いた 2〜3 色。要素は 7 個以内。矢印で流れを示す。
 2. 見出し画像 `<run>/assets/cover.svg`（タイトル文字入り、1280x670）も作る。
 3. 02-draft.md をコピーして `<run>/03-article.md` を作り、各 `[[図: ...]]` を `![<図の説明（代替テキスト）>](assets/fig-01.svg)` に置き換える。冒頭タイトルの直後に cover を入れる。
-4. `python3 -c "import xml.etree.ElementTree as E,sys;[E.parse(f) for f in sys.argv[1:]]" <run>/assets/*.svg` で SVG が壊れていないか確認する。
+4. `python3 ai-team/bin/team.py preview <run>` で PNG にし、`<run>/png/*.png` を Read ツールで**目で見て**、文字のはみ出し・重なり・切れを直す。
+5. `python3 ai-team/bin/team.py check <run> assets` が OK になることを確認する。
 
 ## ルール
 - 他人の画像・ロゴ・キャラクターを使わない、真似しない（著作権・商標）。素材はすべて自作の図形と文字。

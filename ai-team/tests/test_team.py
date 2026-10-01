@@ -71,6 +71,7 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(team.x_weight("ab"), 2)
         self.assertEqual(team.x_weight("あ"), 2)
         self.assertEqual(team.x_weight("https://example.com/very/long/path"), 23)
+        self.assertEqual(team.x_weight("読んでね {URL}"), 8 + 1 + 23)
 
 
 class StatusTest(unittest.TestCase):
