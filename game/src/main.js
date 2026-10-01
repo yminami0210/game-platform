@@ -4,6 +4,7 @@ import { createRenderer } from './render/renderer.js';
 import { createInput } from './input/input.js';
 import * as sfx from './audio/sfx.js';
 import { load, save } from './save.js';
+import { createScreens } from './ui/screens.js';
 
 // data/ の JSON が増えたらここと sw.js に足す（simulate.mjs と同じく、複数なら ファイル名キー で core に渡る）
 const DATA_FILES = ['balance', 'layers'];
@@ -14,7 +15,7 @@ const canvas = $('stage');
 const renderer = createRenderer(canvas);
 const saved = load();
 const DT = 1 / 60;
-let state = createGame({ seed: 1, data }); state.alive = false;
+let state = createGame({ seed: 1, data }); // タイトルでも群れの光を見せる
 const input = createInput(canvas, { getX: () => state.x, unitPx: () => renderer.unitPx() });
 let botAction = null;
 let running = false, acc = 0, last = performance.now();
@@ -22,11 +23,20 @@ const events = [];
 const t0 = performance.now();
 const log = (type, extra = {}) => events.push({ ...extra, type, t: (performance.now() - t0) / 1000 }); // t は実時間（秒）
 $('best').textContent = `ベスト ${saved.best}`;
+let maxN = 0;
+sfx.setMuted(!!saved.muted); renderer.setReducedMotion(!!saved.calm);
+const screens = await createScreens({
+  root: $('screens'), saved, persist: () => save(saved), names,
+  onStart: () => start(), onMute: m => sfx.setMuted(m), onReduce: v => { renderer.setReducedMotion(v); document.documentElement.classList.toggle('calm', v); },
+  onReset: () => { saved.best = 0; saved.dex = []; save(saved); $('best').textContent = 'ベスト 0'; },
+});
+document.documentElement.classList.toggle('calm', !!saved.calm);
+screens.show('title');
 
 function start() {
   sfx.unlock(); sfx.play('start');
   state = createGame({ seed: (Date.now() & 0xffffffff) >>> 0, data });
-  running = true; acc = 0; $('title').hidden = true; $('result').hidden = true;
+  running = true; acc = 0; maxN = 0; screens.show('none');
   $('score').textContent = '0';
   log(events.some(e => e.type === 'start') ? 'retry' : 'start');
 }
@@ -35,17 +45,16 @@ function handle(evs) {
     if (e.type !== 'score' && e.type !== 'gate') log(e.type, e);
     renderer.event(e, state);
     if (e.type === 'score') $('score').textContent = e.value;
-    if (e.type === 'pickup') { sfx.play('pickup', { pitch: 1 + e.n * 0.1 }); navigator.vibrate?.(10); }
-    if (e.type === 'scatter') { sfx.play('scatter'); navigator.vibrate?.(25); }
+    if (e.type === 'pickup') { sfx.play('pickup', { pitch: 1 + e.n * 0.1 }); saved.vibe !== false && navigator.vibrate?.(10); }
+    if (e.type === 'scatter') { sfx.play('scatter'); saved.vibe !== false && navigator.vibrate?.(25); }
     if (e.type === 'fail') {
       running = false; sfx.play('fail');
-      if (e.score > saved.best) { saved.best = e.score; save(saved); $('best').textContent = `ベスト ${saved.best}`; }
-      $('final').textContent = `ここまで ひかり ${e.score}`;
-      setTimeout(() => { if (!running) $('result').hidden = false; }, 600); // 光が静まる余韻
+      const newBest = e.score > saved.best;
+      if (newBest) { saved.best = e.score; save(saved); $('best').textContent = `ベスト ${saved.best}`; screens.setBest(saved.best); }
+      setTimeout(() => { if (!running) screens.showResult({ score: e.score, layer: e.layer, flowers: state.flowersLit ?? 0, maxN, newBest }); }, 900); // 光が溶けて静まる余韻
     }
   }
 }
-$('start').onclick = start; $('retry').onclick = start;
 
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -53,6 +62,7 @@ function frame(now) {
     acc += dt;
     while (acc >= DT && running) { handle(step(state, botAction ?? input.action(state.x), DT)); acc -= DT; }
   }
+  if (running) maxN = Math.max(maxN, state.N);
   renderer.draw(state, dt);
   $('layer').textContent = names[Math.min(names.length - 1, state.layer)] ?? '';
   $('count').textContent = state.alive ? state.N : 0;

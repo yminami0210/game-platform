@@ -148,7 +148,7 @@ export function createRenderer(canvas) {
       const pulse = !calm() && N > 0 && N <= 5 && alive ? 1 + 0.03 * Math.sin(time * 2 * Math.PI * 1.5) : 1;
       const rr = Math.max(0.4, R * pulse);
       const gr = g.createRadialGradient(px, py, 0, px, py, rr);
-      gr.addColorStop(0, 'rgba(7,8,15,0)'); gr.addColorStop(0.5, 'rgba(7,8,15,0.05)'); gr.addColorStop(0.8, 'rgba(7,8,15,0.55)'); gr.addColorStop(1, 'rgba(7,8,15,0.9)');
+      gr.addColorStop(0, 'rgba(7,8,15,0)'); gr.addColorStop(0.5, 'rgba(7,8,15,0.05)'); gr.addColorStop(0.8, 'rgba(7,8,15,0.5)'); gr.addColorStop(1, 'rgba(7,8,15,0.78)');
       g.fillStyle = gr; g.fillRect(-1, -1, W + 2, H + 2);
       // 光のあたたかさ（加算）
       const wa = (0.16 + 0.1 * lg) * fade;
@@ -166,7 +166,7 @@ export function createRenderer(canvas) {
         sg.addColorStop(0, 'rgba(2,3,8,0.85)'); sg.addColorStop(1, 'rgba(2,3,8,0)'); g.fillStyle = sg; g.fillRect(k.x - k.r * 3, y - k.r * 3, k.r * 6, k.r * 6);
       }
       // 岩の縁取りは常時うっすら
-      g.strokeStyle = C.edge; g.globalAlpha = 0.45; g.lineWidth = 0.04;
+      g.strokeStyle = C.edge; g.globalAlpha = 0.6; g.lineWidth = 0.05;
       for (const w of s.walls) { const y = yOf(w.d); if (!vis(y)) continue; g.strokeRect(-0.2, y - 0.35, w.cx - w.gap / 2 + 0.2, 0.7); g.strokeRect(w.cx + w.gap / 2, y - 0.35, W + 0.2 - w.cx - w.gap / 2, 0.7); }
       g.globalAlpha = 1;
       // 点灯したねむり花（自ら光る）
