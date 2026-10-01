@@ -2,7 +2,7 @@
 
 注意: 私は弁護士ではなく、これは法的助言ではありません。リスクの洗い出しと、人間が判断・専門家相談すべき点の明確化です。
 
-## 判定: YELLOW（RED なし。公開前に人間の確認2点と文書の仕上げが必要）
+## 判定: YELLOW（RED なし。公開前に人間の確認2点と文書の仕上げが必要。フォント追補後も判定は変わらず）
 
 ## 確認結果
 | 項目 | 判定 | 根拠 |
@@ -28,3 +28,12 @@
 
 ## RED
 なし。
+
+## 追補（フォント） 2026-10-01
+判定: GREEN（上記の「第三者素材・ライブラリ」「外部通信ゼロ」の GREEN は、フォント追加後は下記で置き換わる。総合は YELLOW のまま）
+
+- 対象: Yuji Boku（Copyright 2021 The Yuji Project Authors）、Kiwi Maru 500（Copyright 2020 The Kiwi Maru Project Authors）。いずれも SIL OFL 1.1。サブセット woff2 を game/fonts/ に同梱。
+- OFL 条件の充足: (1) 単体販売禁止: ゲームに同梱して無料配布、フォント単体では売らない → 適合。(2) 著作権表示＋ライセンス文の同梱: game/fonts/OFL.txt に両方あり → 適合。(3) Reserved Font Name: 両書体の著作権表示に RFN 指定なし（OFL.txt 記載どおり）。サブセット化は「改変版」だが名称制限なし。CSS の font-family 名は参照用でも問題なし。(4) 作者名を宣伝に使わない: 使っていない → 適合。(5) OFL 以外のライセンスで配布しない: LICENSES.md に OFL と明記 → 適合。なおゲーム本体コードのライセンスは別（フォントには及ばない）。
+- 指摘と対応: OFL.txt の Kiwi Maru 節が著作権表示のみで全文を「上と同じ」と参照していた。OFL は「各コピーにライセンスを含める」ことを求めるため参照でも実質足りるが、疑義を避けるため Kiwi 節にも全文を複製して自己完結にした（game/fonts/OFL.txt）。LICENSES.md に OFL 条件の充足メモを追記。
+- 外部通信: game 内の index.html・js・css・json に googleapis / gstatic の参照なし。@font-face は相対パス fonts/*.woff2（index.html:14-15）、sw.js もそれらをキャッシュするのみ。実行時の外部通信ゼロを維持。Google Fonts へのアクセスは開発時の studio/tools/fetch-fonts.sh のみ（配布物に含まれない）。
+- 残り（人間）: 配布元（Google Fonts/GitHub）の表示がRFNなしである点は、公開前に各リポジトリの OFL.txt を一度目視すると確実。専門家相談は不要。
