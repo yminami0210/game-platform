@@ -32,13 +32,13 @@
   .paper button:focus-visible { outline-color:var(--shu); }
   /* HUD: 上端は常に墨の中。紙色の字 */
   .hud { display:flex; justify-content:space-between; align-items:baseline; padding:12px 18px 0; font-size:13px; text-shadow:0 0 6px var(--sumi), 0 0 2px var(--sumi); }
-  .hud .n { font-family:var(--f-disp); font-size:26px; font-variant-numeric:tabular-nums; margin-left:4px; }
+  .hud .n { font-family:var(--f-body); font-weight:500; font-size:24px; font-variant-numeric:tabular-nums; margin-left:4px; }
   #layer { font-family:var(--f-disp); font-size:18px; padding-bottom:3px; background:var(--squig) repeat-x bottom/60px 6px; }
   body:not(.playing) #hud { visibility:hidden; }
   .sub { font-size:13px; color:var(--kozo-d); }
   .hud.sub { padding-top:2px; }
   .paper .sub { color:var(--sumi-l); }
-  #t-best { font-family:var(--f-disp); font-size:16px; margin-top:2px; }
+  #t-best { font-family:var(--f-body); font-weight:500; font-size:16px; margin-top:2px; }
   /* ボタン: 通常は字だけ（筆の下線）。主役の1つだけが蛍色の版。 */
   .btn { font:inherit; font-size:17px; padding:8px 12px; border:0; background:var(--squig) repeat-x bottom 6px center/60px 6px; color:inherit; border-radius:0; }
   .paper .btn { background-image:var(--squig-k); }
@@ -81,12 +81,12 @@
   .tgl { min-width:72px !important; min-height:44px; border-radius:4px 10px 5px 9px; border:2px solid var(--sumi); background:transparent; color:var(--sumi); font:inherit; font-size:16px; }
   .tgl[aria-checked="true"] { background:var(--sumi); color:var(--kozo); box-shadow:3px 3px 0 var(--hotaru); }
   .confirm { border:2px solid #A8301C; border-radius:3px 12px 4px 10px; padding:12px; background:rgba(210,67,43,.1); } .confirm p { margin:0 0 8px; font-size:15px; line-height:1.6; }
-  .huge-num { font-family:var(--f-disp); font-size:92px; color:var(--hotaru); line-height:1; font-variant-numeric:tabular-nums; }
+  .huge-num { font-family:var(--f-body); font-weight:500; font-size:92px; color:var(--hotaru); line-height:1; font-variant-numeric:tabular-nums; }
   .newbest { display:inline-block; border:2px solid var(--shu); border-radius:3px; padding:5px 12px; font-size:15px; transform:rotate(-2.5deg); }
   .stats { margin:10px 0 0; display:flex; flex-direction:column; gap:8px; width:100%; max-width:320px; }
   .stats div { display:flex; align-items:baseline; gap:8px; font-size:15px; } .stats dt { color:var(--kozo-d); order:1; }
   .stats div::after { content:""; order:2; flex:1; border-bottom:2px dotted rgba(221,212,184,.3); }
-  .stats dd { margin:0; order:3; font-family:var(--f-disp); font-size:20px; }
+  .stats dd { margin:0; order:3; font-family:var(--f-body); font-weight:500; font-size:20px; }
   .pbtn { position:fixed; right:calc(10px + env(safe-area-inset-right)); top:calc(64px + env(safe-area-inset-top)); width:44px; height:44px; border-radius:48% 52% 46% 54%; border:2px solid var(--kozo-d); background:var(--sumi); padding:0; display:flex; align-items:center; justify-content:center; }
   body:not(.playing) .pbtn { display:none; }
   #hint { z-index:0; position:fixed; left:0; right:0; top:22%; text-align:center; font-size:18px; color:var(--kozo); text-shadow:0 0 10px var(--sumi), 0 0 4px var(--sumi); pointer-events:none; padding:0 24px; transition:opacity .4s; }

@@ -13,9 +13,11 @@
 | 3 | 2 | coder 1（スライス実装）, playtester 1（PASS） |
 | 4 | 5 | content-creator 1, sound 1, design-manager 1, coder 1, worldbuilder 1（監査） |
 | 5 | 3 | reviewer 1, legal 1, coder 1（ブロッカー修正＋README） |
-| 合計 | 15 | |
+| 6 | 3 | design-manager 1（作り直し）, reviewer 1（AIが作った感 7/10）, legal 1（フォント GREEN） |
+| 合計 | 18 | 上限20の9割。以後は追加呼び出しを最小にする |
 
 ## 直近でやったこと
+- オーナー方針でデザインを作り直した（墨と和紙＋蛍籠、Yuji Boku / Kiwi Maru を同梱）。reviewer 7/10、HUD の数字のブロッカーは PM が修正。gate release PASS。release-pack 更新
 - Phase 5 完了: gate_check --gate release PASS、reviewer のブロッカー（一時停止）修正、legal YELLOW（RED なし）。基点 gate-release = 2fe12bc
 - Phase 6: studio/release-pack.md を作成して停止（公開・main マージはしない）
 - Phase 4 完了: 罠4種・ねむり花・図鑑・保存・チュートリアル・音・画面。gate_check --gate release PASS（初心者 210点/33秒、上達者 3039点/126秒）
