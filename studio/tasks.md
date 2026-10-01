@@ -15,5 +15,5 @@
 | T-022 | 4 | gs-sound | 効果音と層別BGM、ミュート | brief, design-system §音 | 鳴る/止まる | T-011 | done（sfx.js 拡張: start/pickup/scatter/gate/bloom/layer/fail/puddle、bgm.js新規: startBgm/setBgmLayer/stopBgm、五音階ペンタトニック、同時発音制限、ピッチ微調整） |
 | T-023 | 4 | gs-coder | 罠4種、ねむり花、図鑑・色の保存、チュートリアル、組み込み | gdd §2§5§6§7 | gate_check release | T-020 | done |
 | T-024 | 5 | gs-coder | リリースレビュー B1（ひとやすみ）・P2/P3・README・公開準備 | studio/reviews/release.md | gate_check release | T-023 | done |
-| T-030 | 5 | gs-reviewer | リリース判定 | 差分、gate 結果 | 判定 | T-023 | todo |
-| T-031 | 5 | gs-legal | リリース前チェックリスト | legal-checklist | 判定 | T-023 | todo |
+| T-030 | 5 | gs-reviewer | リリース判定 | 差分、gate 結果 | 判定 | T-023 | done |
+| T-031 | 5 | gs-legal | リリース前チェックリスト | legal-checklist | 判定 | T-023 | done |
