@@ -207,3 +207,9 @@ test('配置: どの行にも通り道が残り、隣の隙間へは届く', () 
     for (const k of seen.stones) { assert.ok(wallClear(k.d)); assert.ok(2 * k.r < W - tbl(k.d).gap); }
   }
 });
+
+import { advance } from '../src/core/loop.js';
+test('一時停止中は時間が進まない', () => {
+  assert.equal(advance(0, 1, true, 1 / 60).steps, 0);
+  assert.ok(advance(0, 1 / 30, false, 1 / 60).steps >= 2);
+});

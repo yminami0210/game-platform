@@ -6,6 +6,7 @@ import * as sfx from './audio/sfx.js';
 import * as bgm from './audio/bgm.js';
 import { load, save, migrate } from './save.js';
 import { createScreens } from './ui/screens.js';
+import { advance } from './core/loop.js';
 
 // data/ の JSON が増えたらここと sw.js に足す（simulate.mjs と同じく、複数なら ファイル名キー で core に渡る）
 const DATA_FILES = ['balance', 'layers', 'creatures', 'colors', 'texts'];
@@ -21,7 +22,7 @@ const DT = 1 / 60;
 let state = createGame({ seed: 1, data }); // タイトルでも群れの光を見せる
 const input = createInput(canvas, { getX: () => state.x, unitPx: () => renderer.unitPx() });
 let botAction = null;
-let running = false, acc = 0, last = performance.now();
+let running = false, paused = false, banked = 0, resultTimer = 0, acc = 0, last = performance.now();
 const events = [];
 const t0 = performance.now();
 const log = (type, extra = {}) => events.push({ ...extra, type, t: (performance.now() - t0) / 1000 }); // t は実時間（秒）
@@ -65,7 +66,8 @@ function start() {
   sfx.unlock(); const a = sfx.getAudio(); if (a) { bgm.initBgm(a.ctx, a.masterGain); bgm.startBgm(0); }
   sfx.play('start');
   state = createGame({ seed: (Date.now() & 0xffffffff) >>> 0, data, tutorial: !saved.tutorialDone, meta: { flowersTotal: saved.flowersTotal } });
-  running = true; acc = 0; screens.show('none');
+  clearTimeout(resultTimer); resultTimer = 0; banked = 0;
+  running = true; acc = 0; screens.show('none'); setPaused(false);
   $('score').textContent = '0';
   log(events.some(e => e.type === 'start') ? 'retry' : 'start');
 }
@@ -77,7 +79,11 @@ function handle(evs) {
     else if (e.type === 'pickup') { sfx.play('pickup', { pitch: 1 + e.n * 0.1 }); vibe(10); }
     else if (e.type === 'scatter') { sfx.play('scatter'); vibe(25); }
     else if (e.type === 'gate') sfx.play('gate');
-    else if (e.type === 'bloom') { sfx.play('bloom'); vibe([15, 30, 15]); }
+    else if (e.type === 'bloom') {
+      sfx.play('bloom'); vibe([15, 30, 15]);
+      const d = state.flowersLit - banked; // ラン途中でも花の累計を保存
+      if (d > 0) { banked += d; saved.flowersTotal += d; unlockColors(); save(saved); }
+    }
     else if (e.type === 'puddle') sfx.play('puddle');
     else if (e.type === 'layer') { sfx.play('layer'); bgm.setBgmLayer(e.index - 1); }
     else if (e.type === 'creature') {
@@ -87,10 +93,13 @@ function handle(evs) {
       const newBest = e.score > saved.best;
       if (newBest) saved.best = e.score;
       saved.bestLayer = Math.max(saved.bestLayer, e.layer);
-      saved.flowersTotal += state.flowersLit; saved.tutorialDone = true; unlockColors();
+      saved.flowersTotal += Math.max(0, state.flowersLit - banked); banked = state.flowersLit; saved.tutorialDone = true; unlockColors();
       save(saved); $('best').textContent = `ベスト ${saved.best}`; screens.setBest(saved.best);
       drawColors();
-      setTimeout(() => { if (!running) screens.showResult({ score: e.score, layer: e.layer, flowers: state.flowersLit, maxN: state.maxN, newBest }); }, 900); // 光が溶けて静まる余韻
+      const res = { score: e.score, layer: e.layer, flowers: state.flowersLit, maxN: state.maxN, newBest };
+      const showIt = () => { document.removeEventListener('pointerdown', showIt); if (!resultTimer) return; clearTimeout(resultTimer); resultTimer = 0; if (!running) screens.showResult(res); };
+      resultTimer = setTimeout(showIt, 900); // 光が溶けて静まる余韻（タップでスキップ）
+      setTimeout(() => { if (resultTimer) document.addEventListener('pointerdown', showIt, { once: true }); }, 250); // 失敗直前の連打で飛ばさない
     }
   }
 }
@@ -107,8 +116,8 @@ function updateHint() {
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (running) {
-    acc += dt;
-    while (acc >= DT && running) { handle(step(state, botAction ?? input.action(state.x), DT)); acc -= DT; }
+    const r = advance(acc, dt, paused, DT); acc = r.acc;
+    for (let i = 0; i < r.steps && running; i++) handle(step(state, botAction ?? input.action(state.x), DT));
     if (running && state.tutorial && state.passed >= 3 && !saved.tutorialDone) { saved.tutorialDone = true; save(saved); }
   }
   updateHint();
@@ -118,7 +127,19 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-document.addEventListener('visibilitychange', () => { last = performance.now(); acc = 0; });
+
+// 一時停止（running は保ったまま paused で step を止める）
+const pauseEl = $('pause');
+function setPaused(p) {
+  if (p && !running) return;
+  paused = p; pauseEl.hidden = !p; $('b-pause').hidden = p || !running;
+  const a = sfx.getAudio(); if (a?.ctx) (p ? a.ctx.suspend() : a.ctx.resume()).catch?.(() => {});
+  last = performance.now(); acc = 0;
+}
+$('b-pause').onclick = () => setPaused(true);
+$('p-resume').onclick = () => setPaused(false);
+$('p-title').onclick = () => { running = false; setPaused(false); bgm.stopBgm(); screens.show('title'); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); last = performance.now(); acc = 0; });
 
 // playtester / balance 用フック
 window.__GS__ = {
@@ -126,10 +147,11 @@ window.__GS__ = {
   get state() { return state; },
   events,
   get running() { return running; },
+  get paused() { return paused; },
   // ボットは「押しっぱなしの入力」を差し替えるだけ。実際のゲームループで遊ぶ。
   bot: {
     actions: () => (running ? actions(state) : ['start']),
-    press: a => { if (a === 'start' || a === 'retry') { if (!running) start(); return; } botAction = a; },
+    press: a => { if (a === 'start' || a === 'retry') { if (paused) setPaused(false); else if (!running) start(); return; } botAction = a; },
     release: () => { botAction = null; },
   },
 };

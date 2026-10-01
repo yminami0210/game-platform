@@ -52,6 +52,8 @@
   .newbest { color:var(--reward); font-weight:700; font-size:16px; }
   .stats { margin:8px 0 0; display:flex; flex-direction:column; gap:6px; width:100%; max-width:320px; }
   .stats div { display:flex; justify-content:space-between; font-size:15px; border-bottom:1px solid #2A3050; padding-bottom:4px; } .stats dt { color:var(--mut); } .stats dd { margin:0; font-weight:700; }
+  .pbtn { position:fixed; right:calc(10px + env(safe-area-inset-right)); top:calc(56px + env(safe-area-inset-top)); width:44px; height:44px; border-radius:50%; border:2px solid #3A4160; background:rgba(30,34,54,.6); padding:0; display:flex; align-items:center; justify-content:center; }
+  body:not(.playing) .pbtn { display:none; }
   #hint { position:fixed; left:0; right:0; top:22%; text-align:center; font-size:18px; font-weight:700; text-shadow:0 0 10px #000, 0 0 3px #000; pointer-events:none; padding:0 24px; transition:opacity .4s; }
   #colors { display:flex; gap:6px; justify-content:center; }
   #colors button { width:44px; height:44px; border-radius:50%; border:3px solid #3A4160; background:var(--c); padding:0; }
@@ -69,6 +71,8 @@
 <div id="ui">
   <div id="hud"><div class="hud"><span>ひかり <span id="score">0</span></span><span id="layer"></span><span>群れ <span id="count">5</span></span></div>
   <div class="hud sub" style="padding-top:0"><span id="best">ベスト 0</span></div></div>
+  <button id="b-pause" class="pbtn" aria-label="ひとやすみ"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="8" cy="12" r="3.2" fill="#FFF3C4"/><circle cx="16" cy="12" r="3.2" fill="#FFF3C4" opacity=".6"/></svg></button>
+  <div id="pause" class="screen" hidden role="dialog" aria-label="ひとやすみ"><div class="top"><h2>ひとやすみ</h2><button class="btn huge" id="p-resume">つづける</button><button class="btn sm" id="p-title">タイトルへ</button></div></div>
   <div id="hint" hidden aria-live="polite"></div>
   <div id="screens"></div>
 </div>

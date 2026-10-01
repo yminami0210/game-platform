@@ -199,7 +199,7 @@ export function step(s, action, dt) {
   s.stones = s.stones.filter(w => w.d > s.dist - 3);
   s.flowers = s.flowers.filter(w => w.d > s.dist - 3);
 
-  const li = layerIndex(s.dist, B) + (s.dist >= B.layers.length * B.layers.count ? 0 : 0);
+  const li = layerIndex(s.dist, B);
   if (li !== s.layer) { s.layer = li; ev.push({ type: 'layer', index: li + 1 }); }
 
   genAhead(s);
