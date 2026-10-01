@@ -1,9 +1,9 @@
 {
   "list": [
-    { "id": "main", "name": "ホタル色", "hex": "#FFC94A", "unlockFlowers": 0 },
-    { "id": "mint", "name": "みずあさぎ", "hex": "#7FE0D4", "unlockFlowers": 30 },
-    { "id": "sakura", "name": "あけぼの", "hex": "#FFA9C0", "unlockFlowers": 80 },
-    { "id": "fuji", "name": "ふじ色", "hex": "#B9A0FF", "unlockFlowers": 150 },
-    { "id": "shiro", "name": "しろがね", "hex": "#F4F1EA", "unlockFlowers": 300 }
+    { "id": "main", "name": "ホタル色", "hex": "#C6DA3C", "unlockFlowers": 0 },
+    { "id": "mint", "name": "みずあさぎ", "hex": "#7CC8BC", "unlockFlowers": 30 },
+    { "id": "sakura", "name": "あけぼの", "hex": "#E8A3A0", "unlockFlowers": 80 },
+    { "id": "fuji", "name": "ふじ色", "hex": "#A98FD0", "unlockFlowers": 150 },
+    { "id": "shiro", "name": "しろがね", "hex": "#EDE6CF", "unlockFlowers": 300 }
   ]
 }

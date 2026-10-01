@@ -17,3 +17,4 @@
 | T-024 | 5 | gs-coder | リリースレビュー B1（ひとやすみ）・P2/P3・README・公開準備 | studio/reviews/release.md | gate_check release | T-023 | done |
 | T-030 | 5 | gs-reviewer | リリース判定 | 差分、gate 結果 | 判定 | T-023 | done |
 | T-031 | 5 | gs-legal | リリース前チェックリスト | legal-checklist | 判定 | T-023 | done |
+| T-040 | 6 | gs-designer | 見た目の作り直し（墨と和紙＋蛍籠。書体 Yuji Boku + Kiwi Maru 同梱、renderer・画面・アイコン・sw v6） | design-system v2, game-art-direction | npm test / check_build OK、playtest エラー0 | T-031 | done（自己採点「AIが作った感」3/10） |
