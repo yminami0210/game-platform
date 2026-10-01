@@ -94,7 +94,7 @@ const cursor = { x: 195, y: 422, visible: false };
 const keys = {};
 let ripples = [];
 
-function baseR() { return Math.max(26, Math.min(W, H) * 0.085); }
+function baseR() { return Math.max(30, Math.sqrt(Math.max(1, (W - 28) * (H - 84))) * 0.14); }
 
 function startGame() {
   round = 0; score = 0; retryLeft = 1; newBest = false;
@@ -151,7 +151,7 @@ function endRound() {
   if (passed) score += roundScore;
 }
 function advance() {
-  if (stateT < 0.7) return;
+  if (stateT < 1.0) return;
   if (state === "result") {
     if (passed) {
       if (round + 1 >= ROUNDS) return finish(true);
@@ -168,6 +168,7 @@ function advance() {
 let cleared = false;
 function finish(c) {
   cleared = c;
+  if (!c && !passed) score += roundScore;
   if (score > best) { best = score; newBest = true; saveBest(best); } else newBest = false;
   state = "over"; stateT = 0;
 }
@@ -418,7 +419,7 @@ function draw() {
     text(`咲いた数 ${bloomedCount} / 目標 ${TARGETS[round]}`, W / 2, py + 84 * S, 16 * S, "#fff", 600);
     text(`連鎖の深さ ${maxDepth} 段`, W / 2, py + 110 * S, 15 * S, "#cfe0ff", 600);
     text(passed ? `+${roundScore} 点${allBloom ? "（2倍）" : ""}` : (retryLeft > 0 ? "おかわりで同じラウンドに再挑戦" : "おかわりは使い切りました"), W / 2, py + 140 * S, 16 * S, "#ffe9a8", 700);
-    if (stateT > 0.7) {
+    if (stateT > 1.0) {
       const label = passed ? (round + 1 >= ROUNDS ? "タップで結果へ" : "タップで次のラウンド") : (retryLeft > 0 ? "タップでやり直す" : "タップで結果へ");
       text(label, W / 2, py + ph - 34 * S, 15 * S, `rgba(255,255,255,${0.6 + Math.sin(time * 4) * 0.35})`, 700);
     }
@@ -430,7 +431,7 @@ function draw() {
     text(`到達 ROUND ${round + 1}`, W / 2, py + 84 * S, 15 * S, "#cfe0ff", 600);
     text(`SCORE ${score}`, W / 2, py + 126 * S, 34 * S, "#ffe9a8", 900);
     text(newBest ? "ベスト更新！" : `BEST ${best}`, W / 2, py + 166 * S, 16 * S, newBest ? "#a8ffb8" : "#cfe0ff", 700);
-    if (stateT > 0.7) {
+    if (stateT > 1.0) {
       ctx.fillStyle = "rgba(127,216,255,0.2)";
       ctx.fillRect(W / 2 - 100 * S, py + ph - 70 * S, 200 * S, 44 * S);
       text("もう一回", W / 2, py + ph - 48 * S, 20 * S, "#ffffff", 800);
