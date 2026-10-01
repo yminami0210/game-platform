@@ -4,14 +4,14 @@
   "created": "2026-10-01 03:13",
   "stages": {
     "verify": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "請求書を突合中"
+      "note": "例外3件を検出（金額超過・二重請求・振込先変更）"
     },
     "entry": {
-      "state": "todo",
+      "state": "working",
       "revisions": 0,
-      "note": ""
+      "note": "仕訳案と支払予定を作成中"
     },
     "audit": {
       "state": "todo",
@@ -25,6 +25,18 @@
       "stage": "verify",
       "state": "working",
       "note": "請求書を突合中"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "verify",
+      "state": "pass",
+      "note": "例外3件を検出（金額超過・二重請求・振込先変更）"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "entry",
+      "state": "working",
+      "note": "仕訳案と支払予定を作成中"
     }
   ]
 }

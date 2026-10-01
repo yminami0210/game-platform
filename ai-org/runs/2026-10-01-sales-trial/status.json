@@ -4,14 +4,14 @@
   "created": "2026-10-01 03:13",
   "stages": {
     "research": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "顧客を調査中"
+      "note": "課題仮説3つと質問"
     },
     "proposal": {
-      "state": "todo",
+      "state": "working",
       "revisions": 0,
-      "note": ""
+      "note": "提案書を作成中"
     },
     "audit": {
       "state": "todo",
@@ -25,6 +25,18 @@
       "stage": "research",
       "state": "working",
       "note": "顧客を調査中"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "research",
+      "state": "pass",
+      "note": "課題仮説3つと質問"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "proposal",
+      "state": "working",
+      "note": "提案書を作成中"
     }
   ]
 }
