@@ -1,0 +1,30 @@
+{
+  "run": "2026-10-01-finance-trial",
+  "department": "finance",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "verify": {
+      "state": "working",
+      "revisions": 0,
+      "note": "請求書を突合中"
+    },
+    "entry": {
+      "state": "todo",
+      "revisions": 0,
+      "note": ""
+    },
+    "audit": {
+      "state": "todo",
+      "revisions": 0,
+      "note": ""
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "verify",
+      "state": "working",
+      "note": "請求書を突合中"
+    }
+  ]
+}

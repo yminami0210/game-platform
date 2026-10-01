@@ -1,0 +1,30 @@
+{
+  "run": "2026-10-01-sales-trial",
+  "department": "sales",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "research": {
+      "state": "working",
+      "revisions": 0,
+      "note": "顧客を調査中"
+    },
+    "proposal": {
+      "state": "todo",
+      "revisions": 0,
+      "note": ""
+    },
+    "audit": {
+      "state": "todo",
+      "revisions": 0,
+      "note": ""
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "research",
+      "state": "working",
+      "note": "顧客を調査中"
+    }
+  ]
+}

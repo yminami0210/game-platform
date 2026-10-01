@@ -12,6 +12,7 @@
   org.py set <run_dir> <stage> <state> [note]
                                            進行状況を更新（todo/working/revise/pass/fail）
   org.py status [run_dir]                  進行状況を表示（省略時は最新の実行）
+  org.py office                            全部署の最新の実行を一覧（オフィスの様子）
 """
 import datetime
 import json
@@ -208,6 +209,26 @@ def cmd_status(run: Path) -> None:
             print(f"  {f['at']}  {labels[f['stage']]}: {STATES[f['state']]} {f['note']}")
 
 
+def cmd_office() -> None:
+    """全部署の最新の実行を1画面で見る（オフィスの様子）。"""
+    latest = {}
+    for p in sorted(RUNS_DIR.glob("*/status.json")) if RUNS_DIR.exists() else []:
+        st = load_json(p)
+        latest[st["department"]] = st
+    print("■ AI社員オフィス")
+    for name, team in departments().items():
+        st = latest.get(name)
+        if not st:
+            print(f"  {team['name']:<12} ・まだ仕事なし")
+            continue
+        cur = next(((k, s) for k, s in st["stages"].items() if s["state"] != "pass"), None)
+        if cur is None:
+            print(f"  {team['name']:<12} ✓ 完了    {st['run']}")
+        else:
+            k, s = cur
+            print(f"  {team['name']:<12} {STATES[s['state']]:<8} {st['run']} / {k}: {s['note']}")
+
+
 def cmd_list() -> None:
     for name, team in departments().items():
         print(f"■ {name}: {team['name']} — {team['mission']}")
@@ -220,6 +241,8 @@ def main(argv: list) -> None:
     cmd = argv[1] if len(argv) > 1 else ""
     if cmd == "list":
         cmd_list()
+    elif cmd == "office":
+        cmd_office()
     elif cmd == "validate":
         errors = validate()
         print("NG\n" + "\n".join(f"- {e}" for e in errors) if errors else "OK")
