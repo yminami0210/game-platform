@@ -14,26 +14,27 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 3. `arcade/learnings.md` を読む。
 
 ## 1. 企画担当（サブエージェント）
-> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、`$GAME/plan.md` に次の節で書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`。実在のゲーム・キャラクター・商標の名前や見た目は使わない。返答はフォルダのパスと一行ピッチだけ。
+> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、`$GAME/plan.md` に次の節で書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。返答はフォルダのパスと一行ピッチだけ。
 
 ## 2. 開発担当（サブエージェント）
-> あなたはミニゲーム工場の開発担当です。`<GAME>/plan.md` のとおりに `<GAME>/index.html` を作ってください。条件:
-> - 1ファイルで完結（HTML + CSS + JS を埋め込み）。外部のファイル・フォント・通信は使わない。画像は canvas の図形か inline SVG、音は Web Audio で生成（最初のタップで鳴らし始める）
+> あなたはミニゲーム工場の開発担当です。まず `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を読み、そのデザインの進め方（計画 → 定番との照合 → 実装 → スクショで自己批評 → 飾りを1つ取る）で作ってください。`<GAME>/plan.md` のとおりに `<GAME>/index.html` を作ります。条件:
+> - 1ファイルで完結（HTML + CSS + JS を埋め込み）。外部の読み込みは Google Fonts だけ可（読めなくても遊べるようにフォールバックを書く）。それ以外のファイル・通信は使わない。画像は canvas の図形か inline SVG、音は Web Audio で生成（最初のタップで鳴らし始める）
 > - `<meta name="viewport" content="width=device-width,initial-scale=1">`。スマホ縦画面（390x844）で全体が見え、PCではキーボードでも遊べる
 > - タイトル画面 → 遊ぶ → 結果（スコア・もう一回）の流れ。遊び方は画面に1〜2行で表示。ベストスコアは localStorage に保存（try/catch で囲む）
 > - 300KB 以下。エラーを出さない
 > `<GAME>/meta.json` の title / pitch（60字以内）/ genre / controls / how_to_play を埋める。
-> `node arcade/bin/qa.mjs <GAME>` と `python3 arcade/bin/arcade.py check <GAME>` が両方 OK になるまで直す。`<GAME>/qa/play.png` を Read で見て、遊んでいる画面になっているか自分でも確かめる。返答は3行以内。
+> `node arcade/bin/qa.mjs <GAME>` と `python3 arcade/bin/arcade.py check <GAME>` が両方 OK になるまで直す。`<GAME>/qa/play.png` を Read で見て、遊んでいる画面になっているか自分でも確かめる。最後に `arcade/design-log.md` に1行追記する。返答は3行以内。
 
 ## 3. 監査役（サブエージェント）
 > あなたはミニゲーム工場の監査役です。`<GAME>` を判定してください。`node arcade/bin/qa.mjs <GAME>` と `python3 arcade/bin/arcade.py check <GAME>` を実行し、`qa/start.png` と `qa/play.png` を Read で見て、`plan.md` と `index.html` を読みます。観点:
 > 1. **楽しさ**: 30秒で何をすればいいか分かるか / 気持ちいい瞬間が実装されているか / もう一回遊びたくなる仕掛けがあるか
 > 2. **完成度**: タイトル → 遊ぶ → 結果 → もう一回 が回るか / スマホで操作できるか / 画面からはみ出していないか
-> 3. **権利・安全**: 実在作品のキャラクター・名前・見た目に似ていないか / 暴力や性的な表現が過度でないか / 外部通信が無いか
-> `<GAME>/audit.md` に観点ごとの結果と、10点満点の「楽しさスコア」を書く。最後の行は `VERDICT: PASS` か `VERDICT: REVISE` だけ。REVISE なら、開発担当がそのまま直せる具体的な指摘を書く。
+> 3. **デザイン**: `.claude/skills/game-art-direction/SKILL.md` の「監査役が見る観点（デザイン）」で確かめ、「AIが作った感」スコア（10点満点、10 = 人のデザイナーの作品にしか見えない）をつける。**6点未満は REVISE**
+> 4. **権利・安全**: 実在作品のキャラクター・名前・見た目に似ていないか / 暴力や性的な表現が過度でないか / 外部通信が無いか
+> `<GAME>/audit.md` に観点ごとの結果と、10点満点の「楽しさスコア」と「デザインスコア」を書く。最後の行は `VERDICT: PASS` か `VERDICT: REVISE` だけ。REVISE なら、開発担当がそのまま直せる具体的な指摘を書く。
 
 ## 4. 判定
-- `PASS` → `python3 arcade/bin/arcade.py set <GAME> ready 楽しさ<点>` 
+- `PASS` → `python3 arcade/bin/arcade.py set <GAME> ready 楽しさ<点>/デザイン<点>` 
 - `REVISE` → 指摘を開発担当（新しいサブエージェント）に渡して直させ、監査をもう一度。**差し戻しは1回まで**。2回目も REVISE なら `set <GAME> rejected <理由>`（失敗作も記録として残す）
 - 監査で出た学び（次の企画・開発で役立つこと）を `arcade/learnings.md` に1行追記する（30行以内に整理）
 

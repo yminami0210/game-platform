@@ -2,7 +2,7 @@
 // ミニゲームの自動QA。スマホ画面のヘッドレス Chromium で開き、数秒間でたらめに遊んで確かめる。
 //   node arcade/bin/qa.mjs arcade/games/<id>        → 要約を数行表示。失敗で exit 1
 // 確かめること: 読み込みエラー・実行時エラーが無い / 画面に何か描かれている /
-//               入力（タップ・キー）で画面が変わる / 外部への通信をしていない
+//               入力（タップ・キー）で画面が変わる / 外部への通信をしていない（Google Fonts だけは許可）
 // スクリーンショットを <game>/qa/ に保存する（start.png・play.png）。
 import { createRequire } from "node:module";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -24,13 +24,15 @@ if (!existsSync(html)) {
   process.exit(1);
 }
 
+// 外部通信で許すのは Google Fonts だけ（読めなくても遊べることが前提）
+const FONT_HOSTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 const errors = [];
 const warnings = [];
 const sizeKB = statSync(html).size / 1024;
 if (sizeKB > 300) errors.push(`index.html が ${sizeKB.toFixed(0)}KB です（300KB 以下）`);
 const src = readFileSync(html, "utf8");
-if (/<(script|link|img|audio|iframe)[^>]+(src|href)=["']https?:/i.test(src)) {
-  errors.push("外部のファイルを読み込んでいます（1ファイルで完結させる）");
+for (const m of src.matchAll(/<(script|link|img|audio|iframe)[^>]+(?:src|href)=["'](https?:[^"']+)/gi)) {
+  if (!FONT_HOSTS.test(m[2])) errors.push(`外部のファイルを読み込んでいます: ${m[2].slice(0, 80)}（Google Fonts 以外は1ファイルで完結させる）`);
 }
 if (!/name=["']viewport["']/i.test(src)) errors.push("viewport の meta タグがありません（スマホ対応）");
 
@@ -38,11 +40,12 @@ const browser = await playwright.chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 page.on("pageerror", (e) => errors.push(`実行時エラー: ${String(e.message).slice(0, 160)}`));
 page.on("console", (m) => {
-  if (m.type() === "error") errors.push(`console.error: ${m.text().slice(0, 160)}`);
+  // フォントの読み込み失敗（オフライン時）は遊びに影響しないので数えない
+  if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(`console.error: ${m.text().slice(0, 160)}`);
 });
 page.on("request", (r) => {
   const u = r.url();
-  if (!u.startsWith("file:") && !u.startsWith("data:") && !u.startsWith("blob:")) {
+  if (!u.startsWith("file:") && !u.startsWith("data:") && !u.startsWith("blob:") && !FONT_HOSTS.test(u)) {
     errors.push(`外部への通信: ${u.slice(0, 120)}`);
   }
 });
@@ -50,6 +53,7 @@ page.on("request", (r) => {
 mkdirSync(join(dir, "qa"), { recursive: true });
 await page.goto(pathToFileURL(html).href);
 await page.waitForTimeout(800);
+await page.evaluate(() => document.fonts && document.fonts.ready).catch(() => {});
 const shot0 = await page.screenshot({ path: join(dir, "qa", "start.png") });
 
 // 画面が真っ白・真っ黒でないか（スクリーンショットのバイト数で粗く判定）
