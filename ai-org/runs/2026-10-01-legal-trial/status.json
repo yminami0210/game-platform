@@ -14,9 +14,9 @@
       "note": "修正案9件・交渉方針"
     },
     "audit": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "総括中"
+      "note": "品質スコア90点"
     }
   },
   "feed": [
@@ -49,6 +49,12 @@
       "stage": "audit",
       "state": "working",
       "note": "総括中"
+    },
+    {
+      "at": "2026-10-01 03:18",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア90点"
     }
   ]
 }
