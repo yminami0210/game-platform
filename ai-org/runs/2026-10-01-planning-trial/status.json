@@ -4,9 +4,9 @@
   "created": "2026-10-01 03:13",
   "stages": {
     "research": {
-      "state": "working",
-      "revisions": 0,
-      "note": "市場と競合を調査中"
+      "state": "revise",
+      "revisions": 1,
+      "note": "障壁の数字の出典特定・資料の最新版確認"
     },
     "report": {
       "state": "todo",
@@ -25,6 +25,12 @@
       "stage": "research",
       "state": "working",
       "note": "市場と競合を調査中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "research",
+      "state": "revise",
+      "note": "障壁の数字の出典特定・資料の最新版確認"
     }
   ]
 }

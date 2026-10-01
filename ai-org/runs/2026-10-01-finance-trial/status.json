@@ -9,14 +9,14 @@
       "note": "例外3件を検出（金額超過・二重請求・振込先変更）"
     },
     "entry": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "仕訳案と支払予定を作成中"
+      "note": "支払予定1件・保留3件"
     },
     "audit": {
-      "state": "todo",
+      "state": "working",
       "revisions": 0,
-      "note": ""
+      "note": "総括中"
     }
   },
   "feed": [
@@ -37,6 +37,18 @@
       "stage": "entry",
       "state": "working",
       "note": "仕訳案と支払予定を作成中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "entry",
+      "state": "pass",
+      "note": "支払予定1件・保留3件"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
     }
   ]
 }

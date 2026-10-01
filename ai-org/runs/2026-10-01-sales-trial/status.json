@@ -9,14 +9,14 @@
       "note": "課題仮説3つと質問"
     },
     "proposal": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "提案書を作成中"
+      "note": "提案書下書き（価格は要承認）"
     },
     "audit": {
-      "state": "todo",
+      "state": "working",
       "revisions": 0,
-      "note": ""
+      "note": "総括中"
     }
   },
   "feed": [
@@ -37,6 +37,18 @@
       "stage": "proposal",
       "state": "working",
       "note": "提案書を作成中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "proposal",
+      "state": "pass",
+      "note": "提案書下書き（価格は要承認）"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
     }
   ]
 }
