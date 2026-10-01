@@ -15,6 +15,8 @@ export function unlock() {
   } catch {}
 }
 
+export const getAudio = () => (ctx && masterGain ? { ctx, masterGain } : null);
+
 export function setMuted(m) {
   muted = m;
   if (masterGain) {

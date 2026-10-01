@@ -25,7 +25,7 @@ export function createRenderer(canvas) {
     const c = cv.getContext('2d'), gr = c.createRadialGradient(32, 32, 0, 32, 32, 32);
     gr.addColorStop(0, `rgba(${rgb},0.9)`); gr.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = gr; c.fillRect(0, 0, 64, 64); return cv;
   };
-  const glow = mkGlow('255,200,90'), glowR = mkGlow('127,224,212');
+  let glow = mkGlow('255,200,90'); const glowR = mkGlow('127,224,212');
 
   const dpr = () => canvas.width / innerWidth;
   const jig = (i, k) => calm() ? 0 : Math.sin(time * (1.3 + (i % 5) * 0.37) + i * 1.7 + k) * 0.06;
@@ -34,6 +34,10 @@ export function createRenderer(canvas) {
   return {
     unitPx: () => scale / dpr(),
     setReducedMotion(v) { userReduced = !!v; },
+    setColor(hex) { // 群れの色（見た目のみ）
+      const n = parseInt(String(hex).replace('#', ''), 16); if (!Number.isFinite(n)) return;
+      C.main = '#' + n.toString(16).padStart(6, '0'); glow = mkGlow(`${n >> 16},${(n >> 8) & 255},${n & 255}`);
+    },
     setEffects(v) { userReduced = !v; }, // 旧API互換
     event(e, s) {
       if (parts.length > 160) parts.splice(0, 40);

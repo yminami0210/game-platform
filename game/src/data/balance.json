@@ -29,23 +29,23 @@
         "traps": []
       },
       {
-        "pull": 2.5,
+        "pull": 3.0,
         "speed": 3.4,
-        "gap": 2.0,
+        "gap": 2.1,
         "spacing": 9,
         "traps": [
           {
             "t": "wind",
-            "p": 0.4,
+            "p": 0.3,
             "len": 4,
-            "f": 1.2
+            "f": 0.9
           }
         ]
       },
       {
         "pull": 1.0,
         "speed": 3.8,
-        "gap": 1.7,
+        "gap": 1.75,
         "spacing": 9,
         "traps": [
           {
@@ -114,7 +114,23 @@
   },
   "traps": {
     "rootsCatch": 2,
-    "blackstoneFrac": 0.2
+    "blackstoneFrac": 0.2,
+    "puddleW": 2.4,
+    "puddleLen": 2.5,
+    "dimSec": 2,
+    "rootsHalf": 0.85,
+    "rootsLen": 2.5,
+    "stoneR": 0.5,
+    "stoneRange": 3,
+    "stonePull": 1.0
   },
-  "firstGoalScore": 100
+  "firstGoalScore": 100,
+  "flowers": {
+    "p": 0.5,
+    "edge": 0.7
+  },
+  "tutorial": {
+    "walls": 3,
+    "gap": 3.6
+  }
 }

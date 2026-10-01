@@ -13,6 +13,6 @@
 | T-020 | 4 | gs-content-creator | layers / creatures / texts / colors の JSON | brief, world-bible | JSON検証OK | T-010 | done |
 | T-021 | 4 | gs-design-manager | タイトル・遊び方・ずかん・設定・リザルト画面、アイコン、エフェクト | brief, design-system | 画面が揃う | T-011 | done |
 | T-022 | 4 | gs-sound | 効果音と層別BGM、ミュート | brief, design-system §音 | 鳴る/止まる | T-011 | done（sfx.js 拡張: start/pickup/scatter/gate/bloom/layer/fail/puddle、bgm.js新規: startBgm/setBgmLayer/stopBgm、五音階ペンタトニック、同時発音制限、ピッチ微調整） |
-| T-023 | 4 | gs-coder | 罠4種、ねむり花、図鑑・色の保存、チュートリアル、組み込み | gdd §2§5§6§7 | gate_check release | T-020 | todo |
+| T-023 | 4 | gs-coder | 罠4種、ねむり花、図鑑・色の保存、チュートリアル、組み込み | gdd §2§5§6§7 | gate_check release | T-020 | done |
 | T-030 | 5 | gs-reviewer | リリース判定 | 差分、gate 結果 | 判定 | T-023 | todo |
 | T-031 | 5 | gs-legal | リリース前チェックリスト | legal-checklist | 判定 | T-023 | todo |

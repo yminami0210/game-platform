@@ -52,6 +52,11 @@
   .newbest { color:var(--reward); font-weight:700; font-size:16px; }
   .stats { margin:8px 0 0; display:flex; flex-direction:column; gap:6px; width:100%; max-width:320px; }
   .stats div { display:flex; justify-content:space-between; font-size:15px; border-bottom:1px solid #2A3050; padding-bottom:4px; } .stats dt { color:var(--mut); } .stats dd { margin:0; font-weight:700; }
+  #hint { position:fixed; left:0; right:0; top:22%; text-align:center; font-size:18px; font-weight:700; text-shadow:0 0 10px #000, 0 0 3px #000; pointer-events:none; padding:0 24px; transition:opacity .4s; }
+  #colors { display:flex; gap:6px; justify-content:center; }
+  #colors button { width:44px; height:44px; border-radius:50%; border:3px solid #3A4160; background:var(--c); padding:0; }
+  #colors button[aria-pressed="true"] { border-color:var(--fg); box-shadow:0 0 14px var(--c); }
+  #colors button:disabled { opacity:.25; }
   [hidden] { display:none !important; }
   @keyframes fin { from { opacity:0 } to { opacity:1 } }
   @keyframes breathe { 50% { opacity:.55; transform:scale(.85) } }
@@ -64,6 +69,7 @@
 <div id="ui">
   <div id="hud"><div class="hud"><span>ひかり <span id="score">0</span></span><span id="layer"></span><span>群れ <span id="count">5</span></span></div>
   <div class="hud sub" style="padding-top:0"><span id="best">ベスト 0</span></div></div>
+  <div id="hint" hidden aria-live="polite"></div>
   <div id="screens"></div>
 </div>
 <script type="module" src="src/main.js"></script>

@@ -1,5 +1,5 @@
 // オフライン対応。アセットを変えたら CACHE_VERSION を上げる。
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg',
   'src/main.js', 'src/core/game.js', 'src/core/rng.js', 'src/render/renderer.js',
