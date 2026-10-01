@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bloom Chain</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#060b24;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100vw;height:100vh;height:100dvh}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(() => {
+"use strict";
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (cursor.x > W || cursor.y > H) { cursor.x = W / 2; cursor.y = H / 2; }
+}
+
+// ---------- storage ----------
+const KEY = "arcade.bloom-chain.best";
+function loadBest() { try { return parseInt(localStorage.getItem(KEY) || "0", 10) || 0; } catch (e) { return 0; } }
+function saveBest(v) { try { localStorage.setItem(KEY, String(v)); } catch (e) {} }
+let best = loadBest();
+
+// ---------- audio ----------
+let actx = null, master = null, muted = false, voices = 0, lastNoteAt = 0;
+function initAudio() {
+  if (actx) { if (actx.state === "suspended") actx.resume().catch(() => {}); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    actx = new AC();
+    master = actx.createGain(); master.gain.value = muted ? 0 : 0.5;
+    master.connect(actx.destination);
+  } catch (e) { actx = null; }
+}
+const PENTA = [0, 2, 4, 7, 9];
+function noteFreq(step) {
+  const oct = Math.floor(step / 5), n = PENTA[step % 5] + oct * 12;
+  return 440 * Math.pow(2, (n - 9) / 12); // base C4-ish
+}
+function bell(step, vol) {
+  if (!actx || muted) return;
+  const now = actx.currentTime;
+  if (voices >= 8 || now - lastNoteAt < 0.025) return;
+  lastNoteAt = now; voices++;
+  try {
+    const f = noteFreq(Math.min(step, 19));
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(vol || 0.25, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+    const o2 = actx.createOscillator(); o2.type = "sine"; o2.frequency.value = f * 2.01;
+    const g2 = actx.createGain(); g2.gain.value = 0.25;
+    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
+    o.start(now); o2.start(now); o.stop(now + 0.95); o2.stop(now + 0.95);
+    o.onended = () => { voices = Math.max(0, voices - 1); };
+  } catch (e) { voices = Math.max(0, voices - 1); }
+}
+function chord(steps, vol) {
+  if (!actx || muted) return;
+  steps.forEach((s, i) => setTimeout(() => { lastNoteAt = 0; bell(s, vol); }, i * 70));
+}
+function setMuted(m) {
+  muted = m;
+  if (master) master.gain.value = muted ? 0 : 0.5;
+}
+
+// ---------- game data ----------
+const ROUNDS = 8;
+const TARGETS = [5, 9, 14, 20, 26, 32, 38, 45];
+const COUNTS = [32, 36, 40, 44, 48, 52, 56, 60];
+const SPEEDS = [14, 17, 20, 23, 26, 29, 32, 36];
+const HUES = [190, 330, 95, 270, 45, 160, 10, 220];
+const MILESTONES = [10, 25, 40];
+
+let state = "title"; // title | aim | chain | result | over
+let round = 0, score = 0, roundScore = 0, retryLeft = 1, maxDepth = 0, bloomedCount = 0;
+let seeds = [], blooms = [], particles = [], petals = [], popups = [];
+let flash = 0, stateT = 0, sparkle = 0, allBloom = false, passed = false, newBest = false;
+let milestoneIdx = 0;
+const cursor = { x: 195, y: 422, visible: false };
+const keys = {};
+let ripples = [];
+
+function baseR() { return Math.max(26, Math.min(W, H) * 0.085); }
+
+function startGame() {
+  round = 0; score = 0; retryLeft = 1; newBest = false;
+  startRound();
+}
+function startRound() {
+  seeds = []; blooms = []; particles = []; popups = [];
+  bloomedCount = 0; maxDepth = 0; roundScore = 0; allBloom = false; milestoneIdx = 0; sparkle = 0;
+  const n = COUNTS[round], sp = SPEEDS[round] * Math.sqrt(Math.min(W, H) / 390);
+  const pad = 14, top = 70;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = sp * (0.5 + Math.random() * 0.7);
+    seeds.push({
+      x: pad + Math.random() * (W - pad * 2), y: top + Math.random() * (H - top - pad),
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s, ph: Math.random() * 6.28, alive: true
+    });
+  }
+  state = "aim"; stateT = 0;
+}
+function addBloom(x, y, depth, hue) {
+  blooms.push({ x, y, t: 0, depth, hue, rot: Math.random() * 6.28, maxR: baseR() * (depth === 0 ? 1.1 : 1) });
+  bloomedCount += depth === 0 ? 0 : 1;
+  if (depth > maxDepth) maxDepth = depth;
+  if (depth > 0) {
+    const pts = 10 + (depth - 1) * 5;
+    roundScore += pts;
+  }
+  bell(depth, depth === 0 ? 0.3 : 0.22);
+}
+function tapAt(x, y) {
+  if (state !== "aim") return;
+  addBloom(x, y, 0, HUES[round]);
+  state = "chain"; stateT = 0;
+}
+const BLOOM_LIFE = 1.5;
+function bloomRadius(b) {
+  const t = b.t;
+  if (t < 0.3) { const k = t / 0.3; return b.maxR * (1 - Math.pow(1 - k, 3)); }
+  if (t < 1.1) return b.maxR;
+  const k = (t - 1.1) / (BLOOM_LIFE - 1.1); return b.maxR * (1 - k * k);
+}
+
+function endRound() {
+  const total = seeds.length;
+  allBloom = bloomedCount >= total;
+  if (allBloom) roundScore *= 2;
+  passed = bloomedCount >= TARGETS[round];
+  sparkle = 1;
+  chord(passed ? [5, 7, 9, 12] : [4, 2, 0], 0.18);
+  if (allBloom) {
+    for (let i = 0; i < 90; i++) petals.push({ x: Math.random() * W, y: -Math.random() * H * 0.6, vy: 40 + Math.random() * 60, vx: -10 + Math.random() * 20, r: 4 + Math.random() * 5, rot: Math.random() * 6, vr: -2 + Math.random() * 4, hue: (HUES[round] + Math.random() * 60) % 360 });
+  }
+  state = "result"; stateT = 0;
+  if (passed) score += roundScore;
+}
+function advance() {
+  if (stateT < 0.7) return;
+  if (state === "result") {
+    if (passed) {
+      if (round + 1 >= ROUNDS) return finish(true);
+      round++; startRound();
+    } else if (retryLeft > 0) {
+      retryLeft--; startRound();
+    } else finish(false);
+  } else if (state === "over") {
+    startGame();
+  } else if (state === "title") {
+    startGame();
+  }
+}
+let cleared = false;
+function finish(c) {
+  cleared = c;
+  if (score > best) { best = score; newBest = true; saveBest(best); } else newBest = false;
+  state = "over"; stateT = 0;
+}
+
+// ---------- input ----------
+function muteHit(x, y) { return x > W - 54 && y < 54; }
+function onPress(x, y) {
+  initAudio();
+  if (muteHit(x, y)) { setMuted(!muted); return; }
+  if (state === "aim") { cursor.visible = false; tapAt(x, y); }
+  else if (state === "title") { if (stateT > 0.2) startGame(); }
+  else advance();
+}
+cv.addEventListener("pointerdown", (e) => { e.preventDefault(); onPress(e.clientX, e.clientY); });
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+window.addEventListener("keydown", (e) => {
+  const k = e.code;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(k)) e.preventDefault();
+  initAudio();
+  if (k === "KeyM") { setMuted(!muted); return; }
+  keys[k] = true;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyW", "KeyA", "KeyS", "KeyD"].includes(k)) cursor.visible = true;
+  if (k === "Space" || k === "Enter") {
+    if (state === "aim") { cursor.visible = true; tapAt(cursor.x, cursor.y); }
+    else if (state === "title") startGame();
+    else advance();
+  }
+});
+window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+window.addEventListener("resize", resize);
+
+// ---------- update ----------
+function update(dt) {
+  stateT += dt;
+  if (flash > 0) flash = Math.max(0, flash - dt * 1.8);
+  if (sparkle > 0) sparkle = Math.max(0, sparkle - dt * 1.2);
+
+  // cursor movement
+  const cs = Math.max(W, H) * 0.55;
+  let mx = 0, my = 0;
+  if (keys.ArrowLeft || keys.KeyA) mx -= 1;
+  if (keys.ArrowRight || keys.KeyD) mx += 1;
+  if (keys.ArrowUp || keys.KeyW) my -= 1;
+  if (keys.ArrowDown || keys.KeyS) my += 1;
+  cursor.x = Math.max(8, Math.min(W - 8, cursor.x + mx * cs * dt));
+  cursor.y = Math.max(8, Math.min(H - 8, cursor.y + my * cs * dt));
+
+  // ripples (background)
+  if (Math.random() < dt * 0.8) ripples.push({ x: Math.random() * W, y: Math.random() * H, t: 0 });
+  ripples = ripples.filter((r) => (r.t += dt) < 4);
+
+  // seeds drift
+  for (const s of seeds) {
+    if (!s.alive) continue;
+    s.x += s.vx * dt; s.y += s.vy * dt; s.ph += dt * 3;
+    if (s.x < 6) { s.x = 6; s.vx = Math.abs(s.vx); }
+    if (s.x > W - 6) { s.x = W - 6; s.vx = -Math.abs(s.vx); }
+    if (s.y < 60) { s.y = 60; s.vy = Math.abs(s.vy); }
+    if (s.y > H - 6) { s.y = H - 6; s.vy = -Math.abs(s.vy); }
+  }
+
+  // blooms
+  if (state === "chain" || state === "result") {
+    for (const b of blooms) b.t += dt;
+    for (const b of blooms) {
+      if (b.t > BLOOM_LIFE) continue;
+      const r = bloomRadius(b), r2 = (r + 4) * (r + 4);
+      for (const s of seeds) {
+        if (!s.alive) continue;
+        const dx = s.x - b.x, dy = s.y - b.y;
+        if (dx * dx + dy * dy < r2) {
+          s.alive = false;
+          addBloom(s.x, s.y, b.depth + 1, (b.hue + 12) % 360);
+          if (milestoneIdx < MILESTONES.length && bloomedCount >= MILESTONES[milestoneIdx]) {
+            const m = MILESTONES[milestoneIdx++];
+            flash = 0.5;
+            popups.push({ text: "×" + m + " BLOOM!", x: W / 2, y: H * 0.32, t: 0, size: Math.min(W, H) * (0.1 + milestoneIdx * 0.015) });
+          }
+        }
+      }
+    }
+    // dissolve finished blooms into particles
+    for (const b of blooms) {
+      if (b.t > BLOOM_LIFE && !b.done) {
+        b.done = true;
+        for (let i = 0; i < 6; i++) {
+          const a = Math.random() * 6.28, sp = 20 + Math.random() * 50;
+          particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.6 + Math.random() * 0.5, hue: b.hue });
+        }
+      }
+    }
+    if (state === "chain" && blooms.every((b) => b.t > BLOOM_LIFE)) endRound();
+  }
+  particles = particles.filter((p) => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.97; p.vy *= 0.97; return p.t < p.life; });
+  petals = petals.filter((p) => { p.y += p.vy * dt; p.x += p.vx * dt + Math.sin(p.y * 0.02) * 0.6; p.rot += p.vr * dt; return p.y < H + 20; });
+  popups = popups.filter((p) => (p.t += dt) < 1.4);
+}
+
+// ---------- draw ----------
+function drawFlower(x, y, r, rot, hue, alpha) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.globalAlpha = alpha * 0.22;
+  ctx.fillStyle = `hsl(${hue},90%,65%)`;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.fill();
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.strokeStyle = `hsl(${hue},95%,75%)`; ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.globalAlpha = alpha * 0.75;
+  ctx.fillStyle = `hsl(${hue},85%,72%)`;
+  const pr = r * 0.42;
+  for (let i = 0; i < 6; i++) {
+    const a = i * 1.0472;
+    ctx.beginPath();
+    ctx.ellipse(Math.cos(a) * pr, Math.sin(a) * pr, pr * 0.62, pr * 0.32, a, 0, 6.283);
+    ctx.fill();
+  }
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = `hsl(${(hue + 40) % 360},100%,85%)`;
+  ctx.beginPath(); ctx.arc(0, 0, pr * 0.32, 0, 6.283); ctx.fill();
+  ctx.restore();
+}
+function text(s, x, y, size, color, weight, align) {
+  ctx.font = `${weight || 700} ${size}px system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif`;
+  ctx.textAlign = align || "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = color; ctx.fillText(s, x, y);
+}
+function panel(x, y, w, h) {
+  ctx.save();
+  ctx.fillStyle = "rgba(8,14,44,0.82)";
+  ctx.strokeStyle = "rgba(160,200,255,0.35)"; ctx.lineWidth = 1.5;
+  const r = 18;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  ctx.fill(); ctx.stroke(); ctx.restore();
+}
+let time = 0;
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "#0a1440"); g.addColorStop(1, "#03061a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // ripples
+  ctx.lineWidth = 1;
+  for (const r of ripples) {
+    ctx.strokeStyle = `rgba(140,180,255,${0.12 * (1 - r.t / 4)})`;
+    ctx.beginPath(); ctx.ellipse(r.x, r.y, r.t * 30, r.t * 12, 0, 0, 6.283); ctx.stroke();
+  }
+  const hue = HUES[round];
+  // seeds
+  for (const s of seeds) {
+    if (!s.alive) continue;
+    const a = 0.65 + Math.sin(s.ph) * 0.3;
+    ctx.fillStyle = `hsla(${hue},100%,70%,${a * 0.25})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 8, 0, 6.283); ctx.fill();
+    ctx.fillStyle = `hsla(${hue},100%,85%,${a})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, 6.283); ctx.fill();
+  }
+  // blooms
+  for (const b of blooms) {
+    if (b.t > BLOOM_LIFE) continue;
+    const r = bloomRadius(b);
+    const fade = b.t > 1.1 ? 1 - (b.t - 1.1) / 0.4 : 1;
+    drawFlower(b.x, b.y, r, b.rot + b.t * 0.8, b.hue, Math.max(0, fade));
+  }
+  // particles
+  for (const p of particles) {
+    ctx.fillStyle = `hsla(${p.hue},100%,80%,${1 - p.t / p.life})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 6.283); ctx.fill();
+  }
+  // final sparkle: all bloom positions twinkle
+  if (sparkle > 0) {
+    for (const b of blooms) {
+      ctx.fillStyle = `rgba(255,255,240,${sparkle * 0.9})`;
+      const s = 3 + sparkle * 5;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y - s * 2); ctx.lineTo(b.x + s * 0.4, b.y); ctx.lineTo(b.x, b.y + s * 2); ctx.lineTo(b.x - s * 0.4, b.y); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(b.x - s * 2, b.y); ctx.lineTo(b.x, b.y + s * 0.4); ctx.lineTo(b.x + s * 2, b.y); ctx.lineTo(b.x, b.y - s * 0.4); ctx.closePath(); ctx.fill();
+    }
+  }
+  // petals
+  for (const p of petals) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = `hsla(${p.hue},90%,78%,0.85)`;
+    ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * 0.5, 0, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+  if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.25})`; ctx.fillRect(0, 0, W, H); }
+  // popups
+  for (const p of popups) {
+    const k = p.t / 1.4, sc = 0.6 + Math.min(1, p.t * 6) * 0.5;
+    ctx.save(); ctx.globalAlpha = 1 - k * k;
+    ctx.shadowColor = `hsl(${hue},100%,70%)`; ctx.shadowBlur = 18;
+    text(p.text, p.x, p.y - k * 40, p.size * sc, "#fff", 900);
+    ctx.restore();
+  }
+
+  const S = Math.min(W / 390, H / 700, 1.6);
+  // HUD
+  if (state === "aim" || state === "chain" || state === "result") {
+    text(`ROUND ${round + 1}/${ROUNDS}`, 16, 24, 15 * S, "#cfe0ff", 700, "left");
+    text(`咲いた ${bloomedCount} / 目標 ${TARGETS[round]}`, 16, 46, 15 * S, bloomedCount >= TARGETS[round] ? "#a8ffb8" : "#ffffff", 700, "left");
+    text(`SCORE ${score + (state === "result" ? 0 : roundScore)}`, W / 2 + 20, 24, 15 * S, "#ffe9a8", 700, "center");
+    text(retryLeft > 0 ? "おかわり ●" : "おかわり ○", W / 2 + 20, 46, 13 * S, "#cfe0ff", 600, "center");
+  }
+  if (state === "aim") {
+    const a = 0.55 + Math.sin(time * 4) * 0.35;
+    text("どこか1か所をタップして花を咲かせよう", W / 2, H - 40, 15 * S, `rgba(255,255,255,${a})`, 600);
+  }
+  if (state === "aim" && cursor.visible) {
+    ctx.strokeStyle = `hsl(${hue},100%,80%)`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cursor.x, cursor.y, baseR() * 1.1, 0, 6.283); ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cursor.x - 10, cursor.y); ctx.lineTo(cursor.x + 10, cursor.y); ctx.moveTo(cursor.x, cursor.y - 10); ctx.lineTo(cursor.x, cursor.y + 10); ctx.stroke();
+  }
+
+  // mute button
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.beginPath(); ctx.arc(W - 28, 28, 18, 0, 6.283); ctx.fill();
+  ctx.fillStyle = "#dfe8ff"; ctx.strokeStyle = "#dfe8ff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W - 37, 24); ctx.lineTo(W - 33, 24); ctx.lineTo(W - 27, 19); ctx.lineTo(W - 27, 37); ctx.lineTo(W - 33, 32); ctx.lineTo(W - 37, 32); ctx.closePath(); ctx.fill();
+  if (muted) { ctx.beginPath(); ctx.moveTo(W - 23, 23); ctx.lineTo(W - 16, 33); ctx.moveTo(W - 16, 23); ctx.lineTo(W - 23, 33); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.arc(W - 26, 28, 6, -0.9, 0.9); ctx.stroke(); }
+  ctx.restore();
+
+  const pw = Math.min(W - 32, 360 * S), px = (W - pw) / 2;
+  if (state === "title") {
+    // decorative flowers
+    drawFlower(W * 0.25, H * 0.2, 50 * S, time * 0.3, 190, 0.8);
+    drawFlower(W * 0.78, H * 0.28, 38 * S, -time * 0.3, 330, 0.8);
+    drawFlower(W * 0.6, H * 0.72, 44 * S, time * 0.25, 95, 0.7);
+    ctx.save(); ctx.shadowColor = "#7fd8ff"; ctx.shadowBlur = 24;
+    text("Bloom Chain", W / 2, H * 0.36, 44 * S, "#ffffff", 900);
+    ctx.restore();
+    text("ブルームチェイン", W / 2, H * 0.36 + 40 * S, 17 * S, "#bcd3ff", 600);
+    text("1ラウンド1回だけタップ。花が種を巻き込み連鎖！", W / 2, H * 0.5, 13.5 * S, "#e8efff", 500);
+    text("目標数を咲かせて全8ラウンド突破（PC: 矢印＋スペース）", W / 2, H * 0.5 + 24 * S, 12 * S, "#aebfe8", 500);
+    text(`BEST ${best}`, W / 2, H * 0.6, 20 * S, "#ffe9a8", 800);
+    const a = 0.55 + Math.sin(time * 4) * 0.4;
+    text("タップ / スペースでスタート", W / 2, H * 0.82, 18 * S, `rgba(255,255,255,${a})`, 700);
+  }
+  if (state === "result") {
+    const ph = 230 * S, py = H / 2 - ph / 2;
+    panel(px, py, pw, ph);
+    text(allBloom ? "ALL BLOOM!" : passed ? "クリア！" : "目標に届かず…", W / 2, py + 40 * S, 28 * S, allBloom ? "#ffd1f0" : passed ? "#a8ffb8" : "#ffb8b8", 900);
+    text(`咲いた数 ${bloomedCount} / 目標 ${TARGETS[round]}`, W / 2, py + 84 * S, 16 * S, "#fff", 600);
+    text(`連鎖の深さ ${maxDepth} 段`, W / 2, py + 110 * S, 15 * S, "#cfe0ff", 600);
+    text(passed ? `+${roundScore} 点${allBloom ? "（2倍）" : ""}` : (retryLeft > 0 ? "おかわりで同じラウンドに再挑戦" : "おかわりは使い切りました"), W / 2, py + 140 * S, 16 * S, "#ffe9a8", 700);
+    if (stateT > 0.7) {
+      const label = passed ? (round + 1 >= ROUNDS ? "タップで結果へ" : "タップで次のラウンド") : (retryLeft > 0 ? "タップでやり直す" : "タップで結果へ");
+      text(label, W / 2, py + ph - 34 * S, 15 * S, `rgba(255,255,255,${0.6 + Math.sin(time * 4) * 0.35})`, 700);
+    }
+  }
+  if (state === "over") {
+    const ph = 280 * S, py = H / 2 - ph / 2;
+    panel(px, py, pw, ph);
+    text(cleared ? "全ラウンドクリア！" : "ゲーム終了", W / 2, py + 42 * S, 26 * S, cleared ? "#ffd1f0" : "#ffffff", 900);
+    text(`到達 ROUND ${round + 1}`, W / 2, py + 84 * S, 15 * S, "#cfe0ff", 600);
+    text(`SCORE ${score}`, W / 2, py + 126 * S, 34 * S, "#ffe9a8", 900);
+    text(newBest ? "ベスト更新！" : `BEST ${best}`, W / 2, py + 166 * S, 16 * S, newBest ? "#a8ffb8" : "#cfe0ff", 700);
+    if (stateT > 0.7) {
+      ctx.fillStyle = "rgba(127,216,255,0.2)";
+      ctx.fillRect(W / 2 - 100 * S, py + ph - 70 * S, 200 * S, 44 * S);
+      text("もう一回", W / 2, py + ph - 48 * S, 20 * S, "#ffffff", 800);
+    }
+  }
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+resize();
+// title backdrop: drifting seeds
+round = 0;
+for (let i = 0; i < 30; i++) seeds.push({ x: Math.random() * W, y: 60 + Math.random() * (H - 60), vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, ph: Math.random() * 6, alive: true });
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
