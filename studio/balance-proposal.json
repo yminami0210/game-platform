@@ -1,0 +1,21 @@
+{
+  "start": { "N": 5, "firstWall": 9 },
+  "moveSpeed": 5.0,
+  "swarm": { "r0": 0.25, "rK": 0.17, "maxN": 40 },
+  "score": { "mSlope": 0.1 },
+  "light": { "base": 2.2, "k": 0.55, "aheadMul": 1.0 },
+  "layers": {
+    "count": 5, "length": 90,
+    "table": [
+      { "speed": 2.6, "gap": 3.6, "spacing": 11, "traps": [] },
+      { "speed": 3.0, "gap": 3.2, "spacing": 11, "traps": [{ "t": "web", "p": 0.4 }] },
+      { "speed": 3.4, "gap": 2.9, "spacing": 10, "traps": [{ "t": "web", "p": 0.3 }, { "t": "wind", "p": 0.4, "len": 4, "f": 1.2 }] },
+      { "speed": 3.8, "gap": 2.6, "spacing": 10, "traps": [{ "t": "wind", "p": 0.3, "len": 4, "f": 1.5 }, { "t": "frog", "p": 0.4 }] },
+      { "speed": 4.2, "gap": 2.4, "spacing": 9, "traps": [{ "t": "web", "p": 0.3 }, { "t": "wind", "p": 0.3, "len": 4, "f": 1.8 }, { "t": "frog", "p": 0.4 }] }
+    ]
+  },
+  "gapJitter": 0.3, "gapSpread": 1.0, "spacingJitter": 0.15, "speedGrow": 0,
+  "pickup": { "prob": 0.9, "max": 3, "radius": 0.3 },
+  "traps": { "webCatch": 2, "frogFrac": 0.2 },
+  "wind": 1
+}
