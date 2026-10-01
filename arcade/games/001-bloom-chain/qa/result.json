@@ -1,9 +1,6 @@
 {
-  "ok": false,
-  "errors": [
-    "外部のファイルを読み込んでいます: https://fonts.googleapis.com（Google Fonts 以外は1ファイルで完結させる）",
-    "外部のファイルを読み込んでいます: https://fonts.gstatic.com（Google Fonts 以外は1ファイルで完結させる）"
-  ],
+  "ok": true,
+  "errors": [],
   "warnings": [],
   "inputs": 40,
   "sizeKB": 31

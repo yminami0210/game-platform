@@ -40,6 +40,13 @@ function rgba(hex, a) {
   return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+function mix(h1, h2, k) {
+  // 不透明のまま2色を混ぜる（下の緑が透けて濁らないように）
+  const a = parseInt(h1.slice(1), 16), b = parseInt(h2.slice(1), 16);
+  const ch = (sh) => Math.round(((a >> sh) & 255) * (1 - k) + ((b >> sh) & 255) * k);
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+}
+
 // ---------- prerendered textures (made once, reused) ----------
 let bgCanvas = null;
 const grain = (() => {
@@ -78,10 +85,10 @@ function buildBackground() {
 
 // 蓮の花（上から見た形）を4種類、1回だけ描いておく
 const TINTS = [
-  { tip: C.enji, pod: C.kindei, a: 0.85 },   // 紅蓮
-  { tip: "#c27884", pod: C.kindei, a: 0.7 }, // 薄紅
-  { tip: C.kindei, pod: "#b08d48", a: 0.35 },// 白蓮
-  { tip: "#8e2b40", pod: C.kindei, a: 1 }    // 深い臙脂
+  { tip: C.enji, pod: C.kindei, a: 0.62 },   // 紅蓮
+  { tip: "#c27884", pod: C.kindei, a: 0.55 },// 薄紅
+  { tip: C.kindei, pod: "#b08d48", a: 0.3 }, // 白蓮
+  { tip: "#8e2b40", pod: C.kindei, a: 0.75 } // 深い臙脂
 ];
 const SPR = 256, SR = 118;
 function petalPath(g, len, wid, jit) {
@@ -103,14 +110,15 @@ function makeLotus(t) {
       g.rotate(off + (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.08);
       const l = len * (0.93 + Math.random() * 0.1);
       const grad = g.createLinearGradient(0, 0, 0, -l);
-      grad.addColorStop(0, C.gofun); grad.addColorStop(0.55, C.gofun);
-      grad.addColorStop(1, rgba(t.tip, t.a));
+      grad.addColorStop(0, C.gofun); grad.addColorStop(0.6, C.gofun);
+      grad.addColorStop(0.82, mix(C.gofun, t.tip, t.a * 0.45));
+      grad.addColorStop(1, mix(C.gofun, t.tip, t.a));
       petalPath(g, l, wid, jit);
       g.fillStyle = grad; g.fill();
       // 版ずれ: 墨の線を少しずらして刷る
       g.translate(1.8, 1.2);
       petalPath(g, l, wid, jit);
-      g.strokeStyle = rgba(C.sumi, 0.55); g.lineWidth = 2.2; g.stroke();
+      g.strokeStyle = rgba(C.sumi, 0.42); g.lineWidth = 1.8; g.stroke();
       g.beginPath(); g.moveTo(0, -l * 0.12); g.lineTo(jit[2] * 2, -l * 0.7);
       g.strokeStyle = rgba(C.sumi, 0.18); g.lineWidth = 1.2; g.stroke();
       g.restore();
@@ -145,10 +153,10 @@ const PAD = (() => {
     g.closePath();
   };
   leaf(0, 0); g.fillStyle = C.byakuroku; g.fill();
-  g.strokeStyle = rgba(C.rokusho, 0.9); g.lineWidth = 2;
-  for (let i = 0; i < 6; i++) {
-    const a = -Math.PI / 2 + 0.6 + i * 0.98;
-    g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 20, Math.sin(a) * 20); g.stroke();
+  g.strokeStyle = rgba(C.rokusho, 0.45); g.lineWidth = 1.3;
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + 0.75 + i * 1.18;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 17, Math.sin(a) * 17); g.stroke();
   }
   leaf(1.6, 1.4); g.strokeStyle = rgba(C.sumi, 0.6); g.lineWidth = 2.4; g.stroke();
   return c;
@@ -596,7 +604,7 @@ function draw() {
       ctx.beginPath(); ctx.moveTo(16, 26 + 37 * S); ctx.lineTo(16 + 128 * S, 26 + 36 * S); ctx.stroke();
     }
     const sx = W - 70;
-    text(`${score + (state === "result" ? 0 : roundScore)}`, sx, 24, 22 * S, C.gofun, { brush: true, align: "right", shadow: rgba(C.sumi, 0.6) });
+    text(`${score + (state === "result" ? 0 : roundScore)} 点`, sx, 24, 22 * S, C.gofun, { brush: true, align: "right", shadow: rgba(C.sumi, 0.6) });
     text(retryLeft > 0 ? "おかわり 一回" : "おかわり なし", sx, 26 + 26 * S, 13 * S, rgba(C.gofun, 0.82), { weight: 500, align: "right" });
   }
   if (state === "aim") {
@@ -666,7 +674,6 @@ function drawTitle(land) {
   const big = Math.min(W, H) * (land ? 0.3 : 0.26);
   const fx = land ? W * 0.3 : W * 0.36, fy = land ? H * 0.42 : H * 0.27;
   drawLotus(fx, fy, big, 0.2, 0, 1);
-  drawLotus(fx + big * 1.25, fy + big * 0.95, big * 0.42, 1.1, 1, 1);
   const ts = Math.min(68 * S, H * (land ? 0.15 : 0.075));
   const tx = land ? W * 0.62 : W * 0.8, ty = land ? H * 0.1 : H * 0.07;
   const th = vtext("蓮ひらく", tx, ty, ts, C.gofun, rgba(C.sumi, 0.75));
@@ -677,11 +684,11 @@ function drawTitle(land) {
   const fs = 14.5 * S, lh = fs * 1.7;
   const lines = ["池に一度だけ触れる。", "ひらいた蓮が浮き葉を巻きこみ、", "つぎつぎに咲いていく。", "目標の数を咲かせて八つの池を渡る。"];
   const tx2 = land ? tx + ts * 0.9 : lx;
-  lines.forEach((s, i) => text(s, tx2, base + i * lh, fs, C.gofun, { weight: 500, align: "left" }));
+  lines.forEach((s, i) => text(s, tx2, base + i * lh, fs, C.gofun, { weight: 500, align: "left", shadow: rgba(C.sumi, 0.55) }));
   const y2 = base + lines.length * lh + fs * 0.6;
   text("PC は矢印キーで狙ってスペース", tx2, y2, 13 * S, rgba(C.gofun, 0.75), { align: "left" });
   if (best > 0) text(`これまでの最高 ${best}`, tx2, y2 + lh * 1.2, 15 * S, C.gofun, { weight: 700, align: "left" });
-  text("触れてはじめる", tx2, land ? H - 40 : H * 0.88, 19 * S, C.gofun, { brush: true, align: "left", shadow: rgba(C.sumi, 0.6) });
+  text("触れてはじめる", tx2, land ? H - 40 : Math.min(H * 0.8, y2 + lh * 3.2), 19 * S, C.gofun, { brush: true, align: "left", shadow: rgba(C.sumi, 0.6) });
 }
 
 let last = performance.now();
