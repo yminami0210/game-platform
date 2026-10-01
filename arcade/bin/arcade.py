@@ -65,7 +65,7 @@ def check(d: Path) -> list:
         errors.append(f"status は {STATUSES} のどれか")
     if len(meta.get("pitch", "")) > 60:
         errors.append("pitch は60字以内（一行で言えること）")
-    others = [load(p) for p in games() if p.parent != d]
+    others = [load(p) for p in games() if p.parent.resolve() != d.resolve()]
     if any(o.get("title") == meta.get("title") for o in others):
         errors.append(f"タイトル「{meta.get('title')}」は既にあります")
     plan = d / "plan.md"
