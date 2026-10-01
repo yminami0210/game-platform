@@ -6,4 +6,4 @@
 | 2026-10-01 | trig_0166V2qfDUcV1riogUJUqaMG（Routine） | ai-team-weekly | 毎週月曜 8:45 JST に新セッションで /ai-team を実行し ai-team/weekly に push | 有効（初回 2026-10-05） |
 | 2026-10-01 | session_018WYAWhY1CMpzjTxmQY8aNN | [partner] 大型タイトル開発（game-studio） | 看板タイトルを game-studio（eco）で開発し、公開承認パックで止める（ブランチ studio/flagship） | 進行中 |
 | 2026-10-01 | session_01QkUvG7rhwuqzh5G9T4Jq1S | [partner] ミニゲーム工場（1日1本） | 毎朝 /arcade-make で1本作る常駐セッション（ブランチ arcade/factory） | 待機中 |
-| 2026-10-01 | trig_01P4vEZofHycXvZokHL9C8jH（Routine） | arcade-daily | 毎朝 8:47 JST に工場セッションへ「今日の1本」を送る | 有効（初回 2026-10-02） |
+| 2026-10-01 | trig_01J8qDTa8YcZ71Qv4KYvh6uY（Routine） | arcade-daily | 毎朝 8:47 JST に工場セッションへ「今日の1本」を送る（本部ブランチの取り込み込み。旧 trig_01P4vEZofHycXvZokHL9C8jH は削除） | 有効（初回 2026-10-02） |
