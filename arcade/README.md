@@ -1,6 +1,6 @@
 # ミニゲーム工場（arcade）
 
-1時間に1本、すぐ遊べるミニゲームを AI社員が作る。会社の方針は [`docs/company.md`](../docs/company.md)。
+1日1本（毎朝）、すぐ遊べるミニゲームを AI社員が作る。会社の方針は [`docs/company.md`](../docs/company.md)。
 
 ## 流れ（`/arcade-make` 1回 = 1本）
 ```
