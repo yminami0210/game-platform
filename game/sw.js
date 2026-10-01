@@ -1,9 +1,9 @@
 // オフライン対応。アセットを変えたら CACHE_VERSION を上げる。
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'icons/icon.svg',
   'src/main.js', 'src/core/game.js', 'src/core/rng.js', 'src/render/renderer.js',
-  'src/input/input.js', 'src/audio/sfx.js', 'src/save.js', 'src/data/balance.json'
+  'src/input/input.js', 'src/audio/sfx.js', 'src/save.js', 'src/data/balance.json', 'src/data/layers.json'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_VERSION).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

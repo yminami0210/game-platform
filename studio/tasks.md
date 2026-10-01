@@ -7,9 +7,9 @@
 | T-001 | 2 | gs-worldbuilder | 世界観バイブル初稿 | concept.md | world-bible.md | - | done |
 | T-002 | 2 | gs-design-manager | デザインシステム＋音の方針 | concept.md | design-system.md | - | done |
 | T-003 | 2 | gs-balance | 数値モデル初稿 | concept.md | balance.md, balance-proposal.json | - | done |
-| T-010 | 3 | gs-coder | core: 群れ・壁・隙間・はぐれ・層・得点・clone/actions/step、決定的テスト | brief, gdd §2§3§8§9 | npm test / check_build OK | T-003 | todo |
-| T-011 | 3 | gs-coder | 描画: 闇マスクの光、ホタル、壁、はぐれ、HUD、散る/拾う演出（最小） | brief, design-system §光§形 | 起動して遊べる | T-010 | todo |
-| T-012 | 3 | gs-coder | 入力: 相対ドラッグ、キー、__GS__ フック | gdd §3 | gate_check slice | T-010 | todo |
+| T-010 | 3 | gs-coder | core: 群れ・壁・隙間・はぐれ・層・得点・clone/actions/step、決定的テスト | brief, gdd §2§3§8§9 | npm test / check_build OK | T-003 | done（gate slice PASS。層1-2実装、3-5は表のみ。洞窟の流れ pull で浅層を補助） |
+| T-011 | 3 | gs-coder | 描画: 闇マスクの光、ホタル、壁、はぐれ、HUD、散る/拾う演出（最小） | brief, design-system §光§形 | 起動して遊べる | T-010 | done（gate slice PASS。層1-2実装、3-5は表のみ。洞窟の流れ pull で浅層を補助） |
+| T-012 | 3 | gs-coder | 入力: 相対ドラッグ、キー、__GS__ フック | gdd §3 | gate_check slice | T-010 | done（gate slice PASS。層1-2実装、3-5は表のみ。洞窟の流れ pull で浅層を補助） |
 | T-020 | 4 | gs-content-creator | layers / creatures / texts / colors の JSON | brief, world-bible | JSON検証OK | T-010 | todo |
 | T-021 | 4 | gs-design-manager | タイトル・遊び方・ずかん・設定・リザルト画面、アイコン、エフェクト | brief, design-system | 画面が揃う | T-011 | todo |
 | T-022 | 4 | gs-sound | 効果音と層別BGM、ミュート | brief, design-system §音 | 鳴る/止まる | T-011 | todo |
