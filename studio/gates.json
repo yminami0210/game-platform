@@ -1,8 +1,8 @@
 {
-  "runSecondsMin": 20,
+  "runSecondsMin": 25,
   "runSecondsMax": 180,
   "skillRatioMin": 1.5,
-  "firstGoalScore": 1,
+  "firstGoalScore": 100,
   "noviceReachMin": 0.5,
   "stuckShareMax": 0.4,
   "readyMsMax": 3000,
