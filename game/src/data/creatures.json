@@ -1,0 +1,16 @@
+{
+  "list": [
+    { "id": "hitoshizuku", "name": "ひとしずく", "desc": "水滴の中でぽっと光る、いちばん小さな灯り", "layer": 1, "cond": { "type": "reach", "value": 1 } },
+    { "id": "awatsubu", "name": "あわつぶ", "desc": "浅瀬に浮かぶ泡。ふれるとやさしく弾む", "layer": 1, "cond": { "type": "swarm", "value": 7 } },
+    { "id": "kokedama", "name": "こけたま", "desc": "苔のかげで丸くなる、緑のひかり玉", "layer": 2, "cond": { "type": "reach", "value": 2 } },
+    { "id": "fuwatane", "name": "ふわたね", "desc": "風に乗って漂う、綿毛のような種", "layer": 2, "cond": { "type": "score", "value": 400 } },
+    { "id": "tsuyumushi", "name": "つゆむし", "desc": "草の露を集めて光る、青白い虫", "layer": 2, "cond": { "type": "swarm", "value": 12 } },
+    { "id": "harikurage", "name": "はりくらげ", "desc": "水たまりをゆらゆら泳ぐ、半透明の傘", "layer": 3, "cond": { "type": "reach", "value": 3 } },
+    { "id": "tsuraragyo", "name": "つらら魚", "desc": "鍾乳石の水の中だけにいる、細長い光", "layer": 3, "cond": { "type": "flowers", "value": 5 } },
+    { "id": "nemoguri", "name": "ねもぐり", "desc": "根のすきまで眠る、橙色のちいさな芋虫", "layer": 4, "cond": { "type": "reach", "value": 4 } },
+    { "id": "sasayakiga", "name": "ささやき蛾", "desc": "羽ばたくと鈴のような音がする、白い蛾", "layer": 4, "cond": { "type": "swarm", "value": 20 } },
+    { "id": "kagehotaru", "name": "かげほたる", "desc": "光を吸う黒石のそばでだけ光る、灰色の仲間", "layer": 5, "cond": { "type": "reach", "value": 5 } },
+    { "id": "suishodori", "name": "すいしょう鳥", "desc": "水晶の枝に止まる、紫のひかりの小鳥", "layer": 5, "cond": { "type": "score", "value": 3000 } },
+    { "id": "nemurigo", "name": "ねむり子", "desc": "ねむり花のなかで寝息をたてる、最後の光", "layer": 5, "cond": { "type": "flowers", "value": 40 } }
+  ]
+}

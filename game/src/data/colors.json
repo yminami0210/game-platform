@@ -1,0 +1,9 @@
+{
+  "list": [
+    { "id": "main", "name": "ほたる色", "hex": "#FFC94A", "unlockFlowers": 0 },
+    { "id": "mint", "name": "みずあさぎ", "hex": "#7FE0D4", "unlockFlowers": 30 },
+    { "id": "sakura", "name": "あけぼの", "hex": "#FFA9C0", "unlockFlowers": 80 },
+    { "id": "fuji", "name": "ふじ色", "hex": "#B9A0FF", "unlockFlowers": 150 },
+    { "id": "shiro", "name": "しろがね", "hex": "#F4F1EA", "unlockFlowers": 300 }
+  ]
+}
