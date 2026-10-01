@@ -9,14 +9,14 @@
       "note": "第2回で合格（出典の特定・最新版へ差し替え）"
     },
     "report": {
-      "state": "working",
+      "state": "pass",
       "revisions": 0,
-      "note": "経営向けレポートを作成中"
+      "note": "経営向けレポート（約5分）"
     },
     "audit": {
-      "state": "todo",
+      "state": "working",
       "revisions": 0,
-      "note": ""
+      "note": "総括中"
     }
   },
   "feed": [
@@ -43,6 +43,18 @@
       "stage": "report",
       "state": "working",
       "note": "経営向けレポートを作成中"
+    },
+    {
+      "at": "2026-10-01 03:21",
+      "stage": "report",
+      "state": "pass",
+      "note": "経営向けレポート（約5分）"
+    },
+    {
+      "at": "2026-10-01 03:21",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
     }
   ]
 }
