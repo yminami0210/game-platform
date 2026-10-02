@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>雀凧</title>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Reggae+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sky:#b9cdd6; --sky-hi:#d6e2e6; --washi:#efe6cf; --ni:#c8452c;
+  --ainezu:#556878; --karekusa:#b49a5e; --sumi:#2b2724;
+  --brush:"Reggae One","Hiragino Mincho ProN","Yu Mincho",serif;
+  --hand:"Klee One","Hiragino Mincho ProN","Yu Mincho",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--sky);color:var(--sumi);font-family:var(--hand);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+.screen[hidden]{display:none}
+.paper{position:relative;width:min(340px,100%);max-height:calc(100% - 8px);overflow:auto;background:var(--washi);
+  padding:clamp(14px,4vh,26px) 22px clamp(14px,3.5vh,22px);
+  clip-path:polygon(0 2%,7% 0,23% 1.5%,41% 0,58% 1.2%,77% 0,94% 1.6%,100% 0,99% 22%,100% 47%,98.6% 73%,100% 100%,82% 98.6%,61% 100%,38% 98.4%,17% 100%,0 98.8%,1.2% 74%,0 49%,1.4% 23%)}
+.paper::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;background-image:var(--grain)}
+h1{font-family:var(--brush);font-weight:400;font-size:clamp(40px,10vh,64px);line-height:1;letter-spacing:.04em;
+  text-shadow:2px 1px 0 rgba(200,69,44,.55)}
+.sub{font-size:clamp(13px,2.4vh,15px);line-height:1.7;margin-top:clamp(6px,1.6vh,12px)}
+.how{font-size:clamp(13px,2.3vh,15px);line-height:1.65;margin-top:clamp(8px,2vh,14px);padding-left:12px;border-left:3px solid var(--ni)}
+.keys{font-size:12px;line-height:1.6;margin-top:8px;color:#5d554c}
+button{font-family:var(--brush);font-size:clamp(18px,3.6vh,22px);color:var(--washi);background:var(--sumi);border:0;
+  padding:9px 22px 11px;margin-top:clamp(10px,2.6vh,18px);cursor:pointer;border-radius:3px 9px 4px 8px;
+  box-shadow:3px 3px 0 var(--ni);transition:transform .08s,box-shadow .08s}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ni)}
+button:focus-visible{outline:3px solid var(--ni);outline-offset:3px}
+.alt{font-family:var(--brush);font-size:clamp(46px,11vh,72px);line-height:1;font-variant-numeric:tabular-nums}
+.alt small{font-size:.45em;margin-left:4px}
+.rank{font-size:clamp(17px,3.2vh,21px);font-weight:600;margin-top:6px}
+.detail{font-size:clamp(13px,2.3vh,15px);line-height:1.7;margin-top:6px;font-variant-numeric:tabular-nums}
+.newbest{color:var(--ni);font-weight:600}
+#pause .paper{text-align:center}
+#title{align-items:flex-end;padding-bottom:max(16px,9vh)}
+@media (max-height:500px){#title{align-items:center;justify-content:flex-end;padding:12px 16px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<section class="screen" id="title">
+  <div class="paper">
+    <h1>雀凧</h1>
+    <p class="sub">河川敷の冬空に、まんまる雀の凧をどこまで上げられるか。</p>
+    <p class="how">押しているあいだ糸を巻いて上がる。離すと糸が出て下がる。<br>糸が赤く震えたら、すぐ離す。鳥と電線に3回当たると骨が折れて落ちる。</p>
+    <p class="keys">PC: スペース／↑ を長押し。M 音、P 一時停止</p>
+    <button id="startBtn">凧をあげる</button>
+  </div>
+</section>
+
+<section class="screen" id="result" hidden>
+  <div class="paper">
+    <p class="sub" id="endWhy">糸が切れた</p>
+    <p class="alt"><span id="score">0</span><small>m</small></p>
+    <p class="rank" id="rank">屋根の上</p>
+    <p class="detail" id="detail"></p>
+    <button id="againBtn">もう一回あげる</button>
+  </div>
+</section>
+
+<section class="screen" id="pause" hidden>
+  <div class="paper"><p class="rank">ひと休み</p><p class="detail">P か Esc、またはタップでつづける</p></div>
+</section>
+
+<script>
+(() => {
+"use strict";
+const C = { sky:"#b9cdd6", skyHi:"#d6e2e6", washi:"#efe6cf", ni:"#c8452c", ai:"#556878", kare:"#b49a5e", sumi:"#2b2724" };
+const cv = document.getElementById("c"), cx = cv.getContext("2d");
+const $ = (id) => document.getElementById(id);
+let W = 0, H = 0, DPR = 1, S = 2.6; // S = px per meter
+let grain = null;
+
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+let best = parseInt(store("kite-wind-best") || "0", 10) || 0;
+
+// ---------- paper grain (made once) ----------
+function makeGrain() {
+  const g = document.createElement("canvas"); g.width = g.height = 160;
+  const gx = g.getContext("2d"); const img = gx.createImageData(160, 160);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.random();
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v < .5 ? 60 : 255;
+    img.data[i + 3] = Math.random() < .35 ? 10 + Math.random() * 16 : 0;
+  }
+  gx.putImageData(img, 0, 0);
+  grain = cx.createPattern(g, "repeat");
+  try { document.documentElement.style.setProperty("--grain", `url(${g.toDataURL()})`); } catch (e) {}
+}
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  S = H / 300;
+  if (!grain) makeGrain();
+}
+window.addEventListener("resize", resize);
+resize();
+
+// ---------- audio ----------
+let ac = null, muted = false, noiseBuf = null, strain = null;
+function audioInit() {
+  if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+  try {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const o = ac.createOscillator(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
+    o.type = "sawtooth"; o.frequency.value = 880; lfo.frequency.value = 23; lg.gain.value = 30;
+    lfo.connect(lg); lg.connect(o.frequency); g.gain.value = 0;
+    const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1400; f.Q.value = 4;
+    o.connect(f); f.connect(g); g.connect(ac.destination); o.start(); lfo.start();
+    strain = g;
+  } catch (e) { ac = null; }
+}
+function env(node, t, a, peak, dur) {
+  node.gain.setValueAtTime(0.0001, t); node.gain.exponentialRampToValueAtTime(peak, t + a);
+  node.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+}
+function noise(dur, freq, q, peak, at = 0, sweepTo) {
+  if (!ac || muted) return;
+  const t = ac.currentTime + at, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  s.buffer = noiseBuf; f.type = "bandpass"; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
+  if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + dur);
+  env(g, t, Math.min(.05, dur / 3), peak, dur);
+  s.connect(f); f.connect(g); g.connect(ac.destination); s.start(t, Math.random() * .5); s.stop(t + dur + .05);
+}
+function tone(freq, dur, type, peak, at = 0, to) {
+  if (!ac || muted) return;
+  const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  env(g, t, .005, peak, dur); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + .05);
+}
+const sfx = {
+  click() { noise(.025, 2600, 6, .12); },
+  gust() { noise(.9, 300, 1.2, .18, 0, 900); tone(1568, .5, "sine", .08, .05); },
+  snap() { noise(.12, 1800, 2, .35); tone(700, .25, "triangle", .15, 0, 120); },
+  flap() { for (let i = 0; i < 3; i++) noise(.06, 900, 1.5, .22, i * .085); },
+  thud() { noise(.3, 160, 1, .3); },
+  pluck() { tone(1180, .09, "triangle", .12, 0, 900); noise(.05, 2200, 4, .12); },
+  crack() { noise(.08, 1200, 3, .3); tone(420, .12, "square", .06, 0, 180); },
+};
+function setStrain(v) { if (strain && ac) strain.gain.setTargetAtTime(muted ? 0 : v, ac.currentTime, .05); }
+
+// ---------- game state ----------
+let state = "title"; // title | play | pause | over
+let holding = false, last = 0, T = 0;
+let G = null;
+
+function newGame() {
+  G = { alt: 40, vy: 0, maxAlt: 40, tension: .1, red: 0, camAlt: 0, kxOff: 0, bands: [], birds: [], wires: [],
+    nextBand: 62, nextBird: 110, inStrong: false, strongTime: 0, inv: 0, hitFlash: 0, gustV: .5, gustT: 0,
+    reelT: 0, tail: 0, joltT: 8, jolt: 0, hint: 6, t: 0, wireAlts: [110], bones: 0, saved: false, note: 0, noteTxt: "", why: "" };
+  for (const a of G.wireAlts) G.wires.push({ alt: a, fromLeft: Math.random() < .5, span: .38 + Math.random() * .1 });
+  holding = false;
+}
+
+function spawnAhead() {
+  const top = G.camAlt + 300 + 80;
+  while (G.nextBand < top) {
+    const a = G.nextBand, hard = Math.min(1, a / 900 + G.t / TK.bandT), r = Math.random();
+    const type = r < .46 - hard * .14 ? "strong" : r < .8 ? "weak" : "gust";
+    G.bands.push({ alt: a, type, thick: (type === "strong" ? 26 : 30) - hard * 8, len: .5 + Math.random() * .3 - hard * .1,
+      ph: Math.random() * 6.28, sp: .25 + Math.random() * .3 + hard * .2, bob: .2 + Math.random() * .2 });
+    G.nextBand += 46 + Math.random() * 40 + hard * 25;
+  }
+  while (G.nextBird < top) {
+    const a = G.nextBird, hard = Math.min(1, a / 900 + G.t / TK.bandT), n = 4 + (Math.random() * 4 | 0), dir = Math.random() < .5 ? 1 : -1;
+    const pts = []; for (let i = 0; i < n; i++) pts.push({ dx: (Math.random() - .5) * 60, da: (Math.random() - .5) * 14, ph: Math.random() * 6 });
+    G.birds.push({ alt: a, x: dir > 0 ? -60 : W + 60, dir, sp: 28 + Math.random() * 30 + hard * 30, pts });
+    G.nextBird += 70 + Math.random() * 70 - hard * 30;
+  }
+  G.bands = G.bands.filter((b) => b.alt > G.camAlt - 60);
+  G.birds = G.birds.filter((b) => b.alt > G.camAlt - 60 && b.x > -140 && b.x < W + 140);
+}
+
+const groundY = () => H * .86;
+const yOf = (alt) => groundY() - (alt - G.camAlt) * S;
+const kiteX = () => W * .5 + G.kxOff;
+const kSize = () => Math.max(32, Math.min(58, Math.min(W, H) * .11));
+function bandX(b) { return W * .5 + Math.sin(T * b.sp + b.ph) * W * .28; }
+function bandAlt(b) { return b.alt + Math.sin(T * b.bob + b.ph) * 7; }
+
+// difficulty that grows with elapsed time (seconds), so a careful flight still ends
+const TK = { windT: 280, hardT: 75, fallT: 20, bandT: 220 };
+
+function update(dt) {
+  G.t += dt; G.hint = Math.max(0, G.hint - dt);
+  const kx = kiteX();
+  // wind at the kite
+  let wind = Math.max(.06, .32 - G.alt / 2000 - G.t / TK.windT), strongNow = false, gustNow = false;
+  for (const b of G.bands) {
+    const ba = bandAlt(b), half = b.thick / 2, bx = bandX(b), hl = b.len * W / 2;
+    if (Math.abs(G.alt - ba) < half && kx > bx - hl && kx < bx + hl) {
+      if (b.type === "strong") { wind = 1; strongNow = true; }
+      else if (b.type === "weak") wind = Math.max(wind, .55);
+      else gustNow = true;
+    }
+  }
+  if (gustNow) {
+    G.gustT -= dt; if (G.gustT <= 0) { G.gustT = .25 + Math.random() * .25; G.gustV = .15 + Math.random() * 1.05; }
+    wind = Math.max(wind, G.gustV);
+  }
+  if (strongNow && !G.inStrong) { sfx.gust(); }
+  G.inStrong = strongNow;
+  if (strongNow) G.strongTime += dt;
+
+  const hard = 1 + G.alt / 400 + G.t / TK.hardT;
+  let target;
+  if (holding) {
+    target = 3 + 15 * wind;
+    G.tension += dt * (.17 + .55 * wind * wind) * hard;
+    G.reelT -= dt; if (G.reelT <= 0) { sfx.click(); G.reelT = .16 - wind * .08; }
+  } else {
+    target = -6.5 - G.alt / 150 - G.t / TK.fallT + 8 * wind;
+    G.tension -= dt * .5;
+  }
+  if (gustNow) G.tension += dt * (G.gustV - .5) * .6;
+  G.joltT -= dt;
+  if (G.joltT <= 0) { G.jolt = .22; G.joltT = Math.max(1.8, 7 - G.t / 25 - G.alt / 250) * (.6 + Math.random() * .8); G.kxOff += (Math.random() - .5) * W * .12; }
+  if (G.jolt > 0) { G.jolt -= dt; G.tension += dt * (.9 + G.alt / 400); }
+  G.tension = Math.max(0, Math.min(1.15, G.tension));
+  G.vy += (target - G.vy) * Math.min(1, dt * 3);
+  G.alt += G.vy * dt;
+  if (G.alt > G.maxAlt) G.maxAlt = G.alt;
+
+  // sideways sway (wind pushes, not player)
+  const swayT = Math.sin(G.t * .45) * W * .17 + Math.sin(G.t * 1.3) * W * .04 + (gustNow ? (G.gustV - .6) * W * .12 : 0);
+  G.kxOff += (swayT - G.kxOff) * Math.min(1, dt * 1.5);
+
+  // too taut
+  if (G.tension > .85) { G.red += dt; setStrain(.05 + (G.tension - .85) * .25); }
+  else { G.red = Math.max(0, G.red - dt * 1.2); setStrain(0); }
+  if (G.red >= 1.2) {
+    if (G.saved) return endGame("snap");
+    G.saved = true; G.red = 0; G.tension = .5; setStrain(0); sfx.pluck();
+    say("ぷつっ。糸がきしんだ。次は切れる");
+  }
+  G.note = Math.max(0, G.note - dt);
+  if (G.alt <= 0) { G.alt = 0; return endGame("ground"); }
+
+  // camera
+  const want = Math.max(0, G.alt - 300 * .48);
+  G.camAlt += (want - G.camAlt) * Math.min(1, dt * 2.5);
+  spawnAhead();
+
+  // birds & wires
+  G.inv = Math.max(0, G.inv - dt); G.hitFlash = Math.max(0, G.hitFlash - dt);
+  const ky = yOf(G.alt), r = kSize() * .45;
+  for (const b of G.birds) {
+    b.x += b.dir * b.sp * dt;
+    if (G.inv > 0) continue;
+    for (const p of b.pts) {
+      const bx = b.x + p.dx, by = yOf(b.alt + p.da);
+      if ((bx - kx) ** 2 + (by - ky) ** 2 < (r + 7) ** 2) { hit("bird"); break; }
+    }
+  }
+  if (G.inv <= 0) for (const w of G.wires) {
+    const x0 = w.fromLeft ? 0 : W * (1 - w.span), x1 = w.fromLeft ? W * w.span : W;
+    if (kx > x0 && kx < x1) {
+      const u = (kx - x0) / (x1 - x0), wy = yOf(w.alt) + Math.sin(u * Math.PI) * 14;
+      if (Math.abs(wy - ky) < r * .7) hit("wire");
+    }
+  }
+}
+
+function say(txt) { G.noteTxt = txt; G.note = 2.2; }
+function hit(kind) {
+  G.bones++;
+  if (G.bones >= 3) { sfx.crack(); return endGame("broken"); }
+  sfx.crack(); say(G.bones === 1 ? "ぽきっ。骨が1本折れた（あと2本）" : "ぽきっ。骨がもう1本（あと1本で落ちる）");
+  G.alt = Math.max(0, G.alt - 30 - G.t * .2); G.vy = -6; G.tension = kind === "bird" ? Math.min(1.05, G.tension + .35) : G.tension * .5; G.inv = 1.6; G.hitFlash = .5;
+  if (kind === "bird") sfx.flap(); else sfx.thud();
+  if (navigator.vibrate) try { navigator.vibrate(40); } catch (e) {}
+}
+
+// ---------- drawing ----------
+const wob = (x, y, s = 1.5) => [x + (Math.random() - .5) * 2 * s, y + (Math.random() - .5) * 2 * s];
+function jitterPoly(pts, s) {
+  cx.beginPath();
+  pts.forEach((p, i) => { const [x, y] = wob(p[0], p[1], s); i ? cx.lineTo(x, y) : cx.moveTo(x, y); });
+  cx.closePath();
+}
+
+// fixed per-game wobble so the ink line does not boil every frame
+let kiteJit = [];
+function seedKite() { kiteJit = Array.from({ length: 24 }, () => (Math.random() - .5) * 3); }
+seedKite();
+
+function drawSky() {
+  const camA = G ? G.camAlt : 0;
+  const k = Math.min(1, camA / 900);
+  const g = cx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, mix(C.skyHi, "#e4ecee", k)); g.addColorStop(1, mix(C.sky, C.skyHi, k * .6));
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+}
+function mix(a, b, t) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.substr(i, 2), 16));
+  const A = p(a), B = p(b); return "rgb(" + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(",") + ")";
+}
+
+function drawGround() {
+  const gy = yOf(0);
+  if (gy > H + 10) return;
+  // far bank (土手)
+  cx.fillStyle = C.ai; cx.globalAlpha = .55;
+  cx.beginPath(); cx.moveTo(0, gy - 26);
+  for (let x = 0; x <= W; x += 24) cx.lineTo(x, gy - 26 - Math.sin(x * .013) * 6 - (x % 48 ? 1 : 0));
+  cx.lineTo(W, gy); cx.lineTo(0, gy); cx.fill(); cx.globalAlpha = 1;
+  // ground
+  cx.fillStyle = C.kare; cx.fillRect(0, gy, W, H - gy + 20);
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1.2; cx.globalAlpha = .55;
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 53.7) % W, y = gy + 6 + (i * 37) % Math.max(10, H - gy);
+    cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x + 3, y - 7); cx.moveTo(x + 4, y); cx.lineTo(x + 8, y - 6); cx.stroke();
+  }
+  cx.globalAlpha = 1;
+}
+
+function drawBand(b, near) {
+  const ba = bandAlt(b), y = yOf(ba);
+  if (y < -40 || y > H + 40) return;
+  const bx = bandX(b), hl = b.len * W / 2, th = b.thick * S;
+  const lit = b.type === "strong" && b === near; // 丹 only on the one band nearest the kite
+  const col = lit ? C.ni : C.ai;
+  cx.strokeStyle = col; cx.lineCap = "round";
+  const lines = b.type === "strong" ? 4 : 3;
+  for (let i = 0; i < lines; i++) {
+    const ly = y - th / 2 + th * (i + .5) / lines;
+    cx.globalAlpha = lit ? .75 : b.type === "strong" ? .5 : .32; cx.lineWidth = b.type === "strong" ? 2.2 : 1.6;
+    cx.setLineDash(b.type === "strong" ? [38, 14] : [18, 16]);
+    cx.lineDashOffset = -T * (b.type === "strong" ? 90 : 45) + i * 11;
+    cx.beginPath();
+    for (let x = bx - hl; x <= bx + hl; x += 8) {
+      const yy = ly + Math.sin(x * .03 + i + b.ph) * 2.5;
+      x === bx - hl ? cx.moveTo(x, yy) : cx.lineTo(x, yy);
+    }
+    cx.stroke();
+  }
+  cx.setLineDash([]);
+  if (b.type === "gust") { // つむじ風: curls
+    cx.lineWidth = 1.8; cx.globalAlpha = .55;
+    for (let k = -1; k <= 1; k++) {
+      const cxp = bx + k * hl * .6, a0 = T * 3 + k;
+      cx.beginPath();
+      for (let a = 0; a < 9; a += .3) { const rr = 2 + a * 1.6, px = cxp + Math.cos(a + a0) * rr, py = y + Math.sin(a + a0) * rr * .6; a ? cx.lineTo(px, py) : cx.moveTo(px, py); }
+      cx.stroke();
+    }
+  }
+  cx.globalAlpha = 1;
+}
+
+function drawWire(w) {
+  const y = yOf(w.alt); if (y < -40 || y > H + 60) return;
+  const x0 = w.fromLeft ? 0 : W * (1 - w.span), x1 = w.fromLeft ? W * w.span : W;
+  const px = w.fromLeft ? x1 : x0;
+  cx.strokeStyle = C.sumi; cx.lineWidth = 3; // pole top
+  cx.beginPath(); cx.moveTo(px, y - 10); cx.lineTo(px, yOf(0) + 4); cx.stroke();
+  cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(px - 12, y - 4); cx.lineTo(px + 12, y - 4); cx.stroke();
+  cx.lineWidth = 1.4;
+  for (let k = 0; k < 2; k++) {
+    cx.beginPath();
+    for (let i = 0; i <= 20; i++) { const u = i / 20, x = x0 + (x1 - x0) * u; const yy = y + k * 6 + Math.sin(u * Math.PI) * 14; i ? cx.lineTo(x, yy) : cx.moveTo(x, yy); }
+    cx.stroke();
+  }
+}
+
+function drawBirds(b) {
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1.8; cx.lineCap = "round"; cx.lineJoin = "round";
+  for (const p of b.pts) {
+    const x = b.x + p.dx, y = yOf(b.alt + p.da); if (y < -20 || y > H + 20) continue;
+    const f = Math.sin(T * 10 + p.ph) * 3;
+    cx.beginPath(); cx.moveTo(x - 7, y - 2 + f); cx.quadraticCurveTo(x - 3, y - 4 + f * .5, x, y); cx.quadraticCurveTo(x + 3, y - 4 + f * .5, x + 7, y - 2 + f); cx.stroke();
+  }
+}
+
+function reelPos() { return [W * .5 + Math.min(W, 500) * .08, H - Math.max(26, H * .05)]; }
+
+function drawLine(kx, ky) {
+  const [rx, ry] = reelPos();
+  const t = Math.min(1, G.tension), taut = G.tension > .85;
+  const sag = (1 - t) * Math.min(160, Math.hypot(kx - rx, ky - ry) * .35) + 4;
+  const mx = (kx + rx) / 2 + sag * .55, my = (ky + ry) / 2 + sag;
+  cx.strokeStyle = taut ? C.ni : C.sumi; cx.lineWidth = taut ? 1.8 : 1.3;
+  cx.beginPath(); cx.moveTo(rx, ry);
+  const steps = 24;
+  for (let i = 1; i <= steps; i++) {
+    const u = i / steps, a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
+    let x = a * rx + b * mx + c * kx, y = a * ry + b * my + c * ky;
+    if (taut) { const s = Math.sin(u * Math.PI) * (1 + (G.tension - .85) * 12); x += (Math.random() - .5) * s; y += (Math.random() - .5) * s; }
+    cx.lineTo(x, y);
+  }
+  cx.stroke();
+}
+
+function drawKite(kx, ky) {
+  const s = kSize(), lean = Math.max(-.35, Math.min(.35, G.kxOff / W * 1.2 - G.vy * .006));
+  cx.save(); cx.translate(kx, ky); cx.rotate(lean);
+  if (G.inv > 0 && Math.floor(G.inv * 10) % 2) cx.globalAlpha = .45;
+  // tail (the one idle motion)
+  G.tail += .016 * (1 + G.vy * .03 + (G.inStrong ? 2.5 : 0));
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1.2;
+  for (const side of [-1, 1]) {
+    cx.beginPath(); cx.moveTo(side * s * .18, s * .5);
+    for (let i = 1; i <= 10; i++) {
+      const yy = s * .5 + i * s * .14, xx = side * s * .18 + Math.sin(G.tail * 6 + i * .7 + side) * i * (G.inStrong ? 1.8 : 1);
+      cx.lineTo(xx, yy);
+    }
+    cx.stroke();
+  }
+  const h = s / 2, J = kiteJit;
+  // 丹 border, misregistered
+  cx.fillStyle = C.ni;
+  cx.beginPath(); cx.moveTo(-h + 2 + J[0], -h + 1); cx.lineTo(h + 2, -h + 1 + J[1]); cx.lineTo(h + 2 + J[2], h + 1); cx.lineTo(-h + 2, h + 1 + J[3]); cx.closePath(); cx.fill();
+  // washi
+  const i = h - s * .09;
+  cx.fillStyle = C.washi;
+  cx.beginPath(); cx.moveTo(-i + J[4] * .5, -i); cx.lineTo(i, -i + J[5] * .5); cx.lineTo(i + J[6] * .5, i); cx.lineTo(-i, i + J[7] * .5); cx.closePath(); cx.fill();
+  if (grain) { cx.fillStyle = grain; cx.fill(); }
+  // ink outline + bones
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1.6; cx.lineJoin = "round";
+  cx.beginPath(); cx.moveTo(-h + J[8], -h + J[9]); cx.lineTo(h + J[10], -h + J[11]); cx.lineTo(h + J[12], h + J[13]); cx.lineTo(-h + J[14], h + J[15]); cx.closePath(); cx.stroke();
+  if (G.bones > 0) { // broken bones: ink cracks
+    cx.strokeStyle = C.sumi; cx.lineWidth = 1.4;
+    for (let k = 0; k < G.bones; k++) {
+      const sx = k ? h * .55 : -h * .7, sy = k ? -h * .8 : h * .35;
+      cx.beginPath(); cx.moveTo(sx, sy);
+      for (let j = 1; j <= 4; j++) cx.lineTo(sx + (k ? -1 : 1) * j * h * .16 + J[20 + k] * .8, sy + (k ? 1 : -1) * j * h * .1 + (j % 2 ? 3 : -2));
+      cx.stroke();
+    }
+  }
+  cx.lineWidth = .9; cx.globalAlpha *= .6;
+  cx.beginPath(); cx.moveTo(-h, -h); cx.lineTo(h + J[16] * .4, h); cx.moveTo(h, -h); cx.lineTo(-h, h + J[17] * .4); cx.stroke();
+  cx.globalAlpha = G.inv > 0 && Math.floor(G.inv * 10) % 2 ? .45 : 1;
+  // sparrow face
+  const r = s * .3;
+  cx.fillStyle = "#8a5a3a"; cx.beginPath(); cx.arc(J[18] * .3, -r * .15, r, Math.PI * 1.05, Math.PI * 1.95); cx.lineTo(r * .9, -r * .1); cx.lineTo(-r * .9, -r * .1); cx.fill(); // brown cap
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1.5;
+  cx.beginPath(); cx.ellipse(J[19] * .3, r * .1, r * 1.02, r * .95, 0, 0, Math.PI * 2); cx.stroke();
+  cx.fillStyle = C.sumi;
+  cx.beginPath(); cx.arc(-r * .62, r * .35, r * .17, 0, 7); cx.fill(); // cheek spots
+  cx.beginPath(); cx.arc(r * .62, r * .35, r * .17, 0, 7); cx.fill();
+  const blink = (G.t % 3.7) < .12;
+  if (blink) { cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(-r * .45, -r * .05); cx.lineTo(-r * .2, -r * .05); cx.moveTo(r * .2, -r * .05); cx.lineTo(r * .45, -r * .05); cx.stroke(); }
+  else { cx.beginPath(); cx.arc(-r * .32, -r * .05, r * .12, 0, 7); cx.arc(r * .32, -r * .05, r * .12, 0, 7); cx.fill(); }
+  cx.fillStyle = "#d9a441"; cx.beginPath(); cx.moveTo(-r * .14, r * .18); cx.lineTo(r * .14, r * .18); cx.lineTo(0, r * .42); cx.closePath(); cx.fill();
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1; cx.stroke();
+  cx.restore();
+  cx.globalAlpha = 1;
+}
+
+function drawReel() {
+  const [rx, ry] = reelPos(), w = Math.max(30, Math.min(W, H) * .085), h = w * .7;
+  const turn = G && holding ? (T * 14) % 6.28 : 0;
+  // hand (mitten) holding reel
+  cx.fillStyle = C.ni; cx.strokeStyle = C.sumi; cx.lineWidth = 1.5;
+  jitterPoly([[rx - w * .9, ry + h * .9], [rx - w * .75, ry + h * .1], [rx - w * .35, ry - h * .05], [rx - w * .3, ry + h * .9]], .4);
+  cx.fill(); cx.stroke();
+  cx.fillStyle = C.kare;
+  cx.beginPath(); cx.ellipse(rx, ry, w * .5, h * .5, 0, 0, 7); cx.fill(); cx.stroke();
+  cx.fillStyle = "#8b744a"; cx.beginPath(); cx.ellipse(rx, ry, w * .3, h * .3, 0, 0, 7); cx.fill();
+  cx.beginPath(); cx.moveTo(rx, ry); cx.lineTo(rx + Math.cos(turn) * w * .45, ry + Math.sin(turn) * h * .45); cx.stroke();
+}
+
+function drawHUD() {
+  const fs = Math.max(30, Math.min(56, H * .075));
+  cx.fillStyle = C.sumi; cx.textBaseline = "top";
+  cx.font = `${fs}px "Reggae One","Hiragino Mincho ProN",serif`;
+  const a = Math.floor(G.alt), txt = a + "m";
+  const sm = Math.max(13, Math.min(16, H * .022));
+  const line2 = `いちばん高く ${Math.floor(G.maxAlt)}m ／ 自己ベスト ${best}m`;
+  // a washi tanzaku hung on a string, the altitude brushed on it like a kite diary
+  cx.font = `600 ${sm}px "Klee One","Hiragino Mincho ProN",serif`;
+  const w2 = cx.measureText(line2).width;
+  const pw = Math.max(fs * 2.6, w2) + 26, ph = fs * 1.08 + sm * 1.9, J = kiteJit;
+  cx.strokeStyle = C.sumi; cx.lineWidth = 1; cx.globalAlpha = .7;
+  cx.beginPath(); cx.moveTo(30, 0); cx.lineTo(30, 8); cx.moveTo(pw - 20, 0); cx.lineTo(pw - 18, 8); cx.stroke(); cx.globalAlpha = 1;
+  cx.fillStyle = C.washi;
+  cx.beginPath(); cx.moveTo(8 + J[0] * .5, 7); cx.lineTo(pw * .4, 8 + J[1] * .4); cx.lineTo(8 + pw + J[2] * .5, 6);
+  cx.lineTo(8 + pw - 1 + J[3] * .5, 7 + ph * .5); cx.lineTo(8 + pw + J[4] * .5, 10 + ph);
+  cx.lineTo(pw * .55, 9 + ph + J[5] * .5); cx.lineTo(8 + J[6] * .5, 10 + ph); cx.lineTo(9 + J[7] * .4, 8 + ph * .5); cx.closePath();
+  cx.globalAlpha = .9; cx.fill(); if (grain) { cx.fillStyle = grain; cx.fill(); } cx.globalAlpha = 1;
+  cx.font = `${fs}px "Reggae One","Hiragino Mincho ProN",serif`;
+  cx.fillStyle = "rgba(200,69,44,.5)"; cx.fillText(txt, 22, 14);
+  cx.fillStyle = C.sumi; cx.fillText(txt, 20, 12);
+  cx.font = `600 ${sm}px "Klee One","Hiragino Mincho ProN",serif`;
+  cx.fillText(line2, 21, 14 + fs * 1.08);
+  let ly = 22 + ph;
+  if (G.inStrong) { cx.fillStyle = C.ni; cx.fillText(`強い風に乗った ＋${Math.floor(G.strongTime * 5)}m`, 18, ly); ly += sm * 1.6; }
+  const ky = yOf(G.alt), hy = ky > H * .5 ? Math.max(H * .25, ly + sm * 2) : H * .7; // keep messages off the kite
+  cx.textAlign = "center";
+  if (G.hint > 0) {
+    cx.globalAlpha = Math.min(1, G.hint); cx.fillStyle = C.sumi;
+    cx.fillText("押して巻く・離して出す。赤い糸はすぐ離す", W / 2, hy);
+  }
+  if (G.note > 0) {
+    cx.globalAlpha = Math.min(1, G.note); cx.fillStyle = C.ni;
+    cx.fillText(G.noteTxt, W / 2, hy + (G.hint > 0 ? sm * 1.8 : 0));
+  }
+  cx.textAlign = "left"; cx.globalAlpha = 1;
+  if (G.hitFlash > 0) { cx.fillStyle = `rgba(200,69,44,${G.hitFlash * .25})`; cx.fillRect(0, 0, W, H); }
+}
+
+function drawTitleScene() {
+  drawSky();
+  // idle kite floating for the title backdrop
+  if (!G) newGame();
+  const kx = W * .5 + Math.sin(T * .4) * W * .08, ky = H * .2 + Math.sin(T * .7) * 6;
+  drawGround(); drawLine(kx, ky); drawKite(kx, ky); drawReel();
+}
+
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000 || 0); last = now; T += dt;
+  if (state === "play") update(dt);
+  cx.clearRect(0, 0, W, H);
+  if (state === "title") { drawTitleScene(); G.t += dt; }
+  else {
+    drawSky();
+    drawGround();
+    let near = null, nd = 1e9;
+    for (const b of G.bands) if (b.type === "strong") { const d = Math.abs(bandAlt(b) - G.alt); if (d < nd) { nd = d; near = b; } }
+    for (const b of G.bands) drawBand(b, near);
+    for (const w of G.wires) drawWire(w);
+    for (const b of G.birds) drawBirds(b);
+    const kx = kiteX(), ky = yOf(G.alt);
+    drawLine(kx, ky); drawKite(kx, ky); drawReel();
+    if (state !== "over") drawHUD();
+  }
+  if (grain) { cx.fillStyle = grain; cx.fillRect(0, 0, W, H); }
+  requestAnimationFrame(frame);
+}
+
+// ---------- flow ----------
+const RANKS = [[30, "屋根の上"], [60, "火の見やぐら"], [110, "鉄塔のてっぺん"], [180, "とびの輪"], [270, "ひばりの高さ"], [400, "雲の下"], [600, "雲の中"], [1e9, "雲の上"]];
+function startGame() {
+  audioInit(); newGame(); seedKite(); state = "play";
+  $("title").hidden = true; $("result").hidden = true; $("pause").hidden = true;
+}
+function endGame(why) {
+  state = "over"; holding = false; setStrain(0);
+  if (why === "snap") sfx.snap(); else sfx.thud();
+  const bonus = Math.floor(G.strongTime * 5), score = Math.floor(G.maxAlt) + bonus;
+  const isBest = score > best; if (isBest) { best = score; store("kite-wind-best", String(best)); }
+  G.why = why;
+  $("endWhy").textContent = why === "snap" ? "ぷつん。糸が切れた" : why === "broken" ? "骨が3本折れて、凧が落ちた" : "凧が地面に落ちた";
+  $("score").textContent = score;
+  $("rank").textContent = RANKS.find((r) => score < r[0])[1];
+  $("detail").innerHTML = `いちばん高く ${Math.floor(G.maxAlt)}m ＋ 強い風 ${G.strongTime.toFixed(1)}秒 ${bonus}m<br>` +
+    (isBest ? `<span class="newbest">自己ベストを更新</span>` : `自己ベスト ${best}m`);
+  setTimeout(() => { if (state === "over") { $("result").hidden = false; $("againBtn").focus({ preventScroll: true }); } }, 700);
+}
+function togglePause() {
+  if (state === "play") { state = "pause"; holding = false; setStrain(0); $("pause").hidden = false; }
+  else if (state === "pause") { state = "play"; $("pause").hidden = true; }
+}
+
+$("startBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+$("againBtn").addEventListener("click", (e) => { e.stopPropagation(); startGame(); });
+$("pause").addEventListener("pointerdown", (e) => { e.stopPropagation(); togglePause(); });
+$("title").addEventListener("pointerdown", (e) => { if (e.target.tagName !== "BUTTON") { audioInit(); startGame(); } });
+
+window.addEventListener("pointerdown", (e) => { audioInit(); if (state === "play") { holding = true; e.preventDefault(); } });
+window.addEventListener("pointerup", () => { holding = false; });
+window.addEventListener("pointercancel", () => { holding = false; });
+window.addEventListener("blur", () => { holding = false; if (state === "play") togglePause(); });
+
+const HOLD = new Set(["Space", "ArrowUp", "KeyW"]);
+window.addEventListener("keydown", (e) => {
+  audioInit();
+  if (e.code === "KeyM") { muted = !muted; setStrain(0); return; }
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); return; }
+  if (state === "title" && (e.code === "Space" || e.code === "Enter")) { e.preventDefault(); startGame(); return; }
+  if (state === "play" && HOLD.has(e.code)) { holding = true; e.preventDefault(); }
+});
+window.addEventListener("keyup", (e) => { if (HOLD.has(e.code)) holding = false; });
+document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+newGame();
+requestAnimationFrame((t) => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>
