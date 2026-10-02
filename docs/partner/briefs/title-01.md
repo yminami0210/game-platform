@@ -46,7 +46,7 @@
 
 ## 前提・文脈
 - ミニゲームのライン（`arcade/`）が毎朝動いている。`arcade/` には触らない
-- 前作「トモシムレ」はブランチ `studio/flagship`（タグ `tomoshimure-v1`）。今回は使わない（参考にしてもよいが、別物として新しく作る）
+- 前作「トモシムレ」はブランチ `studio/flagship`。今回は使わない（参考にしてもよいが、別物として新しく作る）
 - この環境は外部サイトへの通信が制限されている。Google Fonts と raw.githubusercontent.com は届く
 
 ## 制約
