@@ -15,6 +15,8 @@ export function loadStage(id) { return parseLevel(JSON.parse(readFileSync(join(D
 export function stageIds() { return JSON.parse(readFileSync(join(DATA, 'stages', 'index.json'), 'utf8')); }
 
 const MACRO = 8;
+let KX = 6, KT = 60; // 状態をまとめる細かさ（位置 px・時間 フレーム）
+export function setKey(kx, kt) { KX = kx; KT = kt; }
 const ACTS = [];
 for (const dir of [1, 0, -1]) for (const j of [false, true]) for (const b of [false, true]) {
   if (dir === 0 && b) continue;
@@ -67,7 +69,7 @@ export function solve(level, { target = { kind: 'goal' }, maxNodes = 120000, car
       if (ok) return { ok: true, nodes, frames: n.g + MACRO, path: unwind(path), state: c };
       if (died) continue;
       const p = c.p;
-      const key = `${Math.round(p.x / 3)},${Math.round(p.y / 3)},${Math.round(p.vx / 30)},${Math.round(p.vy / 60)},${p.power ? 1 : 0},${c.sw},${Math.floor(c.frame / 45)},${c.boss ? c.boss.hp + c.boss.mode : ''}`;
+      const key = `${Math.round(p.x / KX)},${Math.round(p.y / KX)},${Math.round(p.vx / 30)},${Math.round(p.vy / 60)},${p.power ? 1 : 0},${c.sw},${Math.floor(c.frame / KT)},${c.boss ? c.boss.hp + c.boss.mode : ''}`;
       const g = n.g + MACRO;
       if (seen.has(key) && seen.get(key) <= g) continue;
       seen.set(key, g);
@@ -110,6 +112,66 @@ export function solveVia(level, target, opts = {}) {
   return { ...direct, nodes };
 }
 
+// ボス戦: A* で闘技場に入り、そこからは「先を少し読んで一番よい操作」を選び続ける
+function evalBoss(c) {
+  if (c.status === 'dead') return -1e9;
+  if (c.status === 'clear') return 1e9;
+  const b = c.boss, p = c.p;
+  let v = (tuning.boss.hp - b.hp) * 1e5;
+  const px = p.x + p.w / 2, py = p.y + p.h;
+  if (b.knot) return v + 5e4 - Math.hypot(b.knot.x + 7 - px, b.knot.y + 7 - py);
+  const bx = b.x + b.w / 2;
+  if (b.mode === 'rest') v += 2000 - Math.abs(bx - px) * 4 - Math.max(0, py - b.y) * 2;
+  else v -= Math.max(0, 110 - Math.abs(bx - px)) * 6; // 突進・休み以外は離れておく
+  if (p.power) v += 300;
+  return v;
+}
+export function bossChoose(s, depth = 2) {
+  let best = 0, bestV = -Infinity;
+  for (let ai = 0; ai < ACTS.length; ai++) {
+    const c = clone(s);
+    for (let k = 0; k < MACRO; k++) step(c, ACTS[ai]);
+    let v = evalBoss(c);
+    if (v > -1e9 && v < 1e9 && depth > 1) {
+      let bv = -Infinity;
+      for (const bj of [0, 1, 4, 6, 7, 8]) {
+        const c2 = clone(c);
+        for (let k = 0; k < MACRO * 2; k++) step(c2, ACTS[bj]);
+        bv = Math.max(bv, evalBoss(c2));
+      }
+      v = bv;
+    }
+    if (v > bestV) { bestV = v; best = ai; }
+  }
+  return best;
+}
+export function arenaPoint(level) {
+  const A = level.ents.find(e => e.kind === 'arena');
+  let ty = A.ty; while (ty < level.h && level.tiles[ty * level.w + A.tx + 3] !== 1) ty++;
+  return { kind: 'point', x: A.x + 56, y: ty * 16 };
+}
+export function solveBoss(level, { maxSeconds = 150, start = null } = {}) {
+  const A = level.ents.find(e => e.kind === 'arena');
+  let s, path = [], nodes = 0;
+  if (start && start.lock) { s = clone(start); }
+  else {
+    const r1 = solve(level, { target: arenaPoint(level), maxNodes: 250000, start });
+    nodes += r1.nodes;
+    if (!r1.ok) return { ok: false, nodes, best: r1.best };
+    s = r1.state; path = [...r1.path];
+  }
+  for (let i = 0; i < maxSeconds * 60 / MACRO; i++) {
+    const ai = bossChoose(s); nodes++;
+    path.push(ai);
+    for (let k = 0; k < MACRO; k++) {
+      step(s, ACTS[ai]);
+      if (s.status === 'clear') return { ok: true, nodes, frames: path.length * MACRO, path, state: s };
+      if (s.status === 'dead') return { ok: false, nodes, best: { x: s.p.x, y: s.p.y, h: s.boss.hp } };
+    }
+  }
+  return { ok: false, nodes, best: { x: s.p.x, y: s.p.y, h: s.boss.hp } };
+}
+
 // 見つけた操作列を再生し、本当に到達するか確かめる（決定性の確認を兼ねる）
 export function replay(level, path, target, carry = {}) {
   const s = createStage(level, tuning, carry);
@@ -134,7 +196,7 @@ export function checkStage(id, { medals = false, maxNodes } = {}) {
   if (medals) for (let i = 0; i < L.medalCount; i++) targets.push({ kind: 'medal', idx: i });
   for (const t of targets) {
     const t0 = Date.now();
-    const r = t.kind === 'medal' || t.kind === 'secret' ? solveVia(L, t) : solve(L, { target: t, maxNodes: maxNodes ?? (t.kind === 'boss' ? 250000 : 150000) });
+    const r = t.kind === 'medal' || t.kind === 'secret' ? solveVia(L, t) : t.kind === 'boss' ? solveBoss(L) : solve(L, { target: t, maxNodes: maxNodes ?? 150000 });
     const rp = r.ok ? replay(L, r.path, t) : null;
     out.targets.push({ target: t.kind + (t.idx != null ? t.idx : ''), ok: r.ok && rp.ok, nodes: r.nodes, botSeconds: r.ok ? +(r.frames / 60).toFixed(1) : null, ms: Date.now() - t0, stuckAt: r.ok ? null : r.best && { x: Math.round(r.best.x / 16), y: Math.round(r.best.y / 16) } });
   }

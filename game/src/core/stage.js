@@ -60,7 +60,8 @@ function ventColumn(level, e) {
   let top = e.ty - 1, n = 0;
   while (top >= 0 && n < 9 && !isSolidTile(level.tiles[top * level.w + e.tx])) { top--; n++; }
   const y0 = (top + 1) * TS;
-  return { x: e.x + 1, y: y0, w: 14, h: e.y + TS - y0, pulse: !!e.pulse, phase: (e.tx % 5) * 0.37, on: true };
+  // 蒸気は吹き出し口より少し広がる（左右に 1 マス弱ずつ）
+  return { x: e.x - 12, y: y0, w: 40, h: e.y + TS - y0, pulse: !!e.pulse, phase: (e.tx % 5) * 0.37, on: true };
 }
 
 export function clone(s) {

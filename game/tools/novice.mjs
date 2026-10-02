@@ -2,26 +2,44 @@
 // ミスしたら中間地点から考え直して、クリアまでの死亡回数・時間・ミスの集中する場所を測る。
 //   node game/tools/novice.mjs [ステージID...] [--runs 6] [--noise 0.12]
 import { fileURLToPath } from 'node:url';
-import { solve, loadStage, stageIds, ACTIONS, MACRO_FRAMES } from './clearbot.mjs';
+import { solve, loadStage, stageIds, ACTIONS, MACRO_FRAMES, bossChoose, arenaPoint } from './clearbot.mjs';
 import { createStage, step, clone } from '../src/core/stage.js';
 import { tuning } from './clearbot.mjs';
 
 export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } = {}) {
   let r = seed >>> 0; const rnd = () => ((r = (r * 1664525 + 1013904223) >>> 0) / 4294967296);
-  const tgt = target ?? { kind: L.ents.some(e => e.kind === 'boss') ? 'boss' : 'goal' };
+  const isBoss = L.ents.some(e => e.kind === 'boss');
+  const tgt = target ?? (isBoss ? arenaPoint(L) : { kind: 'goal' });
   let s = createStage(L, tuning);
   const deathsAt = [];
   let plans = 0;
+  const cache = new Map(); // 中間地点から始めるときの道筋（毎回同じなので使い回す）
+  let fresh = true;
   while (s.deaths < maxDeaths && plans < 400) {
-    const plan = solve(L, { target: tgt, start: s, maxNodes: tgt.kind === 'boss' ? 80000 : 30000 });
+    let plan;
+    if (fresh && cache.has(s.checkpoint)) plan = cache.get(s.checkpoint);
+    else {
+      plan = solve(L, { target: tgt, start: s, maxNodes: fresh ? 200000 : (tgt.kind === 'boss' ? 80000 : 40000) });
+      if (fresh) cache.set(s.checkpoint, plan);
+    }
+    fresh = false;
     plans++;
     if (!plan.ok) {
       // もう助からない空中などでは、そのまま落ちて中間地点からやり直す
       let n = 0, d = false;
       while (n++ < 180 && !d) d = step(s, {}).some(e => e.type === 'die');
-      if (!d) return { cleared: false, deaths: s.deaths, time: s.time, deathsAt, stuck: true, plans };
+      if (!d) {
+        // 落ちてはいない → 時間をかけて考え直す
+        const full = solve(L, { target: tgt, start: s, maxNodes: 200000 }); plans++;
+        if (!full.ok) return { cleared: false, deaths: s.deaths, time: s.time, deathsAt, stuck: true, plans };
+        let died2 = false;
+        for (const ai of full.path) { for (let k = 0; k < MACRO_FRAMES; k++) { const ev = step(s, ACTIONS[ai]); if (ev.some(e => e.type === 'die')) { died2 = true; break; } if (s.status === 'clear') { while (!s.finished) step(s, {}); return { cleared: true, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans }; } } if (died2) break; }
+        if (died2) { deathsAt.push(Math.round(s.p.x / 16)); let m = 0; while (s.status !== 'play' && m++ < 600) step(s, {}); fresh = true; }
+        continue;
+      }
       deathsAt.push(Math.round(s.p.x / 16));
       n = 0; while (s.status !== 'play' && n++ < 600) step(s, {});
+      fresh = true;
       continue;
     }
     // 計画どおりに進んだときの位置（ずれたら考え直す。人が目で見て直すのと同じ）
@@ -40,15 +58,36 @@ export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } 
           while (!s.finished) step(s, {});
           return { cleared: true, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans };
         }
+        if (isBoss && s.lock) break;
       }
       if (died) break;
+      if (isBoss && s.lock) {
+        const fight = bossFight(s, rnd, noise);
+        if (fight === 'clear') return { cleared: true, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans };
+        deathsAt.push(Math.round(s.p.x / 16)); died = true; break;
+      }
       const [ex, ey] = expect[pi];
       if (Math.abs(ex - s.p.x) > 3 || Math.abs(ey - s.p.y) > 3) break; // ずれた → 考え直す
     }
-    if (died) { let n = 0; while (s.status !== 'play' && n++ < 600) step(s, {}); }
+    if (died) { let n = 0; while (s.status !== 'play' && n++ < 600) step(s, {}); fresh = true; }
     // 計画どおり進めたのにまだ着かないときも、そのまま考え直す
   }
   return { cleared: false, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans };
+}
+
+function bossFight(s, rnd, noise) {
+  let prev = 0;
+  for (let i = 0; i < 2400; i++) {
+    const best = bossChoose(s);
+    const ai = rnd() < noise ? prev : best;
+    prev = best;
+    for (let k = 0; k < MACRO_FRAMES; k++) {
+      const ev = step(s, ACTIONS[ai]);
+      if (s.status === 'clear') { while (!s.finished) step(s, {}); return 'clear'; }
+      if (ev.some(e => e.type === 'die')) return 'die';
+    }
+  }
+  return 'die';
 }
 
 export function noviceStage(id, { runs = 6, noise = 0.12 } = {}) {

@@ -136,15 +136,16 @@ export function createRenderer(canvas, view) {
     }
     // 蒸気の吹き出し口
     for (const v of s.vents) {
-      const bx = v.x - 1, by = v.y + v.h - 5;
+      const bx = v.x + 11, by = v.y + v.h - 5;
       g.fillStyle = PAL.K; g.fillRect(bx, by, 16, 5);
       g.fillStyle = v.on ? PAL.s : PAL.S; for (let i = 0; i < 4; i++) g.fillRect(bx + 2 + i * 3, by + 1, 2, 3);
       if (v.on) {
         g.fillStyle = 'rgba(247,243,234,0.28)';
-        for (let i = 0; i < 6; i++) {
-          const yy = by - ((s.t * 70 + i * 23) % v.h);
-          const ww = 6 + Math.sin(s.t * 6 + i) * 3;
-          g.fillRect(v.x + 7 - ww / 2, yy, ww, 6);
+        for (let i = 0; i < 9; i++) {
+          const k = ((s.t * 70 + i * 23) % v.h) / v.h; // 0=吹き出し口 → 1=てっぺん
+          const yy = by - k * v.h;
+          const ww = 6 + k * 24 + Math.sin(s.t * 6 + i) * 3;
+          g.fillRect(Math.round(v.x + 20 - ww / 2 + Math.sin(i * 2.1 + s.t) * 4), Math.round(yy), Math.round(ww), 5);
         }
       }
     }
