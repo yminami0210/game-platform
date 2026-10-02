@@ -75,3 +75,14 @@ test('地図: クリアで道が開き、隠し出口で別の道が開く', () 
   assert.ok(!edgeOpen(world.edges.find(e => e.a === '1-3' && e.b === '1-4'), prog));
   assert.equal(prog.stages['1-1'].best, 80);
 });
+
+test('ヒットストップ中に押したジャンプは捨てられない', () => {
+  const L = level(ids[0]);
+  const s = createStage(L, tuning);
+  step(s, {}); step(s, {});
+  s.hitstop = 4;
+  step(s, { j: true }); // 止まっている間に押す
+  for (let i = 0; i < 3; i++) step(s, { j: true });
+  step(s, { j: true });
+  assert.ok(s.p.vy < 0, `跳んでいない vy=${s.p.vy}`);
+});

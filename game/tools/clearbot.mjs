@@ -92,7 +92,7 @@ function targetPoint(level, target) {
 
 // 金ボタンなど: 直接届かなければ、近くの「飛ばしてくれる物」（ばね・蒸気・足場）を経由して探す
 export function solveVia(level, target, opts = {}) {
-  const direct = solve(level, { target, maxNodes: opts.direct ?? 40000 });
+  const direct = solve(level, { target, maxNodes: opts.direct ?? 120000 });
   if (direct.ok) return direct;
   const tp = targetPoint(level, target);
   const launchers = level.ents.filter(e => ['spring', 'vent', 'moverH', 'moverV', 'switch'].includes(e.kind))

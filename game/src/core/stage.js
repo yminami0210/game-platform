@@ -37,8 +37,8 @@ export function createStage(level, tuning, carry = {}) {
     switches: ents.filter(e => e.kind === 'switch').map(e => ({ x: e.x, y: e.y + 10, w: 16, h: 6, down: false })),
     movers: ents.filter(e => e.kind === 'moverH' || e.kind === 'moverV').map(e => ({
       x0: e.x, y0: e.y, x: e.x, y: e.y, w: 48, h: 8, dx: 0, dy: 0, range: e.range, vert: e.kind === 'moverV',
-      phase: (e.tx * 7 + e.ty * 3) % 10 / 10,
-    })),
+      phase: 0,
+    })).sort((a, b) => a.x0 - b.x0).map((m, i) => ({ ...m, phase: (i % 2) * 0.5 })), // 隣どうしは逆向きに動く（間が開いたり閉じたりする）
     vents: ents.filter(e => e.kind === 'vent').map(e => ventColumn(level, e)),
     crumbles: [...level.crumbleAt.keys()].map(i => ({ i, st: 0, t: 0 })),
     goals: ents.filter(e => e.kind === 'goal' || e.kind === 'secret').map(e => ({ x: e.x + 4, y: e.y - 32, w: 8, h: 48, secret: e.kind === 'secret' })),
@@ -140,7 +140,11 @@ const approach = (v, target, amt) => (v < target ? Math.min(target, v + amt) : M
 // ---- 1ステップ ----
 export function step(s, input = NO_INPUT, dt = DT) {
   const ev = s.events = [];
-  if (s.hitstop > 0) { s.hitstop--; s.prevJ = input.j; return ev; }
+  if (s.hitstop > 0) {
+    // 止まっている間に押したジャンプは捨てずに先行入力として残す
+    if (input.j && !s.prevJ) s.p.buffer = s.tuning.player.bufferFrames + s.hitstop;
+    s.hitstop--; s.prevJ = input.j; return ev;
+  }
   s.frame++;
   if (s.shake > 0) s.shake = Math.max(0, s.shake - dt * 30);
   if (s.status === 'dead') {

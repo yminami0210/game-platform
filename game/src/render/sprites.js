@@ -26,31 +26,32 @@ export const PAL = {
   P: '#c9577a', // 針山の紅
 };
 
+// ツギ: 茜の頭巾、生成りの顔、柿渋の胴に生成りの当て布（墨の縫い目）、背中に縫い針
 const TSUGI_TOP = [
   '......nn........',
-  '.....nKn........',
-  '....KKRKK.......',
-  '...KRRRRRK......',
-  '..KRrRRRRRK.....',
-  '..KRnnnnnRK.....',
-  '..KnnnnKnnK.....',
-  '..KnnnnKnnK.....',
-  '..KRnnnNnRK.....',
-  '...KRRRRRK......',
+  '.K...nKn........',
+  '.s..KKRKK.......',
+  '.sKKRRRRRK......',
+  '.sKRrRRRRRK.....',
+  '.sKRnnnnnRK.....',
+  '.sKnnnnKnnK.....',
+  '.sKnnnnKnnK.....',
+  '.sKRnnnNnRK.....',
+  '.s.KRRRRRK......',
 ];
 const TSUGI_BODY = [
-  '...KAAnAAK......',
-  '..KAaAAAAAK.....',
-  '..KAAARRAAK.....',
+  '.s.KWWWWWK......',
+  '.SKWwnKnWWK.....',
+  '..KWWnnnWWK.....',
 ];
 const legs = {
-  stand: ['...KAAAAAK......', '...KK...KK......', '...KK...KK......'],
-  run1: ['...KAAAAAK......', '..KK....KK......', '.KK......KK.....'],
-  run2: ['...KAAAAAK......', '....KK.KK.......', '....KK.KK.......'],
-  run3: ['...KAAAAAK......', '...KK..KK.......', '..KK.....KK.....'],
-  jump: ['...KAAAAAK......', '...KKK.KKK......', '................'],
-  fall: ['...KAAAAAK......', '..KK.....KK.....', '.KK.......KK....'],
-  skid: ['....KAAAAAK.....', '....KK...KK.....', '...KK....KK.....'],
+  stand: ['...KWWWWWK......', '...Kk...kK......', '...KK...KK......'],
+  run1: ['...KWWWWWK......', '..Kk....kK......', '.KK......KK.....'],
+  run2: ['...KWWWWWK......', '....Kk.kK.......', '....KK.KK.......'],
+  run3: ['...KWWWWWK......', '...Kk..kK.......', '..KK.....KK.....'],
+  jump: ['...KWWWWWK......', '...KkK.KkK......', '................'],
+  fall: ['...KWWWWWK......', '..Kk.....kK.....', '.KK.......KK....'],
+  skid: ['....KWWWWWK.....', '....Kk...kK.....', '...KK....KK.....'],
 };
 const tsugi = l => [...TSUGI_TOP, ...TSUGI_BODY, ...legs[l]];
 
@@ -72,10 +73,10 @@ export const SPRITES = {
     '..KnKnnKnnK.....',
     '..KRnnnnnRK.....',
     '...KRRRRRK......',
-    '..KAAnAAAAK.....',
-    '.KAaAAAAAAAK....',
-    '..KAAARRAAK.....',
-    '...KAAAAAK......',
+    '..KWWnnWWWK.....',
+    '.KWwnKnWWWWK....',
+    '..KWWnnWWWK.....',
+    '...KWWWWWK......',
     '..KK.....KK.....',
     '.KK.......KK....',
     '................',

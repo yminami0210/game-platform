@@ -4,7 +4,10 @@ const KEY = 'tsugi.save', VERSION = 2;
 export function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && s.v === VERSION && s.prog && typeof s.prog.stages === 'object') return { muted: false, ...s, prog: { ...emptyProgress(), ...s.prog } };
+    if (s && s.prog && typeof s.prog.stages === 'object') {
+      // 版が違っても、読める項目は引き継ぐ（黙って進行を消さない）
+      return { muted: false, ...s, v: VERSION, prog: { ...emptyProgress(), ...s.prog } };
+    }
   } catch {}
   return { v: VERSION, muted: false, prog: emptyProgress() };
 }

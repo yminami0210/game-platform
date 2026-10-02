@@ -455,9 +455,19 @@ function drawGroundTile(g, th, tx, ty, x, y, tileAt, isGround, patch) {
   if (th.twill) { for (let i = 0; i < TS; i += 4) g.fillRect(x + ((i + ty * 3) % TS), y + i, 2, 1); }
   else if (th.stripes) { g.fillStyle = th.stripes; g.globalAlpha = 0.25; g.fillRect(x + ((tx % 2) ? 0 : 8), y, 4, TS); g.globalAlpha = 1; }
   else {
-    const ox = (tx + ty) % 2 ? 0 : 8;
-    g.fillRect(x + ox + 2, y + 6, 3, 1); g.fillRect(x + ox + 3, y + 5, 1, 3);
-    g.fillRect(x + ((ox + 8) % 16) + 2, y + 13, 3, 1); g.fillRect(x + ((ox + 8) % 16) + 3, y + 12, 1, 3);
+    // 当て布ごとに刺し子の柄を変える（十字刺し・横の運針・かすり・山形）
+    const kind = Math.floor(hash(Math.floor(tx / 5), Math.floor(ty / 4), 11) * 4);
+    if (kind === 0) {
+      const ox = (tx + ty) % 2 ? 0 : 8;
+      g.fillRect(x + ox + 2, y + 6, 3, 1); g.fillRect(x + ox + 3, y + 5, 1, 3);
+      g.fillRect(x + ((ox + 8) % 16) + 2, y + 13, 3, 1); g.fillRect(x + ((ox + 8) % 16) + 3, y + 12, 1, 3);
+    } else if (kind === 1) {
+      for (let yy = 3; yy < TS; yy += 6) for (let xx = (yy % 4); xx < TS; xx += 5) g.fillRect(x + xx, y + yy, 3, 1);
+    } else if (kind === 2) {
+      for (let k = 0; k < 3; k++) g.fillRect(x + Math.floor(hash(tx, ty, k + 20) * 13), y + Math.floor(hash(tx, ty, k + 30) * 14), 2, 1);
+    } else {
+      for (let xx = 0; xx < TS; xx += 4) { const yy = 8 + ((xx / 4) % 2 ? -2 : 2); g.fillRect(x + xx, y + yy, 2, 1); g.fillRect(x + xx + 2, y + 8, 1, 1); }
+    }
   }
   // 継ぎ目（隣の布と色が違う所に運針）
   g.fillStyle = th.stitch;

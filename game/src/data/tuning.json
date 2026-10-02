@@ -25,6 +25,6 @@
   },
   "boss": { "hp": 6, "hover": 46, "swoop": [190, 230, 260], "rest": [1.35, 1.1, 0.95], "dustEvery": 0.9, "pinSpeed": 105 },
   "vent": { "lift": 1500, "maxUp": 210, "onTime": 2.0, "offTime": 1.4 },
-  "crumble": { "delay": 0.38, "respawn": 3.0 },
+  "crumble": { "delay": 0.3, "respawn": 3.0 },
   "mover": { "speed": 38 }
 }

@@ -277,7 +277,11 @@ function showResult() {
   $('r-coins').textContent = S.coins;
   $('r-deaths').textContent = `${S.deaths} 回`;
   show('result');
-  openMenu($('result-menu'), () => { show('result', false); leaveStage(S.exit); });
+  openMenu($('result-menu'), act => {
+    show('result', false);
+    if (act === 'again') { const id = stageId; recordResult(world, saved.prog, id, { exit: S.exit, medals: S.medals, coins: S.coins, deaths: S.deaths, time: S.time }); save(saved); enterStage(id); }
+    else leaveStage(S.exit);
+  });
 }
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${String(Math.floor((s % 1) * 10))}`;
 function soundLabel() { document.querySelectorAll('[data-act="sound"]').forEach(b => { b.textContent = `音: ${saved.muted ? 'なし' : 'あり'}`; }); }
