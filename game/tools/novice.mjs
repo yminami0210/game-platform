@@ -15,7 +15,9 @@ export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } 
   let plans = 0;
   const cache = new Map(); // 中間地点から始めるときの道筋（毎回同じなので使い回す）
   let fresh = true;
+  const t0 = Date.now();
   while (s.deaths < maxDeaths && plans < 400) {
+    if (Date.now() - t0 > 150000) return { cleared: false, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans, timeout: true };
     let plan;
     if (fresh && cache.has(s.checkpoint)) plan = cache.get(s.checkpoint);
     else {

@@ -8,11 +8,11 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Kaisei+Decol:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <title>ツギと ほつれ島</title>
 <style>
+  /* フォントは使っている文字だけに絞って同梱（SIL OFL 1.1、game/fonts/）。外部への通信はしない */
+  @font-face { font-family: "DotGothic16"; src: url("fonts/DotGothic16-subset.woff2") format("woff2"); font-display: swap; }
+  @font-face { font-family: "Kaisei Decol"; src: url("fonts/KaiseiDecol-Bold-subset.woff2") format("woff2"); font-weight: 700; font-display: swap; }
   :root {
     --ai: #26426b; --ai-deep: #1b2a44; --ai-light: #4b6e98; --kinari: #f0e6cf; --kinari-shade: #cbbf9f;
     --akane: #b8372b; --akane-light: #dd6a4c; --karashi: #d39a22; --karashi-light: #f2cf62; --sumi: #2b2420;

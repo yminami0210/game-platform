@@ -1,5 +1,5 @@
 // オフライン対応。キャッシュ一覧と版は tools/sync_sw.mjs が書き直す。
-const CACHE_VERSION = 'tsugi-7b26a484';
+const CACHE_VERSION = 'tsugi-6b094d50';
 const ASSETS = [
   './',
   'index.html',
@@ -7,6 +7,8 @@ const ASSETS = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon.svg',
+  'fonts/DotGothic16-subset.woff2',
+  'fonts/KaiseiDecol-Bold-subset.woff2',
   'src/audio/sfx.js',
   'src/core/boss.js',
   'src/core/enemies.js',

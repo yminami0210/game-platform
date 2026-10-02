@@ -88,6 +88,7 @@ export function createRenderer(canvas, view) {
     const up = Math.max(0, level.ph - H - cy);
     drawStrip(bg.clouds, cx * 0.08 + t * 3, 0, 8 + up * 0.04);
     drawStrip(bg.far, cx * 0.18, 0, H - bg.far.height - 22 + up * 0.12);
+    drawStrip(bg.props, cx * 0.3, 0, H - bg.props.height - 26 + up * 0.2);
     drawStrip(bg.near, cx * 0.45, 0, H - bg.near.height - 34 + up * 0.3);
     // 地形（焼いたもの）
     g.drawImage(terrain, cx, cy, W, H, 0, 0, W, H);
@@ -350,8 +351,8 @@ export function createRenderer(canvas, view) {
   function drawBoss(b, t) {
     if (b.mode === 'defeat' && b.dropped) return;
     let key = b.mode === 'rest' ? 'boss_rest' : (Math.floor(t * (b.mode === 'swoop' ? 14 : 7)) % 2 ? 'boss_up' : 'boss_down');
-    if (b.mode === 'hurt' && Math.floor(t * 20) % 2) key += '_flash';
-    if (b.mode === 'defeat') key = Math.floor(t * 16) % 2 ? 'boss_rest_flash' : 'boss_rest';
+    if (b.mode === 'hurt' && Math.floor(t * 10) % 2) key += '_flash';
+    if (b.mode === 'defeat') key = Math.floor(t * 8) % 2 ? 'boss_rest_flash' : 'boss_rest';
     const sp = spr[key];
     let x = Math.round(b.x + b.w / 2 - 24), y = Math.round(b.y + b.h - 32);
     if (b.mode === 'windup') x += Math.round(Math.sin(t * 60) * 1.5);
@@ -589,7 +590,14 @@ function buildBackground(th, W, H) {
     const r = 9 + hash(i, 6) * 7;
     ng.fillStyle = th.nearInk; disc(ng, x, 80 - h, r + 1);
     ng.fillStyle = th.near[i % 2]; disc(ng, x, 80 - h, r);
-    // 毛糸のぽんぽん: 下半分に影、上に1本だけ光
+    // 毛糸のぽんぽん: 中心から外へ毛糸の筋
+    ng.fillStyle = th.nearInk; ng.globalAlpha = 0.35;
+    for (let k = 0; k < 14; k++) {
+      const a = k / 14 * Math.PI * 2 + hash(i, k) * 0.4;
+      for (let t = 0.35; t < 0.95; t += 0.12) ng.fillRect(Math.round(x + Math.cos(a) * r * t), Math.round(80 - h + Math.sin(a) * r * t), 1, 1);
+    }
+    ng.globalAlpha = 1;
+    // 下半分に影、上に1本だけ光
     ng.fillStyle = th.nearInk; ng.globalAlpha = 0.25; ng.fillRect(Math.round(x - r), Math.round(80 - h + r * 0.35), Math.round(r * 2), Math.round(r * 0.7)); ng.globalAlpha = 1;
     ng.fillStyle = 'rgba(255,255,255,0.18)'; ng.fillRect(Math.round(x - r * 0.5), Math.round(80 - h - r * 0.6), Math.round(r * 0.6), 1);
     if (hash(i, 11) < 0.35) {
@@ -602,7 +610,65 @@ function buildBackground(th, W, H) {
       ng.globalAlpha = 1;
     }
   }
-  return { sky, clouds, far, near };
+  return { sky, clouds, far, near, props: buildProps(th) };
+}
+
+// 題材の小道具のシルエット（遠景と近景のあいだ）: 地面に刺さった大きな縫い針と渡した糸／糸巻きの塔／アイロン
+function buildProps(th) {
+  const c = document.createElement('canvas'); c.width = 768; c.height = 150;
+  const g = c.getContext('2d');
+  const ink = th.hillInk, body = th.hills[1], light = th.hillSeam;
+  const kind = th.props ?? 'needles';
+  if (kind === 'needles') {
+    const tops = [];
+    for (let i = 0; i < 4; i++) {
+      const x = 60 + i * 192 + hash(i, 40) * 40, h = 90 + hash(i, 41) * 40, lean = (hash(i, 42) - 0.5) * 0.25;
+      const top = 150 - h;
+      for (let y = top; y < 150; y++) {
+        const xx = Math.round(x + (y - top) * lean);
+        const w = y < top + 6 ? 2 : 3;
+        g.fillStyle = ink; g.fillRect(xx - 1, y, w + 2, 1);
+        g.fillStyle = body; g.fillRect(xx, y, w, 1);
+      }
+      g.fillStyle = th.sky[0]; g.fillRect(Math.round(x) , top + 8, 1, 6); // 針の穴
+      tops.push({ x: x + 1, y: top + 10 });
+    }
+    // 針の穴どうしに糸を渡す（たるみ）
+    g.fillStyle = th.flower[0]; g.globalAlpha = 0.45;
+    for (let i = 0; i < tops.length; i++) {
+      const a = tops[i], b = i + 1 < tops.length ? tops[i + 1] : { x: tops[0].x + 768, y: tops[0].y };
+      for (let t = 0; t <= 1; t += 0.004) {
+        const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * 26;
+        g.fillRect(Math.round(x) % 768, Math.round(y), 1, 1);
+      }
+    }
+    g.globalAlpha = 1;
+  } else if (kind === 'spools') {
+    for (let i = 0; i < 3; i++) {
+      const x = 80 + i * 256 + hash(i, 50) * 60, w = 34 + hash(i, 51) * 16, h = 60 + hash(i, 52) * 40, top = 150 - h;
+      g.fillStyle = ink; g.fillRect(x - w / 2 - 6, top - 1, w + 12, 8); g.fillRect(x - w / 2 - 6, 143, w + 12, 7);
+      g.fillStyle = body; g.fillRect(x - w / 2 - 5, top, w + 10, 6); g.fillRect(x - w / 2 - 5, 144, w + 10, 6);
+      g.fillStyle = ink; g.fillRect(x - w / 2 - 1, top + 6, w + 2, h - 12);
+      g.fillStyle = th.flower[i % th.flower.length]; g.globalAlpha = 0.55; g.fillRect(x - w / 2, top + 6, w, h - 12); g.globalAlpha = 1;
+      g.fillStyle = ink; for (let y = top + 8; y < 142; y += 3) g.fillRect(x - w / 2, y, w, 1);
+    }
+  } else if (kind === 'irons') {
+    for (let i = 0; i < 2; i++) {
+      const x = 120 + i * 384 + hash(i, 60) * 80, w = 120, h = 46, base = 150;
+      g.fillStyle = ink;
+      for (let y = 0; y < h; y++) { const ww = Math.round(w * (0.55 + 0.45 * y / h)); g.fillRect(Math.round(x + w - ww), base - h + y, ww, 1); }
+      g.fillStyle = body;
+      for (let y = 1; y < h - 1; y++) { const ww = Math.round(w * (0.55 + 0.45 * y / h)) - 2; g.fillRect(Math.round(x + w - ww - 1), base - h + y, ww, 1); }
+      // 取っ手
+      g.fillStyle = ink; g.fillRect(x + 50, base - h - 22, 50, 6); g.fillRect(x + 54, base - h - 18, 5, 18); g.fillRect(x + 92, base - h - 18, 5, 18);
+      g.fillStyle = light; for (let k = 0; k < 6; k++) g.fillRect(x + 40 + k * 12, base - 8, 2, 2);
+      // 湯気
+      g.fillStyle = light; g.globalAlpha = 0.5;
+      for (let k = 0; k < 8; k++) g.fillRect(Math.round(x + 20 + Math.sin(k) * 6), base - h - 10 - k * 7, 6, 3);
+      g.globalAlpha = 1;
+    }
+  }
+  return c;
 }
 function disc(g, cx, cy, r) {
   for (let y = -r; y <= r; y++) { const w = Math.round(Math.sqrt(r * r - y * y)); g.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
