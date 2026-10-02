@@ -1,0 +1,30 @@
+{
+  "tile": 16,
+  "view": { "w": 384, "h": 216 },
+  "player": {
+    "w": 10, "h": 14,
+    "walkMax": 92, "runMax": 150,
+    "accelGround": 520, "accelRun": 600, "friction": 820, "turnAccel": 1500, "accelAir": 420, "frictionAir": 120,
+    "jumpV": 330, "jumpRunBonus": 0.13,
+    "gravUpHeld": 900, "gravUpReleased": 2700, "gravDown": 1650, "apexBand": 45, "apexGravScale": 0.5,
+    "maxFall": 330, "glideFall": 48,
+    "coyoteFrames": 7, "bufferFrames": 8, "cornerNudge": 5,
+    "stompBounce": 250, "stompBounceHeld": 350, "springV": 470, "springVHeld": 540,
+    "hurtInvuln": 1.6, "hurtKnockX": 110, "hurtKnockY": 200
+  },
+  "hitstop": { "stomp": 4, "hurt": 8, "boss": 10, "power": 6 },
+  "camera": { "lookAhead": 56, "lookEase": 2.2, "followX": 9, "followY": 5, "upMargin": 64, "downMargin": 72 },
+  "enemies": {
+    "iga": { "speed": 24 },
+    "kona": { "speed": 30, "range": 56, "bob": 9 },
+    "choki": { "wake": 150, "wait": 0.75, "hopVX": 72, "hopVY": 240 },
+    "hari": { "speed": 18 },
+    "tsumu": { "drop": 210, "climb": 46, "reach": 28, "wait": 0.8 },
+    "yubi": { "period": 2.4, "range": 230, "shot": 92 },
+    "kedama": { "speed": 40, "hop": 230 }
+  },
+  "boss": { "hp": 6, "hover": 46, "swoop": [190, 230, 260], "rest": [1.35, 1.1, 0.95], "dustEvery": 0.9, "pinSpeed": 105 },
+  "vent": { "lift": 1500, "maxUp": 210, "onTime": 2.0, "offTime": 1.4 },
+  "crumble": { "delay": 0.38, "respawn": 3.0 },
+  "mover": { "speed": 38 }
+}

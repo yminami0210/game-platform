@@ -21,6 +21,13 @@ const DEFAULTS = {
   simRuns: 1000, lookaheadRuns: 60, playRuns: 3, playSeconds: 40,
 };
 const cfg = { ...DEFAULTS, ...(existsSync('studio/gates.json') ? JSON.parse(readFileSync('studio/gates.json', 'utf8')) : {}) };
+// 大型タイトル（ステージ制のアクション等）: スコア制のシミュレーションの代わりに、ゲーム側の判定スクリプトに任せる
+if (cfg.mode === 'adventure') {
+  const script = join(game, 'tools', 'adventure_gate.mjs');
+  if (!existsSync(script)) { console.log(`FAIL gates.json が mode=adventure なのに ${script} が無い`); process.exit(1); }
+  const r = spawnSync('node', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}
 const fails = [], notes = [];
 const check = (ok, msg) => { if (!ok) fails.push(msg); };
 
