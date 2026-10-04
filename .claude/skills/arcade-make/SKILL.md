@@ -12,9 +12,10 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 1. リポジトリのルートで、`git pull --ff-only` で最新にする（失敗したら `git fetch` して状況を確認）。
 2. `python3 arcade/bin/arcade.py list` で、最近のジャンルと操作を見る（**直近12本と同じジャンル×操作の組み合わせは作らない**）。
 3. `arcade/learnings.md` を読む。
+4. **`.claude/skills/product-layers/SKILL.md` に従い、`docs/product/company-core.md` と `docs/product/arcade/canvas.md` を読む**（How から考えない。Core → Why → What → How）。
 
 ## 1. 企画担当（サブエージェント）
-> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、`$GAME/plan.md` に次の節で書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。**仕事・職業・労働を題材にしない**（夜勤、仕分け作業、接客、締め切り、残業などの「お仕事もの」は不可。オーナーの方針: ゲームは仕事を忘れるためのもの）。返答はフォルダのパスと一行ピッチだけ。
+> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、まず `docs/product/arcade/canvas.md` の Core と Why を読み、`$GAME/plan.md` の先頭に `## このゲームの Why`（キャンバスのどのペイン・ゲインに答えるかを1〜2行）を書いてから、次の節を書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。**仕事・職業・労働を題材にしない**（夜勤、仕分け作業、接客、締め切り、残業などの「お仕事もの」は不可。オーナーの方針: ゲームは仕事を忘れるためのもの）。返答はフォルダのパスと一行ピッチだけ。
 
 ## 2. 開発担当（サブエージェント）
 > あなたはミニゲーム工場の開発担当です。まず `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を読み、そのデザインの進め方（計画 → 定番との照合 → 実装 → スクショで自己批評 → 飾りを1つ取る）で作ってください。`<GAME>/plan.md` のとおりに `<GAME>/index.html` を作ります。条件:
@@ -27,6 +28,7 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 
 ## 3. 監査役（サブエージェント）
 > あなたはミニゲーム工場の監査役です。`<GAME>` を判定してください。`node arcade/bin/qa.mjs <GAME>` と `python3 arcade/bin/arcade.py check <GAME>` を実行し、`qa/start.png` と `qa/play.png` を Read で見て、`plan.md` と `index.html` を読みます。観点:
+> 0. **Fit**: `plan.md` の「このゲームの Why」が `docs/product/arcade/canvas.md` と会社の Core（仕事を忘れて没頭できる遊び）に合っているか。合っていなければ REVISE
 > 1. **楽しさ**: 30秒で何をすればいいか分かるか / 気持ちいい瞬間が実装されているか / もう一回遊びたくなる仕掛けがあるか
 > 2. **完成度**: タイトル → 遊ぶ → 結果 → もう一回 が回るか / スマホで操作できるか / 画面からはみ出していないか
 > 3. **デザイン**: `.claude/skills/game-art-direction/SKILL.md` の「監査役が見る観点（デザイン）」で確かめ、「AIが作った感」スコア（10点満点、10 = 人のデザイナーの作品にしか見えない）をつける。**6点未満は REVISE**

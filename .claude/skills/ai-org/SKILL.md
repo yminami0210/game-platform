@@ -9,6 +9,7 @@ description: 会社の各部署（経営企画・営業・カスタマーサポ�
 引数: `<部署> <依頼内容 or 依頼ファイル>`（例: `/ai-org sales 株式会社〇〇向けの提案書`）。部署が分からなければ `python3 ai-org/bin/org.py list` を見て依頼に最も合う部署を選ぶ。
 
 ## 0. 準備
+0. 新しい企画・方針を扱う依頼（経営企画のレポート、新規事業の検討など）は、`.claude/skills/product-layers/SKILL.md` の Core → Why → What → How の順で考えさせる。会社の Core は `docs/product/company-core.md`。
 1. リポジトリのルートで作業する。`python3 ai-org/bin/org.py validate` が OK であることを確認する。
 2. 依頼内容を `00-request.md` 形式（目的・入力資料・期限・制約）で一時ファイルに書き、
    `RUN=$(python3 ai-org/bin/org.py init <部署> <短い英語slug> <その一時ファイル>)` で実行フォルダを作る。
