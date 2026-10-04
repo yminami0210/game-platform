@@ -365,9 +365,10 @@ export function createRenderer(canvas, view) {
     if (!e.alive) return;
     if (enemySpr?.[e.type]) {
       const set = enemySpr[e.type], fr = Object.keys(set);
-      let name = fr[Math.floor(t * 6 + e.id) % fr.length];
+      const k = Math.abs(Math.floor(t * 6 + (e.id | 0))) % fr.length;
+      let name = fr[k];
       if (e.type === 'choki') name = e.st === 'hop' ? fr[1] : fr[0];
-      const sp = set[name], ex = Math.round(e.x + e.w / 2 - sp.w / 2);
+      const sp = set[name] ?? set[fr[0]], ex = Math.round(e.x + e.w / 2 - sp.w / 2);
       if (e.type === 'tsumu') {
         g.fillStyle = PAL.n; g.fillRect(Math.round(e.x + e.w / 2), Math.round(e.sy) - 16, 1, Math.round(e.y - e.sy) + 18);
         g.drawImage(sp.r, ex, Math.round(e.y + e.h - sp.h)); return;
