@@ -19,7 +19,7 @@ const HOVER_TIME = [2.6, 2.2, 1.9];
 export function updateBoss(s, b, dt) {
   const B = s.tuning.boss, p = s.p;
   b.t += dt; b.tt += dt;
-  const L = s.lock ? s.lock.x + 18 : b.cx - 170, R = s.lock ? s.lock.x + s.tuning.view.w - 18 - b.w : b.cx + 170 - b.w;
+  const L = s.lock ? s.lock.x + 18 : b.cx - 170, R = s.lock ? s.lock.x + s.lock.w - 18 - b.w : b.cx + 170 - b.w;
   const goTo = (x, y, sp) => {
     const dx = x - b.x, dy = y - b.y, d = Math.hypot(dx, dy);
     if (d <= sp * dt) { b.x = x; b.y = y; return true; }
@@ -51,7 +51,7 @@ export function updateBoss(s, b, dt) {
       break;
     }
     case 'windup':
-      if (b.t > (b.swoopsLeft === 0 && b.phase === 2 && b.second ? 0.32 : 0.5)) {
+      if (b.t > (b.swoopsLeft === 0 && b.phase === 2 && b.second ? 0.42 : 0.5)) {
         b.tx = Math.max(L, Math.min(R, p.x + p.w / 2 - b.w / 2)); b.ty = b.floorY - b.h;
         enter(s, b, 'swoop'); s.events.push({ type: 'swoop', x: b.x + b.w / 2, y: b.y });
       }
@@ -118,7 +118,7 @@ function fanPins(s, b) {
 
 function spawnLarvae(s, n) {
   const lx = s.lock ? s.lock.x : 0;
-  const spots = [lx + 24, lx + s.tuning.view.w - 40];
+  const spots = [lx + 24, lx + (s.lock ? s.lock.w : s.tuning.view.w) - 40];
   for (let i = 0; i < n; i++) {
     const x = spots[(s.enemies.length + i) % 2];
     const ty = Math.floor((s.boss.floorY - 16) / 16);

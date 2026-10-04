@@ -105,7 +105,7 @@ export function solveVia(level, target, opts = {}) {
     const a = solve(level, { target: pt, maxNodes: 60000 });
     nodes += a.nodes;
     if (!a.ok) continue;
-    const b = solve(level, { target, maxNodes: 150000, start: a.state });
+    const b = solve(level, { target, maxNodes: 300000, start: a.state });
     nodes += b.nodes;
     if (b.ok) return { ok: true, nodes, frames: a.frames + b.frames, path: [...a.path, ...b.path], via: e.kind };
   }
@@ -138,7 +138,7 @@ export function bossChoose(s, depth = 2) {
       let bv = -Infinity;
       for (const bj of [0, 1, 4, 6, 7, 8]) {
         const c2 = clone(c);
-        for (let k = 0; k < MACRO * 2; k++) step(c2, ACTS[bj]);
+        for (let k = 0; k < MACRO * 3; k++) step(c2, ACTS[bj]);
         bv = Math.max(bv, evalBoss(c2));
       }
       v = bv + evalBoss(c) * 1e-6; // 同点なら、いまの一手でより良くなる方

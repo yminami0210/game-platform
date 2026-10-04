@@ -471,7 +471,7 @@ function interact(s, input, dt) {
   if (b && b.knot && overlap(p, b.knot)) { b.knot = null; s.events.push({ type: 'knot' }); clear(s, 'knot'); }
   // 闘技場に入ったら画面を固定
   if (s.arena && !s.lock && p.x > s.arena.x + 24) {
-    s.lock = { x: s.arena.x, w: s.tuning.view.w };
+    s.lock = { x: s.arena.x, w: 24 * TS }; // 闘技場は24マス（画面より広ければカメラが中で動く）
     s.events.push({ type: 'arenaLock' });
     if (s.boss) s.boss.awake = true;
   }
@@ -580,7 +580,7 @@ function snapCamera(s) {
   s.cam.ty = p.y + p.h / 2 - V.h * 0.58;
   s.cam.y = clampCamY(s, s.cam.ty);
 }
-const clampCamX = (s, x) => s.lock ? s.lock.x : Math.max(0, Math.min(s.level.pw - s.tuning.view.w, x));
+const clampCamX = (s, x) => s.lock ? Math.max(s.lock.x, Math.min(s.lock.x + s.lock.w - s.tuning.view.w, x)) : Math.max(0, Math.min(s.level.pw - s.tuning.view.w, x));
 const clampCamY = (s, y) => Math.max(0, Math.min(s.level.ph - s.tuning.view.h, y));
 function updateCamera(s, dt) {
   const C = s.tuning.camera, V = s.tuning.view, p = s.p, cam = s.cam;

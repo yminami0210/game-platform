@@ -1,8 +1,8 @@
 {
  "tile": 16,
  "view": {
-  "w": 256,
-  "h": 144
+  "w": 320,
+  "h": 180
  },
  "player": {
   "w": 12,
@@ -42,12 +42,12 @@
   "power": 6
  },
  "camera": {
-  "lookAhead": 40,
+  "lookAhead": 48,
   "lookEase": 2.2,
   "followX": 9,
   "followY": 5,
-  "upMargin": 40,
-  "downMargin": 44
+  "upMargin": 50,
+  "downMargin": 56
  },
  "enemies": {
   "iga": {
