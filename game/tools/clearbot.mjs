@@ -101,11 +101,11 @@ export function solveVia(level, target, opts = {}) {
     .map(e => ({ e, d: Math.hypot(e.x + 8 - tp.x, e.y - tp.y) })).filter(o => o.d < 16 * 18).sort((a, b) => a.d - b.d).slice(0, 4);
   let nodes = direct.nodes;
   for (const { e } of launchers) {
-    const pt = e.kind === 'moverH' || e.kind === 'moverV' ? { kind: 'point', x: e.x + 24, y: e.y } : { kind: 'point', x: e.x + 8, y: e.kind === 'spring' ? e.y + 9 : e.y + 16 };
+    const pt = e.kind === 'moverV' ? { kind: 'point', x: e.x + 24, y: e.y - e.range } : e.kind === 'moverH' ? { kind: 'point', x: e.x + 24, y: e.y } : { kind: 'point', x: e.x + 8, y: e.kind === 'spring' ? e.y + 9 : e.y + 16 };
     const a = solve(level, { target: pt, maxNodes: 60000 });
     nodes += a.nodes;
     if (!a.ok) continue;
-    const b = solve(level, { target, maxNodes: 60000, start: a.state });
+    const b = solve(level, { target, maxNodes: 150000, start: a.state });
     nodes += b.nodes;
     if (b.ok) return { ok: true, nodes, frames: a.frames + b.frames, path: [...a.path, ...b.path], via: e.kind };
   }
@@ -124,6 +124,8 @@ function evalBoss(c) {
   if (b.mode === 'rest') v += 2000 - Math.abs(bx - px) * 4 - Math.max(0, py - b.y) * 2;
   else v -= Math.max(0, 110 - Math.abs(bx - px)) * 6; // 突進・休み以外は離れておく
   if (p.power) v += 300;
+  if (c.lock) { const dl = px - c.lock.x, dr = c.lock.x + c.lock.w - px; v -= Math.max(0, 56 - Math.min(dl, dr)) * 15; } // 壁際に追い込まれない
+  for (const o of c.shots) v -= Math.max(0, 60 - Math.hypot(o.x - px, o.y - (p.y + p.h / 2))) * 4; // 弾から離れる
   return v;
 }
 export function bossChoose(s, depth = 2) {
@@ -139,7 +141,7 @@ export function bossChoose(s, depth = 2) {
         for (let k = 0; k < MACRO * 2; k++) step(c2, ACTS[bj]);
         bv = Math.max(bv, evalBoss(c2));
       }
-      v = bv;
+      v = bv + evalBoss(c) * 1e-6; // 同点なら、いまの一手でより良くなる方
     }
     if (v > bestV) { bestV = v; best = ai; }
   }

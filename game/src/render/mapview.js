@@ -6,7 +6,7 @@ import { edgeOpen, openNodes } from '../core/world.js';
 const hash = (x, y, k = 0) => { let h = (x * 374761393 + y * 668265263 + k * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 export function createMapView(renderer, world) {
-  const g = renderer.ctx, spr = renderer.spr;
+  const g = renderer.bigCtx, spr = renderer.spr;
   const W = 384, H = 216;
   const sea = makeSea(W, H);
   const island = makeIsland(world, W, H);

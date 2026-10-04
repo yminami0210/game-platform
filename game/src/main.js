@@ -18,7 +18,11 @@ const levels = {};
 const levelOf = id => (levels[id] ??= parseLevel(stages[id]));
 
 const canvas = $('stage');
+// ツギの絵（決まった案のドット絵）。無ければ仮の絵
+let playerSprite = null;
+if (tuning.playerSprite) { try { playerSprite = await getJSON(tuning.playerSprite); } catch {} }
 const renderer = createRenderer(canvas, tuning.view);
+if (playerSprite) renderer.setPlayerSprite(playerSprite);
 const mapView = createMapView(renderer, world);
 const input = createInput($('pad'));
 let saved = load();
@@ -32,10 +36,11 @@ const log = (type, extra = {}) => { events.push({ ...extra, type, t: +((performa
 // ---- 画面の大きさに UI を合わせる ----
 function layoutUI() {
   const vw = innerWidth, vh = innerHeight;
-  const s = Math.min(vw / 384, vh / 216), dpr = Math.min(devicePixelRatio || 1, 2);
+  const VW = tuning.view.w, VH = tuning.view.h;
+  const s = Math.min(vw / VW, vh / VH), dpr = Math.min(devicePixelRatio || 1, 2);
   const sd = s * dpr; // renderer.js と同じ決め方
   const sc = sd >= 1 && Math.floor(sd) / sd >= 0.85 ? Math.floor(sd) / dpr : s;
-  const w = 384 * sc, h = 216 * sc;
+  const w = VW * sc, h = VH * sc;
   const ui = $('ui');
   Object.assign(ui.style, { left: `${(vw - w) / 2}px`, top: `${(vh - h) / 2}px`, width: `${w}px`, height: `${h}px` });
   ui.style.setProperty('--gh', `${h}px`);
@@ -182,7 +187,7 @@ function mapDraw(t) {
     ({ x, y } = mapView.at(q, tt)); hop = (m.move.t * 3) % 1;
   } else { x = node(m.at).x; y = node(m.at).y; }
   mapView.drawToken(x, y - 4, t, m.face, hop);
-  renderer.present();
+  renderer.presentBig();
 }
 
 // ステージ
@@ -300,11 +305,11 @@ function frame(now) {
       renderer.draw(titleState, dt, wall); break;
     case 'story':
       story.t += dt;
-      mapView.drawScene(story.pages[story.i].scene, saved.prog, wall, story.t); renderer.present();
+      mapView.drawScene(story.pages[story.i].scene, saved.prog, wall, story.t); renderer.presentBig();
       if ((input.pressed('j') || input.pressed('start')) && story.t > 0.25) nextStory();
       break;
     case 'tsuzuku':
-      story.t += dt; mapView.drawScene('drift', saved.prog, wall, 6 + story.t); renderer.present();
+      story.t += dt; mapView.drawScene('drift', saved.prog, wall, 6 + story.t); renderer.presentBig();
       if (story.t > 1.5 && (input.pressed('j') || input.pressed('start'))) toMap();
       break;
     case 'map': mapUpdate(dt); mapDraw(wall); break;
@@ -331,6 +336,7 @@ window.__GS__ = {
   events,
   get running() { return scene === 'stage' && S?.status === 'play'; },
   get scene() { return scene; },
+  setPlayerSprite: sp => renderer.setPlayerSprite(sp),
   enterStage: (id, carry) => { sfx.unlock(); enterStage(id, { carry, noIntro: true }); },
   toMap: () => toMap(),
   // 操作列（ステップ番号 → 押されているボタン）で、本物のループのまま遊ばせる

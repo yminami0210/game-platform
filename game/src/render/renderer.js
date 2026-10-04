@@ -1,4 +1,4 @@
-// ステージの描画。内部 384×216 のキャンバスに描き、画面へ整数倍で拡大する。
+// ステージの描画。内部 256×144 のキャンバスに描き、画面へ整数倍で拡大する（地図と物語は 384×216 の別キャンバス）。
 // core の state を読むだけで、書き換えない（パーティクル等の演出はここで持つ）。
 import { T } from '../core/level.js';
 import { PAL, bake } from './sprites.js';
@@ -13,6 +13,9 @@ export function createRenderer(canvas, view) {
   const screen = canvas.getContext('2d');
   const buf = document.createElement('canvas'); buf.width = W; buf.height = H;
   const g = buf.getContext('2d');
+  const big = document.createElement('canvas'); big.width = 384; big.height = 216; // 地図・物語用
+  const bigCtx = big.getContext('2d');
+  let playerSpr = null; // 設定画から作ったツギのドット絵（sprite.json）
   const spr = bake(document);
   const cloth = makeClothTexture(W, H);
   const fx = { parts: [], pops: [], flash: 0, sx: 1, sy: 1, banner: null };
@@ -111,10 +114,23 @@ export function createRenderer(canvas, view) {
     present();
   }
 
-  function present() {
+  function present(src = buf) {
     screen.imageSmoothingEnabled = false;
     screen.fillStyle = '#1b2a44'; screen.fillRect(0, 0, canvas.width, canvas.height);
-    screen.drawImage(buf, ox, oy, W * scale, H * scale);
+    screen.drawImage(src, ox, oy, W * scale, H * scale);
+  }
+  function setPlayerSprite(json) {
+    const out = {};
+    for (const [name, rows] of Object.entries(json.frames)) {
+      const make = flip => {
+        const c = document.createElement('canvas'); c.width = json.w; c.height = json.h;
+        const cg = c.getContext('2d');
+        rows.forEach((r, y) => [...r].forEach((ch, x) => { const col = json.palette[ch]; if (!col || ch === '.') return; cg.fillStyle = col; cg.fillRect(flip ? json.w - 1 - x : x, y, 1, 1); }));
+        return c;
+      };
+      out[name] = { r: make(false), l: make(true), w: json.w, h: json.h };
+    }
+    playerSpr = out;
   }
 
   function drawStrip(c, x, y, top) {
@@ -368,25 +384,37 @@ export function createRenderer(canvas, view) {
   function drawPlayer(s, dt, t) {
     const p = s.p;
     fx.sx += (1 - fx.sx) * Math.min(1, dt * 14); fx.sy += (1 - fx.sy) * Math.min(1, dt * 14);
-    if (p.inv > 0 && Math.floor(t * 20) % 2 && s.status === 'play') return;
-    let key;
-    if (s.status === 'dead') key = 'tsugi_dead';
-    else if (!p.onGround && p.ride < 0) key = p.vy < 0 ? 'tsugi_jump' : 'tsugi_fall';
-    else if (p.skid) key = 'tsugi_skid';
-    else if (Math.abs(p.vx) > 8) key = ['tsugi_run1', 'tsugi_run2', 'tsugi_run3', 'tsugi_run2'][Math.floor(s.frame * Math.abs(p.vx) / 900) % 4];
-    else key = 'tsugi_stand';
-    const sp = spr[key];
-    const w = Math.round(16 * fx.sx), h = Math.round(16 * fx.sy);
-    const cx = Math.round(p.x + p.w / 2), by = Math.round(p.y + p.h) + 2;
+    if (p.inv > 0 && Math.floor(t * 12) % 2 && s.status === 'play') return;
+    const running = Math.abs(p.vx) > 8;
+    const runF = ['run1', 'run2', 'run3', 'run2'][Math.floor(s.frame * Math.abs(p.vx) / 900) % 4];
+    let name;
+    if (s.status === 'dead') name = 'dead';
+    else if (!p.onGround && p.ride < 0) name = p.vy < 0 ? 'jump' : 'fall';
+    else if (p.skid) name = 'skid';
+    else name = running ? runF : 'stand';
     const face = p.face > 0 ? 'r' : 'l';
-    const x = cx - Math.round(w / 2) + (p.face > 0 ? 1 : -1), y = by - h;
+    const cx = Math.round(p.x + p.w / 2), by = Math.round(p.y + p.h);
+    let sp, bw, bh;
+    if (playerSpr) {
+      sp = playerSpr[name] ?? (name === 'skid' ? playerSpr.stand : name === 'dead' ? playerSpr.fall : null) ?? playerSpr.stand;
+      bw = sp.w; bh = sp.h;
+    } else { sp = spr['tsugi_' + name] ?? spr.tsugi_stand; bw = 24; bh = 24; } // 仮: 16px の絵を 1.5 倍
+    const w = Math.round(bw * fx.sx), h = Math.round(bh * fx.sy);
+    const x = cx - Math.round(w / 2), y = by - h;
     if (p.power) {
-      const fl = spr.fluff; g.drawImage(fl[face], x - 1 + (p.glide ? Math.round(Math.sin(t * 20)) : 0), y - 1, w + 2, h + 2);
+      // 綿毛: 体のまわりに綿のかたまり
+      g.fillStyle = PAL.O;
+      const k = p.glide ? Math.sin(t * 20) : 0;
+      for (const [ax, ay, r] of [[-0.42, 0.25, 3], [0.42, 0.3, 3], [-0.3, 0.75, 2], [0.36, 0.78, 2], [0, 0.02, 3]]) {
+        const px0 = Math.round(cx + ax * w + k), py0 = Math.round(y + ay * h);
+        g.fillRect(px0 - r, py0 - r + 1, r * 2, r * 2 - 2); g.fillRect(px0 - r + 1, py0 - r, r * 2 - 2, r * 2);
+      }
     }
-    g.drawImage(sp[face], x, y, w, h);
+    if (s.status === 'dead') { g.save(); g.translate(x + w / 2, y + h / 2); g.scale(1, -1); g.drawImage(sp[face], -w / 2, -h / 2, w, h); g.restore(); }
+    else g.drawImage(sp[face], x, y, w, h);
     if (p.glide) {
       // 滑空中: 綿が帆のように広がる
-      g.fillStyle = PAL.O; g.fillRect(cx - 9, y - 3, 18, 3); g.fillStyle = PAL.o; g.fillRect(cx - 8, y - 1, 16, 1);
+      g.fillStyle = PAL.O; g.fillRect(cx - 13, y - 3, 26, 3); g.fillStyle = PAL.o; g.fillRect(cx - 12, y - 1, 24, 1);
     }
   }
 
@@ -422,7 +450,7 @@ export function createRenderer(canvas, view) {
     fx.pops = fx.pops.filter(q => q.t < 1.1);
   }
 
-  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, present, spr, fx, size: () => ({ scale, ox, oy }) };
+  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, bigCtx, presentBig: () => present(big), setPlayerSprite, present, spr, fx, size: () => ({ scale, ox, oy }) };
 }
 
 // ---- 地形を一度だけ焼く ----
