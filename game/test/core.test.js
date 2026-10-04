@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseLevel } from '../src/core/level.js';
 import { createStage, step, clone } from '../src/core/stage.js';
-import { recordResult, moveFrom, openNodes, emptyProgress, edgeOpen } from '../src/core/world.js';
+import { recordResult, moveFrom, openNodes, emptyProgress, edgeOpen, worldUnlocked } from '../src/core/world.js';
 
 const tuning = JSON.parse(readFileSync(new URL('../src/data/tuning.json', import.meta.url)));
 const world = JSON.parse(readFileSync(new URL('../src/data/world1.json', import.meta.url)));
@@ -85,4 +85,11 @@ test('ヒットストップ中に押したジャンプは捨てられない', ()
   for (let i = 0; i < 3; i++) step(s, { j: true });
   step(s, { j: true });
   assert.ok(s.p.vy < 0, `跳んでいない vy=${s.p.vy}`);
+});
+
+test('ワールドの解放: 3までは無料、4以降は解放の記録が要る', () => {
+  const prog = emptyProgress();
+  assert.ok(worldUnlocked(1, prog) && worldUnlocked(3, prog));
+  assert.ok(!worldUnlocked(4, prog));
+  assert.ok(worldUnlocked(4, { ...prog, unlocks: { 4: true } }));
 });

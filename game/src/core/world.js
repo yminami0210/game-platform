@@ -44,3 +44,8 @@ export function recordResult(world, prog, stageId, r) {
   return world.edges.filter(e => edgeOpen(e, prog) && !before.has(e.a + '>' + e.b));
 }
 export function medalTotal(prog) { return Object.values(prog.stages).reduce((n, s) => n + s.medals.filter(Boolean).length, 0); }
+
+// ワールドの解放は必ずここで判定する（収益モデル: ワールド3までは無料。4以降の条件は未定で、課金・広告は実装しない）
+// studio/legal/2026-10-04-monetization-minors.md「設計で今やっておくこと」
+export const FREE_WORLDS = 3;
+export function worldUnlocked(worldId, prog) { return worldId <= FREE_WORLDS || !!prog.unlocks?.[worldId]; }
