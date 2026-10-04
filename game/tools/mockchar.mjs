@@ -18,6 +18,6 @@ await page.goto(url + 'index.html', { waitUntil: 'commit' });
 await page.waitForFunction(() => window.__GS__);
 const plan = solve(loadStage(id), { target: { kind: 'goal' }, maxNodes: 200000 });
 await page.evaluate(([sp, path, acts, M, id]) => { window.__GS__.setPlayerSprite(sp); window.__GS__.enterStage(id); window.__GS__.setPlan(i => acts[path[Math.floor(i / M)]] ?? {}); }, [sprite, plan.path, ACTIONS, MACRO_FRAMES, id]);
-await page.waitForTimeout(Number(secs) * 1000);
+page.on('pageerror', e => console.log('ERR', String(e))); await page.waitForTimeout(Number(secs) * 1000); console.log(await page.evaluate(() => JSON.stringify(window.__GS__.state)));
 await page.screenshot({ path: out });
 await browser.close(); server.close();
