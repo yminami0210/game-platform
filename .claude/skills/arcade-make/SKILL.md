@@ -14,7 +14,7 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 3. `arcade/learnings.md` を読む。
 
 ## 1. 企画担当（サブエージェント）
-> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、`$GAME/plan.md` に次の節で書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。返答はフォルダのパスと一行ピッチだけ。
+> あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、`$GAME/plan.md` に次の節で書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。**仕事・職業・労働を題材にしない**（夜勤、仕分け作業、接客、締め切り、残業などの「お仕事もの」は不可。オーナーの方針: ゲームは仕事を忘れるためのもの）。返答はフォルダのパスと一行ピッチだけ。
 
 ## 2. 開発担当（サブエージェント）
 > あなたはミニゲーム工場の開発担当です。まず `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を読み、そのデザインの進め方（計画 → 定番との照合 → 実装 → スクショで自己批評 → 飾りを1つ取る）で作ってください。`<GAME>/plan.md` のとおりに `<GAME>/index.html` を作ります。条件:
