@@ -38,7 +38,8 @@ for (const id of ids) {
   const goal = r.targets.find(x => x.target === 'goal' || x.target === 'boss');
   report.stages[id] = { clear: r.targets };
   check(goal?.ok, `${id}: クリア確認ボットがゴールに届かない（${goal?.stuckAt ? `x=${goal.stuckAt.x}, y=${goal.stuckAt.y} 付近で止まる` : '?'}）`);
-  if (goal?.ok && goal.target === 'goal') check(goal.botSeconds >= cfg.expertSecondsMin && goal.botSeconds <= cfg.expertSecondsMax, `${id}: 上手なボットのクリア時間 ${goal.botSeconds}秒（基準 ${cfg.expertSecondsMin}〜${cfg.expertSecondsMax}秒）`);
+  const ov = { ...cfg, ...(cfg.stageOverrides?.[id] ?? {}) };
+  if (goal?.ok && goal.target === 'goal') check(goal.botSeconds >= ov.expertSecondsMin && goal.botSeconds <= ov.expertSecondsMax, `${id}: 上手なボットのクリア時間 ${goal.botSeconds}秒（基準 ${ov.expertSecondsMin}〜${ov.expertSecondsMax}秒）`);
   for (const m of r.targets.filter(x => x.target.startsWith('medal'))) check(m.ok, `${id}: 金ボタン${+m.target.slice(5) + 1} に届かない`);
   const sec = r.targets.find(x => x.target === 'secret');
   if (sec && cfg.secretReachable) check(sec.ok, `${id}: 隠し出口に届かない`);

@@ -79,7 +79,7 @@ export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } 
 
 function bossFight(s, rnd, noise) {
   let prev = 0;
-  for (let i = 0; i < 2400; i++) {
+  for (let i = 0; i < 450; i++) { // 1分戦って決着しなければミス扱い（人ならどこかで当たる）
     const best = bossChoose(s);
     const ai = rnd() < noise ? prev : best;
     prev = best;

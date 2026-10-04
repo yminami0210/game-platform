@@ -1,8 +1,15 @@
 {
   "mode": "adventure",
   "_説明": "大型タイトル（横スクロール）向けの基準。1ランの長さやスコア比の代わりに、ステージごとのクリア可能性・長さ・死亡数・詰まり・隠し要素の到達性を見る。判定は game/tools/adventure_gate.mjs",
-  "slice": { "stages": ["1-1"] },
-  "release": { "stages": "all", "requireWorldComplete": true },
+  "slice": {
+    "stages": [
+      "1-1"
+    ]
+  },
+  "release": {
+    "stages": "all",
+    "requireWorldComplete": true
+  },
   "expertSecondsMin": 25,
   "expertSecondsMax": 240,
   "noviceRuns": 6,
@@ -16,5 +23,11 @@
   "worldMinutesMin": 30,
   "worldMinutesMax": 60,
   "readyMsMax": 3000,
-  "fpsMinWorst": 30
+  "fpsMinWorst": 30,
+  "stageOverrides": {
+    "1-S": {
+      "expertSecondsMin": 10,
+      "_理由": "ひみつのご褒美ステージは短く作る（decisions.md）"
+    }
+  }
 }
