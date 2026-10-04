@@ -102,7 +102,7 @@ export function solveVia(level, target, opts = {}) {
   let nodes = direct.nodes;
   for (const { e } of launchers) {
     const pt = e.kind === 'moverV' ? { kind: 'point', x: e.x + 24, y: e.y - e.range } : e.kind === 'moverH' ? { kind: 'point', x: e.x + 24, y: e.y } : { kind: 'point', x: e.x + 8, y: e.kind === 'spring' ? e.y + 9 : e.y + 16 };
-    const a = solve(level, { target: pt, maxNodes: 60000 });
+    const a = solve(level, { target: pt, maxNodes: 150000 });
     nodes += a.nodes;
     if (!a.ok) continue;
     const b = solve(level, { target, maxNodes: 300000, start: a.state });
