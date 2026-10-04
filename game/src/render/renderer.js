@@ -119,6 +119,26 @@ export function createRenderer(canvas, view) {
     screen.fillStyle = '#1b2a44'; screen.fillRect(0, 0, canvas.width, canvas.height);
     screen.drawImage(src, ox, oy, W * scale, H * scale);
   }
+  function bakeFrames(w, h, palette, frames) {
+    const out = {};
+    for (const [name, rows] of Object.entries(frames)) {
+      const make = flip => {
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const cg = c.getContext('2d');
+        rows.forEach((r, y) => [...r].forEach((ch, x) => { const col = palette[ch]; if (!col || ch === '.') return; cg.fillStyle = col; cg.fillRect(flip ? w - 1 - x : x, y, 1, 1); }));
+        return c;
+      };
+      out[name] = { r: make(false), l: make(true), w, h };
+    }
+    return out;
+  }
+  let enemySpr = null, shotSpr = null, bossSpr = null;
+  function setEnemySprites(json) {
+    enemySpr = {};
+    for (const [k, v] of Object.entries(json.enemies)) enemySpr[k] = bakeFrames(v.w, v.h, json.palette, v.frames);
+    if (json.shots?.pin) shotSpr = bakeFrames(json.shots.pin.w, json.shots.pin.h, json.palette, json.shots.pin.frames);
+  }
+  function setBossSprite(json) { bossSpr = bakeFrames(json.w, json.h, json.palette, json.frames); }
   function setPlayerSprite(json) {
     const out = {};
     for (const [name, rows] of Object.entries(json.frames)) {
@@ -336,12 +356,29 @@ export function createRenderer(canvas, view) {
   function drawEnemy(e, t) {
     if (!e.alive && e.how === 'stomp') {
       // 踏まれてぺしゃんこ
-      const s0 = spr[e.type + '1'] ?? spr.iga1;
+      const s0 = enemySpr?.[e.type] ? Object.values(enemySpr[e.type])[0] : (spr[e.type + '1'] ?? spr.iga1);
+      const fw = s0.w ?? 16;
       g.globalAlpha = Math.max(0, 1 - e.deadT / 0.6);
-      g.drawImage(e.dir > 0 ? s0.l : s0.r, Math.round(e.x + e.w / 2 - 8), Math.round(e.y + e.h - 6), 16, 6);
+      g.drawImage(e.dir > 0 ? s0.l : s0.r, Math.round(e.x + e.w / 2 - fw / 2), Math.round(e.y + e.h - 7), fw, 7);
       g.globalAlpha = 1; return;
     }
     if (!e.alive) return;
+    if (enemySpr?.[e.type]) {
+      const set = enemySpr[e.type], fr = Object.keys(set);
+      let name = fr[Math.floor(t * 6 + e.id) % fr.length];
+      if (e.type === 'choki') name = e.st === 'hop' ? fr[1] : fr[0];
+      const sp = set[name], ex = Math.round(e.x + e.w / 2 - sp.w / 2);
+      if (e.type === 'tsumu') {
+        g.fillStyle = PAL.n; g.fillRect(Math.round(e.x + e.w / 2), Math.round(e.sy) - 16, 1, Math.round(e.y - e.sy) + 18);
+        g.drawImage(sp.r, ex, Math.round(e.y + e.h - sp.h)); return;
+      }
+      let sy = 1;
+      if (e.type === 'kedama') sy = e.onGround ? 0.82 : e.vy < 0 ? 1.1 : 1;
+      if (e.type === 'choki' && e.st === 'wait' && e.t > 0.45) sy = Math.floor(t * 20) % 2 ? 0.92 : 1;
+      const h = Math.round(sp.h * sy);
+      g.drawImage(e.dir < 0 ? sp.l : sp.r, ex, Math.round(e.y + e.h - h), sp.w, h);
+      return;
+    }
     const f = Math.floor(t * 6 + e.id) % 2;
     let key = e.type + (f ? '2' : '1');
     if (!spr[key]) key = e.type + '1';
@@ -366,6 +403,17 @@ export function createRenderer(canvas, view) {
 
   function drawBoss(b, t) {
     if (b.mode === 'defeat' && b.dropped) return;
+    if (bossSpr) {
+      let name = b.mode === 'rest' || b.mode === 'defeat' ? 'rest' : b.mode === 'windup' ? (bossSpr.windup ? 'windup' : 'up') : (Math.floor(t * (b.mode === 'swoop' ? 14 : 7)) % 2 ? 'up' : 'down');
+      const sp = bossSpr[name] ?? bossSpr.up;
+      let x = Math.round(b.x + b.w / 2 - sp.w / 2), y = Math.round(b.y + b.h - sp.h);
+      if (b.mode === 'windup') x += Math.round(Math.sin(t * 60) * 1.5);
+      const flash = (b.mode === 'hurt' && Math.floor(t * 10) % 2) || (b.mode === 'defeat' && Math.floor(t * 8) % 2);
+      if (flash) g.globalAlpha = 0.45;
+      g.drawImage(b.face > 0 ? sp.r : sp.l, x, y);
+      g.globalAlpha = 1;
+      return;
+    }
     let key = b.mode === 'rest' ? 'boss_rest' : (Math.floor(t * (b.mode === 'swoop' ? 14 : 7)) % 2 ? 'boss_up' : 'boss_down');
     if (b.mode === 'hurt' && Math.floor(t * 10) % 2) key += '_flash';
     if (b.mode === 'defeat') key = Math.floor(t * 8) % 2 ? 'boss_rest_flash' : 'boss_rest';
@@ -420,6 +468,7 @@ export function createRenderer(canvas, view) {
 
   function drawShot(o) {
     if (o.kind === 'pin') {
+      if (shotSpr) { const sp = Object.values(shotSpr)[0]; g.save(); g.translate(Math.round(o.x + o.w / 2), Math.round(o.y + o.h / 2)); g.rotate(Math.atan2(o.vy, o.vx)); g.drawImage(sp.r, -sp.w / 2, -sp.h / 2); g.restore(); return; }
       const sp = spr.pin;
       g.save(); g.translate(Math.round(o.x + o.w / 2), Math.round(o.y + o.h / 2)); g.rotate(Math.atan2(o.vy, o.vx));
       g.drawImage(sp.r, -12, -2); g.restore();
@@ -450,7 +499,7 @@ export function createRenderer(canvas, view) {
     fx.pops = fx.pops.filter(q => q.t < 1.1);
   }
 
-  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, bigCtx, presentBig: () => present(big), setPlayerSprite, present, spr, fx, size: () => ({ scale, ox, oy }) };
+  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, bigCtx, presentBig: () => present(big), setPlayerSprite, setEnemySprites, setBossSprite, present, spr, fx, size: () => ({ scale, ox, oy }) };
 }
 
 // ---- 地形を一度だけ焼く ----

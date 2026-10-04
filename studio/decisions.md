@@ -15,3 +15,5 @@
 - 2026-10-02 | フォントを Google Fonts から読み込むのをやめ、使う文字だけに絞って同梱（game/fonts/、tools/subset_fonts.py） | gs-legal の指摘（外部通信で IP が送られる）。オフラインでも見た目が崩れない。合計 165KB | CDN のまま外部通信を明記
 - 2026-10-02 | ボスの被弾点滅を 5Hz に落とす（光の点滅への配慮） | gs-legal の任意指摘 | 点滅なし（被弾が分かりにくい）
 - 2026-10-04 | ひみつのご褒美ステージ（1-S）は上手なボットで10秒以上を基準にする（gates.json stageOverrides） | 隠し出口のご褒美として短く濃く作る | 通常ステージと同じ25秒以上
+- 2026-10-04 | **ツギは C案「振袖の継ぎはぎ童子」（オーナー決定）** | 主人公らしさ、3DCG に進むときの拡張性。決定版は studio/characters/tsugi/final/（ターンアラウンド・部品構造・3D 基準） | A 三角頭巾、B 巾着袋
+- 2026-10-04 | 敵・ボス・ツギのドット絵と立ち絵はデータ（JSON・PNG）で読み込む（tuning.json の playerSprite / enemySprites / bossSprite、data/portraits.json） | キャラを差し替えても core とボットに影響しない | 絵をコードに直書き

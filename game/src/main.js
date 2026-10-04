@@ -10,7 +10,7 @@ import { load, save, wipe } from './save.js';
 
 const $ = id => document.getElementById(id);
 const getJSON = async p => (await fetch(p)).json();
-const [tuning, world, text] = await Promise.all([getJSON('src/data/tuning.json'), getJSON('src/data/world1.json'), getJSON('src/data/text.json')]);
+const [tuning, world, text, portraits] = await Promise.all([getJSON('src/data/tuning.json'), getJSON('src/data/world1.json'), getJSON('src/data/text.json'), getJSON('src/data/portraits.json')]);
 const stages = {};
 const ready = await getJSON('src/data/stages/index.json'); // できているステージだけ読む（404 を出さない）
 await Promise.all(ready.map(async id => { stages[id] = await getJSON(`src/data/stages/${id}.json`); }));
@@ -23,6 +23,10 @@ let playerSprite = null;
 if (tuning.playerSprite) { try { playerSprite = await getJSON(tuning.playerSprite); } catch {} }
 const renderer = createRenderer(canvas, tuning.view);
 if (playerSprite) renderer.setPlayerSprite(playerSprite);
+// 敵とボスのドット絵（キャラ設定画から作ったもの）。無ければ仮の絵
+for (const [key, fn] of [['enemySprites', 'setEnemySprites'], ['bossSprite', 'setBossSprite']]) {
+  if (tuning[key]) { try { renderer[fn](await getJSON(tuning[key])); } catch {} }
+}
 const mapView = createMapView(renderer, world);
 const input = createInput($('pad'));
 let saved = load();
@@ -70,11 +74,30 @@ function menuInput() {
 const show = (id, on = true) => { $(id).hidden = !on; };
 const hideAll = () => ['title', 'story', 'tsuzuku', 'maptotal', 'mapcard', 'hud', 'boss', 'intro', 'pause', 'mappause', 'result', 'help'].forEach(id => show(id, false));
 
+// ---- 立ち絵 ----
+function setPortrait(id, who) {
+  const el = $(id), src = who && portraits[who];
+  if (!src) { el.hidden = true; return; }
+  if (!el.src.endsWith(src)) el.src = src;
+  el.hidden = false;
+}
+let portraitTimer = 0;
+function slidePortrait(who, side = 'left', secs = 2.2) {
+  const el = $('stage-portrait');
+  if (!portraits[who]) return;
+  el.src = portraits[who]; el.hidden = false;
+  el.className = `portrait ${side} off-${side}`;
+  requestAnimationFrame(() => requestAnimationFrame(() => { el.className = `portrait ${side}`; }));
+  clearTimeout(portraitTimer);
+  portraitTimer = setTimeout(() => { el.className = `portrait ${side} off-${side}`; }, secs * 1000);
+}
+const STORY_PORTRAIT = { tsugi: 'tsugi', knot: 'tsugi-happy', nuiba: 'tsugi-worried', unravel: 'tsugi-worried', hand: 'nuiba', drift: 'tsugi' };
+
 // ---- 場面 ----
 let scene = 'title';
 let titleState = null, titleT = 0;
 function toTitle() {
-  scene = 'title'; hideAll(); show('title');
+  scene = 'title'; hideAll(); show('title'); setPortrait('title-portrait', 'tsugi');
   titleState = createStage(levelOf('1-1'), tuning); renderer.setLevel(levelOf('1-1'));
   const cont = $('title').querySelector('[data-act="continue"]');
   cont.hidden = !saved.prog.seenIntro;
@@ -101,7 +124,7 @@ function startStory(kind) {
   $('story').querySelector('.skip').onclick = () => endStory();
   log('story', { kind });
 }
-function setStoryPage() { $('story-text').textContent = story.pages[story.i].text; story.t = 0; }
+function setStoryPage() { $('story-text').textContent = story.pages[story.i].text; story.t = 0; setPortrait('story-portrait', STORY_PORTRAIT[story.pages[story.i].scene]); }
 function nextStory() {
   sfx.play('select');
   if (++story.i >= story.pages.length) return endStory();
@@ -204,6 +227,7 @@ function enterStage(id, opts = {}) {
   $('intro-name').textContent = text.stages[id]?.name ?? id;
   $('intro-hint').textContent = text.stages[id]?.hint ?? '';
   show('intro', !opts.noIntro);
+  if (!opts.noIntro) slidePortrait('tsugi', 'left', 2.0);
   $('h-stage').textContent = text.stages[id]?.name ?? id;
   sfx.music(stages[id].music ?? 'meadow');
   lastHud = '';
@@ -236,7 +260,7 @@ function handleEvents(evs) {
       case 'checkpoint': sfx.play('checkpoint'); log('checkpoint', { stage: stageId, idx: e.idx }); break;
       case 'clear': sfx.play(e.exit === 'knot' ? 'knot' : 'clear'); sfx.music(null); log('clear', { stage: stageId, exit: e.exit, time: +e.time.toFixed(2), deaths: e.deaths, medals: e.medals.filter(Boolean).length }); break;
       case 'finished': showResult(); break;
-      case 'bossintro': sfx.music('boss'); break;
+      case 'bossintro': sfx.music('boss'); slidePortrait('keba', 'right', 2.4); break;
       case 'arenaLock': sfx.music(null); break;
       case 'powerdown': sfx.play('powerdown'); navigator.vibrate?.(40); break;
       case 'knotDrop': sfx.play('power'); break;
