@@ -1,7 +1,7 @@
 // 敵7種の動き。どれも動きがはっきり違うように作る（studio/gdd.md の表）。
 import { moveX, moveY, solidAt } from './stage.js';
 
-const SIZE = { iga: [12, 10], kona: [12, 10], choki: [12, 12], hari: [12, 11], tsumu: [12, 10], yubi: [16, 16], kedama: [12, 12] };
+const SIZE = { iga: [16, 13], kona: [16, 13], choki: [15, 17], hari: [16, 15], tsumu: [16, 14], yubi: [16, 16], kedama: [14, 13] };
 const STOMPABLE = { iga: true, kona: true, choki: true, hari: false, tsumu: true, yubi: false, kedama: true };
 
 export function createEnemy(ent, id) {

@@ -111,5 +111,6 @@
  },
  "mover": {
   "speed": 38
- }
+ },
+ "enemySprites": "src/data/chars/enemies.json"
 }
