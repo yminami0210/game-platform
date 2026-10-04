@@ -78,3 +78,9 @@ AI社員の成果物はすべて下書き。送信・支払い・契約・採否
 - 大型タイトル: 数時間遊べる冒険（規模で分ける。`docs/company.md` §2本立て）。`studio/` と `game/`、タイトルごとのブランチ。`game-studio` の専門エージェントを大型向けの運用（`docs/partner/briefs/title-01.md`）で使う。マイルストーンごとにオーナーが遊んで判断し、公開はオーナーの承認が必要。
 - ミニゲーム: `arcade/`。`/arcade-make` で1回1本。定期実行で1日1本（毎朝。トークン節約のため）。
 - どちらも「公開」は §2 の一言確認の対象。互いのフォルダには触らない。
+
+## 8. プロダクトの考え方（全チームの PM 共通）
+
+各チームの PM（大型タイトル・ミニゲーム工場・note 発信・各部署）は、**プロダクトの4階層（Core → Why → What → How）と、階層の間の Fit & Refine** で考える（`.claude/skills/product-layers/SKILL.md`）。
+- **How から始めない。** Core から順に落とす。キャンバスは `docs/product/<プロダクト>/canvas.md`、会社の Core は `docs/product/company-core.md`。
+- Core はオーナーが決める。Why は PM 案をオーナーが確認する。迷い・矛盾・上の階層を直したいときは `docs/product/questions.md` に足し、AI相棒がまとめてオーナーに相談する。

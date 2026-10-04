@@ -186,6 +186,8 @@ function mapDraw(t) {
     const tt = m.move.rev ? 1 - m.move.t : m.move.t;
     ({ x, y } = mapView.at(q, tt)); hop = (m.move.t * 3) % 1;
   } else { x = node(m.at).x; y = node(m.at).y; }
+  // 取り戻した結び玉の分だけ、ヌイばあが針箱のそばに縫い戻っている（ワールド1: 手）
+  if (saved.prog.seenEnding) { const h = world.nodes.find(n => n.id === 'home'); mapView.drawHand(h.x + 4, h.y - 22, 1, 1); }
   mapView.drawToken(x, y - 4, t, m.face, hop);
   renderer.presentBig();
 }

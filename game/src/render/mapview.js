@@ -141,6 +141,29 @@ export function createMapView(renderer, world) {
         if (scene === 'knot') g.drawImage(spr.knot.r, 236, 92 + Math.round(Math.sin(t * 3) * 2), 42, 42);
         break;
       }
+      case 'nuiba': {
+        // ヌイばあが一本の糸になって、蛾に連れ去られる
+        g.fillStyle = '#6e4632'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#7c5039'; for (let y = 0; y < H; y += 6) g.fillRect(0, y + Math.round(Math.sin(y) * 2), W, 2);
+        g.fillStyle = '#5a3828'; g.fillRect(0, 150, W, 66); g.fillStyle = PAL.K; g.fillRect(0, 150, W, 2);
+        const pull = Math.min(1, k / 3);
+        g.fillStyle = PAL.n;
+        for (let i = 0; i < 260; i++) {
+          const u = i / 260, x = 60 + u * (230 + pull * 140), y = 140 - u * (90 + pull * 40) + Math.sin(u * 18 - t * 4) * (10 + u * 14);
+          g.fillRect(Math.round(x), Math.round(y), 2, 1);
+        }
+        // ほどけかけの糸玉（ヌイばあ）
+        g.fillStyle = PAL.K; disc(g, 60, 140, 13); g.fillStyle = PAL.N; disc(g, 60, 140, 12);
+        g.fillStyle = PAL.n; for (let a = 0; a < 6; a += 0.5) g.fillRect(Math.round(60 + Math.cos(a) * 8), Math.round(140 + Math.sin(a * 1.3) * 7), 5, 1);
+        for (let i = 0; i < 3; i++) { const sp = spr[Math.floor(t * 8 + i) % 2 ? 'kona1' : 'kona2']; g.drawImage(sp.r, Math.round(250 + pull * 120 + i * 18), Math.round(30 - pull * 20 + Math.sin(t * 3 + i) * 6), 24, 24); }
+        break;
+      }
+      case 'hand': {
+        drawWorld(fullProgress(world), t, { allOpen: true });
+        drawHand(node('home').x + 6, node('home').y - 38, 2.2, Math.min(1, k / 1.8));
+        drawToken(node('home').x + 30, node('home').y - 4, t);
+        break;
+      }
       case 'sew': {
         const done = Math.min(1, k / 2.4);
         drawWorld(fullProgress(world), t, { allOpen: true, unravel: 1 - done });
@@ -151,7 +174,24 @@ export function createMapView(renderer, world) {
     }
   }
 
-  return { drawWorld, drawToken, drawScene, curve, at, node };
+  // 糸で縫い上がったヌイばあの手（取り戻した結び玉の数だけ、少しずつ戻っていく）
+  function drawHand(cx, cy, sc = 1, prog = 1) {
+    const pts = [];
+    const fingers = [[-6, -14], [-2, -17], [2, -17], [6, -14]];
+    for (const [fx, fy] of fingers) for (let y = 0; y > fy; y -= 1) pts.push([fx - 1.2, y], [fx + 1.2, y]);
+    for (let a = 0; a < Math.PI; a += 0.12) pts.push([Math.cos(a) * 8, Math.sin(a) * 7]);
+    for (let y = 0; y < 6; y++) pts.push([-8, y * 0.6], [8, y * 0.6]);
+    for (let i = 0; i < 6; i++) pts.push([-8 - i * 0.9, 2 - i * 1.4]); // 親指
+    const n = Math.floor(pts.length * prog);
+    for (let i = 0; i < n; i++) {
+      if (i % 2) continue; // 運針の点線
+      const [x, y] = pts[i];
+      g.fillStyle = PAL.K; g.fillRect(Math.round(cx + x * sc) + 1, Math.round(cy + y * sc) + 1, 2, 2);
+      g.fillStyle = PAL.n; g.fillRect(Math.round(cx + x * sc), Math.round(cy + y * sc), 2, 2);
+    }
+  }
+
+  return { drawWorld, drawToken, drawScene, drawHand, curve, at, node };
 }
 
 const OTHER_ISLANDS = [

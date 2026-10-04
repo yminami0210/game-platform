@@ -49,7 +49,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
   await sleep(600); await shot(page, 'title.png');
   await key(page, 'KeyZ');                       // はじめから
   await sleep(400); await shot(page, 'story.png');
-  await key(page, 'KeyZ', 5, 350);               // 物語を読み進める
+  for (let i = 0; i < 12 && await page.evaluate(() => window.__GS__.scene) === 'story'; i++) await key(page, 'KeyZ', 1, 350); // 物語を読み進める
   await sleep(500);
   await key(page, 'ArrowRight'); await sleep(700); await shot(page, 'map.png');
   await key(page, 'KeyZ'); await sleep(900);
@@ -74,7 +74,8 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
     if (target.kind === 'boss') {
       await shot(page, 'ending-1.png');
       await key(page, 'KeyZ', 2, 600); await shot(page, 'ending-3.png');
-      await key(page, 'KeyZ', 2, 600); await sleep(800); await shot(page, 'tsuzuku.png');
+      for (let i = 0; i < 10 && await page.evaluate(() => window.__GS__.scene) === 'story'; i++) await key(page, 'KeyZ', 1, 600);
+      await sleep(800); await shot(page, 'tsuzuku.png');
       summary.ending = await page.evaluate(() => window.__GS__.scene === 'tsuzuku' && window.__GS__.events.some(e => e.type === 'ending'));
       await sleep(1600); await key(page, 'KeyZ'); await sleep(800);
     }

@@ -21,6 +21,7 @@
 - 60fps を保つ
 
 ## 進め方
+0. **最初に `.claude/skills/product-layers/SKILL.md` を読み、`docs/product/title-01/canvas.md` を Core → Why → What → How の順に作る**（会社の Core は `docs/product/company-core.md`）。concept・gdd・デザイン・実装は、キャンバスのどの Why・What に答えるかを示してから進める。Core と Why の変更・迷いは `docs/product/questions.md` に足して親セッションに知らせる。
 1. `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を必ず読む（デザインの規定。gs-design-manager と gs-reviewer にも読ませる）。
 2. `game-studio` スキル（無ければ `.claude/game-studio/` の参照資料と `.claude/agents/gs-*.md`）のフェーズとゲートを使う。ただしテンプレートは短時間ゲーム向けなので、**大型向けに読み替える**:
    - Phase 1: コンセプト（Gate 1 はオーナーから委任済み。3案から自分で選び、理由を `studio/decisions.md` に残す）。世界観・主人公・ワールド全体の構想（ワールド1〜8の一覧）と、ワールド1の詳細を書く

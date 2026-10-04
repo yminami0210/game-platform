@@ -1,5 +1,5 @@
 // オフライン対応。キャッシュ一覧と版は tools/sync_sw.mjs が書き直す。
-const CACHE_VERSION = 'tsugi-bde0208a';
+const CACHE_VERSION = 'tsugi-0504bced';
 const ASSETS = [
   './',
   'index.html',
