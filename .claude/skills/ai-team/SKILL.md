@@ -9,6 +9,7 @@ description: 5人のAI社員（リサーチ・記事生成・素材挿入・品�
 引数: 任意でテーマ（例: `/ai-team Claude Code のスキル入門`）。無ければリサーチ担当が決める。
 
 ## 0. 準備
+0. `.claude/skills/product-layers/SKILL.md` に従い、`docs/product/note-media/canvas.md` を読む。キャンバスが「見直し（オーナー確認待ち）」の間は、記事のテーマを会社の Core（`docs/product/company-core.md`）から外さない。
 1. リポジトリのルートで作業する（`ai-team/` がある場所）。
 2. `RUN=$(python3 ai-team/bin/team.py init <テーマを表す短い英語slug>)` で実行フォルダを作る。
 3. `ai-team/config.json` の `max_revisions` を確認する。

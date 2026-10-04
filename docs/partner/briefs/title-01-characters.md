@@ -7,6 +7,9 @@
 リビッツ（リトルビッグプラネットの布人形）、毛糸のカービィ、ヨッシーウールワールド、てぶくろを題材にしたキャラ、ブードゥー人形風の継ぎはぎキャラ全般、既存のぬいぐるみブランド。
 結果を `studio/characters/similarity.md` に。似ている点があれば候補の段階で外す。
 
+## 1.5 作品全体のデザインコンセプトを先に固める
+`.claude/skills/game-art-direction/SKILL.md` §0 に従い、`studio/design-concept.md`（見本 `studio/design-concept/`）を書いて gs-reviewer の事前審査で「9/10 に届く」と判断されるまで直す。キャラ・画面はこのコンセプトに沿って作る。
+
 ## 2. ツギのデザイン候補を3案（gs-design-manager）
 `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` に従う。3案は方向をはっきり変える（例: 体の形、頭身、顔の作り、針の持ち方）。
 各案ごとに `studio/characters/tsugi/<A|B|C>/` に:
@@ -18,7 +21,7 @@
 デザインの条件:
 - 小さくても大きくても分かる、太い・単純なシルエット。2〜2.5頭身。ひと目で覚えられる「印」を1つ（例: 頭の糸の房、背中の針）
 - 顔は刺繍で表現できる線だけ。目は大きめで表情が出ること
-- 「AIが作った感」スコア（gs-reviewer）7/10 以上
+- 「AIが作った感」スコア（gs-reviewer）9/10 以上（AIが作った感を1割も残さない）
 
 3案ができたら `studio/characters/tsugi/README.md`（3案を並べた比較画像つき）を push し、**親セッション（AI相棒）に send_message で報告して、オーナーの選択を待つ**。待っている間はステージ制作を続けてよい（ツギの見た目に依存しない部分だけ）。
 

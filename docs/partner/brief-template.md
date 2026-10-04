@@ -7,6 +7,7 @@
 <なぜこの作業をするのか。オーナーの本来の狙い>
 
 ## やること
+<プロダクトを作る依頼なら最初に: `.claude/skills/product-layers/SKILL.md` に従い `docs/product/<名前>/canvas.md` を Core → Why → What → How の順に作る。Core・Why の迷いは docs/product/questions.md に足して親セッションに知らせる>
 <具体的な作業内容。箇条書き>
 
 ## 完了条件
