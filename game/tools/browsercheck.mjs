@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { solve, loadStage, stageIds, ACTIONS, MACRO_FRAMES } from './clearbot.mjs';
+import { solve, solveBoss, loadStage, stageIds, ACTIONS, MACRO_FRAMES } from './clearbot.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
@@ -59,7 +59,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
   for (const id of ids) {
     const L = loadStage(id);
     const target = { kind: L.ents.some(e => e.kind === 'boss') ? 'boss' : 'goal' };
-    const plan = solve(L, { target, maxNodes: 250000 });
+    const plan = target.kind === 'boss' ? solveBoss(L) : solve(L, { target, maxNodes: 250000 });
     if (!plan.ok) { summary.stages[id] = { cleared: false, reason: 'ボットが道を見つけられない' }; continue; }
     const secs = plan.frames / 60;
     await page.evaluate(([id, path, acts, M]) => { window.__GS__.enterStage(id); window.__GS__.setPlan(i => acts[path[Math.floor(i / M)]] ?? {}); }, [id, plan.path, ACTIONS, MACRO_FRAMES]);
@@ -71,7 +71,13 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
     await sleep(3200); await shot(page, `${id}-result.png`);
     await page.evaluate(() => window.__GS__.clearPlan());
     await key(page, 'KeyZ'); await sleep(1600);
-    if (target.kind === 'boss') { await shot(page, 'ending.png'); }
+    if (target.kind === 'boss') {
+      await shot(page, 'ending-1.png');
+      await key(page, 'KeyZ', 2, 600); await shot(page, 'ending-3.png');
+      await key(page, 'KeyZ', 2, 600); await sleep(800); await shot(page, 'tsuzuku.png');
+      summary.ending = await page.evaluate(() => window.__GS__.scene === 'tsuzuku' && window.__GS__.events.some(e => e.type === 'ending'));
+      await sleep(1600); await key(page, 'KeyZ'); await sleep(800);
+    }
     summary.stages[id] = { cleared: ok, botSeconds: +secs.toFixed(1), realSeconds: +took.toFixed(1) };
   }
   await shot(page, 'map-after.png');
