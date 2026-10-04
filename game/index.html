@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b2a44">
+<meta name="description" content="縫い合わされた島を、端切れ人形のツギが針一本で取り戻しに行く横スクロールの冒険。">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>ツギと ほつれ島</title>
+<style>
+  /* フォントは使っている文字だけに絞って同梱（SIL OFL 1.1、game/fonts/）。外部への通信はしない */
+  @font-face { font-family: "DotGothic16"; src: url("fonts/DotGothic16-subset.woff2") format("woff2"); font-display: swap; }
+  @font-face { font-family: "Kaisei Decol"; src: url("fonts/KaiseiDecol-Bold-subset.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  :root {
+    --ai: #26426b; --ai-deep: #1b2a44; --ai-light: #4b6e98; --kinari: #f0e6cf; --kinari-shade: #cbbf9f;
+    --akane: #b8372b; --akane-light: #dd6a4c; --karashi: #d39a22; --karashi-light: #f2cf62; --sumi: #2b2420;
+    --gh: 216px; /* ゲーム画面の高さ（main.js が更新） */
+    --u: calc(var(--gh) / 216);
+    --body: "DotGothic16", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+    --display: "Kaisei Decol", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  }
+  html, body { margin: 0; height: 100%; background: var(--ai-deep); color: var(--kinari); font-family: var(--body);
+    overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overflow: hidden; }
+  #stage { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; image-rendering: pixelated; }
+  #ui { --u: calc(var(--gh) / 216); position: fixed; pointer-events: none; font-size: calc(var(--u) * 9); line-height: 1.5; }
+  #ui button { pointer-events: auto; }
+  [hidden] { display: none !important; }
+
+  /* 織りネーム（洋服のタグ）: 藍の地に生成りの縫い目 */
+  .tag { background: var(--ai); color: var(--kinari); border: calc(var(--u) * 1) dashed rgba(240, 230, 207, .85);
+    box-shadow: 0 0 0 calc(var(--u) * 2.5) var(--ai), calc(var(--u) * 3) calc(var(--u) * 4) 0 calc(var(--u) * 2.5) rgba(27, 18, 14, .55);
+    padding: calc(var(--u) * 6) calc(var(--u) * 10); }
+  .tag.akane { background: var(--akane); box-shadow: 0 0 0 calc(var(--u) * 2.5) var(--akane), calc(var(--u) * 3) calc(var(--u) * 4) 0 calc(var(--u) * 2.5) rgba(27, 18, 14, .55); }
+
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 10); pointer-events: auto; }
+  .menu { display: flex; flex-direction: column; gap: calc(var(--u) * 7); align-items: stretch; min-width: calc(var(--u) * 120); }
+  .menu button { font: inherit; font-size: calc(var(--u) * 10); color: var(--kinari); background: var(--ai); border: calc(var(--u) * 1) dashed rgba(240, 230, 207, .6);
+    padding: calc(var(--u) * 4) calc(var(--u) * 12); box-shadow: 0 0 0 calc(var(--u) * 2) var(--ai); cursor: pointer; text-align: left; position: relative; }
+  .menu button.sel, .menu button:focus-visible { background: var(--akane); box-shadow: 0 0 0 calc(var(--u) * 2) var(--akane), calc(var(--u) * 2) calc(var(--u) * 3) 0 calc(var(--u) * 2) rgba(27, 18, 14, .5); outline: none; }
+  .menu button.sel::before { content: ""; position: absolute; left: calc(var(--u) * -14); top: 50%; width: calc(var(--u) * 10); height: calc(var(--u) * 2);
+    background: #d5dade; box-shadow: calc(var(--u) * 8) 0 0 0 var(--sumi); transform: translateY(-50%); }
+  .menu button:disabled { opacity: .45; }
+
+  /* タイトル */
+  #title { justify-content: flex-end; padding-bottom: calc(var(--u) * 22); background: linear-gradient(180deg, rgba(27, 42, 68, 0) 40%, rgba(27, 42, 68, .55)); }
+  .logo { position: absolute; left: calc(var(--u) * 24); top: calc(var(--u) * 18); margin: 0; font-family: var(--display); font-weight: 700;
+    font-size: calc(var(--u) * 34); line-height: 1.05; color: var(--kinari); letter-spacing: .02em;
+    text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 var(--akane), calc(var(--u) * 3.5) calc(var(--u) * 3.5) 0 var(--sumi); }
+  .logo small { display: block; font-family: var(--body); font-size: calc(var(--u) * 8); letter-spacing: .1em; text-shadow: none; color: var(--kinari); margin-top: calc(var(--u) * 8); }
+  .logo .stitch { display: block; height: calc(var(--u) * 3); margin-top: calc(var(--u) * 6); width: calc(var(--u) * 150);
+    background: repeating-linear-gradient(90deg, var(--akane) 0 calc(var(--u) * 6), transparent calc(var(--u) * 6) calc(var(--u) * 10)); }
+  #title .menu { align-self: flex-end; margin-right: calc(var(--u) * 28); }
+  .credit { position: absolute; left: calc(var(--u) * 24); bottom: calc(var(--u) * 10); font-size: calc(var(--u) * 6.5); opacity: .8; }
+
+  /* HUD */
+  #hud { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: calc(var(--u) * 6) calc(var(--u) * 8);
+    font-size: calc(var(--u) * 8.5); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--sumi); font-variant-numeric: tabular-nums; }
+  #hud .medals { display: flex; gap: calc(var(--u) * 3); }
+  #hud .medals i { width: calc(var(--u) * 9); height: calc(var(--u) * 9); border-radius: 50%; background: rgba(43, 36, 32, .5); border: calc(var(--u) * 1) solid var(--sumi); display: block; }
+  #hud .medals i.on { background: radial-gradient(circle at 35% 35%, var(--karashi-light), var(--karashi) 60%); }
+  #hud .coins::before { content: ""; display: inline-block; width: calc(var(--u) * 7); height: calc(var(--u) * 7); margin-right: calc(var(--u) * 3); vertical-align: -6%;
+    background: repeating-linear-gradient(170deg, var(--karashi) 0 calc(var(--u) * 1.4), var(--karashi-light) calc(var(--u) * 1.4) calc(var(--u) * 2.4)); border-radius: 50%; border: calc(var(--u) * 1) solid var(--sumi); }
+  #hud .right { display: flex; gap: calc(var(--u) * 10); align-items: center; }
+  #boss { position: absolute; left: 50%; top: calc(var(--u) * 20); transform: translateX(-50%); display: flex; gap: calc(var(--u) * 3); align-items: center; font-size: calc(var(--u) * 8); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--sumi); }
+  #boss b { width: calc(var(--u) * 8); height: calc(var(--u) * 5); background: #a596b0; border: calc(var(--u) * 1) solid var(--sumi); display: block; }
+  #boss b.off { background: transparent; }
+
+  /* 物語 */
+  #story { justify-content: flex-end; padding-bottom: calc(var(--u) * 14); }
+  #story .tag { width: calc(var(--u) * 300); min-height: calc(var(--u) * 40); position: relative; }
+  #story p { margin: 0; white-space: pre-line; font-size: calc(var(--u) * 9); line-height: 1.7; }
+  #story .needle { position: absolute; right: calc(var(--u) * 8); bottom: calc(var(--u) * 5); width: calc(var(--u) * 10); height: calc(var(--u) * 2); background: #d5dade; animation: nudge 1s steps(2) infinite; }
+  #story .skip { position: absolute; right: calc(var(--u) * 8); top: calc(var(--u) * 8); font: inherit; font-size: calc(var(--u) * 7); color: var(--kinari); background: none; border: 0; text-decoration: underline dashed; cursor: pointer; }
+  @keyframes nudge { 50% { transform: translateX(calc(var(--u) * 2)); } }
+  .tsuzuku { font-family: var(--display); font-size: calc(var(--u) * 36); text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 var(--akane), calc(var(--u) * 3.5) calc(var(--u) * 3.5) 0 var(--sumi); }
+
+  /* マップ */
+  #mapcard { position: absolute; left: calc(var(--u) * 12); bottom: calc(var(--u) * 10); min-width: calc(var(--u) * 150); }
+  #mapcard h2 { margin: 0 0 calc(var(--u) * 2); font-family: var(--display); font-size: calc(var(--u) * 12); font-weight: 700; }
+  #mapcard .sub { font-size: calc(var(--u) * 7.5); opacity: .9; display: flex; gap: calc(var(--u) * 10); align-items: center; }
+  #mapcard .medals { display: inline-flex; gap: calc(var(--u) * 2); }
+  #mapcard .medals i { width: calc(var(--u) * 7); height: calc(var(--u) * 7); border-radius: 50%; background: rgba(0, 0, 0, .3); display: block; }
+  #mapcard .medals i.on { background: var(--karashi); }
+  #maptotal { position: absolute; right: calc(var(--u) * 12); top: calc(var(--u) * 8); font-size: calc(var(--u) * 8); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--sumi); text-align: right; }
+
+  /* ステージ名 */
+  #intro { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); text-align: center; }
+  #intro .num { font-size: calc(var(--u) * 8); letter-spacing: .2em; }
+  #intro h2 { margin: calc(var(--u) * 2) 0; font-family: var(--display); font-size: calc(var(--u) * 18); }
+  #intro .hint { font-size: calc(var(--u) * 7.5); opacity: .9; }
+
+  /* 結果 */
+  #result .tag { min-width: calc(var(--u) * 190); }
+  #result h2 { margin: 0 0 calc(var(--u) * 6); font-family: var(--display); font-size: calc(var(--u) * 15); }
+  #result dl { display: grid; grid-template-columns: auto auto; gap: calc(var(--u) * 2) calc(var(--u) * 14); margin: 0; font-variant-numeric: tabular-nums; }
+  #result dt { opacity: .85; } #result dd { margin: 0; text-align: right; }
+  #result .new { color: var(--karashi-light); }
+
+  #help .tag { max-width: calc(var(--u) * 300); }
+  #help table { border-collapse: collapse; font-size: calc(var(--u) * 7.5); }
+  #help td { padding: calc(var(--u) * 1.5) calc(var(--u) * 6); border-bottom: calc(var(--u) * .6) dashed rgba(240, 230, 207, .35); }
+  #help h2 { font-family: var(--display); margin: 0 0 calc(var(--u) * 4); font-size: calc(var(--u) * 12); }
+  #pause { background: rgba(27, 42, 68, .55); }
+  #pause h2 { font-family: var(--display); margin: 0; font-size: calc(var(--u) * 16); text-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 var(--sumi); }
+
+  /* タッチの仮想ボタン（端切れのパッチ） */
+  #pad { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #pad > div { position: absolute; pointer-events: auto; touch-action: none; }
+  #pad .dpad { left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); width: 150px; height: 150px; }
+  #pad .dpad [data-k] { position: absolute; width: 56px; height: 56px; background: rgba(38, 66, 107, .55); border: 2px dashed rgba(240, 230, 207, .55); }
+  #pad .dpad [data-k="l"] { left: 0; top: 47px; } #pad .dpad [data-k="r"] { right: 0; top: 47px; }
+  #pad .dpad [data-k="u"] { left: 47px; top: 0; } #pad .dpad [data-k="d"] { left: 47px; bottom: 0; }
+  #pad .dpad [data-k="l,u"] { left: 0; top: 0; width: 46px; height: 46px; border: 0; background: transparent; }
+  #pad .dpad [data-k="r,u"] { right: 0; top: 0; width: 46px; height: 46px; border: 0; background: transparent; }
+  #pad .btns { right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 170px; height: 130px; }
+  #pad .btns [data-k] { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--body); color: var(--kinari); font-size: 15px; }
+  #pad .btns [data-k="j"] { right: 0; bottom: 0; width: 84px; height: 84px; background: rgba(184, 55, 43, .7); border: 2px dashed rgba(240, 230, 207, .8); }
+  #pad .btns [data-k="b"] { left: 6px; bottom: 30px; width: 62px; height: 62px; background: rgba(38, 66, 107, .6); border: 2px dashed rgba(240, 230, 207, .6); }
+  #pad .pause { right: max(12px, env(safe-area-inset-right)); top: max(10px, env(safe-area-inset-top)); width: 44px; height: 44px; }
+  #pad .pause [data-k] { width: 44px; height: 44px; background: rgba(38, 66, 107, .55); border: 2px dashed rgba(240, 230, 207, .55); display: flex; align-items: center; justify-content: center; color: var(--kinari); font-size: 14px; box-sizing: border-box; }
+  #pad.pressing [data-k].on { filter: brightness(1.35); }
+  #rotate { position: fixed; inset: 0; z-index: 10; background: var(--ai-deep); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; font-size: 16px; padding: 24px; }
+  #rotate .phone { width: 40px; height: 70px; border: 3px solid var(--kinari); border-radius: 6px; animation: turn 2s ease-in-out infinite; }
+  @keyframes turn { 40%, 100% { transform: rotate(-90deg); } }
+  @media (prefers-reduced-motion: reduce) { #rotate .phone, #story .needle { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="ゲーム画面"></canvas>
+<div id="ui">
+  <div id="title" class="screen">
+    <h1 class="logo">ツギと<br>ほつれ島<span class="stitch"></span><small>ワールド1 はぎれ野</small></h1>
+    <div class="menu" id="title-menu">
+      <button data-act="continue">つづきから</button>
+      <button data-act="new">はじめから</button>
+      <button data-act="help">あそびかた</button>
+    </div>
+    <div class="credit">ジャンプで決定　ダッシュで戻る</div>
+  </div>
+
+  <div id="story" class="screen" hidden>
+    <button class="skip" data-act="skip">とばす</button>
+    <div class="tag"><p id="story-text"></p><span class="needle"></span></div>
+  </div>
+  <div id="tsuzuku" class="screen" hidden><div class="tsuzuku">つづく</div></div>
+
+  <div id="maptotal" hidden></div>
+  <div id="mapcard" class="tag" hidden><h2 id="map-name"></h2><div class="sub"><span id="map-num"></span><span class="medals" id="map-medals"><i></i><i></i><i></i></span><span id="map-best"></span></div></div>
+
+  <div id="hud" hidden>
+    <div class="left"><span id="h-stage"></span></div>
+    <div class="right"><span class="medals" id="h-medals"><i></i><i></i><i></i></span><span class="coins" id="h-coins">0</span></div>
+  </div>
+  <div id="boss" hidden><span>大蛾ケバ</span><span id="boss-hp"></span></div>
+  <div id="intro" class="tag" hidden><div class="num" id="intro-num"></div><h2 id="intro-name"></h2><div class="hint" id="intro-hint"></div></div>
+
+  <div id="pause" class="screen" hidden>
+    <h2>ひとやすみ</h2>
+    <div class="menu" id="pause-menu">
+      <button data-act="resume">つづける</button>
+      <button data-act="retry">待ち針からやりなおす</button>
+      <button data-act="map">地図へもどる</button>
+      <button data-act="sound">音: あり</button>
+      <button data-act="help">あそびかた</button>
+    </div>
+  </div>
+  <div id="mappause" class="screen" hidden>
+    <h2 style="font-family:var(--display)">ひとやすみ</h2>
+    <div class="menu" id="mappause-menu">
+      <button data-act="resume">地図にもどる</button>
+      <button data-act="sound">音: あり</button>
+      <button data-act="help">あそびかた</button>
+      <button data-act="title">タイトルへ</button>
+    </div>
+  </div>
+
+  <div id="result" class="screen" hidden>
+    <div class="tag">
+      <h2 id="r-title"></h2>
+      <dl>
+        <dt>かかった時間</dt><dd id="r-time"></dd>
+        <dt>いちばん速い記録</dt><dd id="r-best"></dd>
+        <dt>金ボタン</dt><dd id="r-medals"></dd>
+        <dt>糸玉</dt><dd id="r-coins"></dd>
+        <dt>やりなおし</dt><dd id="r-deaths"></dd>
+      </dl>
+    </div>
+    <div class="menu" id="result-menu"><button data-act="ok">地図へ</button><button data-act="again">もう一度あそぶ</button></div>
+  </div>
+
+  <div id="help" class="screen" hidden>
+    <div class="tag">
+      <h2>あそびかた</h2>
+      <table>
+        <tr><td>うごく</td><td>← →　/　A D</td><td>十字・スティック</td></tr>
+        <tr><td>ジャンプ（長押しで高く）</td><td>Z　スペース　K</td><td>Aボタン</td></tr>
+        <tr><td>ダッシュ（押しながら）</td><td>X　Shift　J</td><td>Bボタン</td></tr>
+        <tr><td>下の物差しから降りる</td><td>↓</td><td>十字の下</td></tr>
+        <tr><td>ひとやすみ</td><td>Esc　Enter　P</td><td>Start</td></tr>
+      </table>
+      <p style="margin:.6em 0 0;font-size:calc(var(--u)*7.5)">綿毛を取ると、空中でジャンプを押し続けてふわりと滑空できます。<br>敵に当たると綿毛が抜けます。各ステージに金ボタンが3枚。</p>
+    </div>
+    <div class="menu" id="help-menu"><button data-act="close">とじる</button></div>
+  </div>
+</div>
+
+<div id="pad" hidden>
+  <div class="dpad"><div data-k="l,u"></div><div data-k="r,u"></div><div data-k="l"></div><div data-k="r"></div><div data-k="u"></div><div data-k="d"></div></div>
+  <div class="btns"><div data-k="b">ダッシュ</div><div data-k="j">ジャンプ</div></div>
+  <div class="pause"><div data-k="start">||</div></div>
+</div>
+<div id="rotate" hidden><div class="phone"></div><div>横向きにして遊んでください</div></div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
