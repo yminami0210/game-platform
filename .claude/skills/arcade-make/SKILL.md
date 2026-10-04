@@ -17,8 +17,15 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 ## 1. 企画担当（サブエージェント）
 > あなたはミニゲーム工場の企画担当です。`arcade/learnings.md` と `python3 arcade/bin/arcade.py list` の結果（<貼る>）を踏まえ、まだ無い遊びを1つ企画してください。`GAME=$(python3 arcade/bin/arcade.py new <英語slug>)` でフォルダを作り、まず `docs/product/arcade/canvas.md` の Core と Why を読み、`$GAME/plan.md` の先頭に `## このゲームの Why`（キャンバスのどのペイン・ゲインに答えるかを1〜2行）を書いてから、次の節を書きます: `## 一行ピッチ` `## 30秒のコアループ` `## 操作`（タップ/スワイプ/キー。スマホとPC両対応）`## 気持ちいい瞬間` `## 終わり方とスコア` `## 既存作との違い` `## 見た目と音`（`.claude/skills/game-art-direction/SKILL.md` §1 に従い、借りてくる物・名前つきパレット・フォント・印象に残す1点を書く。`arcade/design-log.md` の直近10本と被らせない）。実在のゲーム・キャラクター・商標の名前や見た目は使わない。**現実の自分の仕事を思い出させる題材にしない**（会議・メール・表計算・残業・締め切りに追われる会社員ものなど）。一方、オーバークックのように**仮想の仕事をおもしろおかしく体験する遊び**（料理店・郵便局・宇宙の配達など）は歓迎（オーナーの方針: 自分の仕事から離れられればよい）。返答はフォルダのパスと一行ピッチだけ。
 
+## 1.5 デザインコンセプトと事前審査（実装より前）
+1. **デザイン担当**（サブエージェント）:
+> あなたはミニゲーム工場のデザイン担当です。`.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md`（特に §0）を読み、`<GAME>/plan.md` から `<GAME>/design.md` を `.claude/skills/game-art-direction/concept-template.md` の形で書きます。見本として、色・形・文字の見本帳と代表場面の1枚絵を HTML/SVG で作り、`<GAME>/design/` に PNG で保存します（Playwright でスクショ）。`arcade/design-log.md` の直近10本と被らせない。返答は3行以内。
+2. **事前審査**（別のサブエージェント）:
+> あなたはミニゲーム工場の美術監査です。`<GAME>/design.md` と `<GAME>/design/*.png` を見て、game-art-direction §0・§2 に照らし、このまま作れば「AIが作った感」スコア 8/10 以上に届くかを判定します。届かない理由を具体的に書き、`design.md` の §10 に記入。最後の行は `VERDICT: PASS` か `VERDICT: REVISE`。
+3. REVISE ならデザイン担当に直させて再審査（**1回まで**）。それでも届かなければ、企画からやり直すか `rejected` にする。**PASS するまで開発に進まない**
+
 ## 2. 開発担当（サブエージェント）
-> あなたはミニゲーム工場の開発担当です。まず `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を読み、そのデザインの進め方（計画 → 定番との照合 → 実装 → スクショで自己批評 → 飾りを1つ取る）で作ってください。`<GAME>/plan.md` のとおりに `<GAME>/index.html` を作ります。条件:
+> あなたはミニゲーム工場の開発担当です。まず `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` を読み、そのデザインの進め方（計画 → 定番との照合 → 実装 → スクショで自己批評 → 飾りを1つ取る）で作ってください。`<GAME>/plan.md` と、事前審査に合格した `<GAME>/design.md`（見本 `<GAME>/design/`）のとおりに `<GAME>/index.html` を作ります。デザインはコンセプトから外れないこと。条件:
 > - 1ファイルで完結（HTML + CSS + JS を埋め込み）。外部の読み込みは Google Fonts だけ可（読めなくても遊べるようにフォールバックを書く）。それ以外のファイル・通信は使わない。画像は canvas の図形か inline SVG、音は Web Audio で生成（最初のタップで鳴らし始める）
 > - `<meta name="viewport" content="width=device-width,initial-scale=1">`。スマホ縦画面（390x844）で全体が見え、PCではキーボードでも遊べる
 > - タイトル画面 → 遊ぶ → 結果（スコア・もう一回）の流れ。遊び方は画面に1〜2行で表示。ベストスコアは localStorage に保存（try/catch で囲む）

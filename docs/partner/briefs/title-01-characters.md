@@ -7,6 +7,9 @@
 リビッツ（リトルビッグプラネットの布人形）、毛糸のカービィ、ヨッシーウールワールド、てぶくろを題材にしたキャラ、ブードゥー人形風の継ぎはぎキャラ全般、既存のぬいぐるみブランド。
 結果を `studio/characters/similarity.md` に。似ている点があれば候補の段階で外す。
 
+## 1.5 作品全体のデザインコンセプトを先に固める
+`.claude/skills/game-art-direction/SKILL.md` §0 に従い、`studio/design-concept.md`（見本 `studio/design-concept/`）を書いて gs-reviewer の事前審査で「9/10 に届く」と判断されるまで直す。キャラ・画面はこのコンセプトに沿って作る。
+
 ## 2. ツギのデザイン候補を3案（gs-design-manager）
 `.claude/skills/frontend-design/SKILL.md` と `.claude/skills/game-art-direction/SKILL.md` に従う。3案は方向をはっきり変える（例: 体の形、頭身、顔の作り、針の持ち方）。
 各案ごとに `studio/characters/tsugi/<A|B|C>/` に:
