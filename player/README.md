@@ -22,9 +22,10 @@ python3 -m http.server 8000      # または npx serve .
 ## しくみ
 | ファイル | 役割 |
 |---|---|
-| `index.html` | 一覧（紙芝居の舞台と絵札）と、遊ぶ画面 |
+| `index.html` | 一覧（梁と看板の下に全演目の絵札＋台本を並べる）と、札を押すと現れる紙芝居の舞台（遊ぶ画面） |
 | `js/catalog.js` | `arcade/catalog.json`（バッチが作る）を**読むだけ**。遊べる（ready/published）ものを新しい順に |
 | `js/launcher.js` | ゲームを始める・終える処理。一覧からも、将来の「街」からも同じ関数で呼ぶ |
+| `data/fuda.json` | 札ごとの台本の文（script）・絵の表示位置・点数の単位・縦横比 |
 | `data/best-keys.json` | 既存ゲームのベストスコアの保存キー。新しいゲームは `meta.json` の `best_key` を使う |
 | `tests/smoke.mjs` | 一覧 → 遊ぶ → 戻る の自動確認（Playwright） |
 

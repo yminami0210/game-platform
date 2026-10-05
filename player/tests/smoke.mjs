@@ -80,7 +80,7 @@ async function run(browser, w, h) {
   // 一覧: 全演目が同じ大きさの絵札で、新しい順に5本
   const ids = await page.locator(".fuda").evaluateAll((els) => els.map((e) => e.dataset.id));
   ok(ids.length === EXPECTED && ids[0] === "005-lighthouse-keeper" && ids[4] === "001-bloom-chain", `${tag} 一覧に${EXPECTED}本（新しい順: ${ids.join(", ")}）`);
-  const sizes = await page.locator(".fuda .pic").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  const sizes = await page.locator(".fuda .pic").evaluateAll((els) => els.map((e) => e.offsetWidth));
   ok(new Set(sizes).size === 1, `${tag} 絵札がみな同じ大きさ（${sizes[0]}px）`);
   const perRow = await page.locator(".fuda").evaluateAll((els) => els.filter((e) => Math.abs(e.getBoundingClientRect().top - els[0].getBoundingClientRect().top) < 20).length);
   ok(w < 600 ? perRow === 2 : perRow >= 3 && perRow <= 4, `${tag} 横に${perRow}枚並ぶ`);
@@ -203,7 +203,7 @@ async function extraShots(browser) {
     await waitList(page);
     await page.waitForTimeout(300);
     await page.locator(".fuda .play").first().click();
-    await page.waitForTimeout(720);
+    await page.waitForTimeout(820);
     await shot(page, "open-390");
     await page.close();
   }
