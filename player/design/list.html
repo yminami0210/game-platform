@@ -5,149 +5,99 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Potta+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="stage.css">
 <style>
-.page{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
-/* ── 舞台（いちばん新しい演目） ── */
-.stage{position:relative;padding:0 0 0}
-.beam{position:relative;border-radius:5px 7px 2px 2px/6px 4px 2px 2px;padding:10px 14px 12px;color:var(--boru);
-  box-shadow:inset 0 -3px 0 #0003,inset 0 2px 0 #fff2}
-.beam h1{margin:0;font-family:var(--head);font-weight:400;font-size:40px;line-height:1;letter-spacing:.06em;color:var(--boru);
-  text-shadow:2px 2px 0 var(--shu)}
-.beam p{margin:6px 0 0;font-size:13px;line-height:1.5;color:#e9dcc2}
-.frame{position:relative;padding:12px;border-radius:2px 2px 6px 5px;margin-top:-1px;
-  box-shadow:inset 0 0 0 2px #0002,inset 3px 3px 0 #0003}
-.door{display:none}
-/* 絵札（ボール紙） */
-.card{position:relative;background:var(--boru);background-image:var(--grain);color:var(--sumi);
-  box-shadow:0 3px 0 var(--boru-edge),0 4px 0 #0002;
-  clip-path:polygon(0 3px,4px 0,calc(100% - 2px) 1px,100% 5px,calc(100% - 1px) calc(100% - 2px),calc(100% - 6px) 100%,3px calc(100% - 1px),0 calc(100% - 5px))}
-.feature{display:grid;grid-template-columns:1fr;gap:0;padding:10px;transform:rotate(-.6deg)}
-.paint{position:relative;background:var(--gunjo);display:grid;place-items:center;overflow:visible}
-.paint .kanji{font-family:var(--head);color:var(--boru);line-height:1;position:relative}
-/* 泥絵具のはみ出し：墨の線と塗りが2pxずれる */
-.paint::after{content:"";position:absolute;inset:-2px 1px 1px -2px;border:2.5px solid var(--sumi);border-radius:3px 1px 4px 2px;pointer-events:none}
-.feature .paint{height:150px;border-radius:2px}
-.feature .paint .title{font-family:var(--head);font-size:52px;color:var(--boru);letter-spacing:.08em;text-shadow:3px 2px 0 var(--sumi)}
-.feature .body{padding:12px 4px 2px}
-.feature .pitch{margin:0;font-size:15px;line-height:1.7}
-.meta{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 0;font-size:13px;line-height:1.5}
-.meta dt{display:inline;font-weight:500;color:var(--gunjo)}
-.meta dd{display:inline;margin:0 0 0 .4em}
-.meta div{display:inline}
-.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
-.best{font-size:13px;font-variant-numeric:tabular-nums}
-.best b{font-family:var(--head);font-weight:400;font-size:22px;margin-right:2px}
-.play{font-family:var(--head);font-size:20px;color:var(--boru);background:var(--shu);border:0;cursor:pointer;
-  padding:10px 22px 11px;border-radius:3px 6px 4px 5px/5px 3px 6px 4px;box-shadow:inset 0 0 0 2px var(--sumi),3px 3px 0 var(--sumi)}
-.play:active{transform:translate(3px,3px);box-shadow:inset 0 0 0 2px var(--sumi)}
-.play:focus-visible,.card a:focus-visible{outline:3px solid var(--gunjo);outline-offset:3px}
-/* 新作の貼り紙 */
-.new{position:absolute;z-index:2;font-family:var(--head);font-size:15px;color:var(--boru);background:var(--shu);
-  padding:4px 10px 5px;transform:rotate(-4deg);clip-path:polygon(0 1px,100% 0,98% 100%,2% 96%)}
-.feature .new{top:-4px;left:14px}
-/* ── 演目の一覧 ── */
-.list h2{font-family:var(--head);font-weight:400;font-size:20px;margin:26px 0 10px;color:var(--sumi)}
-.list h2 small{font-family:var(--body);font-size:13px;margin-left:8px}
-.list ol{list-style:none;margin:0;padding:0;display:grid;gap:16px}
-.item{display:grid;grid-template-columns:84px 1fr;gap:12px;padding:10px 12px 10px 10px}
-.item:nth-child(3n+1){transform:rotate(.5deg)}
-.item:nth-child(3n+2){transform:rotate(-.4deg) translateX(3px)}
-.item:nth-child(3n){transform:rotate(.15deg) translateX(-2px)}
-.item .paint{height:84px;border-radius:2px}
-.item:nth-child(3n+2) .paint{background:var(--sumi)}
-.item:nth-child(3n) .paint{background:var(--kurikawa)}
-.item .kanji{font-size:50px}
-.item h3{margin:0;font-family:var(--head);font-weight:400;font-size:21px;line-height:1.2}
-.item h3 a{color:inherit;text-decoration:none}
-.item h3 a::after{content:"";position:absolute;inset:0}
-.item .pitch{margin:4px 0 0;font-size:13px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.item .meta{font-size:12px;margin-top:5px}
-.item .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.item .best{font-size:12px;white-space:nowrap}
-.item .best b{font-size:17px}
-.item .new{top:2px;left:4px;font-size:13px}
-.never{color:#6b5a4a}
-footer{margin-top:26px;font-size:13px;line-height:1.6;color:var(--sumi)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .list h2,:root:not([data-theme="light"]) footer{color:var(--boru)}}
-:root[data-theme="dark"] .list h2,:root[data-theme="dark"] footer{color:var(--boru)}
-
-/* ── PC：左に舞台（扉が開いている）、右に演目の束 ── */
+.page{max-width:1180px;margin:0 auto;padding:14px 16px 40px}
+/* ── 台本（札の裏） ── */
+.script{position:relative;margin:10px 4px 0;padding:14px 16px 16px;background:var(--boru);background-image:var(--grain),
+   repeating-linear-gradient(transparent 0 27px,#8a7b5c40 27px 28px);background-position:0 0,0 9px;
+  clip-path:polygon(0 4px,9px 0,calc(100% - 3px) 2px,100% 9px,calc(100% - 2px) calc(100% - 3px),calc(100% - 8px) 100%,5px calc(100% - 2px),0 calc(100% - 7px));
+  transform:rotate(.6deg)}
+.script p{margin:0;font-size:15px;line-height:28px}
+.script .act{display:flex;align-items:center;justify-content:space-between;margin-top:12px}
+.stamp{font-family:var(--body);font-weight:500;font-size:13px;line-height:1;color:var(--sumi);border:2px solid var(--sumi);
+  padding:5px 7px 4px;transform:rotate(-6deg);opacity:.82;border-radius:1px 3px 2px 2px}
+.stamp b{font-family:var(--head);font-weight:400;font-size:17px;margin-right:1px;font-variant-numeric:tabular-nums}
+.play{font-family:var(--head);font-size:21px;color:var(--boru);background:var(--shu);border:0;cursor:pointer;
+  padding:10px 26px 11px;box-shadow:inset 0 0 0 2.5px var(--sumi),3px 3px 0 var(--sumi);
+  clip-path:polygon(0 3px,5px 0,100% 1px,100% calc(100% - 4px),calc(100% - 4px) 100%,2px 100%)}
+.play:active{transform:translate(3px,3px)}
+.play:focus-visible{outline:3px solid var(--gunjo);outline-offset:3px}
+/* ── 札の束 ── */
+.stack h2{font-family:var(--head);font-weight:400;font-size:20px;margin:30px 4px 14px;color:var(--sumi)}
+.stack h2 small{font-family:var(--body);font-size:13px;margin-left:8px}
+.stack ol{list-style:none;margin:0;padding:0 4px;display:grid;grid-template-columns:1fr 1fr;gap:26px 18px}
+.fuda{position:relative}
+.fuda .layer{position:absolute;inset:0;background:var(--boru-edge)}
+.fuda .layer.a{transform:translate(4px,5px);clip-path:polygon(0 6px,7px 0,100% 3px,calc(100% - 2px) 100%,4px calc(100% - 1px))}
+.fuda .layer.b{transform:translate(-3px,9px) rotate(-1.2deg);background:#9a8c6e;clip-path:polygon(2px 0,100% 5px,100% calc(100% - 6px),calc(100% - 8px) 100%,0 calc(100% - 2px))}
+.fuda .face{position:relative;display:block;background:var(--boru);background-image:var(--grain);padding:6px 6px 26px;color:var(--sumi);text-decoration:none}
+.fuda .pic{display:block;position:relative;aspect-ratio:4/3;background:var(--gunjo);outline:2px solid var(--sumi);outline-offset:-1px}
+.fuda .pic img{width:100%;height:100%;object-fit:cover;display:block;filter:sepia(.18)}
+.fuda .tag{position:absolute;left:-4px;bottom:-12px;font-family:var(--head);font-size:15px;line-height:1;background:var(--boru);
+  padding:5px 7px 6px;border:2px solid var(--sumi);box-shadow:2px 2px 0 var(--sumi);transform:rotate(-2deg);white-space:nowrap}
+.fuda .score{position:absolute;right:8px;bottom:4px;font-family:var(--head);font-size:15px;transform:rotate(-3deg);font-variant-numeric:tabular-nums}
+.fuda .score small{font-family:var(--body);font-size:11px}
+.fuda .score.none{font-family:var(--body);font-size:12px;opacity:.7}
+.fuda .face:focus-visible{outline:3px solid var(--gunjo);outline-offset:4px}
+.fuda:nth-child(1){transform:rotate(-1.4deg)} .fuda:nth-child(1) .face{clip-path:polygon(0 5px,8px 0,100% 2px,100% calc(100% - 7px),calc(100% - 5px) 100%,0 100%)}
+.fuda:nth-child(2){transform:rotate(1.1deg) translateY(6px)} .fuda:nth-child(2) .face{clip-path:polygon(0 0,calc(100% - 6px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 4px))}
+.fuda:nth-child(3){transform:rotate(.6deg) translateX(-2px)} .fuda:nth-child(3) .face{clip-path:polygon(4px 0,100% 0,100% calc(100% - 5px),calc(100% - 8px) 100%,0 100%,0 6px)}
+.fuda:nth-child(4){transform:rotate(-1.5deg) translateY(4px)} .fuda:nth-child(4) .face{clip-path:polygon(0 0,calc(100% - 4px) 3px,100% 100%,6px 100%,0 calc(100% - 8px))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .stack h2{color:var(--boru)}}
+:root[data-theme="dark"] .stack h2{color:var(--boru)}
+/* ── PC ── */
 @media (min-width:900px){
-  .page{display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:0 56px;padding:28px 40px 40px;align-items:start}
-  .stage{margin:0 54px}
-  .beam h1{font-size:52px}
-  .door{display:block;position:absolute;top:66px;bottom:0;width:58px;border-radius:2px;box-shadow:inset 0 0 0 2px #0003}
-  .door::before{content:"";position:absolute;inset:12px 10px;border:2px solid #0003;border-radius:2px}
-  .door.l{left:-56px;transform:perspective(500px) rotateY(48deg);transform-origin:right}
-  .door.r{right:-56px;transform:perspective(500px) rotateY(-48deg);transform-origin:left}
-  .feature .paint{height:270px}
-  .feature .paint .title{font-size:76px}
-  .feature .pitch{font-size:16px}
-  .list h2{margin-top:6px}
-  .list ol{gap:14px}
-  footer{grid-column:1/-1;text-align:left}
+  .page{display:grid;grid-template-columns:500px minmax(0,1fr);gap:0 84px;padding:26px 36px 40px 84px;align-items:start}
+  .stack h2{margin-top:4px}
+  .stack ol{grid-template-columns:1fr 1fr 1fr;gap:34px 24px}
+  .fuda .tag{font-size:14px}
+  .fuda .face{padding-bottom:30px}
+  .script{margin:12px 46px 0}
 }
-
-/* 絵札の表：ゲームの実際の画面を「絵」にして、題字を泥絵具で描いた札を重ねる */
-.front{position:relative;height:176px;background:var(--gunjo)}
-.front img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 48%;display:block}
-.front::after{content:"";position:absolute;inset:-2px 1px 1px -2px;border:2.5px solid var(--sumi);border-radius:3px 1px 4px 2px;pointer-events:none}
-.daiji{position:absolute;left:10px;bottom:-14px;margin:0;font-family:var(--head);font-weight:400;font-size:38px;line-height:1;
-  color:var(--sumi);background:var(--boru);padding:8px 14px 10px;letter-spacing:.06em;transform:rotate(-1.5deg);
-  box-shadow:3px 3px 0 var(--sumi);border:2.5px solid var(--sumi);border-radius:4px 2px 5px 3px}
-.feature .body{padding-top:24px}
-/* 束の札：小さな絵（ゲーム画面）。札ごとに少し傾きが違う */
-.sketch{position:relative;height:96px;background:var(--gunjo);overflow:hidden;border:1.5px solid var(--sumi);border-radius:2px 1px 3px 1px;transform:rotate(-.8deg)}
-.sketch img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;
-  filter:sepia(.18) saturate(.95)}
-.item{grid-template-columns:84px 1fr}
-@media (min-width:900px){.front{height:330px}.daiji{font-size:60px;bottom:-20px;left:18px}.feature .body{padding-top:30px}.item{grid-template-columns:96px 1fr}.sketch{height:112px}}
 </style></head>
 <body>
 <div class="page">
   <section class="stage" aria-label="いちばん新しい演目">
-    <div class="door l wood" aria-hidden="true"></div><div class="door r wood" aria-hidden="true"></div>
     <header class="beam wood">
-      <h1>あそびば</h1>
-      <p>毎朝ひとつ、新しい演目がかかります。</p>
+      <div class="plank"><h1 class="sign" aria-label="あそびば"><span>あ</span><span>そ</span><span>び</span><span>ば</span></h1><i class="nail"></i><i class="nail r"></i></div>
+      <p class="sub">毎朝ひとつ、新しい演目がかかります。</p>
     </header>
-    <div class="frame wood">
-      <article class="card feature">
-        <span class="new">新作</span>
-        <div class="front"><img src="../../arcade/games/005-lighthouse-keeper/qa/play.png" alt=""><h2 class="daiji">霧笛の灯</h2></div>
-        <div class="body">
-          <p class="pitch">霧の夜の岬で灯台の光を回し、四方から岩礁へ迷い込む船を照らして帰す。3隻座礁で当番終わり。</p>
-          <dl class="meta"><div><dt>ジャンル</dt><dd>回転</dd></div><div><dt>操作</dt><dd>灯台の周りを指でなでて光を回す</dd></div></dl>
-          <div class="row"><span class="best never">まだ遊んでいない</span><button class="play">遊ぶ</button></div>
+    <div class="box wood">
+      <div class="window">
+        <div class="behind"></div>
+        <div class="card-out">
+          <img src="../../arcade/games/005-lighthouse-keeper/qa/play.png" alt="">
+          <span class="new">新作</span>
+          <h2 class="daiji">霧笛の灯</h2>
         </div>
-      </article>
+      </div>
+      <div class="door l wood" aria-hidden="true"><i></i><i></i></div>
+      <div class="door r wood" aria-hidden="true"><i></i><i></i></div>
+    </div>
+    <div class="script">
+      <p>霧の夜の岬。灯台の周りを指でなでて、光を回します。照らされた船は気づいて帰っていく。三隻、岩礁に乗り上げたら当番は終わり。</p>
+      <div class="act"><span class="stamp">はじめて</span><button class="play" type="button">遊ぶ</button></div>
     </div>
   </section>
 
-  <section class="list" aria-labelledby="h-list">
-    <h2 id="h-list">これまでの演目<small>4本</small></h2>
+  <section class="stack" aria-labelledby="h-stack">
+    <h2 id="h-stack">これまでの演目<small>4本</small></h2>
     <ol>
-      <li class="card item"><span class="new">新作</span>
-        <div class="sketch"><img src="../../arcade/games/004-water-lines/qa/play.png" alt=""></div>
-        <div><div class="top"><h3><a href="#">水みち</a></h3><span class="best"><b>1,240</b>点</span></div>
-        <p class="pitch">指でなぞった墨の線に湧き水を滑らせ、段々の田へ。日照りの夏、田を3枚枯らすまでの水番。</p>
-        <dl class="meta"><div><dt>ジャンル</dt><dd>なぞり</dd></div><div><dt>操作</dt><dd>指でなぞって水路を引く</dd></div></dl></div></li>
-      <li class="card item">
-        <div class="sketch"><img src="../../arcade/games/003-mail-sorter/qa/play.png" alt=""></div>
-        <div><div class="top"><h3><a href="#">最終便まで</a></h3><span class="best"><b>86</b>点</span></div>
-        <p class="pitch">切手の印を見て、4方向の郵便袋へ封筒をはじく。夜勤の郵便局、最終便までの2分間。</p>
-        <dl class="meta"><div><dt>ジャンル</dt><dd>スワイプ</dd></div><div><dt>操作</dt><dd>封筒を上下左右にスワイプ</dd></div></dl></div></li>
-      <li class="card item">
-        <div class="sketch"><img src="../../arcade/games/002-kite-wind/qa/play.png" alt=""></div>
-        <div><div class="top"><h3><a href="#">雀凧</a></h3><span class="best never">まだ遊んでいない</span></div>
-        <p class="pitch">押すと糸を巻き、離すと糸が出る。指ひとつで雀の凧を風の帯に乗せ、冬空をどこまでも高く。</p>
-        <dl class="meta"><div><dt>ジャンル</dt><dd>ワンボタン</dd></div><div><dt>操作</dt><dd>長押しで糸を巻く／離すと出す</dd></div></dl></div></li>
-      <li class="card item">
-        <div class="sketch"><img src="../../arcade/games/001-bloom-chain/qa/play.png" alt=""></div>
-        <div><div class="top"><h3><a href="#">蓮ひらく</a></h3><span class="best"><b>412</b>点</span></div>
-        <p class="pitch">池に一度だけ触れて蓮をひらく。浮き葉が次々に咲き、緑青の水面が花でうまっていく。</p>
-        <dl class="meta"><div><dt>ジャンル</dt><dd>連鎖パズル</dd></div><div><dt>操作</dt><dd>タップ／クリックで蓮をひらく</dd></div></dl></div></li>
+      <li class="fuda"><i class="layer b"></i><i class="layer a"></i><a class="face" href="#"><span class="pic"><img src="../../arcade/games/004-water-lines/qa/play.png" alt=""><span class="tag">水みち</span></span><span class="score">1,240<small>点</small></span></a></li>
+      <li class="fuda"><i class="layer b"></i><i class="layer a"></i><a class="face" href="#"><span class="pic"><img src="../../arcade/games/003-mail-sorter/qa/play.png" alt=""><span class="tag">最終便まで</span></span><span class="score">86<small>点</small></span></a></li>
+      <li class="fuda"><i class="layer b"></i><i class="layer a"></i><a class="face" href="#"><span class="pic"><img src="../../arcade/games/002-kite-wind/qa/play.png" alt="" style="object-position:50% 80%"><span class="tag">雀凧</span></span><span class="score none">はじめて</span></a></li>
+      <li class="fuda"><i class="layer b"></i><i class="layer a"></i><a class="face" href="#"><span class="pic"><img src="../../arcade/games/001-bloom-chain/qa/play.png" alt=""><span class="tag">蓮ひらく</span></span><span class="score">412<small>点</small></span></a></li>
     </ol>
   </section>
 </div>
+<script>
+// 見本用: #opening で「扉が開く途中のコマ」を見せる
+if (location.hash === '#opening') {
+  document.body.classList.add('opening');
+  const f = document.createElement('iframe');
+  f.src = '../../arcade/games/005-lighthouse-keeper/index.html'; f.title = '霧笛の灯'; f.tabIndex = -1;
+  document.querySelector('.behind').appendChild(f);
+}
+</script>
 </body></html>

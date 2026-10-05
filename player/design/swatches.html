@@ -5,11 +5,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Potta+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="stage.css">
 <style>
 .sheet{max-width:1180px;margin:0 auto;padding:28px 40px 40px}
 .board{background:var(--boru);background-image:var(--grain);padding:22px 26px 26px;box-shadow:0 3px 0 var(--boru-edge);margin-bottom:22px;
   clip-path:polygon(0 3px,5px 0,calc(100% - 3px) 1px,100% 6px,calc(100% - 1px) calc(100% - 2px),calc(100% - 7px) 100%,3px calc(100% - 1px),0 calc(100% - 5px))}
-h1{font-family:var(--head);font-weight:400;font-size:44px;margin:0 0 4px;color:var(--boru);text-shadow:2px 2px 0 var(--shu)}
+
 .lead{margin:0 0 20px;color:var(--sumi);font-size:15px}
 h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
 .chips{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
@@ -20,11 +21,11 @@ h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
 .shapes{display:flex;gap:30px;align-items:flex-end;flex-wrap:wrap}
 .shapes figure{margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .shapes figcaption{font-size:13px}
-.play{font-family:var(--head);font-size:20px;color:var(--boru);background:var(--shu);border:0;padding:10px 22px 11px;border-radius:3px 6px 4px 5px/5px 3px 6px 4px;box-shadow:inset 0 0 0 2px var(--sumi),3px 3px 0 var(--sumi)}
+.play{font-family:var(--head);font-size:20px;color:var(--boru);background:var(--shu);border:0;padding:10px 24px 11px;box-shadow:inset 0 0 0 2.5px var(--sumi),3px 3px 0 var(--sumi);clip-path:polygon(0 3px,5px 0,100% 1px,100% calc(100% - 4px),calc(100% - 4px) 100%,2px 100%)}
 .play.down{transform:translate(3px,3px);box-shadow:inset 0 0 0 2px var(--sumi)}
 .new{font-family:var(--head);font-size:15px;color:var(--boru);background:var(--shu);padding:4px 10px 5px;transform:rotate(-4deg);clip-path:polygon(0 1px,100% 0,98% 100%,2% 96%)}
 .daiji{font-family:var(--head);font-size:34px;line-height:1;color:var(--sumi);background:var(--boru);padding:8px 14px 10px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 var(--sumi);border:2.5px solid var(--sumi);border-radius:4px 2px 5px 3px}
-.back{font-family:var(--body);font-weight:500;font-size:15px;color:var(--sumi);background:var(--boru);border:0;padding:7px 12px 8px 10px;border-radius:3px 5px 4px 2px/4px 3px 5px 3px;box-shadow:2px 2px 0 var(--sumi);outline:2px solid var(--sumi)}
+.back{font-family:var(--body);font-weight:500;font-size:15px;color:#efe5cc;padding:10px 14px 10px 12px;background-color:var(--kurikawa-hi);background-image:var(--wood);background-size:260px 50px;box-shadow:inset 0 0 0 2px var(--sumi),3px 3px 0 var(--sumi);transform:rotate(-2deg);clip-path:polygon(0 4px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 3px) 100%,0 100%)}
 .mini{width:150px;height:96px;background:var(--gunjo);border:1.5px solid var(--sumi);transform:rotate(-.8deg)}
 .doorpair{display:flex;gap:4px;height:120px}
 .doorpair i{width:60px;box-shadow:inset 0 0 0 2px #0003;position:relative}
@@ -42,7 +43,7 @@ h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
 </style></head>
 <body>
 <div class="sheet">
-  <h1>あそびば 見本帳</h1>
+  <h1 class="sign" style="font-size:46px;margin-bottom:8px"><span>あ</span><span>そ</span><span>び</span><span>ば</span>&nbsp;見本帳</h1>
   <p class="lead" style="color:var(--boru)">街角に来る紙芝居の舞台（自転車の荷台の木箱・観音開きの扉）と、泥絵具で描いたボール紙の絵札から借りる。</p>
 
   <section class="board"><h2>色</h2>
@@ -51,7 +52,7 @@ h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
       <div class="chip"><div class="c wood"></div><b>栗皮茶</b><span>#5a3820<br>舞台の木枠・扉・梁</span></div>
       <div class="chip"><div class="c" style="background:#d8cdb3"></div><b>ボール紙</b><span>#d8cdb3<br>絵札の紙・題字の札</span></div>
       <div class="chip"><div class="c" style="background:#284a9a"></div><b>群青</b><span>#284a9a<br>見出し語・絵の地</span></div>
-      <div class="chip"><div class="c" style="background:#d2402a"></div><b>朱</b><span>#d2402a<br>主役：新作の貼り紙と「遊ぶ」だけ</span></div>
+      <div class="chip"><div class="c" style="background:#d2402a"></div><b>朱</b><span>#d2402a<br>主役：「遊ぶ」と新作の貼り紙1枚だけ</span></div>
       <div class="chip"><div class="c" style="background:#2a221d"></div><b>墨</b><span>#2a221d<br>線・文字・ずらした縁</span></div>
     </div>
     <p style="margin:18px 0 8px;font-size:14px">夕暮れ（ダークモード）：板塀だけ暮れて、札は紙のまま少し沈む</p>
@@ -64,12 +65,12 @@ h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
   <section class="board"><h2>形</h2>
     <div class="shapes">
       <figure><div class="doorpair"><i class="wood"></i><i class="wood"></i></div><figcaption>観音開きの扉（選ぶと開く）</figcaption></figure>
-      <figure><span class="daiji">題字の札</span><figcaption>絵の上に重ねる題字</figcaption></figure>
+      <figure><span class="daiji" style="position:static">題字の札</span><figcaption>絵の上に重ねる題字</figcaption></figure>
       <figure><button class="play">遊ぶ</button><figcaption>ふだん</figcaption></figure>
       <figure><button class="play down">遊ぶ</button><figcaption>押したとき（影ごと沈む）</figcaption></figure>
-      <figure><span class="new">新作</span><figcaption>新作の貼り紙（最新1〜2本）</figcaption></figure>
+      <figure><span class="new" style="position:static">新作</span><figcaption>新作の貼り紙（舞台の1枚だけ）</figcaption></figure>
       <figure><div class="mini"></div><figcaption>束の札の小さな絵</figcaption></figure>
-      <figure><span class="back">‹ 演目にもどる</span><figcaption>戻るの木札</figcaption></figure>
+      <figure><span class="back">‹ 演目にもどる</span><figcaption>戻るの欠けた木札</figcaption></figure>
     </div>
   </section>
 
@@ -77,9 +78,8 @@ h2{font-family:var(--head);font-weight:400;font-size:22px;margin:0 0 14px}
     <div class="type">
       <div><small>見出し・題字・点数：Potta One（泥絵具を筆で塗った看板文字）</small>
         <p class="big">霧笛の灯</p><p class="mid">これまでの演目</p><p class="num">1,240<span style="font-size:15px">点</span></p></div>
-      <div><small>本文・説明・操作：Kiwi Maru（少し古風で柔らかい丸文字）</small>
-        <p class="body">霧の夜の岬で灯台の光を回し、四方から岩礁へ迷い込む船を照らして帰す。3隻座礁で当番終わり。</p>
-        <p class="body"><span style="color:var(--gunjo);font-weight:500">操作</span>　灯台の周りを指でなでて光を回す<br><span style="color:#6b5a4a">まだ遊んでいない</span></p></div>
+      <div><small>台本（説明）・判子：Kiwi Maru（少し古風で柔らかい丸文字）</small>
+        <p class="body">霧の夜の岬。灯台の周りを指でなでて、光を回します。照らされた船は気づいて帰っていく。三隻、岩礁に乗り上げたら当番は終わり。</p><p class="body">（札の裏の台本として、ラベル無しの地の文で書く。未プレイは墨の判子「はじめて」）</p></div>
     </div>
   </section>
 </div>

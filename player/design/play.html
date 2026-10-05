@@ -5,39 +5,57 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Potta+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="stage.css">
 <style>
 html,body{height:100%}
 body{overflow:hidden}
 .theater{position:fixed;inset:0;display:flex;flex-direction:column}
-.beam{display:flex;align-items:center;gap:10px;padding:8px 10px;color:var(--boru);box-shadow:inset 0 -3px 0 #0003}
-.back{font-family:var(--body);font-weight:500;font-size:15px;color:var(--sumi);background:var(--boru);border:0;cursor:pointer;
-  padding:7px 12px 8px 10px;border-radius:3px 5px 4px 2px/4px 3px 5px 3px;box-shadow:2px 2px 0 var(--sumi);display:flex;align-items:center;gap:6px}
-.back svg{width:16px;height:16px}
-.back:active{transform:translate(2px,2px);box-shadow:none}
-.back:focus-visible{outline:3px solid var(--shu);outline-offset:3px}
-.beam h1{margin:0 0 0 auto;font-family:var(--head);font-weight:400;font-size:20px;line-height:1;letter-spacing:.05em;text-shadow:2px 2px 0 var(--shu);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.window{position:relative;flex:1;padding:0 6px 6px;display:flex}
-.window iframe{flex:1;border:0;display:block;width:100%;height:100%;background:var(--boru);box-shadow:0 0 0 2px var(--sumi)}
-.door{display:none}
+/* 抜いた札：梁の上に下の端だけ見えている */
+.pulled{position:absolute;z-index:1;top:-78px;left:118px;width:230px;height:122px;background:var(--gunjo);
+  border:5px solid var(--boru);outline:2px solid var(--sumi);transform:rotate(3deg);box-shadow:4px 4px 0 #0004}
+.pulled img{width:100%;height:100%;object-fit:cover;object-position:50% 40%;display:block;filter:sepia(.12)}
+.pulled .daiji{font-size:18px;left:8px;bottom:12px;padding:4px 7px 5px;border-width:2px;box-shadow:2px 2px 0 var(--sumi)}
+.theater .beam{z-index:2;margin-top:40px;height:58px;display:flex;align-items:center;padding:0 12px}
+/* 戻る：梁に紐で掛けた、欠けた木札 */
+.back{position:relative;font-family:var(--body);font-weight:500;font-size:15px;line-height:1;color:#efe5cc;cursor:pointer;
+  border:0;padding:10px 14px 10px 12px;background-color:var(--kurikawa-hi);background-image:var(--wood);background-size:260px 50px;
+  box-shadow:inset 0 0 0 2px var(--sumi),3px 3px 0 var(--sumi);transform:rotate(-2deg);
+  clip-path:polygon(0 4px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 3px) 100%,0 100%,0 0);overflow:visible}
+.back::before{content:"‹";font-family:var(--head);font-size:18px;margin-right:6px;vertical-align:-1px}
+.back:active{transform:rotate(-2deg) translate(3px,3px);box-shadow:inset 0 0 0 2px var(--sumi)}
+.back:focus-visible{outline:3px solid var(--gunjo);outline-offset:4px}
+.cord{position:absolute;top:-14px;left:50%;width:2px;height:16px;background:var(--sumi);transform:rotate(-2deg)}
+.box.play{flex:1;display:flex;padding:8px 20px 12px}
+.box.play .window{flex:1;height:auto;outline:3px solid var(--sumi)}
+.box.play .window iframe{border:0;width:100%;height:100%;display:block}
+/* 畳んだ扉（スマホ）：窓の左右に縁と蝶番だけ見える */
+.box.play .door{width:18px;top:8px;bottom:12px;transform:none;background-color:var(--kurikawa-hi);box-shadow:inset 0 0 0 2px var(--sumi),inset 4px 0 0 #ffffff14}
+.box.play .door::before{inset:8px 4px}
+.box.play .door.l{left:0}.box.play .door.r{right:0}
 @media (min-width:900px){
-  .theater{position:fixed;inset:24px auto 24px 50%;transform:translateX(-50%);width:min(980px,calc(100vw - 260px))}
-  .beam{padding:10px 16px;border-radius:5px 7px 0 0/6px 4px 0 0}
-  .beam h1{font-size:30px}
-  .window{padding:0 14px 14px;border-radius:0 0 6px 5px}
-  .door{display:block;position:absolute;top:58px;bottom:0;width:96px;box-shadow:inset 0 0 0 2px #0003}
-  .door::before{content:"";position:absolute;inset:16px 14px;border:2px solid #0003;border-radius:2px}
-  .door.l{left:-94px;transform:perspective(600px) rotateY(55deg);transform-origin:right}
-  .door.r{right:-94px;transform:perspective(600px) rotateY(-55deg);transform-origin:left}
+  body{overflow:hidden}
+  .theater{inset:20px auto 24px 50%;transform:translateX(-50%);width:820px}
+  .theater .beam{margin-top:0;height:64px;padding:0 18px}
+  .box.play{padding:12px 30px 18px}
+  .box.play .door{width:104px;top:12px;bottom:18px}
+  .box.play .door.l{left:8px;transform:perspective(700px) rotateY(-150deg)}
+  .box.play .door.r{right:8px;transform:perspective(700px) rotateY(150deg)}
+  .box.play .door::before{inset:14px 12px}
+  /* 抜いた札：右の扉の前に立てかけてある */
+  .pulled{top:auto;bottom:22px;left:auto;right:-226px;width:226px;height:166px;transform:rotate(6deg);z-index:3}
+  .pulled .daiji{font-size:24px;bottom:16px}
 }
 </style></head>
 <body>
 <div class="theater">
-  <div class="door l wood" aria-hidden="true"></div><div class="door r wood" aria-hidden="true"></div>
+  <div class="pulled" aria-hidden="true"><img src="../../arcade/games/005-lighthouse-keeper/qa/play.png" alt=""><span class="daiji">霧笛の灯</span></div>
   <header class="beam wood">
-    <button class="back" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.6 4.8 8.1l5.9 5.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>演目にもどる</button>
-    <h1>霧笛の灯</h1>
+    <button class="back" type="button"><span class="cord" aria-hidden="true"></span>演目にもどる</button>
   </header>
-  <div class="window wood"><iframe src="../../arcade/games/005-lighthouse-keeper/index.html" title="霧笛の灯"></iframe></div>
+  <div class="box play wood">
+    <div class="window"><iframe src="../../arcade/games/005-lighthouse-keeper/index.html" title="霧笛の灯"></iframe></div>
+    <div class="door l wood" aria-hidden="true"><i></i><i></i></div>
+    <div class="door r wood" aria-hidden="true"><i></i><i></i></div>
+  </div>
 </div>
 </body></html>

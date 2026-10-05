@@ -17,6 +17,7 @@ const shots = [
   ['list.html', 390, 844, 'light', 'list-390.png'],
   ['list.html', 1280, 800, 'light', 'list-1280.png'],
   ['list.html', 390, 844, 'dark', 'list-390-dark.png'],
+  ['list.html#opening', 390, 844, 'light', 'open-390.png'],
   ['list.html', 1280, 800, 'dark', 'list-1280-dark.png'],
   ['play.html', 390, 844, 'light', 'play-390.png'],
   ['play.html', 1280, 800, 'light', 'play-1280.png'],
