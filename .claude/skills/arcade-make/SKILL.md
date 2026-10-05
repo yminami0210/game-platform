@@ -30,7 +30,7 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 > - `<meta name="viewport" content="width=device-width,initial-scale=1">`。スマホ縦画面（390x844）で全体が見え、PCではキーボードでも遊べる
 > - タイトル画面 → 遊ぶ → 結果（スコア・もう一回）の流れ。遊び方は画面に1〜2行で表示。ベストスコアは localStorage に保存（try/catch で囲む）
 > - 300KB 以下。エラーを出さない
-> `<GAME>/meta.json` の title / pitch（60字以内）/ genre / controls / how_to_play を埋める。
+> `<GAME>/meta.json` の title / pitch（60字以内）/ genre / controls / how_to_play と、**best_key**（ベストスコアを保存している localStorage のキー。遊び場 player/ が表示に使う）を埋める。
 > `node arcade/bin/qa.mjs <GAME>` と `python3 arcade/bin/arcade.py check <GAME>` が両方 OK になるまで直す。`<GAME>/qa/play.png` を Read で見て、遊んでいる画面になっているか自分でも確かめる。最後に `arcade/design-log.md` に1行追記する。返答は3行以内。
 
 ## 3. 監査役（サブエージェント）
@@ -54,5 +54,5 @@ description: ミニゲーム工場で、すぐ遊べる短いブラウザゲー�
 
 ## 守ること
 - **公開はしない**。`ready` は「公開候補」。公開（GitHub Pages など外から見える場所に出すこと）はオーナーの承認後。
-- 大型タイトル（`studio/`、`game/`）のファイルには触らない。
+- 大型タイトル（`studio/`、`game/`）と、遊び場（`player/`）のファイルには触らない。
 - 1回の実行で作るのは1本だけ。
