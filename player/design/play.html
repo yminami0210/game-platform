@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>あそびば 上演中</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Potta+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<style>
+html,body{height:100%}
+body{overflow:hidden}
+.theater{position:fixed;inset:0;display:flex;flex-direction:column}
+.beam{display:flex;align-items:center;gap:10px;padding:8px 10px;color:var(--boru);box-shadow:inset 0 -3px 0 #0003}
+.back{font-family:var(--body);font-weight:500;font-size:15px;color:var(--sumi);background:var(--boru);border:0;cursor:pointer;
+  padding:7px 12px 8px 10px;border-radius:3px 5px 4px 2px/4px 3px 5px 3px;box-shadow:2px 2px 0 var(--sumi);display:flex;align-items:center;gap:6px}
+.back svg{width:16px;height:16px}
+.back:active{transform:translate(2px,2px);box-shadow:none}
+.back:focus-visible{outline:3px solid var(--shu);outline-offset:3px}
+.beam h1{margin:0 0 0 auto;font-family:var(--head);font-weight:400;font-size:20px;line-height:1;letter-spacing:.05em;text-shadow:2px 2px 0 var(--shu);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.window{position:relative;flex:1;padding:0 6px 6px;display:flex}
+.window iframe{flex:1;border:0;display:block;width:100%;height:100%;background:var(--boru);box-shadow:0 0 0 2px var(--sumi)}
+.door{display:none}
+@media (min-width:900px){
+  .theater{position:fixed;inset:24px auto 24px 50%;transform:translateX(-50%);width:min(980px,calc(100vw - 260px))}
+  .beam{padding:10px 16px;border-radius:5px 7px 0 0/6px 4px 0 0}
+  .beam h1{font-size:30px}
+  .window{padding:0 14px 14px;border-radius:0 0 6px 5px}
+  .door{display:block;position:absolute;top:58px;bottom:0;width:96px;box-shadow:inset 0 0 0 2px #0003}
+  .door::before{content:"";position:absolute;inset:16px 14px;border:2px solid #0003;border-radius:2px}
+  .door.l{left:-94px;transform:perspective(600px) rotateY(55deg);transform-origin:right}
+  .door.r{right:-94px;transform:perspective(600px) rotateY(-55deg);transform-origin:left}
+}
+</style></head>
+<body>
+<div class="theater">
+  <div class="door l wood" aria-hidden="true"></div><div class="door r wood" aria-hidden="true"></div>
+  <header class="beam wood">
+    <button class="back" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.6 4.8 8.1l5.9 5.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>演目にもどる</button>
+    <h1>霧笛の灯</h1>
+  </header>
+  <div class="window wood"><iframe src="../../arcade/games/005-lighthouse-keeper/index.html" title="霧笛の灯"></iframe></div>
+</div>
+</body></html>

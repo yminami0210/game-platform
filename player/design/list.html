@@ -65,7 +65,7 @@
 .item .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .item .best{font-size:12px;white-space:nowrap}
 .item .best b{font-size:17px}
-.item .new{top:-8px;right:10px;font-size:13px}
+.item .new{top:2px;left:4px;font-size:13px}
 .never{color:#6b5a4a}
 footer{margin-top:26px;font-size:13px;line-height:1.6;color:var(--sumi)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .list h2,:root:not([data-theme="light"]) footer{color:var(--boru)}}
@@ -87,6 +87,21 @@ footer{margin-top:26px;font-size:13px;line-height:1.6;color:var(--sumi)}
   .list ol{gap:14px}
   footer{grid-column:1/-1;text-align:left}
 }
+
+/* 絵札の表：ゲームの実際の画面を「絵」にして、題字を泥絵具で描いた札を重ねる */
+.front{position:relative;height:176px;background:var(--gunjo)}
+.front img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 48%;display:block}
+.front::after{content:"";position:absolute;inset:-2px 1px 1px -2px;border:2.5px solid var(--sumi);border-radius:3px 1px 4px 2px;pointer-events:none}
+.daiji{position:absolute;left:10px;bottom:-14px;margin:0;font-family:var(--head);font-weight:400;font-size:38px;line-height:1;
+  color:var(--sumi);background:var(--boru);padding:8px 14px 10px;letter-spacing:.06em;transform:rotate(-1.5deg);
+  box-shadow:3px 3px 0 var(--sumi);border:2.5px solid var(--sumi);border-radius:4px 2px 5px 3px}
+.feature .body{padding-top:24px}
+/* 束の札：小さな絵（ゲーム画面）。札ごとに少し傾きが違う */
+.sketch{position:relative;height:96px;background:var(--gunjo);overflow:hidden;border:1.5px solid var(--sumi);border-radius:2px 1px 3px 1px;transform:rotate(-.8deg)}
+.sketch img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;
+  filter:sepia(.18) saturate(.95)}
+.item{grid-template-columns:84px 1fr}
+@media (min-width:900px){.front{height:330px}.daiji{font-size:60px;bottom:-20px;left:18px}.feature .body{padding-top:30px}.item{grid-template-columns:96px 1fr}.sketch{height:112px}}
 </style></head>
 <body>
 <div class="page">
@@ -99,7 +114,7 @@ footer{margin-top:26px;font-size:13px;line-height:1.6;color:var(--sumi)}
     <div class="frame wood">
       <article class="card feature">
         <span class="new">新作</span>
-        <div class="paint"><span class="title">霧笛の灯</span></div>
+        <div class="front"><img src="../../arcade/games/005-lighthouse-keeper/qa/play.png" alt=""><h2 class="daiji">霧笛の灯</h2></div>
         <div class="body">
           <p class="pitch">霧の夜の岬で灯台の光を回し、四方から岩礁へ迷い込む船を照らして帰す。3隻座礁で当番終わり。</p>
           <dl class="meta"><div><dt>ジャンル</dt><dd>回転</dd></div><div><dt>操作</dt><dd>灯台の周りを指でなでて光を回す</dd></div></dl>
@@ -113,27 +128,26 @@ footer{margin-top:26px;font-size:13px;line-height:1.6;color:var(--sumi)}
     <h2 id="h-list">これまでの演目<small>4本</small></h2>
     <ol>
       <li class="card item"><span class="new">新作</span>
-        <div class="paint"><span class="kanji">水</span></div>
+        <div class="sketch"><img src="../../arcade/games/004-water-lines/qa/play.png" alt=""></div>
         <div><div class="top"><h3><a href="#">水みち</a></h3><span class="best"><b>1,240</b>点</span></div>
         <p class="pitch">指でなぞった墨の線に湧き水を滑らせ、段々の田へ。日照りの夏、田を3枚枯らすまでの水番。</p>
         <dl class="meta"><div><dt>ジャンル</dt><dd>なぞり</dd></div><div><dt>操作</dt><dd>指でなぞって水路を引く</dd></div></dl></div></li>
       <li class="card item">
-        <div class="paint"><span class="kanji">最</span></div>
+        <div class="sketch"><img src="../../arcade/games/003-mail-sorter/qa/play.png" alt=""></div>
         <div><div class="top"><h3><a href="#">最終便まで</a></h3><span class="best"><b>86</b>点</span></div>
         <p class="pitch">切手の印を見て、4方向の郵便袋へ封筒をはじく。夜勤の郵便局、最終便までの2分間。</p>
         <dl class="meta"><div><dt>ジャンル</dt><dd>スワイプ</dd></div><div><dt>操作</dt><dd>封筒を上下左右にスワイプ</dd></div></dl></div></li>
       <li class="card item">
-        <div class="paint"><span class="kanji">凧</span></div>
+        <div class="sketch"><img src="../../arcade/games/002-kite-wind/qa/play.png" alt=""></div>
         <div><div class="top"><h3><a href="#">雀凧</a></h3><span class="best never">まだ遊んでいない</span></div>
         <p class="pitch">押すと糸を巻き、離すと糸が出る。指ひとつで雀の凧を風の帯に乗せ、冬空をどこまでも高く。</p>
         <dl class="meta"><div><dt>ジャンル</dt><dd>ワンボタン</dd></div><div><dt>操作</dt><dd>長押しで糸を巻く／離すと出す</dd></div></dl></div></li>
       <li class="card item">
-        <div class="paint"><span class="kanji">蓮</span></div>
+        <div class="sketch"><img src="../../arcade/games/001-bloom-chain/qa/play.png" alt=""></div>
         <div><div class="top"><h3><a href="#">蓮ひらく</a></h3><span class="best"><b>412</b>点</span></div>
         <p class="pitch">池に一度だけ触れて蓮をひらく。浮き葉が次々に咲き、緑青の水面が花でうまっていく。</p>
         <dl class="meta"><div><dt>ジャンル</dt><dd>連鎖パズル</dd></div><div><dt>操作</dt><dd>タップ／クリックで蓮をひらく</dd></div></dl></div></li>
     </ol>
   </section>
-  <footer>遊び終わったら、上の「演目にもどる」かブラウザの戻るでここへ。</footer>
 </div>
 </body></html>
