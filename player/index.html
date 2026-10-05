@@ -12,46 +12,48 @@
 </head>
 <body>
 <main class="page" id="page">
+  <header class="beam marquee wood">
+    <div class="plank"><h1 class="sign" aria-label="あそびば"><span>あ</span><span>そ</span><span>び</span><span>ば</span></h1><i class="nail"></i><i class="nail r"></i></div>
+    <p class="sub">毎朝ひとつ、新しい演目がかかります。</p>
+  </header>
+
+  <div class="script notice" id="notice"><p id="notice-text">演目を読み込んでいます。</p></div>
+
+  <section class="board" aria-label="演目">
+    <ol class="cards" id="cards"></ol>
+  </section>
+</main>
+
+<!-- 舞台: 札を押すと現れ、扉が開いて札が抜かれ、奥でゲームが始まる -->
+<div class="playroom" id="playroom">
   <section class="stage" id="stage" aria-label="舞台">
     <div class="pulled" id="pulled" aria-hidden="true"><img alt="" id="pulled-img"><span class="daiji" id="pulled-title"></span></div>
     <header class="beam wood">
-      <div class="plank"><h1 class="sign" aria-label="あそびば"><span>あ</span><span>そ</span><span>び</span><span>ば</span></h1><i class="nail"></i><i class="nail r"></i></div>
-      <p class="sub">毎朝ひとつ、新しい演目がかかります。</p>
       <span class="back-wrap"><button class="back" id="back" type="button">演目にもどる</button></span>
     </header>
     <div class="box wood">
       <div class="window" id="window">
         <div class="behind" id="behind"></div>
-        <div class="card-out" id="stage-card">
+        <div class="card-out" id="stage-card" aria-hidden="true">
           <img alt="" id="stage-img" hidden>
           <span class="new" id="stage-new" hidden>新作</span>
-          <h2 class="daiji" id="stage-title">あそびば</h2>
+          <span class="daiji" id="stage-title"></span>
         </div>
       </div>
       <div class="door l wood" aria-hidden="true"><i></i><i></i></div>
       <div class="door r wood" aria-hidden="true"><i></i><i></i></div>
     </div>
-    <div class="script" id="script">
-      <p id="script-text">演目を読み込んでいます。</p>
-      <div class="act"><span class="stamp" id="stage-stamp" hidden>はじめて</span><button class="play" id="play" type="button" hidden>遊ぶ</button></div>
-    </div>
   </section>
-
-  <section class="stack" id="stack" aria-labelledby="h-stack" hidden>
-    <h2 id="h-stack">これまでの演目<small id="stack-count"></small></h2>
-    <ol id="stack-list"></ol>
-  </section>
-</main>
+</div>
 <p class="vh" id="live" aria-live="polite"></p>
 <script>
 // ファイルを直接開くと（file://）演目もモジュールも読めないので、開き方を出す
 if (location.protocol === "file:") {
-  document.getElementById("stage-title").textContent = "演目が読めません";
-  document.getElementById("script-text").innerHTML =
+  document.getElementById("notice-text").innerHTML =
     "このページはファイルを直接開くと演目を読めません。リポジトリのいちばん上のフォルダで <code>npx serve .</code> か <code>python3 -m http.server</code> を動かし、<code>http://localhost:&lt;番号&gt;/player/</code> を開いてください。";
 }
 </script>
-<noscript><style>#script-text{display:none}</style><p style="margin:16px">あそびばは JavaScript を使います。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
+<noscript><style>#notice-text{display:none}</style><p style="margin:16px">あそびばは JavaScript を使います。ブラウザの設定で JavaScript を有効にしてください。</p></noscript>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

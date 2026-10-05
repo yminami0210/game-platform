@@ -77,19 +77,34 @@ async function run(browser, w, h) {
   await page.goto(BASE, { waitUntil: "load" });
   await waitList(page);
 
-  // 一覧に5本（舞台の新作1＋束4）
-  const stageTitle = await page.textContent("#stage-title");
-  const stack = await page.locator(".fuda").count();
-  ok(stageTitle === "霧笛の灯" && stack + 1 === EXPECTED, `${tag} 一覧に${EXPECTED}本（舞台「${stageTitle}」＋束${stack}）`);
-  ok(await page.locator("#stage-new").isVisible(), `${tag} 舞台に新作の貼り紙`);
-  ok((await page.locator(".fuda .new").count()) === 0, `${tag} 束には新作の印が無い`);
-  ok(await page.locator("#stage-stamp").textContent() === "はじめて", `${tag} 未プレイは判子「はじめて」`);
+  // 一覧: 全演目が同じ大きさの絵札で、新しい順に5本
+  const ids = await page.locator(".fuda").evaluateAll((els) => els.map((e) => e.dataset.id));
+  ok(ids.length === EXPECTED && ids[0] === "005-lighthouse-keeper" && ids[4] === "001-bloom-chain", `${tag} 一覧に${EXPECTED}本（新しい順: ${ids.join(", ")}）`);
+  const sizes = await page.locator(".fuda .pic").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  ok(new Set(sizes).size === 1, `${tag} 絵札がみな同じ大きさ（${sizes[0]}px）`);
+  const perRow = await page.locator(".fuda").evaluateAll((els) => els.filter((e) => Math.abs(e.getBoundingClientRect().top - els[0].getBoundingClientRect().top) < 20).length);
+  ok(w < 600 ? perRow === 2 : perRow >= 3 && perRow <= 4, `${tag} 横に${perRow}枚並ぶ`);
+  // 各札に台本の全文（fuda.json の script）が見えている
+  const fuda = JSON.parse(fs.readFileSync(path.join(here, "..", "data", "fuda.json"), "utf8"));
+  const scripts = await page.locator(".fuda").evaluateAll((els) => els.map((e) => {
+    const p = e.querySelector(".script p");
+    const r = p.getBoundingClientRect();
+    return { id: e.dataset.id, text: p.textContent, visible: r.height > 20 && p.scrollHeight <= p.clientHeight + 1 && getComputedStyle(p).visibility === "visible" };
+  }));
+  const bad = scripts.filter((s) => !s.visible || (fuda[s.id] && fuda[s.id].script && s.text !== fuda[s.id].script));
+  ok(bad.length === 0, `${tag} 各札に説明文が全文見える${bad.map((b) => " ×" + b.id).join("")}`);
+  ok((await page.locator(".fuda .new:not([hidden])").count()) === 2, `${tag} 新作の貼り紙は新しい2本だけ`);
+  const stamps = await page.locator(".fuda .stamp").allTextContents();
+  ok(stamps.length === EXPECTED && stamps.every((s) => s === "はじめて"), `${tag} 未プレイは各札に判子「はじめて」`);
+  ok((await page.locator(".fuda .play").count()) === EXPECTED, `${tag} 各札に「遊ぶ」`);
+  ok(!(await page.locator("#stage").isVisible()), `${tag} 一覧では舞台は出ていない`);
+  ok(await page.locator(".marquee .sign").isVisible(), `${tag} 梁と看板「あそびば」が一覧の上にある`);
   await page.waitForTimeout(400);
   await shot(page, `list-${w}`);
 
-  // 束の札をクリック → 舞台へ入り、扉が開いて iframe でゲーム
-  const firstId = await page.locator(".fuda").first().getAttribute("data-id");
-  await page.locator(".fuda .face").first().click();
+  // 札の絵をクリック → 舞台が現れ、扉が開いて iframe でゲーム（縦長の「水みち」）
+  const firstId = "004-water-lines";
+  await page.locator(`.fuda[data-id="${firstId}"] .pic`).click();
   ok(await waitGameLoaded(page, firstId), `${tag} 札クリックで iframe にゲーム（${firstId}）が読み込まれる`);
   ok(page.url().endsWith(`#play-${firstId}`), `${tag} URL が #play-${firstId}`);
   ok(await page.locator("#pulled").isVisible(), `${tag} 抜いた札が窓の脇に見える`);
@@ -98,7 +113,7 @@ async function run(browser, w, h) {
   await shot(page, `play-${w}`);
   const box = await page.locator("#pulled").boundingBox();
   ok(box && box.x >= 0 && box.x + box.width <= w + 1, `${tag} 抜いた札が画面の中に収まる（左右）`);
-  if (w >= 900 && firstId === "004-water-lines") {
+  if (w >= 900) {
     const win = await page.locator("#window").boundingBox();
     const ratio = win.width / win.height;
     ok(Math.abs(ratio - 0.6) < 0.08, `${tag} 縦長のゲームでは窓も縦長（幅/高さ ${ratio.toFixed(2)}）`);
@@ -109,24 +124,24 @@ async function run(browser, w, h) {
   await page.waitForFunction(() => !document.body.classList.contains("playing"));
   ok((await iframeCount(page)) === 0 && !(await isPlaying(page)), `${tag} 戻る木札で一覧へ（iframe が消える）`);
   ok(!page.url().includes("#play-"), `${tag} 戻った後の URL に #play が無い`);
-  ok((await page.locator(".fuda").count()) + 1 === EXPECTED, `${tag} 戻った後も${EXPECTED}本`);
+  await page.waitForFunction(() => !document.body.classList.contains("staging"));
+  ok((await page.locator(".fuda").count()) === EXPECTED && !(await page.locator("#stage").isVisible()), `${tag} 戻った後は一覧に${EXPECTED}本、舞台は閉じる`);
 
   // 「遊ぶ」→ history.back()
-  await page.waitForTimeout(700);
-  const sid = await page.evaluate(() => location.hash || "") || "";
-  await page.click("#play");
+  await page.locator(".fuda .play").first().click();
   await page.waitForSelector("#behind iframe");
   await page.waitForFunction(() => document.body.classList.contains("playing"));
   await page.evaluate(() => history.back());
   await page.waitForFunction(() => !document.querySelector("#behind iframe"));
-  ok(!(await isPlaying(page)) && sid === "", `${tag} history.back() で一覧へ`);
+  ok(!(await isPlaying(page)) && !page.url().includes("#play-"), `${tag} history.back() で一覧へ`);
+  await page.waitForFunction(() => !document.body.classList.contains("staging"));
 
-  // キーボード: Tab で札を選び Enter で開く → Esc で戻る
-  await page.waitForTimeout(700);
+  // キーボード: Tab で札（遊ぶ）を選び Enter で開く → Esc で戻る
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
   let found = false;
   for (let i = 0; i < 20 && !found; i++) {
     await page.keyboard.press("Tab");
-    found = await page.evaluate(() => !!document.activeElement && document.activeElement.matches(".fuda .face"));
+    found = await page.evaluate(() => !!document.activeElement && document.activeElement.matches(".fuda .play"));
   }
   const focusVisible = found && await page.evaluate(() => getComputedStyle(document.activeElement.closest(".fuda"), "::after").content !== "none");
   ok(found && focusVisible, `${tag} Tab で札に焦点が来て枠が見える`);
@@ -147,7 +162,7 @@ async function run(browser, w, h) {
   await direct.page.click("#back");
   await direct.page.waitForFunction(() => !document.querySelector("#behind iframe"));
   ok(direct.page.url().startsWith(BASE) && !direct.page.url().includes("#play"), `${tag} 直接開いた後も戻る木札で一覧へ（ページを離れない）`);
-  ok((await direct.page.locator(".fuda").count()) + 1 === EXPECTED, `${tag} 直接開いた後の一覧も${EXPECTED}本`);
+  ok((await direct.page.locator(".fuda").count()) === EXPECTED, `${tag} 直接開いた後の一覧も${EXPECTED}本`);
   await direct.page.close();
 
   ok(errors.length === 0 && direct.errors.length === 0, `${tag} コンソールエラーなし${errors.concat(direct.errors).map((e) => "\n     " + e).join("")}`);
@@ -187,8 +202,8 @@ async function extraShots(browser) {
     await page.goto(BASE, { waitUntil: "load" });
     await waitList(page);
     await page.waitForTimeout(300);
-    await page.click("#play");
-    await page.waitForTimeout(380);
+    await page.locator(".fuda .play").first().click();
+    await page.waitForTimeout(720);
     await shot(page, "open-390");
     await page.close();
   }
@@ -198,7 +213,7 @@ async function reducedMotion(browser) {
   const { page, errors } = await newPage(browser, 390, 844, "light", "reduce");
   await page.goto(BASE, { waitUntil: "load" });
   await waitList(page);
-  await page.click("#play");
+  await page.locator(".fuda .play").first().click();
   const t0 = Date.now();
   await page.waitForFunction(() => document.body.classList.contains("playing"));
   ok(Date.now() - t0 < 300, `[reduced-motion] 扉の動きを省いてすぐ遊ぶ画面（${Date.now() - t0}ms）`);
