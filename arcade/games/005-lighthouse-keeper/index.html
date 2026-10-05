@@ -1,0 +1,941 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>霧笛の灯</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ai:#2b4660; --kiri:#8d9ea3; --odo:#e3b04b; --koge:#4b3a2e; --hosho:#ebe2ca; --shu:#b9452f;
+  --head:"Kaisei Decol","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  --body:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--hosho);color:var(--koge);font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;touch-action:none}
+.screen[hidden]{display:none}
+/* 版元の題箋: 奉書白の紙片に焦茶の二重線 */
+.dai{position:relative;width:min(330px,100%);max-height:100%;overflow:auto;background:var(--hosho);
+  border:1.6px solid var(--koge);outline:.8px solid var(--koge);outline-offset:-6px;
+  padding:clamp(16px,3.2vh,26px) 22px clamp(14px,2.8vh,22px);
+  box-shadow:3px 2px 0 rgba(75,58,46,.55)}
+.dai::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;background-image:var(--grain)}
+h1{font-family:var(--head);font-weight:700;font-size:clamp(40px,8.6vh,56px);line-height:1.05;letter-spacing:.08em;
+  text-shadow:2px 1.5px 0 rgba(227,176,75,.85)}
+.sub{font-family:var(--body);font-weight:700;font-size:15px;line-height:1.6;margin-top:clamp(4px,1.2vh,8px)}
+.how{font-size:14px;line-height:1.75;margin-top:clamp(10px,2vh,16px)}
+.keys{font-size:12px;line-height:1.6;margin-top:6px;color:#6b5240}
+.row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:clamp(12px,2.4vh,18px)}
+button{font-family:var(--head);font-weight:700;font-size:19px;color:var(--koge);background:var(--odo);border:0;
+  padding:9px 20px 10px;cursor:pointer;border-radius:2px 5px 3px 4px/4px 2px 5px 3px;
+  box-shadow:inset 0 0 0 1.4px var(--koge),2px 2px 0 var(--koge);transition:transform .07s,box-shadow .07s}
+button:active{transform:translate(2px,2px);box-shadow:inset 0 0 0 1.4px var(--koge)}
+button:focus-visible{outline:3px solid var(--ai);outline-offset:3px}
+.best{font-size:13px;font-variant-numeric:tabular-nums}
+.res h2{font-family:var(--head);font-weight:700;font-size:clamp(22px,4.4vh,28px);line-height:1.25}
+.res .score{font-family:var(--head);font-weight:700;font-size:clamp(40px,8vh,54px);line-height:1.1;margin-top:6px;
+  font-variant-numeric:tabular-nums;text-shadow:2px 1.5px 0 rgba(227,176,75,.85)}
+.res dl{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:14px;line-height:1.55;margin-top:10px;font-variant-numeric:tabular-nums}
+.res dt{color:#6b5240}
+.res dd{font-weight:700}
+.res .new{font-family:var(--head);font-size:15px;margin-top:6px}
+#tools{position:fixed;top:0;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:3}
+#tools[hidden]{display:none}
+#tools button{font-family:var(--body);font-weight:700;font-size:12px;background:transparent;box-shadow:none;padding:4px 7px;
+  color:var(--koge);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+#pause .dai{text-align:left}
+@media (prefers-reduced-motion: reduce){button{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="霧の夜の岬。中央の灯台から光の帯が伸びている"></canvas>
+
+<div id="tools" hidden>
+  <button id="bMute" type="button">音を消す</button>
+  <button id="bPause" type="button">一時停止</button>
+</div>
+
+<section class="screen" id="title">
+  <div class="dai">
+    <h1>霧笛の灯</h1>
+    <p class="sub">霧の夜、岬の灯台守の当番</p>
+    <p class="how">灯台の周りを指でなでると、光がその向きへ回ります。光の中で船が色づいたら、気づいて帰っていきます。</p>
+    <p class="keys">岩礁で3隻座礁したら当番終わり。PCはマウスか<span style="white-space:nowrap">← →</span>。霧笛はダブルタップかスペース。</p>
+    <div class="row"><button id="bStart" type="button">灯をともす</button><span class="best" id="bestT"></span></div>
+  </div>
+</section>
+
+<section class="screen" id="pause" hidden>
+  <div class="dai">
+    <p class="res"><span style="font-family:var(--head);font-size:26px;font-weight:700">一時停止</span></p>
+    <p class="how">灯は消えずに待っています。</p>
+    <div class="row"><button id="bResume" type="button">続ける</button></div>
+  </div>
+</section>
+
+<section class="screen" id="result" hidden>
+  <div class="dai res">
+    <h2 id="rHead">当番終わり</h2>
+    <p class="score" id="rScore">0</p>
+    <dl>
+      <dt>帰した船</dt><dd id="rSaved">0隻</dd>
+      <dt>まとめて照らした</dt><dd id="rGroup">1隻</dd>
+      <dt>着いた時刻</dt><dd id="rBand">宵</dd>
+      <dt>これまでの最高</dt><dd id="rBest">0</dd>
+    </dl>
+    <p class="new" id="rNew" hidden>これまでで一番の夜</p>
+    <div class="row"><button id="bAgain" type="button">もう一回</button></div>
+  </div>
+</section>
+
+<script>
+"use strict";
+// <sim> ここから下はDOMに触らない（自動プレイのボットがそのまま読み込む）
+const SIM = (() => {
+  const TAU = Math.PI * 2;
+  const REEF = 1, SPAWN = 2.5, BEAM_LEN = 2.36, HALF = 20 * Math.PI / 180, NEED = 0.6, END_T = 180, MAX_WRECK = 3;
+  const MULT = [1, 1.5, 2, 3];
+  const BANDS = ["宵", "夜半", "丑三つ", "明け方"];
+  const KINDS = ["gyo", "ho", "hashi"];
+  const KSPD = { gyo: 1, ho: 1.12, hashi: 0.86 };
+  function rng(seed) { let s = (seed >>> 0) || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function wrap(a) { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; }
+  const bandOf = (t) => (t < 45 ? 0 : t < 90 ? 1 : t < 135 ? 2 : 3);
+  function create(seed) {
+    return { t: 0, rnd: rng(seed || 1), ang: -Math.PI / 2, w: 0, ships: [], crews: [], score: 0, saved: 0, wrecks: 0,
+      maxGroup: 0, horn: 0, nextSpawn: 1.4, lastAng: -Math.PI / 2, group: null, over: false, dawn: false, id: 0,
+      wreckTimes: [], log: [] };
+  }
+  const spd = (t) => 0.18 + 0.0045 * t;               // 単位/秒（岩礁まで 1.5 単位）
+  const gap = (t) => Math.max(0.55, 2.4 - 0.023 * t);   // 次の船までの間隔
+  const spread = (t) => Math.min(Math.PI, 1.1 + t * 0.03);
+  const ttr = (s) => (s.state === "come" ? (s.r - REEF) / s.v : 99);
+  function inBeam(S, th, r, pad) {
+    if (r > BEAM_LEN) return false;
+    return Math.abs(wrap(th - S.ang)) < HALF + pad + Math.atan2(0.2, Math.max(r, 0.3));
+  }
+  function spawn(S) {
+    const t = S.t, R = S.rnd;
+    let th;
+    if (t < 20) th = -Math.PI / 2 + (R() * 2 - 1) * (Math.PI / 2) * 0.9;   // 序盤は上の半円だけ
+    else th = wrap(S.lastAng + (R() * 2 - 1) * spread(t));
+    const kind = KINDS[Math.floor(R() * 3)];
+    let v = spd(t) * KSPD[kind] * (0.9 + R() * 0.2);
+    let arr = t + (SPAWN - REEF) / v;
+    // 同じ1.5秒の間に岩礁へ着く船は2隻まで（3隻目は遅らせる）
+    for (let k = 0; k < 6; k++) {
+      const near = S.ships.filter((s) => s.state === "come" && Math.abs(s.arr - arr) < 1.5);
+      if (near.length < 2) break;
+      arr = Math.max(...near.map((s) => s.arr)) + 1.5;
+    }
+    v = (SPAWN - REEF) / (arr - t);
+    S.ships.push({ id: ++S.id, kind, th, r: SPAWN, v, arr, state: "come", lit: 0, pr: 0, age: 0, close: false });
+    S.lastAng = th;
+  }
+  function finishGroup(S, ev) {
+    const g = S.group; S.group = null;
+    const n = g.n, bonus = g.horn ? Math.min(1.5, n >= 2 ? 1.5 : 1) : n >= 3 ? 2 : n === 2 ? 1.5 : 1;
+    const pts = Math.round(g.base * bonus);
+    S.score += pts; S.maxGroup = Math.max(S.maxGroup, n);
+    S.log.push({ t: S.t, pts });
+    ev.push({ type: "group", n, bonus, pts });
+  }
+  function rescue(S, s, ev, viaHorn) {
+    const close = !viaHorn && ttr(s) < 1.1;
+    const base = 10 * MULT[bandOf(S.t)] * (close ? 2 : 1);
+    s.state = "leave"; s.close = close; s.v = 0.42; s.age = 0;
+    S.saved++;
+    if (S.t >= 40) S.horn = Math.min(1, S.horn + 0.07);
+    if (!S.group) S.group = { t0: S.t, n: 0, base: 0, horn: viaHorn };
+    S.group.n++; S.group.base += base;
+    ev.push({ type: "rescue", ship: s, close, pts: base, idx: S.group.n - 1 });
+  }
+  // input: { target: 角度 or null, rot: -1/0/1, horn: bool }
+  function step(S, dt, input) {
+    const ev = [];
+    if (S.over) return ev;
+    input = input || {};
+    S.t += dt;
+    // 光の帯: 慣性つきで追う
+    let want = 0;
+    if (input.rot) want = input.rot * 3.3;
+    else if (input.target != null) want = Math.max(-4.4, Math.min(4.4, wrap(input.target - S.ang) * 10));
+    const acc = 30 * dt;
+    S.w += Math.max(-acc, Math.min(acc, want - S.w));
+    S.ang = wrap(S.ang + S.w * dt);
+    // 霧笛の溜まり（夜半の手前から）
+    if (S.t >= 40) S.horn = Math.min(1, S.horn + dt / 32);
+    if (input.horn && S.horn >= 1) {
+      S.horn = 0;
+      if (S.group) finishGroup(S, ev);
+      ev.push({ type: "horn" });
+      for (const s of S.ships) if (s.state === "come" && s.r < SPAWN - 0.05) rescue(S, s, ev, true);
+    }
+    // 出現
+    const active = S.ships.filter((s) => s.state === "come").length;
+    if (S.t >= S.nextSpawn && !(S.t < 20 && active > 0)) {
+      spawn(S);
+      S.nextSpawn = S.t < 20 ? S.t + 0.9 : S.t + gap(S.t) * (0.7 + S.rnd() * 0.6);
+    }
+    for (const s of S.ships) {
+      s.age += dt;
+      if (s.state === "come") {
+        s.r -= s.v * dt;
+        if (inBeam(S, s.th, s.r, 0)) { s.lit += dt; s.pr = Math.min(1, s.pr + dt / 0.15); }
+        else { s.lit = Math.max(0, s.lit - dt * 0.6); s.pr = Math.max(0, s.pr - dt / 0.35); }
+        if (s.lit >= NEED) rescue(S, s, ev, false);
+        else if (s.r <= REEF) {
+          s.state = "wreck"; s.r = REEF; s.age = 0;
+          S.wrecks += 1; S.wreckTimes.push(S.t);
+          S.crews.push({ th: s.th, r: REEF * 0.9, t: 0, lit: 0, state: "row" });
+          ev.push({ type: "wreck", ship: s });
+          // 座礁が重ならないよう、すぐ後に着く船は少しだけ遅らせる（1.5秒あける）
+          let nx = S.t + 1.7;
+          for (const o of S.ships.filter((o) => o.state === "come" && o.arr < S.t + 1.7).sort((a, b) => a.arr - b.arr)) {
+            o.arr = nx; o.v = (o.r - REEF) / (o.arr - S.t); nx += 0.8;
+          }
+          if (S.wrecks >= MAX_WRECK) { S.over = true; ev.push({ type: "over", dawn: false }); }
+        }
+      } else if (s.state === "leave") {
+        s.pr = Math.min(1, s.pr + dt / 0.15);
+        s.r += s.v * dt; s.v = Math.min(0.75, s.v + dt * 0.25);
+      }
+    }
+    S.ships = S.ships.filter((s) => !(s.state === "leave" && s.r > 3.2) && !(s.state === "wreck" && s.age > 3.5));
+    // 小舟（座礁した船の乗組員）: 10秒以内に照らせば座礁が 0.5 戻る
+    for (const c of S.crews) {
+      if (c.state !== "row") { c.t += dt; continue; }
+      c.t += dt; c.r = REEF * 0.9 - (REEF * 0.9 - 0.32) * Math.min(1, c.t / 10);
+      if (inBeam(S, c.th, c.r, 0.05)) c.lit += dt;
+      if (c.lit >= 0.35 && !S.over) {
+        c.state = "saved"; c.t = 0; S.wrecks = Math.max(0, S.wrecks - 0.5);
+        ev.push({ type: "crew", crew: c });
+      } else if (c.t >= 10) { c.state = "lost"; c.t = 0; }
+    }
+    S.crews = S.crews.filter((c) => c.state === "row" || c.t < 1.2);
+    if (S.group && S.t - S.group.t0 > 0.4) finishGroup(S, ev);
+    if (!S.over && S.t >= END_T) {
+      if (S.group) finishGroup(S, ev);
+      S.over = true; S.dawn = true; ev.push({ type: "over", dawn: true });
+    }
+    return ev;
+  }
+  return { create, step, wrap, ttr, bandOf, inBeam, MULT, BANDS, REEF, SPAWN, BEAM_LEN, HALF, END_T, MAX_WRECK };
+})();
+// </sim>
+
+(() => {
+  const C = { ai: "#2b4660", kiri: "#8d9ea3", odo: "#e3b04b", koge: "#4b3a2e", hosho: "#ebe2ca", shu: "#b9452f",
+    ai2: "#4a6275", ai3: "#6c8290", kage: "#3c5266", odo2: "#c1a96e", odo3: "#a7a389", hull: "#6b5240" };
+  const HEAD = '"Kaisei Decol","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+  const BODY = '"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+  const TAU = Math.PI * 2;
+  const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+  const $ = (id) => document.getElementById(id);
+  let W = 0, H = 0, dpr = 1, land = false, pic = null, cx = 0, cy = 0, unit = 1, sS = 1;
+  let bgLayer = null, rockLayer = null, grainLayer = null, paperPat = null, fog = [];
+  let state = "title", S = null, input = { target: null, rot: 0, horn: false };
+  let fx = [], seals = [], crosses = [], banner = null, hornFx = 0, swing = 0, demoAng = -1.0;
+  let best = 0, muted = false, lastT = 0, endAt = 0;
+  try { best = +localStorage.getItem("lk_best") || 0; muted = localStorage.getItem("lk_mute") === "1"; } catch (e) {}
+
+  // 揺れのための決まった乱数
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const jit = (a) => (rnd() * 2 - 1) * a;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function poly(pts, amt, close = true) {
+    const p = new Path2D();
+    pts.forEach((q, i) => (i ? p.lineTo(q[0] + jit(amt), q[1] + jit(amt)) : p.moveTo(q[0] + jit(amt), q[1] + jit(amt))));
+    if (close) p.closePath();
+    return p;
+  }
+  function ring(x, y, r, n, rough) {
+    const a = [];
+    for (let i = 0; i < n; i++) { const t = (i / n) * TAU, rr = r + jit(rough); a.push([x + Math.cos(t) * rr, y + Math.sin(t) * rr]); }
+    return a;
+  }
+
+  // ---- 和船の版（影絵／色版／墨版） ----
+  const SHIPS = {};
+  function buildShip(kind) {
+    const parts = [], lines = [];
+    const hull = kind === "hashi"
+      ? [[-24, -4], [-21, 0], [-16, 5], [20, 5], [22, 0], [22, -3], [-18, -3]]
+      : [[-25, -11], [-22, -6], [-17, 0], [-10, 4], [17, 4], [21, 0], [22, -4], [12, -3], [-14, -3], [-19, -6]];
+    if (kind === "ho") {
+      parts.push({ d: [[-1, -3], [-1, -40], [1.2, -40], [1.2, -3]], fill: C.koge });
+      parts.push({ d: [[-13, -37], [14, -38], [15, -22], [14, -9], [-13, -9], [-12, -22]], fill: C.hosho });
+      for (let i = 1; i <= 4; i++) { const sx = -13 + i * 5.4; lines.push([[sx, -37.5], [sx + 0.6, -22], [sx, -9]]); }
+      lines.push([[-12.5, -30], [14.5, -31]]);
+    }
+    if (kind === "gyo") {
+      parts.push({ d: [[12, -3], [11, -13], [15, -13], [15.5, -3]], fill: C.ai });
+      parts.push({ d: ring(13.4, -16, 2.6, 8, 0.2), fill: C.hosho });
+      parts.push({ d: [[14, -10], [28, 8], [29.5, 7], [15.5, -11]], fill: C.koge });
+      parts.push({ d: [[-12, -3], [-10, -9], [2, -10], [4, -3]], fill: C.odo2 });
+    }
+    if (kind === "hashi") {
+      parts.push({ d: [[-15, -3], [-13, -11], [-6, -15], [4, -15], [10, -10], [12, -3]], fill: C.odo2 });
+      lines.push([[-11, -10], [9, -9]], [[-8, -13], [-5, -3]], [[0, -15], [1, -3]], [[6, -13], [7, -3]]);
+      parts.push({ d: [[15, -3], [14, -12], [17, -12], [17.5, -3]], fill: C.ai });
+      parts.push({ d: ring(15.6, -14.5, 2.3, 8, 0.2), fill: C.hosho });
+      parts.push({ d: [[16, -9], [30, -30], [31, -29], [17.5, -8]], fill: C.koge });
+    }
+    parts.push({ d: hull, fill: C.hull, hull: true });
+    const sil = parts.map((p) => poly(p.d, 0.7));
+    const col = parts.map((p) => ({ p: poly(p.d, 0.4), fill: p.fill }));
+    const ink = parts.map((p) => ({ p: poly(p.d, 0.5), w: p.hull ? 1.3 : 1.1 }));
+    const bow = kind !== "hashi"
+      ? poly([[-25.5, -11.5], [-22, -6], [-17, -0.5], [-12, 2.5], [-13, -1], [-18, -4.5], [-23, -10]], 0.2)
+      : poly([[-24.5, -4.5], [-21, 0], [-16, 5], [-14, 3], [-18, -1], [-21, -4]], 0.2);
+    const grain = [poly([[-16, -0.5], [19, -0.8]], 0.4, false), poly([[-12, 2.4], [17, 2.1]], 0.4, false)];
+    const ln = lines.map((l) => poly(l, 0.3, false));
+    return { sil, col, ink, bow, grain, ln, lamp: kind === "hashi" ? [20, -2] : [20, -6] };
+  }
+  ["gyo", "ho", "hashi"].forEach((k) => (SHIPS[k] = [buildShip(k), buildShip(k)]));
+  const CREW = { hull: poly([[-9, -3], [-7, 1], [7, 1], [9, -3]], 0.3), man: poly([[1, -3], [0.5, -9], [3, -9], [3.5, -3]], 0.2), oar: poly([[2, -6], [10, 3], [11, 2], [3, -7]], 0.2) };
+
+  function drawShip(g, kind, variant, pr, alpha, flip, tilt) {
+    const sh = SHIPS[kind][variant];
+    g.save();
+    g.scale(flip ? -1 : 1, 1);
+    if (tilt) g.rotate(tilt);
+    const silA = alpha * clamp(1 - pr * 2, 0, 1);
+    if (silA > 0.01) { g.globalAlpha = silA; g.fillStyle = C.kage; sh.sil.forEach((p) => g.fill(p)); }
+    const colA = alpha * clamp(pr * 2, 0, 1);
+    if (colA > 0.01) {
+      g.globalAlpha = colA; g.save(); g.translate(1.5, 1.2);
+      sh.col.forEach((c) => { g.fillStyle = c.fill; g.fill(c.p); }); g.restore();
+    }
+    const inkA = alpha * clamp(pr * 2 - 1, 0, 1);
+    if (inkA > 0.01) {
+      g.globalAlpha = inkA; g.strokeStyle = C.koge; g.lineJoin = "round";
+      sh.ink.forEach((c) => { g.lineWidth = c.w; g.stroke(c.p); });
+      g.fillStyle = C.koge; g.fill(sh.bow);
+      g.lineWidth = 0.8; sh.ln.forEach((p) => g.stroke(p));
+      g.strokeStyle = C.hosho; g.globalAlpha = inkA * 0.5; g.lineWidth = 0.7; sh.grain.forEach((p) => g.stroke(p));
+    }
+    g.restore();
+    g.globalAlpha = 1;
+  }
+
+  // ---- 画面の割り付け ----
+  function layout() {
+    W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    land = W > H * 1.15;
+    if (!land) {
+      const mt = clamp(H * 0.115, 70, 100), mb = clamp(H * 0.125, 82, 110), ms = clamp(W * 0.04, 12, 22);
+      pic = { x: ms, y: mt, w: W - ms * 2, h: H - mt - mb };
+    } else {
+      const ph = H - 24, side = Math.max(160, (W - ph * 1.2) / 2);
+      pic = { x: side, y: 12, w: W - side * 2, h: ph };
+    }
+    unit = Math.min(pic.w, pic.h) / 2 / 2.3;
+    sS = clamp(unit / 74, 0.82, 1.7);
+    const tl = $("tools").style;
+    if (land) { tl.left = "10px"; tl.top = "auto"; tl.bottom = "6px"; tl.transform = "none"; } else { tl.left = "50%"; tl.top = "0"; tl.bottom = "auto"; tl.transform = "translateX(-50%)"; }
+    cx = pic.x + pic.w / 2; cy = pic.y + pic.h / 2 - (land ? 4 : 6) * sS;
+    buildLayers();
+  }
+  function off(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr)); const g = c.getContext("2d"); g.scale(dpr, dpr); return [c, g]; }
+  function noiseCanvas(n, f) {
+    const c = document.createElement("canvas"); c.width = c.height = n; const g = c.getContext("2d");
+    const im = g.createImageData(n, n);
+    for (let i = 0; i < n * n; i++) { const v = f(i % n, (i / n) | 0); im.data[i * 4] = v[0]; im.data[i * 4 + 1] = v[1]; im.data[i * 4 + 2] = v[2]; im.data[i * 4 + 3] = v[3]; }
+    g.putImageData(im, 0, 0); return c;
+  }
+  function picPath(g) {
+    seed = 31;
+    const p = new Path2D(), { x, y, w, h } = pic;
+    p.moveTo(x + jit(1), y + jit(1));
+    for (let i = 1; i <= 12; i++) p.lineTo(x + (w * i) / 12 + jit(0.6), y + jit(1.2));
+    for (let i = 1; i <= 16; i++) p.lineTo(x + w + jit(1.2), y + (h * i) / 16 + jit(0.6));
+    for (let i = 11; i >= 0; i--) p.lineTo(x + (w * i) / 12 + jit(0.6), y + h + jit(1.2));
+    for (let i = 15; i >= 1; i--) p.lineTo(x + jit(1.2), y + (h * i) / 16 + jit(0.6));
+    p.closePath(); return p;
+  }
+  let clipP = null;
+  function buildLayers() {
+    // 和紙の目（1回だけ）
+    seed = 5;
+    const paperC = noiseCanvas(160, () => { const v = rnd(); return [75, 58, 46, v < 0.5 ? 0 : (v - 0.5) * 34]; });
+    paperPat = ctx.createPattern(paperC, "repeat");
+    const grainCss = paperC.toDataURL();
+    document.documentElement.style.setProperty("--grain", `url(${grainCss})`);
+    clipP = picPath(ctx);
+    // 背景: 紙の余白＋一文字ぼかし＋霧鼠の地＋手前の海
+    let g; [bgLayer, g] = off(W, H);
+    g.fillStyle = C.hosho; g.fillRect(0, 0, W, H);
+    // 奉書の繊維: 短い横の筋を不揃いに散らす
+    seed = 19; g.strokeStyle = "#8c7656"; g.lineCap = "round";
+    for (let i = 0, n = (W * H) / 260; i < n; i++) {
+      const fx0 = rnd() * W, fy0 = rnd() * H, L = 4 + rnd() * rnd() * 34;
+      g.globalAlpha = 0.04 + rnd() * 0.1; g.lineWidth = 0.4 + rnd() * 0.8;
+      g.beginPath(); g.moveTo(fx0, fy0); g.quadraticCurveTo(fx0 + L / 2, fy0 + jit(1.2), fx0 + L, fy0 + jit(1)); g.stroke();
+    }
+    g.globalAlpha = 1;
+    g.save(); g.clip(clipP);
+    const { x, y, w, h } = pic;
+    g.fillStyle = C.kiri; g.fillRect(x, y, w, h);
+    seed = 13;
+    const band = (top, bot, fill, op, amp, fromBottom) => {
+      g.globalAlpha = op; g.fillStyle = fill; g.beginPath();
+      if (!fromBottom) { g.moveTo(x - 4, top); g.lineTo(x - 4, bot); for (let xx = x; xx <= x + w + 20; xx += 16 + rnd() * 16) g.lineTo(xx, bot + jit(amp)); g.lineTo(x + w + 4, top); }
+      else { g.moveTo(x - 4, y + h + 4); g.lineTo(x - 4, top); for (let xx = x; xx <= x + w + 20; xx += 18 + rnd() * 14) g.lineTo(xx, top + jit(amp)); g.lineTo(x + w + 4, y + h + 4); }
+      g.closePath(); g.fill(); g.globalAlpha = 1;
+    };
+    const sky = land ? 0.75 : 1;
+    band(y, y + h * 0.085 * sky, C.ai, 1, 2);
+    band(y, y + h * 0.15 * sky, C.ai, 0.72, 3);
+    band(y, y + h * 0.215 * sky, C.ai2, 0.58, 4);
+    band(y, y + h * 0.29 * sky, C.ai3, 0.42, 4);
+    band(y + h * (land ? 0.84 : 0.8), 0, C.ai3, 0.55, 3, true);
+    band(y + h * (land ? 0.9 : 0.875), 0, C.ai2, 0.75, 3, true);
+    band(y + h * (land ? 0.955 : 0.945), 0, C.ai, 0.92, 2, true);
+    // 月（奉書白を2枚ずらして摺る。輪は描かない）
+    const mx = x + w * 0.16 + 6, my = y + h * (land ? 0.13 : 0.085) + 6, mr = 15 * sS;
+    seed = 3;
+    g.fillStyle = C.hosho; g.globalAlpha = 0.5; g.save(); g.translate(2, -1.5); g.fill(poly(ring(mx, my, mr, 28, 0.4), 0.3)); g.restore();
+    g.globalAlpha = 1; g.fill(poly(ring(mx, my, mr, 28, 0.4), 0.3));
+    // 波の彫り跡（短い弧。不揃い）
+    seed = 17;
+    g.lineCap = "round";
+    for (let i = 0; i < 110; i++) {
+      const xx = x + rnd() * w, yy = y + h * (0.3 + rnd() * 0.68), L = (5 + rnd() * 11) * sS;
+      if (Math.hypot(xx - cx, yy - cy) < unit * 1.15) continue;
+      const dark = yy > y + h * 0.8;
+      g.strokeStyle = dark ? C.ai3 : C.ai2; g.globalAlpha = 0.45 + rnd() * 0.3; g.lineWidth = 0.8 + rnd() * 0.7;
+      g.beginPath(); g.moveTo(xx, yy); g.quadraticCurveTo(xx + L / 2, yy - 1.5 - rnd() * 2.5, xx + L, yy + jit(0.6)); g.stroke();
+    }
+    g.globalAlpha = 1;
+    // 地の藍にも薄い木目
+    const woodLight = woodCanvas(w, h, 0.10, C.ai);
+    g.drawImage(woodLight, x, y, w, h);
+    g.restore();
+    // 光の帯の中に透ける木目（画面に固定。帯と一緒に回らない）
+    grainLayer = woodCanvas(pic.w, pic.h, 0.32, C.koge);
+    // 岩礁の輪と岬（光の帯の上に置く版）
+    [rockLayer, g] = off(W, H);
+    g.save(); g.clip(clipP);
+    seed = 41;
+    const rr = unit * SIM.REEF;
+    for (let i = 0; i < 46; i++) {
+      const a = (i / 46) * TAU;
+      if ((i > 6 && i < 10) || (i > 21 && i < 24) || (i > 35 && i < 38)) continue;
+      const r0 = (4.5 + rnd() * 4) * sS, px = cx + Math.cos(a) * (rr + jit(4)), py = cy + Math.sin(a) * (rr + jit(4));
+      g.fillStyle = C.hull; g.fill(poly(ring(px + 1.2, py + 1, r0, 9, r0 * 0.28), 0.8));
+      g.fillStyle = C.koge; g.fill(poly(ring(px, py, r0, 9, r0 * 0.28), 0.8));
+    }
+    const lx = cx, ly = cy + 50 * sS * 0.95;
+    g.fillStyle = C.koge; g.fill(poly(ring(lx, ly - 4 * sS, 30 * sS, 9, 30 * sS * 0.26), 0.8));
+    g.fillStyle = C.hull; g.fill(poly(ring(lx - 4 * sS, ly - 7 * sS, 18 * sS, 12, 4 * sS), 0.6));
+    g.restore();
+    buildFog();
+  }
+  function woodCanvas(w, h, op, col) {
+    const [c, g] = off(w, h);
+    seed = 23;
+    g.strokeStyle = col; g.lineCap = "round";
+    let yy = 0;
+    while (yy < h) {
+      yy += 1.5 + rnd() * 5;
+      const amp = 0.6 + rnd() * 2.2, fr = 0.004 + rnd() * 0.012, ph = rnd() * 9;
+      g.globalAlpha = op * (0.25 + rnd() * 0.75); g.lineWidth = 0.5 + rnd() * 1.4;
+      g.beginPath();
+      let x0 = -10 + rnd() * w * 0.3;
+      const x1 = w * (0.6 + rnd() * 0.5);
+      g.moveTo(x0, yy);
+      for (let xx = x0; xx < x1; xx += 8) g.lineTo(xx, yy + Math.sin(xx * fr + ph) * amp + Math.sin(xx * fr * 3.1) * amp * 0.3);
+      g.stroke();
+    }
+    g.globalAlpha = 1; return c;
+  }
+  // 霧の帯: 高さ・間隔・縁の波・明るさを不揃いに（規則的な縞にしない）
+  function buildFog() {
+    seed = 59; fog = [];
+    let yy = 0.2 + rnd() * 0.06;
+    let k = 0;
+    while (yy < 0.9) {
+      const h = 0.018 + rnd() * 0.05;
+      const pts = [];
+      let xx = -0.3;
+      while (xx < 1.3) { pts.push([xx, jit(0.35), jit(0.9)]); xx += 0.04 + rnd() * 0.11; }
+      fog.push({ y: yy, h, pts, op: 0.12 + rnd() * 0.22, sp: (rnd() < 0.5 ? -1 : 1) * (0.004 + rnd() * 0.011), col: rnd() < 0.62 ? C.hosho : C.kiri, late: k >= 4 ? (k - 3) * 0.22 : 0, off: rnd() });
+      yy += h + 0.03 + rnd() * 0.14; k++;
+    }
+  }
+  function drawFog(t, level) {
+    const { x, y, w, h } = pic;
+    for (const f of fog) {
+      if (f.late > level) continue;
+      const appear = f.late ? clamp((level - f.late) / 0.2, 0, 1) : 1;
+      const push = hornFx > 0 ? Math.sin(Math.PI * (1 - hornFx)) : 0;
+      let by = y + f.y * h;
+      by += Math.sign(by - cy || 1) * push * 26 * sS;
+      const shift = ((f.off + t * f.sp) % 1 + 1) % 1;
+      const hh = f.h * h * (1 + level * 0.5);
+      ctx.globalAlpha = f.op * appear * (1 - push * 0.7) * (0.85 + level * 0.5);
+      ctx.fillStyle = f.col;
+      ctx.beginPath();
+      const px = (p) => x + ((p[0] + shift) % 1.6 - 0.3) * w;
+      const pts = f.pts.map((p) => [px(p), p[1], p[2]]).sort((a, b) => a[0] - b[0]);
+      ctx.moveTo(x - 10, by);
+      for (const p of pts) ctx.lineTo(p[0], by + p[1] * hh * 0.5);
+      ctx.lineTo(x + w + 10, by);
+      ctx.lineTo(x + w + 10, by + hh);
+      for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(pts[i][0], by + hh + pts[i][2] * hh * 0.4);
+      ctx.lineTo(x - 10, by + hh);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- 光の帯（不透明な黄土の版3段＋色版のずれ＋木目） ----
+  const beamSeeds = Array.from({ length: 14 }, (_, i) => ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1);
+  function sector(ang, L0, L1, wd, n, k) {
+    const p = new Path2D(), a0 = ang - wd, a1 = ang + wd;
+    p.moveTo(cx, cy);
+    for (let i = 0; i <= n; i++) {
+      const t = a0 + (a1 - a0) * (i / n), r = L1 * (1 + (beamSeeds[(i + k) % 14] - 0.5) * 0.07);
+      p.lineTo(cx + Math.cos(t) * r, cy + Math.sin(t) * r);
+    }
+    p.closePath(); return p;
+  }
+  function drawBeam(ang, sw) {
+    const L = unit * SIM.BEAM_LEN, wd = SIM.HALF;
+    const ofs = 2 + sw * 2;
+    const whole = sector(ang, 0, L, wd, 11, 0);
+    ctx.save();
+    ctx.translate(ofs * 0.8, -ofs * 0.7);
+    ctx.fillStyle = C.odo; ctx.fill(sector(ang, 0, L * 0.42, wd, 6, 3));
+    ctx.restore();
+    ctx.fillStyle = C.odo3; ctx.fill(whole);
+    ctx.fillStyle = C.odo2; ctx.fill(sector(ang, 0, L * 0.7, wd - 0.01, 9, 5));
+    ctx.fillStyle = C.odo; ctx.fill(sector(ang, 0, L * 0.42, wd - 0.02, 7, 8));
+    ctx.save(); ctx.clip(whole);
+    ctx.drawImage(grainLayer, pic.x, pic.y, pic.w, pic.h);
+    ctx.restore();
+  }
+  function drawLighthouse() {
+    const s = sS * 0.95, bx = cx, by = cy + 50 * s;
+    if (!drawLighthouse.p) {
+      seed = 71;
+      const tower = [[-9, 0], [-6, -46], [6, -46], [9, 0]], band = [[-8.2, -14], [-7.3, -24], [7.3, -24], [8.2, -14]];
+      const lamp = [[-5, -46], [-5, -54], [5, -54], [5, -46]], roof = [[-7, -54], [0, -62], [7, -54]];
+      drawLighthouse.p = { col: [[tower, C.hosho], [band, C.shu], [lamp, C.odo], [roof, C.koge]].map(([d, f]) => [poly(d, 0.5), f]), ink: [tower, band, lamp, roof].map((d) => poly(d, 0.6)) };
+    }
+    const P = drawLighthouse.p;
+    ctx.save(); ctx.translate(bx, by); ctx.scale(s, s);
+    ctx.save(); ctx.translate(1.5, 1.2); P.col.forEach(([p, f]) => { ctx.fillStyle = f; ctx.fill(p); }); ctx.restore();
+    ctx.strokeStyle = C.koge; ctx.lineWidth = 1.4; ctx.lineJoin = "round"; P.ink.forEach((p) => ctx.stroke(p));
+    ctx.restore();
+  }
+  const pos = (th, r) => [cx + Math.cos(th) * r * unit, cy + Math.sin(th) * r * unit];
+
+  // 舷灯の朱の点（奉書白の縁取り）
+  function lampDot(x, y, r, a) {
+    ctx.globalAlpha = a; ctx.fillStyle = C.hosho; ctx.beginPath(); ctx.arc(x, y, r + 1.1, 0, TAU); ctx.fill();
+    ctx.fillStyle = C.shu; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  // 彫り跡の弧（1本だけ。片側が太く先が細る、長さもばらす）。汽笛と縁の目印に使う
+  function carvedArc(x, y, r, a0, a1, wMax, col, alpha) {
+    const n = 10;
+    ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath();
+    for (let i = 0; i <= n; i++) { const t = a0 + (a1 - a0) * (i / n), ww = wMax * Math.pow(1 - i / n, 0.7) * (0.6 + 0.4 * Math.sin((i / n) * Math.PI + 0.6)); ctx.lineTo(x + Math.cos(t) * (r + ww / 2), y + Math.sin(t) * (r + ww / 2)); }
+    for (let i = n; i >= 0; i--) { const t = a0 + (a1 - a0) * (i / n), ww = wMax * Math.pow(1 - i / n, 0.7) * (0.6 + 0.4 * Math.sin((i / n) * Math.PI + 0.6)); ctx.lineTo(x + Math.cos(t) * (r - ww / 2), y + Math.sin(t) * (r - ww / 2)); }
+    ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+  }
+  function stampCross(x, y, s, a, half) {
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = C.shu; ctx.lineCap = "round"; ctx.lineWidth = 3.6 * Math.min(1.4, sS);
+    ctx.beginPath(); ctx.moveTo(x - s, y - s * 0.9); ctx.lineTo(x + s * 0.95, y + s); ctx.stroke();
+    if (!half) { ctx.beginPath(); ctx.moveTo(x + s, y - s); ctx.lineTo(x - s * 0.9, y + s * 0.95); ctx.stroke(); }
+    // かすれ（外側だけ紙の色で削る）
+    ctx.globalAlpha = a * 0.5; ctx.fillStyle = C.hosho;
+    for (let i = 0; i < 6; i++) { const t = (i * 2.399) % 1; ctx.fillRect(x - s + t * 2 * s, y - s + ((i * 0.618) % 1) * 2 * s, 1.4, 1); }
+    ctx.restore();
+  }
+  function drawSeal(sx, sy, rot, sc, a) {
+    const size = Math.max(24, 24 * Math.min(sS, 1.3));
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(rot); ctx.scale(sc, sc); ctx.globalAlpha = a;
+    const w = size * 1.5, h = size * 3 * 1.08 + size * 0.7;
+    ctx.fillStyle = C.koge; ctx.globalAlpha = a * 0.35; ctx.fillRect(-w / 2 + 2, -h / 2 + 2, w, h);
+    ctx.globalAlpha = a; ctx.fillStyle = C.hosho; ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.strokeStyle = C.shu; ctx.lineWidth = 2.4; ctx.setLineDash([7, 1.5, 3, 1.2]); ctx.strokeRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6); ctx.setLineDash([]);
+    ctx.fillStyle = C.shu; ctx.font = `700 ${size}px ${HEAD}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    [..."間一髪"].forEach((ch, i) => ctx.fillText(ch, 0, -h / 2 + size * 0.35 + size * (i + 1) * 1.04));
+    ctx.restore();
+  }
+
+  // ---- 余白に刷るUI ----
+  function txt(s, x, y, size, font, align, col) {
+    ctx.font = `700 ${size}px ${font}`; ctx.textAlign = align || "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = col || C.koge; ctx.fillText(s, x, y);
+  }
+  function frame2(x, y, w, h) {
+    ctx.strokeStyle = C.koge; ctx.lineWidth = 1.6; ctx.strokeRect(x, y, w, h);
+    ctx.lineWidth = 0.8; ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+  }
+  function silMark(x, y, s, a) {
+    const sh = SHIPS.gyo[0];
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha = a; ctx.fillStyle = C.koge; sh.sil.forEach((p) => ctx.fill(p)); ctx.restore(); ctx.globalAlpha = 1;
+  }
+  function hornGauge(x, y, filled, ready, t) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = C.koge; ctx.fill(HORN);
+    const seg = 22, n = 5;
+    for (let i = 0; i < n; i++) {
+      const x0 = 16 + i * seg, x1 = x0 + seg - 5, amp = 3 + i * 0.6;
+      const path = new Path2D(`M${x0},0 C${x0 + (x1 - x0) * 0.3},${-amp * 2} ${x0 + (x1 - x0) * 0.7},${amp * 2} ${x1},0`);
+      ctx.lineCap = "round";
+      if (i < filled) {
+        ctx.save(); ctx.translate(1.3, 1.2); ctx.strokeStyle = C.koge; ctx.lineWidth = 6; ctx.stroke(path); ctx.restore();
+        ctx.strokeStyle = C.odo; ctx.lineWidth = 4.4; ctx.stroke(path);
+      } else { ctx.globalAlpha = 0.6; ctx.strokeStyle = C.koge; ctx.lineWidth = 1.3; ctx.stroke(path); ctx.globalAlpha = 1; }
+    }
+    ctx.restore();
+  }
+  seed = 91;
+  const HORN = poly([[-14, -3], [0, -4], [8, -11], [10, -11], [10, 11], [8, 11], [0, 4], [-14, 3]], 0.4);
+  const fmt = (n) => Math.round(n).toLocaleString("ja-JP");
+
+  function drawUI(t) {
+    const sc = S ? S.score : 0, band = S ? SIM.bandOf(S.t) : 0, wr = S ? S.wrecks : 0, horn = S ? S.horn : 0;
+    const hornNote = !S || S.t < 40 ? "夜半から溜まる" : horn >= 1 ? "ダブルタップ・スペース" : "溜まっています";
+    if (!land) {
+      const top = pic.y, k = clamp(top / 96, 0.75, 1);
+      const fw = 150 * k, fh = 58 * k, fy = Math.max(30, top - fh - 16 * k);
+      frame2(pic.x, fy, fw, fh);
+      txt(fmt(sc), pic.x + fw / 2, fy + fh * 0.72, 34 * k, HEAD, "center");
+      txt(SIM.BANDS[band], pic.x + pic.w, fy + 26 * k, 26 * k, HEAD, "right");
+      txt(`得点 ${SIM.MULT[band]}倍`, pic.x + pic.w, fy + fh - 4 * k, 14, BODY, "right");
+      if (banner && banner.a > 0) { ctx.globalAlpha = Math.min(1, banner.a); txt(banner.s, cx + 1.2, pic.y + 25.2, 15, BODY, "center", C.koge); txt(banner.s, cx, pic.y + 24, 15, BODY, "center", C.hosho); ctx.globalAlpha = 1; }
+      const by = pic.y + pic.h, mh = H - by;
+      const ly = by + Math.min(26, mh * 0.28), my = by + Math.min(66, mh * 0.66);
+      txt("座礁", pic.x + 2, ly, 14, BODY, "left");
+      const ms = 0.8;
+      for (let i = 0; i < 3; i++) {
+        const mx = pic.x + 26 + i * 46;
+        silMark(mx, my + 6, ms, wr >= i + 0.5 ? 0.55 : 1);
+        if (wr >= i + 1) stampCross(mx, my, 10, 1, false); else if (wr >= i + 0.5) stampCross(mx, my, 10, 1, true);
+      }
+      txt("霧笛", pic.x + pic.w - 2, ly, 14, BODY, "right");
+      ctx.globalAlpha = 0.85; txt(hornNote, pic.x + pic.w - 44, ly, 12, BODY, "right"); ctx.globalAlpha = 1;
+      hornGauge(pic.x + pic.w - 128, my, Math.floor(horn * 5 + 1e-6), horn >= 1, t);
+    } else {
+      const lx = 18, rw = pic.x - 36, rx = pic.x + pic.w + 18;
+      const fw = Math.min(170, rw), fh = 60;
+      frame2(lx, 20, fw, fh);
+      txt(fmt(sc), lx + fw / 2, 20 + fh * 0.72, 34, HEAD, "center");
+      txt(SIM.BANDS[band], lx, 124, 26, HEAD, "left");
+      txt(`得点 ${SIM.MULT[band]}倍`, lx, 148, 14, BODY, "left");
+      if (banner && banner.a > 0) { ctx.globalAlpha = Math.min(1, banner.a); txt(banner.s, lx, 180, 14, BODY, "left"); ctx.globalAlpha = 1; }
+      txt("座礁", rx, 46, 14, BODY, "left");
+      for (let i = 0; i < 3; i++) {
+        const mx = rx + 22 + i * 44, my = 82;
+        silMark(mx, my + 6, 0.78, wr >= i + 0.5 ? 0.55 : 1);
+        if (wr >= i + 1) stampCross(mx, my, 10, 1, false); else if (wr >= i + 0.5) stampCross(mx, my, 10, 1, true);
+      }
+      txt("霧笛", rx, 150, 14, BODY, "left");
+      ctx.globalAlpha = 0.85; txt(hornNote, rx, 170, 12, BODY, "left"); ctx.globalAlpha = 1;
+      hornGauge(rx + 16, 204, Math.floor(horn * 5 + 1e-6), horn >= 1, t);
+    }
+  }
+
+  // ---- 1フレーム ----
+  function render(t, dt) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(bgLayer, 0, 0, W, H);
+    const level = S ? clamp((S.t - 30) / 120, 0, 1) : 0.1;
+    const ang = S ? S.ang : demoAng;
+    ctx.save(); ctx.clip(clipP);
+    // 霧の中の影絵の船
+    const ships = S ? S.ships : [];
+    const shipVis = (s) => clamp((SIM.SPAWN - s.r) / 0.35, 0, 1) * (s.state === "leave" ? clamp((3.15 - s.r) / 0.5, 0, 1) : 1);
+    for (const s of ships) {
+      if (s.pr > 0.02 || s.state === "wreck") continue;
+      const [x, y] = pos(s.th, s.r);
+      ctx.save(); ctx.translate(x, y + 6 * sS); ctx.scale(sS, sS);
+      drawShip(ctx, s.kind, s.id % 2, 0, shipVis(s) * (1 - level * 0.45), Math.cos(s.th) < 0, 0);
+      ctx.restore();
+    }
+    drawFog(t, level);
+    drawBeam(ang, swing);
+    ctx.drawImage(rockLayer, 0, 0, W, H);
+    for (const c of crosses) stampCross(c.x, c.y, 9 * sS, c.a, false);
+    drawLighthouse();
+    // 座礁した船（傾く）
+    for (const s of ships) {
+      if (s.state !== "wreck") continue;
+      const [x, y] = pos(s.th, s.r + 0.05);
+      const tilt = Math.min(1, s.age / 0.25) * 0.42 * (Math.cos(s.th) < 0 ? -1 : 1);
+      ctx.save(); ctx.translate(x, y + 2 * sS); ctx.scale(sS * 0.9, sS * 0.9);
+      drawShip(ctx, s.kind, s.id % 2, 1, clamp(1 - (s.age - 2.5), 0, 1), Math.cos(s.th) < 0, tilt);
+      ctx.restore();
+    }
+    // 刷り上がった船
+    for (const s of ships) {
+      if (s.pr <= 0.02 || s.state === "wreck") continue;
+      const [x, y] = pos(s.th, s.r);
+      const flip = s.state === "leave" ? Math.cos(s.th) > 0 : Math.cos(s.th) < 0;
+      const turn = s.state === "leave" ? Math.min(1, s.age / 0.3) : 1;
+      ctx.save(); ctx.translate(x, y + 6 * sS); ctx.scale(sS * (s.state === "leave" ? (turn < 0.5 ? 1 - turn * 2 : turn * 2 - 1) || 0.05 : 1), sS);
+      drawShip(ctx, s.kind, s.id % 2, s.pr, shipVis(s), s.state === "leave" && turn < 0.5 ? !flip : flip, 0);
+      ctx.restore();
+    }
+    // 小舟（乗組員）
+    if (S) for (const c of S.crews) {
+      const [x, y] = pos(c.th, c.r);
+      const a = c.state === "row" ? clamp((10 - c.t) / 2, 0.35, 1) : clamp(1 - c.t / 1.2, 0, 1);
+      const lit = c.state === "saved" || c.lit > 0;
+      ctx.save(); ctx.translate(x, y); ctx.scale(sS * 1.1, sS * 1.1); ctx.globalAlpha = a;
+      ctx.fillStyle = lit ? C.hull : C.kage; ctx.fill(CREW.hull); ctx.fill(CREW.man);
+      ctx.fillStyle = C.koge; ctx.fill(CREW.oar);
+      ctx.fillStyle = C.odo; ctx.beginPath(); ctx.arc(-6, -6, 1.8 + (c.state === "row" ? Math.sin(t * 7) * 0.5 : 0), 0, TAU); ctx.fill();
+      ctx.restore(); ctx.globalAlpha = 1;
+    }
+    // 舷灯（近づくほど速く点滅、最後は点きっぱなし）と縁の目印
+    for (const s of ships) {
+      if (s.state !== "come") continue;
+      const tt = SIM.ttr(s), vis = shipVis(s);
+      const [x, y] = pos(s.th, s.r);
+      const flip = Math.cos(s.th) < 0;
+      const L = SHIPS[s.kind][0].lamp;
+      const lx = x + (flip ? -L[0] : L[0]) * sS, ly = y + 6 * sS + L[1] * sS;
+      let on, rr = 2.6 * Math.min(1.3, sS);
+      if (tt > 5) on = Math.sin(t * TAU * 0.9 + s.id) > -0.2 ? 0.75 : 0.35;
+      else if (tt > 2.5) on = Math.sin(t * TAU * 3 + s.id) > 0 ? 1 : 0.3;
+      else { on = 1; rr *= 1.3; }
+      lampDot(lx, ly, rr, on * Math.max(vis, 0.6 * (vis > 0)));
+      if (tt < 3 && s.pr < 0.5) edgeMark(s.th, t, tt);
+    }
+    // 汽笛（1本の彫り跡の弧）・帰っていく船の灯
+    for (const f of fx) {
+      if (f.type === "whistle") {
+        const p = f.t / 0.9;
+        const s = f.ship, [x, y] = pos(s.th, s.r);
+        const r = (10 + p * 10) * sS, side = f.dir;
+        carvedArc(x + side * 6 * sS, y - 22 * sS, r, side > 0 ? -2.6 : -0.55, side > 0 ? -1.2 : -1.95 + 0.2 * f.k, 2.8 * sS, C.koge, 0.9 * clamp(1 - p, 0, 1));
+      } else if (f.type === "wave") {
+        const s = f.ship;
+        if (s.r > 2.3) {
+          const [x, y] = pos(s.th, s.r);
+          const a = clamp((3.15 - s.r) / 0.6, 0, 1);
+          const sw = Math.sin(f.t * 9) * 5 * sS;
+          ctx.globalAlpha = a; ctx.fillStyle = C.odo; ctx.beginPath(); ctx.arc(x + sw, y - 16 * sS - Math.abs(sw) * 0.3, 2.4 * sS, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+        }
+      } else if (f.type === "pts") {
+        const a = clamp(1.3 - f.t, 0, 1);
+        ctx.globalAlpha = a;
+        txt(f.s, f.x + 1.2, f.y - f.t * 14 + 1.2, 15, HEAD, "center", C.hosho);
+        txt(f.s, f.x, f.y - f.t * 14, 15, HEAD, "center", C.koge);
+        ctx.globalAlpha = 1;
+      }
+    }
+    for (const s of seals) {
+      const sc = s.t < 0.1 ? 1.2 - (s.t / 0.1) * 0.2 : 1;
+      drawSeal(s.x, s.y, s.rot, sc, clamp((1.6 - s.t) / 0.4, 0, 1));
+    }
+    ctx.restore();
+    // 紙の質感（全面、1枚を使い回す）
+    ctx.fillStyle = paperPat; ctx.fillRect(0, 0, W, H);
+    if (state !== "title") drawUI(t);
+  }
+  function edgeMark(th, t, tt) {
+    // 光が届く外側の、絵の縁の内側に置く
+    const ix = pic.x + 22, iy = pic.y + 22, ax = pic.x + pic.w - 22, ay = pic.y + pic.h - 22;
+    const dx = Math.cos(th), dy = Math.sin(th);
+    let k = Infinity;
+    if (dx > 0) k = Math.min(k, (ax - cx) / dx); if (dx < 0) k = Math.min(k, (ix - cx) / dx);
+    if (dy > 0) k = Math.min(k, (ay - cy) / dy); if (dy < 0) k = Math.min(k, (iy - cy) / dy);
+    const x = cx + dx * k, y = cy + dy * k;
+    const pulse = tt < 1.5 ? 1 + 0.15 * Math.sin(t * 14) : 1;
+    lampDot(x, y, 5.2 * pulse, 1);
+    // 外側に片側だけの彫り跡1本（長さ・太さを不揃いに）
+    carvedArc(x, y, 11, th - 0.55, th + 0.85, 3, C.shu, 0.9);
+  }
+
+  // ---- 音（Web Audio で合成） ----
+  let ac = null, master = null, seaG = null;
+  function audioInit() {
+    if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = muted ? 0 : 0.8; master.connect(ac.destination);
+      const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      let last = 0; for (let i = 0; i < len; i++) { last = last * 0.97 + (Math.random() * 2 - 1) * 0.03; d[i] = last * 6; }
+      const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380;
+      seaG = ac.createGain(); seaG.gain.value = 0.12;
+      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 0.11; lg.gain.value = 0.05; lfo.connect(lg); lg.connect(seaG.gain); lfo.start();
+      src.connect(lp); lp.connect(seaG); seaG.connect(master); src.start();
+    } catch (e) { ac = null; }
+  }
+  function tone(type, f0, f1, dur, vol, delay, vib) {
+    if (!ac || muted) return;
+    const t0 = ac.currentTime + (delay || 0);
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t0); if (f1) o.frequency.linearRampToValueAtTime(f1, t0 + dur);
+    if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = 5.2; lg.gain.value = vib; l.connect(lg); lg.connect(o.frequency); l.start(t0); l.stop(t0 + dur + 0.1); }
+    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.12, dur * 0.2));
+    g.gain.setValueAtTime(vol, t0 + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+    o.connect(lp); lp.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  function noise(dur, freq, q, vol, delay) {
+    if (!ac || muted) return;
+    const t0 = ac.currentTime + (delay || 0), n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.5);
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
+    const g = ac.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(master); s.start(t0);
+  }
+  const RATIOS = [1, 1.25, 1.5, 1.875, 2];
+  const sfx = {
+    whistle(i, close) { const f = 150 * RATIOS[i % 5] * (close ? 1.06 : 1); tone("sawtooth", f, f * 0.97, 0.85 + (i % 2) * 0.25, 0.09, i * 0.06, 2.5); tone("sine", f, f * 0.98, 0.9, 0.12, i * 0.06, 2); },
+    horn() { tone("sawtooth", 82, 78, 2.2, 0.2, 0, 1.2); tone("sine", 41, 40, 2.2, 0.25, 0, 0); tone("sawtooth", 123, 118, 1.8, 0.08, 0.1, 1.5); },
+    wreck() { noise(0.25, 1400, 1.2, 0.9); noise(0.4, 300, 0.8, 0.8, 0.03); tone("triangle", 90, 50, 0.35, 0.25); },
+    seal() { noise(0.06, 900, 2, 0.6); tone("sine", 220, 180, 0.12, 0.2); },
+    crew() { tone("sine", 660, 660, 0.35, 0.12); tone("sine", 990, 990, 0.45, 0.08, 0.1); },
+    start() { tone("sine", 130, 128, 1.1, 0.14, 0, 1.5); },
+  };
+
+  // ---- 進行 ----
+  function show(id) { ["title", "result", "pause"].forEach((k) => ($(k).hidden = k !== id)); $("tools").hidden = !(id === null && state === "play"); }
+  function start() {
+    audioInit(); sfx.start();
+    S = SIM.create((Math.random() * 1e9) | 0);
+    fx = []; seals = []; crosses = []; banner = null; hornFx = 0;
+    input = { target: null, rot: 0, horn: false };
+    state = "play"; show(null);
+  }
+  function finish(dawn) {
+    state = "over"; endAt = performance.now();
+    const sc = S.score; let isNew = false;
+    if (sc > best) { best = sc; isNew = sc > 0; try { localStorage.setItem("lk_best", String(best)); } catch (e) {} }
+    $("rHead").textContent = dawn ? "夜明けまで守った" : "当番終わり";
+    $("rScore").textContent = fmt(sc);
+    $("rSaved").textContent = `${S.saved}隻`;
+    $("rGroup").textContent = `${Math.max(1, S.maxGroup)}隻`;
+    $("rBand").textContent = dawn ? "夜明け" : SIM.BANDS[SIM.bandOf(S.t)];
+    $("rBest").textContent = fmt(best);
+    $("rNew").hidden = !isNew;
+    setTimeout(() => { if (state === "over") show("result"); }, 900);
+  }
+  const NUM = ["", "一", "二", "三", "四", "五", "六", "七", "八"];
+  function handle(evs) {
+    for (const e of evs) {
+      if (e.type === "rescue") {
+        const s = e.ship, [x, y] = pos(s.th, s.r);
+        fx.push({ type: "whistle", ship: s, t: 0, dir: Math.cos(s.th) < 0 ? 1 : -1, k: e.idx % 3 });
+        fx.push({ type: "wave", ship: s, t: 0 });
+        fx.push({ type: "pts", s: `+${Math.round(e.pts)}`, x: x - (Math.cos(s.th) < 0 ? 1 : -1) * 22 * sS, y: y - 50 * sS, t: 0 });
+        sfx.whistle(e.idx, e.close);
+        if (e.close) {
+          // 船の外側（灯台と反対側）に押す。端なら内側へ回す
+          let side = x < cx ? -1 : 1, sx = x + side * 46 * sS;
+          if (sx < pic.x + 30 || sx > pic.x + pic.w - 30) sx = x - side * 46 * sS;
+          seals.push({ x: clamp(sx, pic.x + 30, pic.x + pic.w - 30), y: clamp(y - 14 * sS, pic.y + 64, pic.y + pic.h - 64), rot: (Math.random() * 2 - 1) * 0.1, t: 0 });
+          sfx.seal();
+        }
+      } else if (e.type === "group") {
+        if (e.n >= 2) banner = { s: `${NUM[Math.min(8, e.n)] || e.n}隻まとめて ×${e.bonus}`, a: 2 };
+      } else if (e.type === "wreck") {
+        const s = e.ship, [x, y] = pos(s.th, SIM.REEF);
+        crosses.push({ x, y, a: 1 }); sfx.wreck();
+        if (navigator.vibrate) try { navigator.vibrate(60); } catch (er) {}
+      } else if (e.type === "crew") {
+        banner = { s: "乗組員を迎え入れた　座礁 −0.5", a: 2.2 }; sfx.crew();
+        if (crosses.length) crosses[crosses.length - 1].a = 0.45;
+      } else if (e.type === "horn") {
+        hornFx = 1; sfx.horn();
+      } else if (e.type === "over") finish(e.dawn);
+    }
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - (lastT || now)) / 1000); lastT = now;
+    const t = now / 1000;
+    if (state === "play") {
+      const prevAng = S.ang;
+      const evs = SIM.step(S, dt, input); input.horn = false;
+      swing = clamp(Math.abs(S.w) / 5, 0, 1);
+      handle(evs);
+      void prevAng;
+    } else if (state === "title") demoAng = -1.15 + Math.sin(t * 0.4) * 0.9;
+    if (state === "play" || state === "over" || state === "title") {
+      for (const f of fx) f.t += dt;
+      fx = fx.filter((f) => (f.type === "wave" ? f.ship.r < 3.2 && f.t < 12 : f.t < 1.4));
+      for (const s of seals) s.t += dt;
+      seals = seals.filter((s) => s.t < 1.6);
+      if (banner) banner.a -= dt;
+      if (hornFx > 0) hornFx = Math.max(0, hornFx - dt / 1.2);
+    }
+    render(t, dt);
+  }
+
+  // ---- 入力 ----
+  let lastTap = 0;
+  const angAt = (x, y) => Math.atan2(y - cy, x - cx);
+  cv.addEventListener("pointerdown", (e) => {
+    audioInit();
+    if (state !== "play") return;
+    e.preventDefault();
+    try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+    const d = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const now = performance.now();
+    if (d < 64 * sS) { if (now - lastTap < 380) { input.horn = true; lastTap = 0; } else lastTap = now; }
+    if (d > 26) { input.target = angAt(e.clientX, e.clientY); input.rot = 0; }
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (state !== "play") return;
+    if (e.pointerType === "mouse" || e.buttons || e.pressure > 0) {
+      if (Math.hypot(e.clientX - cx, e.clientY - cy) > 20) { input.target = angAt(e.clientX, e.clientY); }
+    }
+  });
+  cv.addEventListener("wheel", (e) => {
+    if (state !== "play") return; e.preventDefault();
+    input.target = (input.target == null ? S.ang : S.ang + SIM.wrap(input.target - S.ang)) + clamp(e.deltaY, -120, 120) * 0.004;
+  }, { passive: false });
+  document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  const held = new Set();
+  function keyRot() { const l = held.has("ArrowLeft") || held.has("KeyA"), r = held.has("ArrowRight") || held.has("KeyD"); input.rot = l === r ? 0 : l ? -1 : 1; if (input.rot) input.target = null; }
+  addEventListener("keydown", (e) => {
+    audioInit();
+    if (e.code === "KeyM") { toggleMute(); return; }
+    if (state === "title" && (e.code === "Enter" || e.code === "Space")) { e.preventDefault(); start(); return; }
+    if (state === "over" && (e.code === "Enter" || e.code === "Space") && performance.now() - endAt > 1200) { e.preventDefault(); start(); return; }
+    if (state === "pause" && (e.code === "KeyP" || e.code === "Escape" || e.code === "Enter" || e.code === "Space")) { e.preventDefault(); resume(); return; }
+    if (state !== "play") return;
+    if (e.code === "KeyP" || e.code === "Escape") { pause(); return; }
+    if (e.code === "Space") { e.preventDefault(); input.horn = true; return; }
+    if (["ArrowLeft", "ArrowRight", "KeyA", "KeyD"].includes(e.code)) { e.preventDefault(); held.add(e.code); keyRot(); }
+  });
+  addEventListener("keyup", (e) => { held.delete(e.code); if (state === "play") keyRot(); });
+  function pause() { if (state !== "play") return; state = "pause"; held.clear(); input.rot = 0; show("pause"); if (ac) ac.suspend(); }
+  function resume() { if (state !== "pause") return; state = "play"; lastT = 0; show(null); if (ac) ac.resume(); }
+  function toggleMute() {
+    muted = !muted; try { localStorage.setItem("lk_mute", muted ? "1" : "0"); } catch (e) {}
+    if (master) master.gain.value = muted ? 0 : 0.8;
+    $("bMute").textContent = muted ? "音を出す" : "音を消す";
+  }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+  $("bStart").addEventListener("click", start);
+  $("bAgain").addEventListener("click", () => { if (performance.now() - endAt > 1200) start(); });
+  $("bResume").addEventListener("click", resume);
+  $("bPause").addEventListener("click", pause);
+  $("bMute").addEventListener("click", toggleMute);
+  $("bMute").textContent = muted ? "音を出す" : "音を消す";
+  $("bestT").textContent = best > 0 ? `最高 ${fmt(best)}` : "";
+  addEventListener("resize", layout);
+  layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawLighthouse.p = drawLighthouse.p; });
+  requestAnimationFrame(frame);
+  window.__lk = { sim: SIM, get S() { return S; }, get state() { return state; }, start };
+})();
+</script>
+</body>
+</html>
