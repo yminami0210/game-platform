@@ -96,6 +96,13 @@ async function run(browser, w, h) {
   ok(await page.locator(".door.l").isVisible() && await page.locator(".door.r").isVisible(), `${tag} 扉が残っている`);
   await page.waitForTimeout(1200);
   await shot(page, `play-${w}`);
+  const box = await page.locator("#pulled").boundingBox();
+  ok(box && box.x >= 0 && box.x + box.width <= w + 1, `${tag} 抜いた札が画面の中に収まる（左右）`);
+  if (w >= 900 && firstId === "004-water-lines") {
+    const win = await page.locator("#window").boundingBox();
+    const ratio = win.width / win.height;
+    ok(Math.abs(ratio - 0.6) < 0.08, `${tag} 縦長のゲームでは窓も縦長（幅/高さ ${ratio.toFixed(2)}）`);
+  }
 
   // 戻る木札
   await page.click("#back");
@@ -163,6 +170,15 @@ async function extraShots(browser) {
     await waitList(page);
     await page.waitForTimeout(400);
     await shot(page, "list-1280-dark");
+    await page.close();
+  }
+  // 遊ぶ画面（PC）を横長のゲームでも（play-1280 は縦長の「水みち」）
+  {
+    const { page } = await newPage(browser, 1280, 800);
+    await page.goto(BASE + "#play/005-lighthouse-keeper", { waitUntil: "load" });
+    await waitGameLoaded(page, "005-lighthouse-keeper");
+    await page.waitForTimeout(1200);
+    await shot(page, "play-1280-wide");
     await page.close();
   }
   // 扉が開く途中のコマ（390）: 扉が開き切り、札が抜かれている途中

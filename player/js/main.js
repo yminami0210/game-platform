@@ -32,9 +32,12 @@ const thumbPos = (g) => g.thumb_pos || (extra[g.id] && extra[g.id].thumb_pos) ||
 function sentences(text) {
   return (text || "").split(/(?<=。)/).map((s) => s.trim()).filter(Boolean);
 }
-// 台本の地の文: pitch を基本に、操作は controls の最初の「（」か「。」の前までを文として足す。
+// 台本の地の文: data/fuda.json の script（手で整えた演じ手の語り）があればそれを使う。
+// 無いときだけ pitch を基本に、操作は controls の最初の「（」か「。」の前までを文として足す。
 // 2文に満たないときは how_to_play の最初の1文で補う。
 function scriptText(g) {
+  const own = extra[g.id] && extra[g.id].script;
+  if (own) return own;
   const out = sentences(g.pitch);
   const ctl = (g.controls || "").split(/[（(。]/)[0].trim();
   if (ctl) out.push(ctl + "。");
@@ -75,8 +78,12 @@ function shapeOf(id) {
   const rnd = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 1000) / 1000;
   const cut = () => (rnd() < 0.3 ? 0 : 4 + Math.round(rnd() * 4));
   const [a, b, c, d] = [cut(), cut(), cut(), cut()];
-  const tilt = ((rnd() * 3 - 1.5) || 0.6).toFixed(2);
+  // 傾きは ±0.8〜1.5° （目で分かる強さ）、判子は −6〜+6° で位置もずらす
+  const tilt = ((rnd() < 0.5 ? -1 : 1) * (0.8 + rnd() * 0.7)).toFixed(2);
   return {
+    "--st-rot": `${(rnd() * 12 - 6).toFixed(1)}deg`,
+    "--st-x": `${Math.round(rnd() * 10)}px`,
+    "--st-y": `${Math.round(rnd() * 5)}px`,
     "--tilt": `${tilt}deg`,
     "--dy": `${Math.round(rnd() * 6)}px`,
     "--dx": `${Math.round(rnd() * 4 - 2)}px`,
@@ -96,6 +103,7 @@ function setStage(g) {
   $("script-text").textContent = scriptText(g);
   const stamp = $("stage-stamp");
   stamp.hidden = false;
+  stamp.style.setProperty("--st-rot", shapeOf(g.id)["--st-rot"]);
   fillStamp(stamp, g);
   stamp.setAttribute("aria-label", bestLabel(g));
   const play = $("play");
@@ -192,11 +200,24 @@ function onOpen(g, from) {
   openTimer = setTimeout(enterPlay, OPEN_MS);
 }
 
+// 遊ぶ画面（PC）: ゲームの縦横比が決まっているもの（fuda.json の aspect）は、窓と舞台をその比に絞る
+const pcQuery = matchMedia("(min-width: 900px)");
+function fitStage() {
+  const st = $("stage");
+  const aspect = stageGame && extra[stageGame.id] && Number(extra[stageGame.id].aspect);
+  if (!body.classList.contains("playing") || !aspect || !pcQuery.matches) { st.style.removeProperty("--stage-w"); return; }
+  const winH = window.innerHeight - 44 - 64 - 30; // 上下の余白・梁・箱の枠
+  const w = Math.round(Math.min(820, Math.max(440, winH * aspect + 60)));
+  st.style.setProperty("--stage-w", `${w}px`);
+}
+window.addEventListener("resize", fitStage);
+
 function enterPlay() {
   clearTimeout(openTimer);
   body.classList.add("snap");
   body.classList.remove("opening");
   body.classList.add("playing");
+  fitStage();
   void body.offsetWidth;
   requestAnimationFrame(() => body.classList.remove("snap"));
   busy = false;
@@ -208,6 +229,7 @@ function onClose(g) {
   clearTimeout(openTimer);
   body.classList.add("snap");
   body.classList.remove("playing");
+  fitStage();
   if (!reduced.matches) body.classList.add("opening"); // 開いた状態から、札が戻り扉が畳みかけまで閉じる
   document.title = "あそびば";
   window.scrollTo(0, savedScroll);
