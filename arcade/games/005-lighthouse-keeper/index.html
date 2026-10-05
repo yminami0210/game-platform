@@ -62,7 +62,7 @@ button:focus-visible{outline:3px solid var(--ai);outline-offset:3px}
   <div class="dai">
     <h1>霧笛の灯</h1>
     <p class="sub">霧の夜、岬の灯台守の当番</p>
-    <p class="how">灯台の周りを指でなでると、光がその向きへ回ります。光の中で船が色づいたら、気づいて帰っていきます。</p>
+    <p class="how">灯台の周りを指でなでると、光がその向きへ回ります。光の中で船が色づいたら、気づいて帰っていきます。ただし雁の列は照らさないこと。灯に迷ってぶつかり、灯が消えます。</p>
     <p class="keys">岩礁で3隻座礁したら当番終わり。PCはマウスか<span style="white-space:nowrap">← →</span>。霧笛はダブルタップかスペース。</p>
     <div class="row"><button id="bStart" type="button">灯をともす</button><span class="best" id="bestT"></span></div>
   </div>
@@ -83,6 +83,7 @@ button:focus-visible{outline:3px solid var(--ai);outline-offset:3px}
     <dl>
       <dt>帰した船</dt><dd id="rSaved">0隻</dd>
       <dt>まとめて照らした</dt><dd id="rGroup">1隻</dd>
+      <dt>灯に迷わせた雁</dt><dd id="rStray">0列</dd>
       <dt>着いた時刻</dt><dd id="rBand">宵</dd>
       <dt>これまでの最高</dt><dd id="rBest">0</dd>
     </dl>
@@ -107,14 +108,14 @@ const SIM = (() => {
   function create(seed) {
     return { t: 0, rnd: rng(seed || 1), ang: -Math.PI / 2, w: 0, ships: [], crews: [], score: 0, saved: 0, wrecks: 0,
       maxGroup: 0, horn: 0, nextSpawn: 1.4, lastAng: -Math.PI / 2, group: null, over: false, dawn: false, id: 0,
-      wreckTimes: [], log: [] };
+      wreckTimes: [], log: [], birds: [], nextBird: 2.2, dark: 0, strays: 0, bid: 0 };
   }
   const spd = (t) => 0.18 + 0.0045 * t;               // 単位/秒（岩礁まで 1.5 単位）
   const gap = (t) => Math.max(0.55, 2.4 - 0.023 * t);   // 次の船までの間隔
   const spread = (t) => Math.min(Math.PI, 1.1 + t * 0.03);
   const ttr = (s) => (s.state === "come" ? (s.r - REEF) / s.v : 99);
   function inBeam(S, th, r, pad) {
-    if (r > BEAM_LEN) return false;
+    if (r > BEAM_LEN || S.dark > 0) return false;
     return Math.abs(wrap(th - S.ang)) < HALF + pad + Math.atan2(0.2, Math.max(r, 0.3));
   }
   function spawn(S) {
@@ -135,6 +136,18 @@ const SIM = (() => {
     S.ships.push({ id: ++S.id, kind, th, r: SPAWN, v, arr, state: "come", lit: 0, pr: 0, age: 0, close: false });
     S.lastAng = th;
   }
+  // 雁の列（照らしてはいけないもの）: 霧の上を弦に沿って横切る。照らし続けると灯に迷って灯室にぶつかり、灯が消える
+  const BIRD_NEED = 0.3, DARK = 3;
+  function spawnBird(S) {
+    const t = S.t, R = S.rnd;
+    // 最初の1列は船の来ない下の半円を横切る（見せるための1列）
+    const phi = t < 10 ? Math.PI / 2 + (R() * 2 - 1) * 0.35 : R() * TAU;
+    const d = t < 10 ? 1.25 + R() * 0.3 : 1.05 + R() * 0.8, sg = R() < 0.5 ? -1 : 1;
+    const nx = Math.cos(phi), ny = Math.sin(phi), ux = -ny * sg, uy = nx * sg;
+    const L = Math.sqrt((t < 10 ? 2.55 : 3.0) ** 2 - d * d), v = 0.4 + 0.0016 * t;
+    S.birds.push({ id: ++S.bid, x: nx * d - ux * L, y: ny * d - uy * L, vx: ux * v, vy: uy * v, lit: 0, state: "fly", age: 0, first: t < 10 });
+  }
+  const birdGap = (t) => Math.max(8, 24 - 0.11 * t);
   function finishGroup(S, ev) {
     const g = S.group; S.group = null;
     const n = g.n, bonus = g.horn ? Math.min(1.5, n >= 2 ? 1.5 : 1) : n >= 3 ? 2 : n === 2 ? 1.5 : 1;
@@ -174,6 +187,28 @@ const SIM = (() => {
       ev.push({ type: "horn" });
       for (const s of S.ships) if (s.state === "come" && s.r < SPAWN - 0.05) rescue(S, s, ev, true);
     }
+    // 灯が消えている時間
+    if (S.dark > 0) S.dark = Math.max(0, S.dark - dt);
+    // 雁の列
+    const flying = S.birds.filter((b) => b.state === "fly").length;
+    if (S.t >= S.nextBird && flying < (S.t < 100 ? 1 : 2)) {
+      spawnBird(S); ev.push({ type: "bird", first: S.t < 10 });
+      S.nextBird = S.t < 10 ? 32 + S.rnd() * 4 : S.t + birdGap(S.t) * (0.8 + S.rnd() * 0.4);
+    }
+    for (const b of S.birds) {
+      b.age += dt;
+      if (b.state !== "fly") continue;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      const r = Math.hypot(b.x, b.y), th = Math.atan2(b.y, b.x);
+      if (inBeam(S, th, r, 0.06)) b.lit += dt; else b.lit = Math.max(0, b.lit - dt * 0.5);
+      if (b.lit >= BIRD_NEED) {
+        b.state = "stray"; b.age = 0; S.dark = DARK; S.strays++;
+        const pen = Math.min(S.score, 20 * MULT[bandOf(S.t)]);
+        S.score -= pen;
+        ev.push({ type: "stray", bird: b, pen });
+      } else if (r > 3.1 && b.x * b.vx + b.y * b.vy > 0) b.state = "gone";
+    }
+    S.birds = S.birds.filter((b) => b.state === "fly" || (b.state === "stray" && b.age < 1.4));
     // 出現
     const active = S.ships.filter((s) => s.state === "come").length;
     if (S.t >= S.nextSpawn && !(S.t < 20 && active > 0)) {
@@ -223,7 +258,7 @@ const SIM = (() => {
     }
     return ev;
   }
-  return { create, step, wrap, ttr, bandOf, inBeam, MULT, BANDS, REEF, SPAWN, BEAM_LEN, HALF, END_T, MAX_WRECK };
+  return { create, step, wrap, ttr, bandOf, inBeam, BIRD_NEED, DARK, MULT, BANDS, REEF, SPAWN, BEAM_LEN, HALF, END_T, MAX_WRECK };
 })();
 // </sim>
 
@@ -521,7 +556,7 @@ const SIM = (() => {
     ctx.drawImage(grainLayer, pic.x, pic.y, pic.w, pic.h);
     ctx.restore();
   }
-  function drawLighthouse() {
+  function drawLighthouse(dark) {
     const s = sS * 0.95, bx = cx, by = cy + 50 * s;
     if (!drawLighthouse.p) {
       seed = 71;
@@ -532,8 +567,42 @@ const SIM = (() => {
     const P = drawLighthouse.p;
     ctx.save(); ctx.translate(bx, by); ctx.scale(s, s);
     ctx.save(); ctx.translate(1.5, 1.2); P.col.forEach(([p, f]) => { ctx.fillStyle = f; ctx.fill(p); }); ctx.restore();
+    if (dark) { ctx.fillStyle = C.kage; ctx.fill(P.col[2][0]); }
     ctx.strokeStyle = C.koge; ctx.lineWidth = 1.4; ctx.lineJoin = "round"; P.ink.forEach((p) => ctx.stroke(p));
     ctx.restore();
+  }
+  // 雁: 1羽は「へ」の字の翼。列はく の字に5羽
+  const FLOCK = [[0, 0], [-1, -0.8], [-2, -1.6], [-1, 0.8], [-2, 1.6]];
+  function goose(x, y, sz, flap, col) {
+    const up = flap * sz * 0.55;
+    ctx.fillStyle = col; ctx.beginPath();
+    ctx.moveTo(x - sz, y - up); ctx.quadraticCurveTo(x - sz * 0.45, y - sz * 0.35 - up * 0.4, x - sz * 0.12, y);
+    ctx.lineTo(x + sz * 0.12, y);
+    ctx.quadraticCurveTo(x + sz * 0.45, y - sz * 0.35 - up * 0.4, x + sz, y - up);
+    ctx.quadraticCurveTo(x + sz * 0.5, y - sz * 0.05 - up * 0.3, x + sz * 0.1, y + sz * 0.3);
+    ctx.lineTo(x - sz * 0.1, y + sz * 0.3);
+    ctx.quadraticCurveTo(x - sz * 0.5, y - sz * 0.05 - up * 0.3, x - sz, y - up);
+    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, y + sz * 0.08, sz * 0.16, sz * 0.32, 0, 0, TAU); ctx.fill();
+  }
+  function drawFlock(b, t) {
+    const sp = Math.hypot(b.vx, b.vy) || 1, hx = b.vx / sp, hy = b.vy / sp;
+    const [bx, by] = [cx + b.x * unit, cy + b.y * unit];
+    const sz = 10 * Math.min(1.35, sS), gap = 16 * Math.min(1.35, sS);
+    const fear = b.state === "fly" ? clamp(b.lit / SIM.BIRD_NEED, 0, 1) : 1;
+    const k = b.state === "stray" ? clamp(b.age / 0.6, 0, 1) : 0;
+    const a = b.state === "stray" ? clamp(1.4 - b.age, 0, 1) : clamp((3.1 - Math.hypot(b.x, b.y)) / 0.4, 0, 1);
+    if (a <= 0) return;
+    FLOCK.forEach((f, i) => {
+      // 進む向きに対して列を置く（先頭が前）
+      let x = bx + (hx * f[0] - hy * f[1]) * gap, y = by + (hy * f[0] + hx * f[1]) * gap;
+      x += Math.sin(t * 23 + i * 2.1) * fear * 5 * sS; y += Math.cos(t * 19 + i * 1.7) * fear * 5 * sS;
+      if (k > 0) { x += (cx - x) * k; y += (cy - y) * k; }
+      const flap = Math.sin(t * (5 + fear * 14) + i * 0.9);
+      ctx.globalAlpha = a * 0.8; goose(x + 1.3, y + 1.1, sz, flap, C.hosho);
+      ctx.globalAlpha = a; goose(x, y, sz, flap, C.koge);
+    });
+    ctx.globalAlpha = 1;
   }
   const pos = (th, r) => [cx + Math.cos(th) * r * unit, cy + Math.sin(th) * r * unit];
 
@@ -663,10 +732,12 @@ const SIM = (() => {
       ctx.restore();
     }
     drawFog(t, level);
-    drawBeam(ang, swing);
+    const dark = S ? S.dark : 0;
+    if (dark <= 0) drawBeam(ang, swing);
+    else if (dark < 0.5 && Math.sin(t * 40) > 0) { ctx.globalAlpha = 0.55; drawBeam(ang, 0); ctx.globalAlpha = 1; }
     ctx.drawImage(rockLayer, 0, 0, W, H);
     for (const c of crosses) stampCross(c.x, c.y, 9 * sS, c.a, false);
-    drawLighthouse();
+    drawLighthouse(dark > 0);
     // 座礁した船（傾く）
     for (const s of ships) {
       if (s.state !== "wreck") continue;
@@ -686,6 +757,8 @@ const SIM = (() => {
       drawShip(ctx, s.kind, s.id % 2, s.pr, shipVis(s), s.state === "leave" && turn < 0.5 ? !flip : flip, 0);
       ctx.restore();
     }
+    // 雁の列（照らしてはいけない）: 焦茶の影に奉書白の版ずれ。照らされると列が乱れる
+    if (S) for (const b of S.birds) drawFlock(b, t);
     // 小舟（乗組員）
     if (S) for (const c of S.crews) {
       const [x, y] = pos(c.th, c.r);
@@ -798,6 +871,7 @@ const SIM = (() => {
     horn() { tone("sawtooth", 82, 78, 2.2, 0.2, 0, 1.2); tone("sine", 41, 40, 2.2, 0.25, 0, 0); tone("sawtooth", 123, 118, 1.8, 0.08, 0.1, 1.5); },
     wreck() { noise(0.25, 1400, 1.2, 0.9); noise(0.4, 300, 0.8, 0.8, 0.03); tone("triangle", 90, 50, 0.35, 0.25); },
     seal() { noise(0.06, 900, 2, 0.6); tone("sine", 220, 180, 0.12, 0.2); },
+    stray() { noise(0.18, 3200, 3, 0.5); noise(0.3, 1800, 2, 0.35, 0.05); tone("square", 880, 560, 0.14, 0.05, 0.12); tone("square", 820, 520, 0.14, 0.05, 0.3); },
     crew() { tone("sine", 660, 660, 0.35, 0.12); tone("sine", 990, 990, 0.45, 0.08, 0.1); },
     start() { tone("sine", 130, 128, 1.1, 0.14, 0, 1.5); },
   };
@@ -819,6 +893,7 @@ const SIM = (() => {
     $("rScore").textContent = fmt(sc);
     $("rSaved").textContent = `${S.saved}隻`;
     $("rGroup").textContent = `${Math.max(1, S.maxGroup)}隻`;
+    $("rStray").textContent = `${S.strays}列`;
     $("rBand").textContent = dawn ? "夜明け" : SIM.BANDS[SIM.bandOf(S.t)];
     $("rBest").textContent = fmt(best);
     $("rNew").hidden = !isNew;
@@ -849,6 +924,14 @@ const SIM = (() => {
       } else if (e.type === "crew") {
         banner = { s: "乗組員を迎え入れた　座礁 −0.5", a: 2.2 }; sfx.crew();
         if (crosses.length) crosses[crosses.length - 1].a = 0.45;
+      } else if (e.type === "bird") {
+        if (e.first) banner = { s: "雁の列は照らさない", a: 3.2 };
+      } else if (e.type === "stray") {
+        const b = e.bird;
+        banner = { s: `雁が灯に迷った　灯が消える${e.pen ? ` −${e.pen}` : ""}`, a: 2.6 };
+        if (e.pen) fx.push({ type: "pts", s: `−${e.pen}`, x: cx + b.x * unit, y: cy + b.y * unit - 20 * sS, t: 0 });
+        sfx.stray();
+        if (navigator.vibrate) try { navigator.vibrate([40, 40, 40]); } catch (er) {}
       } else if (e.type === "horn") {
         hornFx = 1; sfx.horn();
       } else if (e.type === "over") finish(e.dawn);
