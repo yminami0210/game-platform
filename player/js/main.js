@@ -1,7 +1,7 @@
 // あそびば（player）M1: 一覧（舞台＋札の束）→ 押すと同じ舞台の扉が開いてゲームが始まる → 戻る。
 // 演目は catalog.js、ゲームの出し入れと履歴は launcher.js に任せ、ここは見た目と動きだけを持つ。
 
-import { loadCatalog, readBest, gameUrl } from "./catalog.js";
+import { loadCatalog, readBest, gameUrl, ARCADE_ROOT } from "./catalog.js";
 import { createLauncher } from "./launcher.js";
 
 const $ = (id) => document.getElementById(id);
@@ -9,7 +9,7 @@ const body = document.body;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 
 const OPEN_MS = 620; // 扉 0.35秒＋抜き 0.25秒（0.3秒遅れ）
-const thumbUrl = (g) => `../arcade/games/${encodeURIComponent(g.id)}/qa/play.png`;
+const thumbUrl = (g) => `${ARCADE_ROOT}games/${encodeURIComponent(g.id)}/qa/play.png`;
 
 let games = [];
 let stageGame = null;
@@ -125,7 +125,7 @@ function renderStack() {
       for (const [k, v] of Object.entries(shapeOf(g.id))) li.style.setProperty(k, v);
       li.innerHTML = `<i class="layer b"></i><i class="layer a"></i><a class="face"><span class="pic"><img alt=""><span class="tag"></span></span></a>`;
       const a = li.querySelector(".face");
-      a.href = `#play/${encodeURIComponent(g.id)}`;
+      a.href = `#play-${encodeURIComponent(g.id)}`;
       a.setAttribute("aria-label", `${g.title}（${bestLabel(g)}）を遊ぶ`);
       setImg(li.querySelector("img"), g);
       li.querySelector(".tag").textContent = g.title;
@@ -301,13 +301,13 @@ async function init() {
   for (const g of games) lastBest.set(g.id, readBest(g));
   setStage(games[0]);
 
-  // #play/<id> で直接開かれたら、そのゲームを始める
+  // #play-<id> で直接開かれたら、そのゲームを始める
   if (launcher.resume((id) => games.find((g) => g.id === id))) {
     // 直接開いたときも「戻る」で一覧に来られるよう、一覧の履歴を下に1つ敷く
     const id = stageGame.id;
     history.replaceState(null, "", location.pathname + location.search);
-    history.pushState({ play: id, from: "link" }, "", `#play/${encodeURIComponent(id)}`);
-  } else if (location.hash.startsWith("#play/")) {
+    history.pushState({ play: id, from: "link" }, "", `#play-${encodeURIComponent(id)}`);
+  } else if (location.hash.startsWith("#play-")) {
     history.replaceState(null, "", location.pathname + location.search); // 無い演目は一覧へ
   }
 }

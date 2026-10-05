@@ -91,7 +91,7 @@ async function run(browser, w, h) {
   const firstId = await page.locator(".fuda").first().getAttribute("data-id");
   await page.locator(".fuda .face").first().click();
   ok(await waitGameLoaded(page, firstId), `${tag} 札クリックで iframe にゲーム（${firstId}）が読み込まれる`);
-  ok(page.url().endsWith(`#play/${firstId}`), `${tag} URL が #play/${firstId}`);
+  ok(page.url().endsWith(`#play-${firstId}`), `${tag} URL が #play-${firstId}`);
   ok(await page.locator("#pulled").isVisible(), `${tag} 抜いた札が窓の脇に見える`);
   ok(await page.locator(".door.l").isVisible() && await page.locator(".door.r").isVisible(), `${tag} 扉が残っている`);
   await page.waitForTimeout(1200);
@@ -108,7 +108,7 @@ async function run(browser, w, h) {
   await page.click("#back");
   await page.waitForFunction(() => !document.body.classList.contains("playing"));
   ok((await iframeCount(page)) === 0 && !(await isPlaying(page)), `${tag} 戻る木札で一覧へ（iframe が消える）`);
-  ok(!page.url().includes("#play/"), `${tag} 戻った後の URL に #play が無い`);
+  ok(!page.url().includes("#play-"), `${tag} 戻った後の URL に #play が無い`);
   ok((await page.locator(".fuda").count()) + 1 === EXPECTED, `${tag} 戻った後も${EXPECTED}本`);
 
   // 「遊ぶ」→ history.back()
@@ -140,10 +140,10 @@ async function run(browser, w, h) {
     ok(!(await isPlaying(page)), `${tag} Enter で開き Esc で一覧へ`);
   }
 
-  // #play/001-bloom-chain で直接開く → 戻ると一覧
+  // #play-001-bloom-chain で直接開く → 戻ると一覧
   const direct = await newPage(browser, w, h);
-  await direct.page.goto(BASE + "#play/001-bloom-chain", { waitUntil: "load" });
-  ok(await waitGameLoaded(direct.page, "001-bloom-chain"), `${tag} #play/001-bloom-chain で直接開ける`);
+  await direct.page.goto(BASE + "#play-001-bloom-chain", { waitUntil: "load" });
+  ok(await waitGameLoaded(direct.page, "001-bloom-chain"), `${tag} #play-001-bloom-chain で直接開ける`);
   await direct.page.click("#back");
   await direct.page.waitForFunction(() => !document.querySelector("#behind iframe"));
   ok(direct.page.url().startsWith(BASE) && !direct.page.url().includes("#play"), `${tag} 直接開いた後も戻る木札で一覧へ（ページを離れない）`);
@@ -175,7 +175,7 @@ async function extraShots(browser) {
   // 遊ぶ画面（PC）を横長のゲームでも（play-1280 は縦長の「水みち」）
   {
     const { page } = await newPage(browser, 1280, 800);
-    await page.goto(BASE + "#play/005-lighthouse-keeper", { waitUntil: "load" });
+    await page.goto(BASE + "#play-005-lighthouse-keeper", { waitUntil: "load" });
     await waitGameLoaded(page, "005-lighthouse-keeper");
     await page.waitForTimeout(1200);
     await shot(page, "play-1280-wide");

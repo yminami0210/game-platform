@@ -5,9 +5,9 @@
 //   launcher.open(game, { from: "list" | "town" | ... });   // game は catalog の1件
 //   launcher.close();
 //
-// URL は #play/<ゲームid>。直接その URL で開いてもそのゲームが始まる（resume で処理）。
+// URL は #play-<ゲームid>。直接その URL で開いてもそのゲームが始まる（resume で処理）。
 
-const HASH_PREFIX = "#play/";
+const HASH_PREFIX = "#play-";
 
 export function createLauncher({ stage, gameUrl, onOpen = () => {}, onClose = () => {} }) {
   let current = null; // { game, from, frame }
@@ -57,7 +57,7 @@ export function createLauncher({ stage, gameUrl, onOpen = () => {}, onClose = ()
     if (!id && current) finish();
   });
 
-  // #play/<id> で直接開かれたときに、そのゲームを始める
+  // #play-<id> で直接開かれたときに、そのゲームを始める
   function resume(findGame) {
     if (!location.hash.startsWith(HASH_PREFIX)) return false;
     const game = findGame(decodeURIComponent(location.hash.slice(HASH_PREFIX.length)));

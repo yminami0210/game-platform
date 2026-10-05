@@ -11,7 +11,13 @@
 python3 -m http.server 8000      # または npx serve .
 # → http://localhost:8000/player/
 ```
-特定のゲームを直接開く: `http://localhost:8000/player/#play/001-bloom-chain`
+特定のゲームを直接開く: `http://localhost:8000/player/#play-001-bloom-chain`
+
+## スマホから開く（非公開の Artifact）
+- **https://claude.ai/artifact/7oichDRhSjwFZnW8mwZQBz** （オーナーだけが開ける非公開ページ。スマホの Claude アプリ／ブラウザで開く）
+- 作り方: `python3 player/bin/bundle.py <出力フォルダ>` で遊び場と遊べるゲームを1つのフォルダに束ね、その `index.html` を Artifact として公開し、`files.json` を files に渡す（同じファイルパスで公開し直すと同じ URL のまま更新される）
+- 毎朝のゲームは自動では載らない。AI相棒に「遊び場を更新して」と頼むと束ね直して公開し直す
+- Artifact の制約に合わせ、ゲームを直接開くリンクは `#play-<id>` の形にしている
 
 ## しくみ
 | ファイル | 役割 |

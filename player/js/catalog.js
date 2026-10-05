@@ -1,10 +1,12 @@
 // ミニゲームの一覧を読む。日々のバッチ（/arcade-make）が作る arcade/catalog.json を読むだけで、書き換えない。
 
-const CATALOG_URL = "../arcade/catalog.json";
+// arcade/ の場所。通常は ../arcade/。Artifact に束ねたときは <html data-arcade-root="arcade/"> で切り替える
+export const ARCADE_ROOT = document.documentElement.dataset.arcadeRoot || "../arcade/";
+const CATALOG_URL = `${ARCADE_ROOT}catalog.json`;
 const BEST_KEYS_URL = "data/best-keys.json";
 const PLAYABLE = new Set(["ready", "published"]);
 
-export const gameUrl = (game) => `../arcade/games/${encodeURIComponent(game.id)}/index.html`;
+export const gameUrl = (game) => `${ARCADE_ROOT}games/${encodeURIComponent(game.id)}/index.html`;
 
 export async function loadCatalog() {
   const [catalog, bestKeys] = await Promise.all([
