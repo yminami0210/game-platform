@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>とんでけ大砲</title>
+<link href="https://fonts.googleapis.com/css2?family=Rampart+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --hanpu:#c4b184; --hinata:#dccb9b; --ogakuzu:#cf9358; --midori:#23574a; --midori2:#3d6e5f;
+  --sumi:#1f302a; --botan:#a8336a; --yamabuki:#e9b021; --kage:#9b8d68; --ita:#8a6a45;
+  --head:"Rampart One","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif;
+  --body:"Kiwi Maru","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--hanpu);color:var(--sumi);font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas#c.pulling{cursor:grabbing}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:4}
+.screen[hidden]{display:none}
+/* 道具馬車の側板: 深緑の板地に筆の木目、縁は日なた色の細い筆線 */
+.board{position:relative;width:min(340px,100%);max-height:100%;overflow:auto;touch-action:pan-y;
+  background:var(--midori);color:var(--hinata);
+  border-radius:5px 3px 6px 2px/3px 6px 2px 5px;
+  box-shadow:3px 2.5px 0 rgba(31,48,42,.75);
+  padding:clamp(16px,3vh,24px) 22px clamp(14px,2.6vh,20px)}
+.board::before{content:"";position:absolute;inset:6px 7px 7px 6px;border:1.3px solid rgba(220,203,155,.55);
+  border-radius:3px 2px 4px 2px;pointer-events:none}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--grain);opacity:.5;mix-blend-mode:soft-light}
+h1,.sign{font-family:var(--head);font-weight:400;color:var(--yamabuki);text-shadow:.06em .06em 0 var(--sumi)}
+h1{font-size:clamp(30px,min(10vw,7.4vh),46px);line-height:1.1;letter-spacing:.02em;white-space:nowrap}
+.sub{font-size:15px;font-weight:500;margin-top:4px}
+.how{font-size:15px;line-height:1.7;margin-top:clamp(10px,2vh,14px)}
+.keys{font-size:13px;line-height:1.6;margin-top:6px;opacity:.92}
+.row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:clamp(12px,2.2vh,18px)}
+button{font-family:var(--body);font-weight:500;font-size:18px;color:var(--sumi);background:var(--hinata);border:0;
+  padding:9px 20px 10px;cursor:pointer;border-radius:3px 6px 2px 5px/5px 2px 6px 3px;
+  box-shadow:inset 0 0 0 1.5px var(--sumi),2.5px 2.5px 0 var(--sumi);transition:transform .06s,box-shadow .06s}
+button:active{transform:translate(2px,2px);box-shadow:inset 0 0 0 1.5px var(--sumi)}
+button:focus-visible{outline:3px solid var(--hinata);outline-offset:3px}
+.best{font-size:14px;font-variant-numeric:tabular-nums}
+.res .sign{font-size:clamp(26px,5vh,32px);line-height:1.15}
+.res .score{font-family:var(--head);color:var(--yamabuki);text-shadow:.06em .06em 0 var(--sumi);
+  font-size:clamp(40px,8vh,54px);line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.res canvas{display:block;width:100%;height:auto;margin-top:10px;border-radius:2px 4px 3px 2px;box-shadow:0 0 0 1.5px var(--sumi)}
+.res dl{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-size:14px;line-height:1.6;margin-top:10px;font-variant-numeric:tabular-nums}
+.res dd{font-weight:500;color:#efe3bd}
+.res .new{font-size:15px;font-weight:500;margin-top:6px}
+#tools{position:fixed;top:2px;right:6px;display:flex;gap:2px;z-index:3}
+#tools[hidden]{display:none}
+#tools button{font-size:13px;background:transparent;box-shadow:none;padding:6px 7px;color:var(--sumi);
+  text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+@media (max-height:500px){
+  .board{width:min(560px,100%);padding:12px 18px}
+  h1{font-size:32px}.how{font-size:14px;line-height:1.55;margin-top:6px}.row{margin-top:8px}
+  .res{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start}
+  .res .score{font-size:38px}.res dl{margin-top:4px;font-size:13px}
+}
+@media (prefers-reduced-motion: reduce){button{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="昼の天幕の中。左に大砲、右に網を背負った象"></canvas>
+
+<div id="tools" hidden>
+  <button id="bMute" type="button">音を消す</button>
+  <button id="bPause" type="button">一時停止</button>
+</div>
+
+<section class="screen" id="title">
+  <div class="board">
+    <h1>とんでけ大砲</h1>
+    <p class="sub">旅回りの一座の大砲係</p>
+    <p class="how">大砲を後ろへ引いて離すと、曲芸師が飛びます。象の網のど真ん中へ。綱渡りと砂袋には当てず、引きすぎると暴発します。</p>
+    <p class="keys">帽子3つを落としたら興行終わり。PCはドラッグ、または ↑↓で角度・スペース長押しで火薬。</p>
+    <div class="row"><button id="bStart" type="button">興行をはじめる</button><span class="best" id="bestT"></span></div>
+  </div>
+</section>
+
+<section class="screen" id="pause" hidden>
+  <div class="board">
+    <p class="sign" style="font-size:30px">一時停止</p>
+    <p class="how">曲芸師は大砲の中で待っています。</p>
+    <div class="row"><button id="bResume" type="button">続ける</button></div>
+  </div>
+</section>
+
+<section class="screen" id="result" hidden>
+  <div class="board res">
+    <div>
+      <p class="sign">本日の興行</p>
+      <p class="score" id="rScore">0</p>
+      <canvas id="rTent" width="320" height="200" aria-label="今日の天幕と煤の跡"></canvas>
+    </div>
+    <div>
+      <dl>
+        <dt>飛ばした曲芸師</dt><dd id="rShots">0人</dd>
+        <dt>ど真ん中</dt><dd id="rCenter">0回</dd>
+        <dt>最高の連続</dt><dd id="rStreak">0</dd>
+        <dt>天幕の煤の跡</dt><dd id="rSoot">0</dd>
+        <dt>興行の長さ</dt><dd id="rTime">0秒</dd>
+        <dt>これまでの最高</dt><dd id="rBest">0</dd>
+      </dl>
+      <p class="new" id="rNew" hidden>これまでで一番の興行</p>
+      <div class="row"><button id="bAgain" type="button">もう一回</button></div>
+    </div>
+  </div>
+</section>
+
+<script>
+"use strict";
+
+// <sim> ここから下は DOM に触らない（自動プレイのボットがそのまま読み込む）
+const SIM = (() => {
+  const D = Math.PI / 180;
+  const K = {
+    W: 420, H: 780, G: 1000, PX: 64, PY: 626, BARREL: 72, AMIN: 58 * D, AMAX: 86 * D, VMIN: 330, VMAX: 900,
+    NET_Y: 560, FLOOR: 676, CEIL: 20, EMIN: 222, EMAX: 350, AC_R: 9, BAG_R: 15, ROPES: [232, 312], KICK: 3, TICK: 5,
+  };
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function rnd(S) { S.seed = (S.seed * 16807) % 2147483647; return S.seed / 2147483647; }
+  // 経過時間で厳しくなる（象の速さ・網の幅・障害物）と同時に、火の輪も増える。
+  // 2段目（HOT 秒から）: 筒が焼けて弾がぶれ始め（狙いの点もにじむ）、網はさらに縮み、象も砂袋も退屈も厳しくなり続ける。頭打ちにしない
+  const HOT = 105;
+  function diff(t) {
+    const o = Math.max(0, t - HOT);
+    return {
+      eleSp: Math.min(30 + t * 0.62, 112) + Math.min(Math.max(0, t - 132) * 0.55, 48),
+      netW: Math.max(Math.max(128 - t * 0.4 - Math.max(0, t - 70) * 0.36, 58) - o * 0.5, 22),
+      turn: Math.min(0.05 + t * 0.0022, 0.38),
+      bags: t < 28 ? 1 : t < 65 ? 2 : t < 125 ? 3 : 4,
+      walkers: t < 14 ? 0 : t < 80 ? 1 : 2,
+      walkSp: Math.min(36 + t * 0.26, 84) + o * 0.3,
+      ringGap: Math.max(1.8, 9.5 - t * 0.075),
+      ringMax: t < 45 ? 1 : t < 90 ? 2 : 3,
+      jit: 1 + o * 0.07,
+      tick: t < 120 ? K.TICK : Math.max(3.4, K.TICK - (t - 120) * 0.04),
+    };
+  }
+  function create(seed, ringR) {
+    const S = {
+      seed: (Math.abs(seed | 0) % 2147483646) + 1, t: 0, score: 0, hats: 3, misses: 0, bore: 0, wait: 0,
+      phase: "ready", pt: 0, hold: 0, ang: 72 * D, ac: null,
+      ele: { x: 330, dir: -1, pause: 0, walk: 0 },
+      bags: [], walkers: [], rings: [], ringT: 5, ringR: ringR || 28, rid: 0,
+      shots: 0, lands: 0, centers: 0, streak: 0, bestStreak: 0, bestShot: 0, bestShotT: 0, penalties: [],
+      ev: [], over: false, peek: false, noJit: false,
+    };
+    addBag(S);
+    S.bags[0].drop = 1;
+    return S;
+  }
+  function addBag(S) {
+    let x = 200;
+    for (let k = 0; k < 14; k++) {
+      x = 140 + rnd(S) * 200;
+      if (S.bags.every((b) => Math.abs(b.x - x) > 70) && S.rings.every((r) => Math.abs(r.x - x) > 44)) break;
+    }
+    const base = 288 + rnd(S) * 38;
+    // 振れ幅いっぱいでも袋の下端（+20）が客席の上端（y=396）にかからない
+    S.bags.push({ x, base, amp: Math.min(34 + rnd(S) * 32, 376 - base), per: 4.5 + rnd(S) * 2.5, ph: rnd(S) * 6.28,
+      drop: 0, life: 16 + rnd(S) * 14, up: false, sw: 0, swv: 0 });
+  }
+  function bagY(S, b) { return b.base + b.amp * Math.sin(b.ph + (S.t * 6.2832) / b.per); }
+  function addRing(S) {
+    let x = 0, y = 0, ok = false;
+    for (let k = 0; k < 12 && !ok; k++) {
+      x = 150 + rnd(S) * 200; y = 186 + rnd(S) * 160;
+      ok = S.bags.every((b) => b.up || Math.abs(b.x - x) > 52) && S.rings.every((r) => Math.hypot(r.x - x, r.y - y) > 90);
+    }
+    if (!ok) return;
+    const max = 6 + rnd(S) * 4;
+    S.rings.push({ id: ++S.rid, x, y, r: S.ringR, life: max, max, fire: rnd(S) < 0.62, k: Math.floor(rnd(S) * 1e6) });
+  }
+  function fade(r) { return Math.max(0, Math.min(1, (r.max - r.life) / 0.5, r.life / 0.5)); }
+  function muzzle(a) { return [K.PX + Math.cos(a) * K.BARREL, K.PY - Math.sin(a) * K.BARREL]; }
+  function speed(p) { return K.VMIN + (K.VMAX - K.VMIN) * clamp(p, 0, 1); }
+
+  function stepEle(S, h, d) {
+    const e = S.ele;
+    if (e.pause > 0) { e.pause -= h; if (e.pause <= 0) e.dir *= -1; return; }
+    e.x += e.dir * d.eleSp * h; e.walk += d.eleSp * h;
+    if (e.x < K.EMIN) { e.x = K.EMIN; e.dir = 1; }
+    if (e.x > K.EMAX) { e.x = K.EMAX; e.dir = -1; }
+    // ときどき立ち止まって鼻を上げ（予兆 0.5秒）、向きを変える
+    if (!S.peek && e.x > K.EMIN + 24 && e.x < K.EMAX - 24 && rnd(S) < d.turn * h) e.pause = 0.5;
+  }
+  // 象が今の速さのまま歩いたら ahead 秒後にどこにいるか（気まぐれの方向転換は含まない）
+  function eleAt(S, ahead) {
+    let x = S.ele.x, dir = S.ele.dir, pause = S.ele.pause, t = S.t;
+    const h = 1 / 60;
+    for (let s = 0; s < ahead; s += h) {
+      t += h;
+      if (pause > 0) { pause -= h; if (pause <= 0) dir *= -1; continue; }
+      x += dir * diff(t).eleSp * h;
+      if (x < K.EMIN) { x = K.EMIN; dir = 1; }
+      if (x > K.EMAX) { x = K.EMAX; dir = -1; }
+    }
+    return x;
+  }
+  function stepBags(S, h, d) {
+    for (const b of S.bags) {
+      b.swv += (-b.sw * 7 - b.swv * 0.9) * h; b.sw += b.swv * h;
+      if (!b.up) { b.drop = Math.min(1, b.drop + h / 1.6); b.life -= h; if (b.life <= 0) b.up = true; }
+      else b.drop -= h / 1.6;
+    }
+    S.bags = S.bags.filter((b) => !(b.up && b.drop <= 0));
+    if (S.bags.filter((b) => !b.up).length < d.bags) addBag(S);
+  }
+  function stepWalkers(S, h, d) {
+    while (S.walkers.length < d.walkers) S.walkers.push({ rope: S.walkers.length, x: -40, dir: 1, cling: 0, step: 0 });
+    for (const w of S.walkers) {
+      if (w.cling > 0) { w.cling -= h; continue; }
+      const sp = d.walkSp * (w.rope ? 0.78 : 1);
+      w.x += w.dir * sp * h; w.step += sp * h;
+      if (w.x > 392 && w.dir > 0) w.dir = -1;
+      if (w.x < 28 && w.dir < 0) w.dir = 1;
+    }
+  }
+  function stepRings(S, h, d) {
+    for (const r of S.rings) r.life -= h;
+    S.rings = S.rings.filter((r) => r.life > 0);
+    S.ringT -= h;
+    if (S.ringT <= 0) { S.ringT = d.ringGap + rnd(S) * 2; if (S.rings.length < d.ringMax) addRing(S); }
+  }
+
+  function fire(S, a, p) {
+    if (S.over || S.phase !== "ready") return false;
+    a = clamp(a, K.AMIN, K.AMAX); S.ang = a;
+    const [mx, my] = muzzle(a);
+    S.shots++; S.wait = 0;
+    const ac = { x: mx, y: my, vx: 0, vy: 0, spin: 0, got: [], fire: false, fall: null, boom: p > 1, t: 0, landDx: 0 };
+    if (p > 1) { ac.vx = Math.cos(a) * 160; ac.vy = -1500; }
+    else {
+      let v = speed(p), aa = a;
+      if (!S.noJit) { const j = diff(S.t).jit; v *= 1 + (rnd(S) - 0.5) * 0.03 * j; aa += (rnd(S) - 0.5) * 0.8 * D * j; }
+      ac.vx = Math.cos(aa) * v; ac.vy = -Math.sin(aa) * v;
+    }
+    S.ac = ac; S.phase = "fly"; S.pt = 0;
+    S.ev.push({ k: "boom", x: mx, y: my, a, over: p > 1 });
+    return true;
+  }
+  function lose(S, why) {
+    S.hats--; S.misses++; S.streak = 0; S.penalties.push(S.t);
+    S.phase = "miss"; S.pt = 0; S.hold = 1.5;
+    S.ev.push({ k: "miss", why, x: S.ac ? S.ac.x : 0, y: S.ac ? S.ac.y : 0 });
+  }
+  function land(S, dx, nw) {
+    const a = S.ac, center = Math.abs(dx) <= nw * 0.17;
+    const mult = 2 ** a.got.length;
+    let bonus = 0;
+    if (center) { S.streak++; S.centers++; if (S.streak >= 2) bonus = (S.streak - 1) * 100; if (S.bore > 0) S.bore--; }
+    else S.streak = 0;
+    S.bestStreak = Math.max(S.bestStreak, S.streak);
+    const pts = (center ? 300 : 100) * mult + bonus;
+    S.score += pts; S.lands++;
+    if (pts >= S.bestShot) { S.bestShot = pts; S.bestShotT = S.t; }
+    a.landDx = dx; S.phase = "land"; S.pt = 0; S.hold = center ? 1.45 : 1.0;
+    S.ev.push({ k: "land", center, pts, mult, fire: a.fire, streak: S.streak, dx, bonus });
+  }
+  function fly(S, h, d) {
+    const a = S.ac; a.t += h;
+    const py = a.y;
+    if (a.boom) {
+      a.x += a.vx * h; a.y += a.vy * h;
+      if (a.y < K.CEIL) { S.ev.push({ k: "tear", x: a.x }); lose(S, "over"); }
+      return;
+    }
+    a.vy += K.G * h; a.x += a.vx * h; a.y += a.vy * h; a.spin += h * (a.fall ? 2.5 : 8);
+    if (!a.fall) {
+      for (const r of S.rings) {
+        if (fade(r) < 0.6 || a.got.includes(r.id)) continue;
+        if (Math.hypot(a.x - r.x, a.y - r.y) < r.r * 0.8) {
+          a.got.push(r.id); if (r.fire) a.fire = true;
+          S.ev.push({ k: "ring", id: r.id, fire: r.fire, n: a.got.length });
+        }
+      }
+      for (const b of S.bags) {
+        if (b.drop < 1 || b.up) continue;
+        if (Math.hypot(a.x - b.x, a.y - (bagY(S, b) + 4)) < K.BAG_R + K.AC_R) {
+          b.swv += a.vx * 0.012; a.fall = "bag"; a.vx = 0; a.vy = Math.max(a.vy, 160);
+          S.ev.push({ k: "hit", what: "bag", x: a.x, y: a.y });
+          break;
+        }
+      }
+      if (!a.fall) for (const w of S.walkers) {
+        const dx = (a.x - w.x) / 26, dy = (a.y - (K.ROPES[w.rope] - 20)) / 22;
+        if (dx * dx + dy * dy < 1) {
+          a.fall = "walker"; a.vx *= 0.1; a.vy = Math.max(a.vy, 80); w.cling = 1.6;
+          S.ev.push({ k: "hit", what: "walker", x: a.x, y: a.y });
+          break;
+        }
+      }
+    }
+    if (!a.fall && a.vy > 0 && py < K.NET_Y && a.y >= K.NET_Y) {
+      const dx = a.x - S.ele.x, nw = d.netW;
+      if (Math.abs(dx) <= nw / 2) { land(S, dx, nw); return; }
+    }
+    if (a.y >= K.FLOOR || a.x > K.W + 34) { a.y = Math.min(a.y, K.FLOOR); lose(S, a.fall || (a.x > K.W + 34 ? "out" : "floor")); }
+  }
+  function tick(S, h) {
+    if (S.t < HOT && S.t + h >= HOT) S.ev.push({ k: "hot" });
+    S.t += h; S.pt += h;
+    const d = diff(S.t);
+    stepEle(S, h, d); stepBags(S, h, d); stepWalkers(S, h, d); stepRings(S, h, d);
+    if (S.phase === "ready") {
+      S.wait += h;
+      if (S.wait >= d.tick) {
+        S.wait = 0; S.bore++;
+        S.ev.push({ k: "bore", n: S.bore });
+        if (S.bore >= 3) { S.bore = 0; lose(S, "bore"); }
+      }
+    } else if (S.phase === "fly") fly(S, h, d);
+    else if (S.phase === "land" || S.phase === "miss") {
+      if (S.pt >= S.hold) {
+        if (S.hats <= 0) { S.over = true; S.phase = "over"; S.ev.push({ k: "over" }); }
+        else { S.phase = "ready"; S.pt = 0; S.wait = 0; S.ac = null; S.ev.push({ k: "load" }); }
+      }
+    }
+  }
+  function step(S, dt) {
+    while (dt > 1e-6 && !S.over) { const h = Math.min(dt, 1 / 120); tick(S, h); dt -= h; }
+  }
+  return { K, D, HOT, clamp, diff, create, step, fire, muzzle, speed, bagY, fade, eleAt };
+})();
+// </sim>
+
+(() => {
+  const { K, D } = SIM;
+  const C = { hanpu: "#c4b184", hinata: "#dccb9b", ogakuzu: "#cf9358", midori: "#23574a", yamabuki: "#e9b021", botan: "#a8336a",
+    sumi: "#1f302a", kage: "#9b8d68", shimi: "#a8956a", zou: "#7d806b", zou2: "#666b59", ita: "#8a6a45", midori2: "#3d6e5f",
+    oku: "#8c7f5f", kami: "#efe3bd" };
+  const HEAD = '"Rampart One","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif';
+  const BODY = '"Kiwi Maru","Hiragino Maru Gothic ProN","Noto Sans JP",sans-serif';
+  const BEST_KEY = "circus_cannon_best";
+  const $ = (id) => document.getElementById(id);
+  const cv = $("c"), X = cv.getContext("2d");
+  let W = 0, H = 0, dpr = 1, s = 1, ox = 0, oy = 0, side = false, hk = 1;
+  let bg = null, weavePat = null, grainPat = null;
+  let state = "title", paused = false, S = null, now = 0, lastT = 0, overAt = 0;
+  let best = 0, muted = false;
+  try { best = +localStorage.getItem(BEST_KEY) || 0; muted = localStorage.getItem("circus_cannon_mute") === "1"; } catch (e) {}
+  let soots = [], tears = [], fx = [], signs = [], shake = 0, netSag = 0, netSagV = 0, landPose = 0;
+  const aim = { on: false, ang: 72 * D, p: 0, sx: 0, sy: 0, id: null, key: false, lastCreak: 0 };
+  const keys = { up: false, down: false };
+
+  // 揺れのための決まった乱数（描くたびに同じ揺れになるよう、物ごとに種を入れ直す）
+  let rs = 11;
+  const rr = () => ((rs = (rs * 16807) % 2147483647) / 2147483647);
+  const jj = (a) => (rr() * 2 - 1) * a;
+  const clamp = SIM.clamp;
+  function P(pts, amt = 0.6, close = true) {
+    const p = new Path2D();
+    pts.forEach((q, i) => (i ? p.lineTo(q[0] + jj(amt), q[1] + jj(amt)) : p.moveTo(q[0] + jj(amt), q[1] + jj(amt))));
+    if (close) p.closePath();
+    return p;
+  }
+  // 筆の線: 入りが太く、抜きが細い面
+  function brushPts(pts, w0, w1 = w0 * 0.3) {
+    const L = [], R = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      let dx = b[0] - a[0], dy = b[1] - a[1]; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      const t = i / (pts.length - 1), w = ((w0 + (w1 - w0) * t) / 2) * (0.88 + rr() * 0.24);
+      L.push([pts[i][0] - dy * w, pts[i][1] + dx * w]); R.unshift([pts[i][0] + dy * w, pts[i][1] - dx * w]);
+    }
+    return L.concat(R);
+  }
+  const Bp = (pts, w0, w1, amt = 0.35) => P(brushPts(pts, w0, w1), amt);
+  function blob(cx, cy, rx, ry, n = 14, rough = 0.12, rot = 0) {
+    const a = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * Math.PI * 2, k = 1 + jj(rough), x = Math.cos(t) * rx * k, y = Math.sin(t) * ry * k;
+      a.push([cx + x * Math.cos(rot) - y * Math.sin(rot), cy + x * Math.sin(rot) + y * Math.cos(rot)]);
+    }
+    return a;
+  }
+  function bez(p0, p1, p2, n = 12) {
+    const a = [];
+    for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; a.push([u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]); }
+    return a;
+  }
+  function seg(a, b, n = 10, sag = 0) {
+    const p = [];
+    for (let i = 0; i <= n; i++) { const t = i / n; p.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + Math.sin(t * Math.PI) * sag]); }
+    return p;
+  }
+  // 版ずれ: 色面を画面上で右下へ 1.8px ずらして置き、墨の輪郭をかぶせる（縮小しても消えないよう表示ピクセルで決める）
+  function regShift(g) {
+    const m = g.getTransform(), det = m.a * m.d - m.b * m.c || 1, vx = 1.8 * dpr, vy = 1.4 * dpr;
+    return [(m.d * vx - m.c * vy) / det, (-m.b * vx + m.a * vy) / det];
+  }
+  function fillAt(g, path, col, off) {
+    g.fillStyle = col;
+    if (off) { const [lx, ly] = regShift(g); g.save(); g.translate(lx, ly); g.fill(path); g.restore(); }
+    else g.fill(path);
+  }
+  function inked(g, path, col, lw = 1.6, off = true) {
+    fillAt(g, path, col, off);
+    g.strokeStyle = C.sumi; g.lineWidth = lw; g.lineJoin = "round"; g.stroke(path);
+  }
+  const ease = (t) => t * t * (3 - 2 * t);
+  // 角を落とす（閉じた折れ線を2回なめらかに）
+  function smooth(pts, it = 2) {
+    let a = pts;
+    for (let k = 0; k < it; k++) {
+      const b = [];
+      a.forEach((p, i) => { const q = a[(i + 1) % a.length]; b.push([p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]); });
+      a = b;
+    }
+    return a;
+  }
+  // 筆の輪郭: 色面（版ずれ）に、入りが太く抜きが細い墨の筆を数本に分けて重ねる（太さ一定の線にしない）
+  function brushInk(g, pts, col, w = 2.6, strokes = 3) {
+    const sp = smooth(pts), n = sp.length;
+    fillAt(g, P(sp, 0.3), col, true);
+    g.fillStyle = C.sumi;
+    const st = Math.floor(rr() * n), len = Math.ceil(n / strokes);
+    for (let k = 0; k < strokes; k++) {
+      const run = [];
+      for (let i = 0; i <= len + 1; i++) run.push(sp[(st + k * len + i) % n]);
+      g.fill(Bp(run, w * (1.1 + rr() * 0.3), w * 0.25, 0.25));
+    }
+  }
+
+  // ---------- 画面の割り付け ----------
+  function layout() {
+    W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    s = Math.min(W / K.W, H / K.H); ox = (W - K.W * s) / 2; oy = (H - K.H * s) / 2;
+    side = ox >= 170;
+    hk = side ? 1 : Math.max(s, 0.93);
+    if (S) S.ringR = ringR();
+    const tl = $("tools").style;
+    if (side) { tl.top = "auto"; tl.bottom = "6px"; tl.left = "8px"; tl.right = "auto"; }
+    else { tl.top = "2px"; tl.bottom = "auto"; tl.left = "auto"; tl.right = "6px"; }
+    buildBG();
+  }
+  const ringR = () => Math.max(28, 25 / s);
+  function offCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return [c, c.getContext("2d")]; }
+  function buildTextures() {
+    // 帆布の織り目: 縦糸と横糸の太さむら（1回だけ作って使い回す）
+    rs = 5;
+    const n = 128, [wc, wg] = offCanvas(n, n), im = wg.createImageData(n, n);
+    const row = [], col = [];
+    for (let i = 0; i < n; i++) { row.push(rr()); col.push(rr()); }
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const tx = col[x >> 1], ty = row[y >> 1], over = ((x >> 1) + (y >> 1)) % 2 ? tx : ty;
+      const v = over * 0.75 + rr() * 0.25, i = (y * n + x) * 4;
+      im.data[i] = 46; im.data[i + 1] = 40; im.data[i + 2] = 24; im.data[i + 3] = v > 0.55 ? (v - 0.55) * 120 : 0;
+    }
+    wg.putImageData(im, 0, 0);
+    weavePat = X.createPattern(wc, "repeat");
+    // おがくずの粒
+    const [gc, gg] = offCanvas(96, 96), gi = gg.createImageData(96, 96);
+    for (let i = 0; i < 96 * 96; i++) {
+      const v = rr(), d = gi.data;
+      if (v < 0.12) { d[i * 4] = 98; d[i * 4 + 1] = 64; d[i * 4 + 2] = 34; d[i * 4 + 3] = 70 + v * 400; }
+      else if (v > 0.95) { d[i * 4] = 236; d[i * 4 + 1] = 200; d[i * 4 + 2] = 140; d[i * 4 + 3] = 90; }
+    }
+    gg.putImageData(gi, 0, 0);
+    grainPat = X.createPattern(gc, "repeat");
+    document.documentElement.style.setProperty("--grain", `url(${wc.toDataURL()})`);
+  }
+
+  // ---------- 動かない背景（天幕・客席・リング）。1回描いて使い回す ----------
+  const RING = { cx: 210, cy: 588, rx: 290, ry: 118 };
+  const ringTopY = (x) => RING.cy - RING.ry * Math.sqrt(Math.max(0, 1 - ((x - RING.cx) / RING.rx) ** 2));
+  const ringBotY = (x) => RING.cy + RING.ry * Math.sqrt(Math.max(0, 1 - ((x - RING.cx) / RING.rx) ** 2));
+  function buildBG() {
+    let g; [bg, g] = offCanvas(W * dpr, H * dpr);
+    const wl = -ox / s - 4, wr = K.W + ox / s + 4, wt = -oy / s - 4, wb = K.H + oy / s + 4;
+    const T = () => g.setTransform(dpr * s, 0, 0, dpr * s, dpr * ox, dpr * oy);
+    T();
+    rs = 11;
+    // 天幕: 中心の柱から放射状に、幅の揃わない布。布ごとに日の透け方が違う
+    const pole = 300, eave = 420;
+    g.fillStyle = C.hanpu; g.fillRect(wl, wt, wr - wl, 480 - wt);
+    const xs = [wl - 80];
+    while (xs[xs.length - 1] < wr + 80) xs.push(xs[xs.length - 1] + 40 + rr() * 56);
+    const tones = [C.hanpu, C.hinata, C.hanpu, C.kage, C.hinata, C.hanpu, C.hanpu, C.kage];
+    for (let i = 0; i < xs.length - 1; i++) {
+      const tone = tones[Math.floor(rr() * tones.length)];
+      const a = [pole + (xs[i] - pole) * 0.1, wt - 30], b = [pole + (xs[i + 1] - pole) * 0.1, wt - 30];
+      const bottom = bez([xs[i + 1], eave + jj(4)], [(xs[i] + xs[i + 1]) / 2, eave + 8 + rr() * 10], [xs[i], eave + jj(4)], 6);
+      g.fillStyle = tone; g.fill(P([a, b, ...bottom], 0.8));
+      g.fillStyle = C.kage; g.fill(Bp(seg(b, [xs[i + 1], eave], 12), 2.2, 1.2, 0.5));
+      g.save(); g.setLineDash([3 + rr() * 2, 2.5 + rr() * 2]); g.strokeStyle = C.sumi; g.globalAlpha = 0.55; g.lineWidth = 1.4;
+      const stop = rr() < 0.4 ? 0.55 + rr() * 0.3 : 1;
+      g.stroke(P(seg([b[0] + 2, wt - 30], [b[0] + 2 + (xs[i + 1] + 3 - b[0] - 2) * stop, wt - 30 + (eave - wt + 30) * stop], 10), 0.5, false));
+      g.restore();
+    }
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = weavePat; g.globalAlpha = 0.9;
+    g.fillRect(0, 0, W * dpr, (oy + 470 * s) * dpr); g.restore();
+    // 日の透けのむら（縁のぼけた明るい所、不揃いに2か所）
+    [[95, 300, 70, 46], [345, 410, 60, 40]].forEach(([x, y, rx, ry]) => {
+      g.save(); g.translate(x, y); g.scale(1, ry / rx); g.rotate(jj(0.4));
+      const gr = g.createRadialGradient(jj(8), jj(8), 0, 0, 0, rx);
+      gr.addColorStop(0, "rgba(220,203,155,.9)"); gr.addColorStop(0.55, "rgba(220,203,155,.5)"); gr.addColorStop(1, "rgba(220,203,155,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore();
+    });
+    // 継ぎ当て3枚（傾き・大きさ不揃い）
+    [[44, 262, 30, 24, -8], [236, 118, 22, 34, 4], [376, 150, 26, 20, 11]].forEach(([x, y, w, h, rot]) => {
+      g.save(); g.translate(x + w / 2, y + h / 2); g.rotate(rot * D);
+      const pts = [[-w / 2, -h / 2], [w / 2, -h / 2 + jj(2)], [w / 2 + jj(2), h / 2], [-w / 2 + jj(2), h / 2 + jj(1)]];
+      g.fillStyle = C.hinata; g.fill(P(pts, 1));
+      g.setLineDash([2.5, 2.2]); g.strokeStyle = C.sumi; g.globalAlpha = 0.55; g.lineWidth = 0.9;
+      g.stroke(P(pts.map((p) => [p[0] * 0.82, p[1] * 0.8]), 0.5)); g.restore();
+    });
+    // 中心の柱（張り綱は揺れる2本だけ、毎フレーム描く。静止の張り綱は飾りとして取った）
+    g.fillStyle = C.ita; g.fill(Bp(seg([pole, wt - 20], [pole + 2, 440], 14), 11, 9, 0.6));
+    g.fillStyle = C.sumi; g.globalAlpha = 0.7; g.fill(Bp(seg([pole + 5, wt - 20], [pole + 6.5, 440], 14), 1.6, 1.2)); g.globalAlpha = 1;
+    // 煤の跡・天井の破れ（その日の興行の跡）
+    soots.forEach((q) => drawSoot(g, q));
+    tears.forEach((q) => drawTear(g, q));
+    // 客席（奥）: 影の地に、顔なしの連れの塊と通路の階段
+    g.fillStyle = C.kage;
+    const top = [];
+    for (let x = wl - 10; x <= wr + 10; x += 18) top.push([x, 396 + Math.sin(x * 0.03) * 4 + jj(2)]);
+    g.fill(P([...top, [wr + 10, 740], [wl - 10, 740]], 0.6));
+    g.fillStyle = C.oku; g.globalAlpha = 0.55;
+    g.fill(P([...top.map((p) => [p[0], p[1] + 2]), [wr + 10, 412], [wl - 10, 412]], 0.8)); g.globalAlpha = 1;
+    // 通路の階段（段の高さも揃えない）
+    let sy = 410;
+    while (sy < 470) { g.fillStyle = C.ita; g.fill(Bp(seg([206, sy], [244, sy + jj(1)], 4), 5, 4)); sy += 9 + rr() * 6; }
+    rs = 23;
+    const clumps = [[14, 420, 2], [66, 412, 3], [128, 428, 2], [168, 410, 4], [262, 416, 2], [300, 432, 3], [346, 410, 2], [392, 424, 3], [-40, 420, 3], [450, 418, 2], [-90, 414, 3], [500, 426, 3]];
+    clumps.forEach(([x, y, n], i) => clump(g, x, y, n, 0.92 + jj(0.1), [C.ita, C.zou2, C.oku, "#7a6c4f"][i % 4]));
+    // リングの外（側の客席）とリングの床
+    g.fillStyle = C.ita; g.fillRect(wl, 640, wr - wl, wb - 640);
+    const ringP = new Path2D(); ringP.ellipse(RING.cx, RING.cy, RING.rx, RING.ry, 0, 0, Math.PI * 2);
+    g.save(); g.clip(ringP);
+    g.fillStyle = C.ogakuzu; g.fillRect(wl, 400, wr - wl, 320);
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = grainPat; g.globalAlpha = 0.9; g.fillRect(0, 0, W * dpr, H * dpr); g.restore();
+    // 奥の影（波打たせる）
+    const sh = []; for (let x = -90; x <= 520; x += 22) sh.push([x, ringTopY(clamp(x, -79, 499)) + 18 + Math.sin(x * 0.045) * 6 + jj(3)]);
+    g.fillStyle = C.kage; g.globalAlpha = 0.35; g.fill(P([[-90, 400], [520, 400], ...sh.reverse()], 1)); g.globalAlpha = 1;
+    // 象の通り道: 踏まれて濃くなった帯（足元から左右の折り返し点まで）
+    rs = 41;
+    // 縁を波打たせ、両端はかすれて消える（四角い影にしない）
+    g.fillStyle = C.ita;
+    const x0 = K.EMIN - 74, x1 = K.EMAX + 66, up = [], dn = [];
+    for (let x = x0; x <= x1; x += 9) {
+      const e = Math.min(1, (x - x0) / 40, (x1 - x) / 40), mid = 663 + Math.sin(x * 0.05) * 1.5;
+      up.push([x, mid - (5 + 6 * e) + Math.sin(x * 0.19) * 1.8 + jj(1.2)]); dn.unshift([x, mid + (4 + 7 * e) + Math.sin(x * 0.13 + 1) * 2 + jj(1.2)]);
+    }
+    g.globalAlpha = 0.24; g.fill(P([...up, ...dn], 0.8));
+    g.globalAlpha = 0.34;
+    for (let i = 0; i < 46; i++) { const x = x0 + rr() * (x1 - x0), y = 652 + rr() * 22; g.fill(Bp([[x, y], [x + 8 + rr() * 18, y + jj(1.5)]], 2.4 + rr(), 0.5)); }
+    g.globalAlpha = 1;
+    // 熊手で掻いた跡（途切れる弧を3本。曲がり方は揃えない）
+    g.strokeStyle = C.ita; g.lineWidth = 1.1; g.globalAlpha = 0.5;
+    [[150, 600, 120, 0.22], [80, 560, 150, 0.12], [260, 530, 90, 0.3]].forEach(([x, y, w, bend]) => {
+      for (let k = 0; k < 3; k++) {
+        const yy = y + k * 4.5, a = x + rr() * 12, b = x + w - rr() * 30;
+        g.stroke(P(bez([a, yy], [(a + b) / 2, yy - w * bend], [b, yy + jj(3)], 10), 0.5, false));
+      }
+    });
+    g.globalAlpha = 1;
+    // 前の演目の白墨の印
+    g.fillStyle = C.hinata; g.globalAlpha = 0.85;
+    g.fill(Bp([[178, 640], [196, 650]], 2.6, 1)); g.fill(Bp([[196, 639], [179, 651]], 2.6, 1)); g.globalAlpha = 1;
+    g.restore();
+    // 手前の縁板（楕円の弧に沿う深緑）
+    const rim = []; for (let i = 0; i <= 40; i++) { const t = (i / 40) * Math.PI; rim.push([RING.cx + Math.cos(t) * (RING.rx + 2), RING.cy + Math.sin(t) * (RING.ry + 2)]); }
+    const rimOut = rim.map(([x, y]) => [x, y + 22]).reverse();
+    g.fillStyle = C.midori; g.fill(P([...rim, ...rimOut], 0.5));
+    g.fillStyle = C.midori2; g.globalAlpha = 0.9; g.fill(P(brushPts(rim.slice(6, 35).map(([x, y]) => [x, y + 5]), 3, 1.2), 0.3)); g.globalAlpha = 1;
+    g.strokeStyle = C.sumi; g.lineWidth = 1.6; g.stroke(P(rim, 0.4, false)); g.stroke(P(rimOut, 0.4, false));
+    // 最前段の客（顔あり・姿勢で変える）
+    rs = 57;
+    const front = [[22, 470, "sit", C.midori, 1], [48, 462, "talk", C.ita, 0], [102, 452, "chin", C.zou, 2], [138, 446, "shoulder", C.midori, 0],
+      [176, 444, "sit", C.sumi, 3], [268, 444, "point", C.ita, 0], [306, 446, "sit", C.midori2, 1], [338, 452, "talk", C.zou, 0],
+      [364, 458, "sit", C.sumi, 2], [394, 466, "chin", C.midori, 0], [-24, 480, "sit", C.ita, 1], [446, 476, "talk", C.zou2, 3]];
+    front.forEach(([x, y, pose, col, hat], i) => person(g, x, y - 8, 1, pose, col, hat, i % 3 === 1 ? -1 : 1, i));
+    // 手前の客の後ろ姿（左から）
+    rs = 63;
+    const backs = [[18, 760, 1.3, C.midori], [70, 770, 1.45, C.sumi], [128, 758, 1.25, C.zou2], [186, 772, 1.5, C.midori2], [246, 764, 1.3, C.sumi], [-40, 766, 1.4, C.zou2]];
+    if (side) backs.push([310, 768, 1.35, C.midori], [370, 760, 1.3, C.zou2]);
+    backs.forEach(([x, y, k, col], i) => {
+      g.save(); g.translate(x, y); g.scale(k, k);
+      g.fillStyle = col; g.fill(P([[-22, 30], [-20, 6], [-10, -2], [10, -2], [20, 6], [22, 30]], 0.8));
+      g.fill(P(blob(0, -12, 10, 11, 12, 0.06), 0.5));
+      if (i % 3 === 0) g.fill(P([[-13, -16], [13, -17], [9, -19], [8, -30], [-8, -30], [-9, -19]], 0.5));
+      if (i % 3 === 2) { g.fillStyle = C.sumi; g.fill(P([[-14, -16], [14, -17], [8, -22], [-8, -22]], 0.5)); }
+      g.restore();
+    });
+  }
+  function rope(g, pts, w = 2.4, col = C.ita) {
+    g.fillStyle = col; g.fill(Bp(pts, w, w * 0.85, 0.3));
+  }
+  // 煤の跡。結果のポスターに刷るとき（sootInk）は墨を濃く太くして、撃った数が一目で数えられるようにする
+  let sootInk = false;
+  function drawSoot(g, q) {
+    rs = q.k;
+    const k = sootInk ? 1 : 0;
+    g.save(); g.globalAlpha = 0.55 + k * 0.3; g.fillStyle = k ? C.zou2 : C.shimi;
+    g.fill(P(blob(q.x, q.y, q.r, q.r * 0.7, 16, 0.3), 1.4));
+    g.globalAlpha = 0.3 + k * 0.55; g.fillStyle = C.sumi; g.fill(P(blob(q.x + jj(3), q.y + 1, q.r * (0.55 + k * 0.1), q.r * (0.38 + k * 0.08), 12, 0.35), 1));
+    if (k) { g.globalAlpha = 0.8; g.fill(Bp([[q.x - q.r * 0.3, q.y + q.r * 0.3], [q.x - q.r * 0.1 + jj(2), q.y + q.r * 1.4]], 2.4, 0.4)); }
+    g.globalAlpha = 0.5 + k * 0.3; g.strokeStyle = k ? C.sumi : C.shimi; g.lineWidth = 1.2; g.stroke(P(blob(q.x + jj(3), q.y + 2, q.r * 0.75, q.r * 0.5, 12, 0.3), 1));
+    g.restore();
+  }
+  function drawTear(g, q) {
+    rs = q.k;
+    // 天井の破れ: 裂け目から外の光、下へ垂れた布の端が2〜3枚
+    const y0 = 14, hole = P([[q.x - 20, y0 - 30], [q.x + 18, y0 - 30], [q.x + 14, y0 + 2], [q.x + 4, y0 + 10], [q.x - 6, y0 + 6], [q.x - 16, y0 + 12]], 2.5);
+    g.fillStyle = C.kami; g.fill(hole);
+    g.strokeStyle = C.sumi; g.lineWidth = 1.3; g.stroke(hole);
+    [[q.x - 16, 10, -1], [q.x + 6, 14, 1], [q.x + 15, 11, 0.4]].forEach(([fx, fl, d]) => {
+      const f = P([[fx - 6, y0 + 2], [fx + 6, y0 + 4], [fx + d * 3 + 2, y0 + fl + 8], [fx + d * 3 - 3, y0 + fl + 6]], 1);
+      g.fillStyle = C.kage; g.fill(f); g.strokeStyle = C.sumi; g.lineWidth = 1; g.stroke(f);
+    });
+  }
+  function clump(g, x, y, n, k, col) {
+    g.save(); g.translate(x, y); g.scale(k, k); g.fillStyle = col;
+    let cx = 0;
+    for (let i = 0; i < n; i++) {
+      const hh = -16 - rr() * 3 - (i % 2 ? 0 : 2), big = 1 + jj(0.12);
+      g.fill(P([[cx - 10 * big, 8], [cx - 9 * big, -6], [cx - 4, hh + 9], [cx + 4, hh + 9], [cx + 9 * big, -6], [cx + 10 * big, 8]], 0.6));
+      g.fill(P(blob(cx + jj(1.5), hh, 5.4 * big, 6 * big, 10, 0.07), 0.3));
+      cx += 12 + rr() * 4;
+    }
+    g.restore();
+  }
+  // 最前段の客: 目の位置・向き・顔の大きさを1人ずつ変え、3人に1人は表情を変える。帽子は頭の傾きに合わせる
+  function person(g, x, y, k, pose, col, hat, flip, i) {
+    g.save(); g.translate(x, y); g.scale(k * flip, k);
+    const ty = pose === "point" ? -10 : 0;
+    g.fillStyle = col; g.fill(P([[-11, 2], [-10, -9 + ty], [-4, -12 + ty], [5, -12 + ty], [10, -9 + ty], [12, 2]], 0.7));
+    if (pose === "point") g.fill(Bp([[6, -18], [16, -28], [22, -36]], 3.4, 2));
+    if (pose === "chin") g.fill(Bp([[-9, -2], [-8, -11], [-4, -15]], 3.4, 2.4));
+    const hx = pose === "talk" ? 3 : 0, hy = -18 + ty, rx = 5.8 * (1 + jj(0.15)), ry = 6.4 * (1 + jj(0.15)), tilt = jj(0.22) + (pose === "chin" ? 0.25 : 0);
+    g.save(); g.translate(hx, hy); g.rotate(tilt);
+    g.fillStyle = C.hinata; g.fill(P(blob(0, 0, rx, ry, 10, 0.08), 0.4));
+    const look = pose === "talk" ? 2 : jj(1.5), ey = -0.6 + jj(1.5);
+    g.fillStyle = C.sumi; g.strokeStyle = C.sumi; g.lineWidth = 0.8;
+    if (i % 3 === 2) { // 目を閉じて口を開ける／眉を上げる
+      g.stroke(P([[look - 3.2, ey], [look - 1.2, ey + 0.6]], 0.1, false)); g.stroke(P([[look + 1.2, ey + 0.6], [look + 3.2, ey]], 0.1, false));
+      if (i % 2) g.fill(P(blob(look * 0.5, 3, 1.3, 1.6, 8, 0.1), 0.1));
+      else { g.stroke(P([[look - 3.4, ey - 2.6], [look - 1.4, ey - 3.2]], 0.1, false)); g.stroke(P([[look + 1.4, ey - 3.2], [look + 3.4, ey - 2.4]], 0.1, false)); }
+    } else if (pose === "talk") {
+      g.beginPath(); g.arc(look + 1, ey, 0.85, 0, 7); g.fill();
+      g.stroke(P([[rx - 0.5, 1], [rx + 1.5, 2.2], [rx - 0.5, 2.8]], 0.1, false));
+    } else {
+      g.beginPath(); g.arc(look - 2.1, ey, 0.85, 0, 7); g.arc(look + 2.2, ey - 0.3 + jj(0.4), 0.85, 0, 7); g.fill();
+    }
+    if (hat === 1) { g.fillStyle = C.sumi; g.fill(P([[-8, -ry + 3], [8, -ry + 2], [5, -ry + 1], [4, -ry - 6], [-5, -ry - 6], [-5, -ry + 1]], 0.4)); }
+    if (hat === 2) { g.fillStyle = C.ita; g.fill(P([[-7, -ry + 4], [-6, -ry - 1], [0, -ry - 3], [7, -ry], [8, -ry + 6], [5, -ry + 2], [-4, -ry + 1]], 0.4)); }
+    if (hat === 3) { g.fillStyle = C.midori2; g.fill(P([[-11, -ry + 3], [11, -ry + 2], [7, -ry], [3, -ry - 4], [-4, -ry - 4], [-7, -ry]], 0.4)); }
+    g.restore();
+    if (pose === "shoulder") {
+      g.fillStyle = C.midori2; g.fill(P([[-6, -24], [-4, -31], [4, -31], [6, -24]], 0.5));
+      g.fill(Bp([[-5, -27], [-9, -19]], 2.6, 1.8)); g.fill(Bp([[4, -30], [11, -41]], 2.4, 1.4));
+      g.fillStyle = C.hinata; g.fill(P(blob(0, -35, 4.2, 4.8, 9, 0.08), 0.3));
+      g.fillStyle = C.sumi; g.beginPath(); g.arc(1.4, -36, 0.7, 0, 7); g.arc(-1.6, -35.6, 0.7, 0, 7); g.fill();
+    }
+    g.restore();
+  }
+
+  // ---------- 動く物 ----------
+  function drawElephant(x, flip, trunkUp, walk) {
+    const sc = 1.15, yb = 630;
+    X.save(); X.translate(x + 6 * flip * -1, yb); X.scale(sc * flip, sc);
+    rs = 101;
+    const legs = [[-28, 0, 13], [-10, 2, 12], [18, 2, 12], [34, 0, 13]];
+    const ph = Math.sin(walk * 0.16);
+    legs.forEach(([lx, ly, w], i) => {
+      const lift = (i % 2 ? ph : -ph) * 1.8;
+      const d = [[lx - w / 2, ly - 10], [lx + w / 2, ly - 10], [lx + w / 2, ly + 28 - Math.max(0, lift)], [lx - w / 2, ly + 28 - Math.max(0, lift)]];
+      brushInk(X, d, i % 2 ? C.zou2 : C.zou, 2, 2);
+    });
+    const body = [[-36, -40], [-18, -50], [8, -52], [32, -46], [46, -30], [48, -8], [44, 6], [-30, 8], [-40, -10]];
+    brushInk(X, body, C.zou, 2.8, 3);
+    const head = [[-34, -42], [-48, -46], [-62, -36], [-64, -18], [-58, -6], [-46, -4], [-36, -14]];
+    brushInk(X, head, C.zou, 2.6, 2);
+    const tr = trunkUp ? [[-60, -16], [-70, -24], [-76, -40], [-72, -52], [-66, -50]] : [[-60, -14], [-66, 2], [-68, 18], [-62, 30], [-56, 28]];
+    const trunk = Bp(tr, 11, 4, 0.3);
+    fillAt(X, trunk, C.zou, true);
+    // 鼻の上側と下側を、根元が太く先が細い筆で
+    const tb = brushPts(tr, 11, 4), hl = tb.length / 2;
+    X.fillStyle = C.sumi; X.fill(Bp(tb.slice(0, hl), 2.8, 0.6, 0.2)); X.fill(Bp(tb.slice(hl), 0.7, 2.4, 0.2));
+    const ear = [[-40, -40], [-26, -38], [-22, -20], [-30, -6], [-40, -12]];
+    brushInk(X, ear, C.zou2, 2.2, 2);
+    X.fillStyle = C.sumi; X.fill(P(blob(-52, -30, 2, 2.4, 8, 0.1), 0.2));
+    X.fillStyle = C.botan; X.fill(P([[-50, -46], [-36, -50], [-30, -40], [-46, -36]], 0.6));
+    X.fillStyle = C.sumi; X.fill(Bp([[46, -24], [54, -12], [53, 2]], 2.6, 1));
+    X.globalAlpha = 0.6;
+    for (let k = 0; k < 7; k++) { const sx = -20 + rr() * 56, sy = -36 + rr() * 34; X.fill(Bp([[sx, sy], [sx + 4 + rr() * 3, sy + 2 + jj(2)]], 1.5, 0.3)); }
+    X.globalAlpha = 1;
+    X.restore();
+  }
+  // 受け網: 象の背の上で袋のようにたわむ面＋粗い網目の筆の線、縁は太い麻縄、支えは深緑の棒
+  function drawNet(x, w, sagD) {
+    const y = K.NET_Y;
+    rs = 131;
+    [[x - w / 2 + 4, -1], [x + w / 2 - 4, 1]].forEach(([px, dd]) => { X.fillStyle = C.midori; X.fill(Bp([[px + dd * 3, y + 30], [px, y - 2]], 5.5, 3.6)); });
+    const L = [x - w / 2, y], R = [x + w / 2, y];
+    const under = bez(R, [x, y + sagD * 2.3], L, 16), rim = bez(L, [x, y - 5], R, 16);
+    const bag = P([...rim, ...under.slice(1)], 0.5);
+    X.fillStyle = C.kage; X.save(); X.translate(1.8 / s, 1.4 / s); X.fill(bag); X.restore();
+    X.fillStyle = C.hinata; X.fill(bag);
+    const sag = (t) => 4 * sagD * 1.15 * t * (1 - t);
+    let t0 = 0.06;
+    X.fillStyle = C.sumi;
+    while (t0 < 0.95) {
+      const xa = x - w / 2 + t0 * w, tb = Math.min(0.98, t0 + 0.16), xb = x - w / 2 + tb * w, tc = Math.max(0.02, t0 - 0.12), xc = x - w / 2 + tc * w;
+      X.globalAlpha = 0.75; X.fill(Bp([[xa, y - 1], [(xa + xb) / 2, y + sag((t0 + tb) / 2) * 0.8], [xb, y + sag(tb) * 0.95]], 1.5, 0.6));
+      X.globalAlpha = 0.6; X.fill(Bp([[xa + 2, y - 1], [(xa + xc) / 2, y + sag((t0 + tc) / 2) * 0.75], [xc, y + sag(tc) * 0.95]], 1.3, 0.5));
+      t0 += 0.09 + rr() * 0.07;
+    }
+    X.globalAlpha = 1;
+    X.strokeStyle = C.sumi; X.lineWidth = 1.6; X.stroke(P(under, 0.5, false));
+    rope(X, rim, 5, C.ita);
+    X.lineWidth = 1; X.globalAlpha = 0.7; X.stroke(P(rim, 0.4, false)); X.globalAlpha = 1;
+  }
+  function drawCannon(ang, pull, shakeA, loaded, kick) {
+    const x0 = K.PX, y0 = K.PY + 10, sink = Math.min(pull, 1.2) * 3;
+    X.save(); X.translate(x0, y0 + sink);
+    rs = 151;
+    brushInk(X, [[-34, -6], [30, -12], [36, 2], [-30, 8]], C.midori, 2.4, 2);
+    X.save();
+    const pb = Math.min(pull, 1.25) * 7;
+    X.translate(-pb * Math.cos(ang), pb * Math.sin(ang) * 0.6);
+    X.translate(0, -10); X.rotate(-ang + (shakeA ? Math.sin(now * 61) * shakeA * 0.012 : 0)); X.translate(shakeA ? Math.sin(now * 47) * shakeA * 0.6 : 0, 10);
+    rs = 157;
+    brushInk(X, [[-26, -24], [62, -20], [64, -18], [64, 2], [62, 4], [-26, 6], [-34, -2], [-34, -16]], C.botan, 2.8, 3);
+    [[-10, 11], [24, 9], [52, 8]].forEach(([bx, bw]) => inked(X, P([[bx, -22.5], [bx + bw, -21.5], [bx + bw, 4.5], [bx, 5.5]], 0.4), C.yamabuki, 1.3));
+    inked(X, P([[64, -21], [72, -23], [72, 5], [64, 3]], 0.4), C.midori, 1.5);
+    X.fillStyle = C.sumi; X.fill(P([[66, -18], [69, -18], [69, 0], [66, 0]], 0.3));
+    X.fillStyle = C.hinata; X.globalAlpha = 0.5; X.fill(Bp([[-18, -17], [20, -16], [56, -15]], 3.2, 0.8)); X.globalAlpha = 1;
+    if (loaded) {
+      if (kick) { // 待ちくたびれて足をばたつかせる（退屈の予兆）
+        const k1 = Math.sin(now * 16) * 5, k2 = Math.sin(now * 16 + 2) * 5;
+        X.fillStyle = C.botan; X.strokeStyle = C.sumi; X.lineWidth = 1.1;
+        [[-6, k1], [6, k2]].forEach(([oy2, kk]) => { const p = Bp([[70, -9 + oy2 * 0.6], [82, -9 + oy2 + kk * 0.3], [88, -9 + oy2 * 1.4 + kk]], 4.5, 3.4); X.fill(p); X.stroke(p); });
+      } else {
+        X.save(); X.translate(78, -9); X.rotate(ang - 0.2);
+        inked(X, P(blob(0, 0, 5.6, 6, 10, 0.06), 0.3), C.hinata, 1.2);
+        X.fillStyle = C.sumi; X.fill(P([[-5, -3], [-2, -7], [4, -6], [6, -2], [0, -4]], 0.2));
+        X.restore();
+      }
+    }
+    X.restore();
+    // 車輪（道具馬車の放射のスポーク）
+    rs = 163;
+    const wx = -6, wy = 8, R = 22, rot = -pull * 0.25;
+    inked(X, P(blob(wx, wy, R, R, 22, 0.03), 0.4), C.yamabuki, 2);
+    X.fillStyle = C.midori;
+    for (let k = 0; k < 9; k++) { const t = (k / 9) * Math.PI * 2 + 0.2 + rot + jj(0.05); X.fill(Bp([[wx, wy], [wx + Math.cos(t) * (R - 3), wy + Math.sin(t) * (R - 3)]], 4, 1.4)); }
+    X.strokeStyle = C.sumi; X.lineWidth = 1; X.stroke(P(blob(wx, wy, R - 3, R - 3, 20, 0.03), 0.3));
+    inked(X, P(blob(wx, wy, 5.5, 5.5, 10, 0.08), 0.3), C.botan, 1.3);
+    X.restore();
+  }
+  // 曲芸師: spread（回っている途中）/ star（大の字の決めポーズ）/ sit（尻もち）
+  function drawAcrobat(x, y, rot, pose) {
+    X.save(); X.translate(x, y); X.rotate(rot);
+    rs = 171;
+    const limbs = pose === "star" ? [[[-5, -8], [-14, -20], [-18, -30]], [[5, -8], [14, -20], [18, -30]], [[-4, 5], [-10, 16], [-14, 25]], [[4, 5], [10, 16], [14, 25]]]
+      : pose === "sit" ? [[[-5, -8], [-14, -4], [-20, 2]], [[5, -8], [14, -12], [20, -18]], [[-4, 5], [-14, 8], [-24, 6]], [[4, 5], [14, 8], [24, 4]]]
+      : [[[-5, -8], [-18, -16], [-24, -14]], [[5, -8], [17, -2], [22, 4]], [[-4, 5], [-10, 18], [-8, 26]], [[4, 5], [14, 14], [22, 14]]];
+    limbs.forEach((l, i) => { const p = Bp(l, 5.6, 3.6, 0.3); fillAt(X, p, i < 2 ? C.hinata : C.botan, true); X.strokeStyle = C.sumi; X.lineWidth = 1.2; X.stroke(p); });
+    inked(X, P([[-6, -12], [6, -12], [7, 6], [-7, 6]], 0.4), C.botan, 1.4);
+    X.fillStyle = C.midori; X.fill(P([[-7, -3], [7, -3], [7, 1], [-7, 1]], 0.3));
+    inked(X, P(blob(0, -18, 6, 6.5, 12, 0.06), 0.3), C.hinata, 1.4);
+    X.fillStyle = C.sumi; X.fill(P([[-6, -21], [-2, -26], [5, -25], [6, -20], [0, -22]], 0.3));
+    X.restore();
+  }
+  function drawBag(b) {
+    const by = b.drop >= 1 && !b.up ? SIM.bagY(S, b) : -60 + (SIM.bagY(S, b) + 60) * ease(clamp(b.drop, 0, 1));
+    const top = -oy / s - 4, x = b.x, rot = b.sw;
+    X.save(); X.translate(x, top); X.rotate(-rot);
+    const len = by - top;
+    rs = 181 + Math.round(b.x);
+    rope(X, seg([0, 0], [1, len - 18], 10), 2, C.sumi);
+    X.translate(0, len);
+    inked(X, P([[-6, -20], [6, -20], [9, -12], [15, 4], [13, 16], [0, 20], [-13, 16], [-15, 4], [-9, -12]], 0.6), C.ita, 1.7);
+    X.fillStyle = C.sumi; X.fill(P([[-7, -16], [7, -16], [7, -13], [-7, -13]], 0.3));
+    X.fillStyle = C.hinata; X.fill(P(blob(0, 4, 10, 10, 12, 0.08), 0.5));
+    X.fillStyle = C.botan; X.fill(Bp([[-6, -2], [6, 10]], 3.8, 2.4)); X.fill(Bp([[6, -2], [-6, 10]], 3.8, 2.4));
+    X.restore();
+  }
+  function drawTightrope(w) {
+    const y = K.ROPES[w.rope], wl = -ox / s - 4, wr = K.W + ox / s + 4;
+    rs = 191 + w.rope;
+    const sagAt = (x) => 6 * Math.exp(-(((x - w.x) / 120) ** 2));
+    const pts = []; for (let x = wl; x <= wr; x += 20) pts.push([x, y + sagAt(x)]);
+    X.fillStyle = C.sumi; X.globalAlpha = 0.85; X.fill(Bp(pts, 1.8, 1.4, 0.2)); X.globalAlpha = 1;
+    // 演者: 長い平均棒の横一文字
+    const cl = w.cling > 0;
+    X.save(); X.translate(w.x, y + sagAt(w.x));
+    if (cl) { X.rotate(Math.PI); X.translate(0, -6); }
+    const bob = cl ? 0 : Math.sin(w.step * 0.25) * 1.2;
+    rs = 197 + w.rope;
+    X.fillStyle = C.sumi; X.fill(Bp(bez([-34, -18 + bob], [0, -26], [34, -16 - bob], 10), 2.6, 2.2, 0.2));
+    [[-34, -18 + bob], [34, -16 - bob]].forEach(([px, py]) => { X.fillStyle = C.botan; X.fill(P(blob(px, py, 3.4, 3.4, 8, 0.1), 0.2)); X.strokeStyle = C.sumi; X.lineWidth = 0.8; X.stroke(P(blob(px, py, 3.4, 3.4, 8, 0.1), 0.2)); });
+    inked(X, P([[-4, -24], [4, -24], [10, -8], [-10, -8]], 0.5), C.midori2, 1.3);
+    X.fillStyle = C.sumi; X.fill(Bp([[-2, -8], [-3 + (cl ? 0 : Math.sin(w.step * 0.25) * 1.5), 0]], 2.8, 1.8)); X.fill(Bp([[2, -8], [3 - (cl ? 0 : Math.sin(w.step * 0.25) * 1.5), 0]], 2.8, 1.8));
+    inked(X, P(blob(0, -29, 4.6, 5, 10, 0.06), 0.3), C.hinata, 1.2);
+    X.fillStyle = C.sumi; X.fill(P([[-4, -32], [0, -36], [5, -33], [1, -31]], 0.2));
+    X.restore();
+  }
+  // 火の輪・吊り輪。炎は上半分だけ5〜6本、根元の間隔は不揃い、1本ずつ揺れの位相と周期が違う
+  const ringLook = {};
+  function lookOf(r) {
+    if (ringLook[r.id]) return ringLook[r.id];
+    rs = 1 + (r.k % 99991);
+    const n = r.fire ? (rr() < 0.5 ? 5 : 6) : 0, lean = (rr() < 0.5 ? 1 : 0.6) * (rr() < 0.3 ? -1 : 1);
+    const gaps = []; for (let i = 0; i < n - 1; i++) gaps.push(0.6 + rr()); const tot = gaps.reduce((a, b) => a + b, 0);
+    const span = 2.45, start = -Math.PI / 2 - span / 2 + jj(0.12);
+    const fl = []; let acc = 0;
+    for (let i = 0; i < n; i++) {
+      const t = start + (span * acc) / (tot || 1); if (i < n - 1) acc += gaps[i];
+      const mid = 1 - Math.abs(t + Math.PI / 2) / 1.4;
+      fl.push({ t, L: (0.24 + mid * 0.66) * (0.7 + rr() * 0.6), w: 0.16 + mid * 0.1 + rr() * 0.05, ln: lean * (0.5 + rr() * 1.1), ph: rr() * 6.28, per: 0.45 + rr() * 0.5 });
+    }
+    return (ringLook[r.id] = { fl, wraps: [0.4, 0.85, 1.3, 1.9, 2.5].map((v) => v + jj(0.12)), seed: r.k % 9973 });
+  }
+  function drawRing(r) {
+    const a = SIM.fade(r);
+    if (a <= 0) return;
+    const lk = lookOf(r), R = Math.max(r.r, 24 / s), top = -oy / s - 4;
+    const sw = Math.sin(now * 1.3 + r.id) * 0.02 + (r.kick || 0) * Math.sin((now - (r.kickT || 0)) * 9) * Math.max(0, 1 - (now - (r.kickT || 0)) * 1.4) * 0.15;
+    X.save(); X.globalAlpha = a; X.translate(r.x, top); X.rotate(sw); X.translate(0, r.y - top);
+    rs = lk.seed + 3;
+    X.fillStyle = C.sumi; X.fill(Bp(seg([0, top - r.y], [0, -R * 1.05], 6), 1.8, 1.4, 0.2));
+    const ring = blob(0, 0, R, R * 1.05, 30, 0.015);
+    X.strokeStyle = C.sumi; X.lineWidth = 4.4; X.stroke(P(ring, 0.4));
+    X.strokeStyle = C.ita; X.lineWidth = 1.9; X.stroke(P(ring, 0.3));
+    X.strokeStyle = C.hinata; X.lineWidth = 1.1; X.globalAlpha = a * 0.8;
+    lk.wraps.forEach((t) => { const cx = Math.cos(t) * R, cy = Math.sin(t) * R * 1.05; X.beginPath(); X.moveTo(cx - 2.6, cy - 1.6); X.lineTo(cx + 2.4, cy + 1.8); X.stroke(); });
+    X.globalAlpha = a;
+    if (r.fire) {
+      X.fillStyle = C.sumi; X.globalAlpha = a * 0.5;
+      [[-0.9, 0.3], [-0.35, 0.2], [-2.6, 0.24]].forEach(([t, L]) => { const cx = Math.cos(t) * R, cy = Math.sin(t) * R * 1.05; X.fill(Bp([[cx, cy], [cx + jj(1), cy - L * R]], 2, 0.4)); });
+      X.globalAlpha = a;
+      lk.fl.forEach((f) => {
+        const bx = Math.cos(f.t) * R, by = Math.sin(f.t) * R * 1.05, osc = Math.sin(now * (6.283 / f.per) + f.ph);
+        const L = R * f.L * (1 + 0.2 * osc), w = R * f.w, ln = f.ln * (1 + 0.35 * Math.sin(now * (6.283 / (f.per * 1.7)) + f.ph * 2));
+        const tx = bx + ln * (2 + L * 0.22), ty = by - L;
+        const p = new Path2D();
+        p.moveTo(bx - w, by + 2);
+        p.quadraticCurveTo(bx - w * 1.1, by - L * 0.5, tx - ln * 2, ty + L * 0.12);
+        p.quadraticCurveTo(tx, ty + 1, tx + ln * 1.2, ty - 1);
+        p.quadraticCurveTo(bx + w * 0.4 + ln * 3, by - L * 0.35, bx + w, by + 2);
+        p.closePath();
+        fillAt(X, p, C.yamabuki, true);
+        X.strokeStyle = C.sumi; X.lineWidth = 1.2; X.lineJoin = "round"; X.stroke(p);
+      });
+    }
+    X.restore();
+  }
+  function drawPuff(f) {
+    const t = now - f.t0, life = 0.62;
+    if (t > life) return false;
+    const sc = (t < 0.12 ? 1.3 - (t / 0.12) * 0.3 : 1) * f.sc, al = t < 0.4 ? 1 : 1 - (t - 0.4) / (life - 0.4);
+    X.save(); X.globalAlpha = al; X.translate(f.x, f.y); X.scale(sc, sc); X.rotate(-0.14);
+    rs = 211;
+    const lobes = [[0, 0, 26], [-26, 6, 17], [24, 8, 18], [-10, -20, 16], [14, -18, 15], [32, -8, 11], [-34, -10, 10], [6, 18, 14]];
+    const sh = lobes.map(([lx, ly, r]) => P(blob(lx, ly, r, r * 0.9, 12, 0.1), 0.8));
+    X.save(); X.translate(3.5, 3); X.fillStyle = C.kage; sh.forEach((p) => X.fill(p)); X.restore();
+    X.strokeStyle = C.sumi; X.lineWidth = 3; sh.forEach((p) => X.stroke(p));
+    X.fillStyle = C.yamabuki; sh.forEach((p) => X.fill(p));
+    X.fillStyle = C.sumi; X.globalAlpha = al * 0.6;
+    [[-30, 0, -22, -6], [18, -24, 26, -18], [-6, 22, 4, 26]].forEach(([a, b, c, d]) => X.fill(Bp([[a, b], [c, d]], 2.2, 0.4)));
+    X.globalAlpha = al;
+    X.font = `34px ${HEAD}`; X.textAlign = "center"; X.textBaseline = "middle"; X.fillStyle = C.sumi;
+    X.fillText(f.word, 0, 2);
+    X.restore();
+    return true;
+  }
+  function hatShape(g, x, y, k, rot, band = C.botan) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.scale(k, k);
+    rs = 223;
+    g.fillStyle = C.sumi; g.fill(P([[-9, -21], [9, -22], [8, -4], [-8, -4]], 0.5));
+    g.fillStyle = band; g.fill(P([[-8.5, -9], [8.5, -9.5], [8.2, -5], [-8.2, -5]], 0.3));
+    g.fillStyle = C.sumi; g.fill(P([[-15, -4], [-8, -6], [8, -6], [15, -4], [13, 0], [-13, 0]], 0.5));
+    g.fillStyle = C.midori2; g.fill(Bp([[-5, -19], [-5.5, -11]], 1.8, 0.5));
+    g.restore();
+  }
+
+  // ---------- 看板（得点・帽子）と端の客（退屈） ----------
+  function boardPath(g, x, y, w, h, seed) {
+    rs = seed;
+    return P([[x, y + 2], [x + w * 0.5, y + jj(1)], [x + w, y + 1], [x + w + 1, y + h - 1], [x + w * 0.5, y + h + 1], [x - 1, y + h]], 0.6);
+  }
+  function drawBoard(g, x, y, w, h, seed) {
+    const p = boardPath(g, x, y, w, h, seed);
+    g.save(); g.translate(2.5, 2.5); g.fillStyle = "rgba(31,48,42,.6)"; g.fill(p); g.restore();
+    g.fillStyle = C.midori; g.fill(p);
+    g.fillStyle = C.midori2; g.globalAlpha = 0.8;
+    for (let k = 0; k < 5; k++) { const yy = y + 6 + rr() * (h - 12); g.fill(Bp(seg([x + 6 + rr() * 20, yy], [x + w - 6 - rr() * 30, yy + jj(2)], 8), 1.3, 0.4)); }
+    g.globalAlpha = 0.55; g.strokeStyle = C.hinata; g.lineWidth = 1.1;
+    g.stroke(P([[x + 5, y + 5], [x + w - 5, y + 5.5], [x + w - 5.5, y + h - 5], [x + 5.5, y + h - 5]], 0.7));
+    g.globalAlpha = 1;
+  }
+  function signText(g, str, x, y, size, align = "left", col = C.yamabuki) {
+    g.font = `${size}px ${HEAD}`; g.textAlign = align; g.textBaseline = "alphabetic";
+    g.fillStyle = C.sumi; g.fillText(str, x + size * 0.06, y + size * 0.06);
+    g.fillStyle = col; g.fillText(str, x, y);
+  }
+  // 数字は1字ずつ同じ送りで置く（桁が増えても揺れない）
+  function scoreText(g, n, x, y, size) {
+    const str = n.toLocaleString("en-US");
+    g.font = `${size}px ${HEAD}`; g.textAlign = "center"; g.textBaseline = "alphabetic";
+    let cx = x;
+    for (const ch of str) {
+      const adv = ch === "," ? size * 0.32 : size * 0.64;
+      g.fillStyle = C.sumi; g.fillText(ch, cx + adv / 2 + size * 0.06, y + size * 0.06);
+      g.fillStyle = C.yamabuki; g.fillText(ch, cx + adv / 2, y);
+      cx += adv;
+    }
+  }
+  const pegs = [];
+  function drawHUD() {
+    X.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const k = hk;
+    let bx, by, bw, bh;
+    if (side) { bw = Math.min(ox - 24, 240); bh = 150; bx = (ox - bw) / 2; by = 14; }
+    else { bw = Math.min(W - 12, 404 * k); bh = 70 * k; bx = (W - bw) / 2; by = Math.max(4, oy + 8 * s); }
+    drawBoard(X, bx, by, bw, bh, 301);
+    const f1 = Math.max(12, 13 * k);
+    X.font = `${f1}px ${BODY}`; X.fillStyle = C.hinata; X.textAlign = "left"; X.textBaseline = "alphabetic";
+    const sc = S ? S.score : 0, centers = S ? S.centers : 0, streak = S ? S.streak : 0;
+    const label2 = streak >= 2 ? `${streak}連続` : `${centers}回`;
+    pegs.length = 0;
+    if (side) {
+      X.fillText("得点", bx + 14, by + 24);
+      scoreText(X, sc, bx + 12, by + 62, 34);
+      X.font = `${f1}px ${BODY}`; X.fillStyle = C.hinata; X.textAlign = "left"; X.fillText("ど真ん中", bx + 14, by + 88);
+      signText(X, label2, bx + 14, by + 114, 21);
+      for (let i = 0; i < 3; i++) pegs.push([bx + bw - 26 - (2 - i) * 32, by + 112]);
+    } else {
+      X.fillText("得点", bx + 16 * k, by + 21 * k);
+      scoreText(X, sc, bx + 14 * k, by + 58 * k, 33 * k);
+      X.font = `${f1}px ${BODY}`; X.fillStyle = C.hinata; X.textAlign = "left"; X.fillText("ど真ん中", bx + bw * 0.42, by + 21 * k);
+      signText(X, label2, bx + bw * 0.42, by + 54 * k, 21 * k);
+      for (let i = 0; i < 3; i++) pegs.push([bx + bw - 26 * k - (2 - i) * 36 * k, by + 50 * k]);
+    }
+    const hats = S ? S.hats : 3;
+    pegs.forEach(([px, py], i) => {
+      X.fillStyle = C.ita; X.strokeStyle = C.sumi; X.lineWidth = 0.9;
+      rs = 311 + i; const peg = P([[px - 2.2 * k, py - 30 * k], [px + 2.2 * k, py - 30 * k], [px + 2.6 * k, py - 23 * k], [px - 2.6 * k, py - 23 * k]], 0.3);
+      X.fill(peg); X.stroke(peg);
+      if (i < hats) hatShape(X, px, py, 1.1 * k, (i - 1) * 0.06);
+    });
+    // 端の3人の客（退屈の目盛り）
+    let qw = 124 * k, qh = 78 * k, qx, qy;
+    if (side) { qw = 132; qh = 84; qx = W - (ox + qw) / 2 - 0; qx = W - ox / 2 - qw / 2; qy = H - qh - 16; }
+    else { qx = ox + 414 * s - qw; qy = Math.min(H - qh - 2, oy + 778 * s - qh); }
+    const kk = side ? 1.06 : k;
+    for (let i = 0; i < 3; i++) {
+      const bore = S ? S.bore : 0, wait = S && S.phase === "ready" && state === "play" ? S.wait : 0;
+      const mood = bore > i ? 2 : bore === i && wait > K.KICK ? 1 : 0;
+      boredFace(qx + qw * (0.2 + i * 0.3), qy + 24 * kk, kk * 1.25, i, mood);
+    }
+    drawBoard(X, qx, qy + 26 * kk, qw, qh - 26 * kk, 331);
+    X.font = `${Math.max(12, 13 * kk)}px ${BODY}`; X.fillStyle = C.hinata; X.textAlign = "center";
+    X.fillText("お客の退屈", qx + qw / 2, qy + qh - 14 * kk);
+  }
+  function boredFace(x, y, k, i, mood) {
+    X.save(); X.translate(x, y); X.scale(k, k);
+    rs = 341 + i;
+    const col = [C.midori2, C.zou, C.ita][i];
+    X.fillStyle = col; X.fill(P([[-11, 4], [-10, -8], [-4, -11], [5, -11], [10, -8], [12, 4]], 0.6));
+    X.save(); X.translate(0, -17); X.rotate(mood === 2 ? -0.15 : mood === 1 ? 0.08 : -0.05);
+    X.fillStyle = C.hinata; X.fill(P(blob(0, 0, 5.8 + i * 0.4, 6.4 - i * 0.3, 10, 0.08), 0.3));
+    X.fillStyle = C.sumi; X.strokeStyle = C.sumi; X.lineWidth = 0.9;
+    if (mood === 0) { X.beginPath(); X.arc(-2.1, -1.4, 0.9, 0, 7); X.arc(2.3, -1.6, 0.9, 0, 7); X.fill(); }
+    else { X.beginPath(); X.moveTo(-3.4, -0.8); X.lineTo(-1, -0.6); X.moveTo(1.2, -0.6); X.lineTo(3.6, -0.9); X.stroke(); }
+    if (mood === 2) X.fill(P(blob(0.3, 3.4, 1.7, 2.3, 8, 0.1), 0.1));
+    if (i === 0) X.fill(P([[-8, -4], [8, -5], [5, -6], [4, -12], [-5, -12], [-5, -6]], 0.3));
+    if (i === 1) { X.fillStyle = C.midori2; X.fill(P([[-11, -4], [11, -5], [7, -7], [3, -11], [-4, -11], [-7, -7]], 0.3)); }
+    if (i === 2) { X.fillStyle = C.ita; X.fill(P([[-7, -3], [-6, -8], [0, -10], [7, -7], [8, 0], [5, -4], [-4, -5]], 0.3)); }
+    X.restore(); X.restore();
+  }
+  // 着地の札（深緑の板に山吹の大きい字。網の上に掛ける）／しくじりの札（日なた色の板に墨の字）
+  function drawSigns() {
+    X.setTransform(dpr, 0, 0, dpr, 0, 0);
+    signs = signs.filter((g) => now - g.t0 < g.life);
+    for (const g of signs) {
+      const t = now - g.t0, drop = t < 0.18 ? 1 - t / 0.18 : 0, al = t > g.life - 0.3 ? (g.life - t) / 0.3 : 1;
+      const sx = ox + g.x * s, sy = oy + g.y * s - drop * 16;
+      X.save(); X.globalAlpha = al; X.translate(sx, sy); X.rotate(g.tilt);
+      if (g.good) {
+        const f = Math.max(20, 24 * s), f2 = Math.max(16, 18 * s);
+        X.font = `${f}px ${HEAD}`;
+        const w = Math.max(X.measureText(g.a).width, g.b ? (X.measureText(g.b).width * f2) / f : 0) + 26, h = g.b ? f + f2 + 22 : f + 18;
+        X.strokeStyle = C.sumi; X.lineWidth = 1.2; X.beginPath(); X.moveTo(-w * 0.32, -h / 2); X.lineTo(-w * 0.18, -h / 2 - 22); X.moveTo(w * 0.32, -h / 2); X.lineTo(w * 0.18, -h / 2 - 22); X.stroke();
+        drawBoard(X, -w / 2, -h / 2, w, h, 351);
+        signText(X, g.a, 0, -h / 2 + f + 6, f, "center");
+        if (g.b) { X.font = `${f2}px ${HEAD}`; signText(X, g.b, 0, -h / 2 + f + f2 + 12, f2, "center", C.hinata); }
+      } else {
+        const f = Math.max(14, 15 * s);
+        X.font = `500 ${f}px ${BODY}`;
+        const w = X.measureText(g.a).width + 22, h = f + 16;
+        rs = 361; const p = P([[-w / 2, -h / 2], [w / 2, -h / 2 + 1], [w / 2 + 1, h / 2], [-w / 2, h / 2 - 1]], 0.6);
+        X.save(); X.translate(2, 2); X.fillStyle = "rgba(31,48,42,.55)"; X.fill(p); X.restore();
+        X.fillStyle = C.hinata; X.fill(p); X.strokeStyle = C.sumi; X.lineWidth = 1.3; X.stroke(p);
+        X.fillStyle = C.sumi; X.textAlign = "center"; X.textBaseline = "middle"; X.fillText(g.a, 0, 1);
+      }
+      X.restore();
+    }
+  }
+
+  // ---------- 音（Web Audio で作る。最初のタップで鳴らし始める） ----------
+  let AC = null, master = null, noiseBuf = null, crowdGain = null;
+  function audioInit() {
+    if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      master = AC.createGain(); master.gain.value = muted ? 0 : 0.8; master.connect(AC.destination);
+      const n = AC.sampleRate * 2; noiseBuf = AC.createBuffer(1, n, AC.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      // 客席のざわめき（小さく1種類だけ）
+      const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const f = AC.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 520; f.Q.value = 0.7;
+      crowdGain = AC.createGain(); crowdGain.gain.value = 0.018;
+      src.connect(f); f.connect(crowdGain); crowdGain.connect(master); src.start();
+    } catch (e) { AC = null; }
+  }
+  function tone(freq, dur, type = "sine", vol = 0.2, slide = 0, delay = 0) {
+    if (!AC) return;
+    const t0 = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  function noise(dur, freq, q, vol, type = "bandpass", delay = 0) {
+    if (!AC) return;
+    const t0 = AC.currentTime + delay, src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    src.buffer = noiseBuf; f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t0, Math.random()); src.stop(t0 + dur + 0.05);
+  }
+  const sfx = {
+    creak(p) { tone(150 + p * 240, 0.06, "triangle", 0.05, 120 + p * 200); noise(0.05, 900 + p * 600, 4, 0.05); },
+    boom() { noise(0.55, 320, 0.8, 0.9, "lowpass"); tone(110, 0.45, "sine", 0.7, 38); noise(0.25, 1400, 1, 0.08, "bandpass", 0.12); },
+    ring() { tone(988, 0.18, "triangle", 0.12); tone(1480, 0.22, "triangle", 0.07, 0, 0.04); },
+    boing() { tone(196, 0.36, "sine", 0.35, 330); tone(262, 0.3, "triangle", 0.1, 180, 0.12); },
+    fanfare() { [[523, 0], [659, 0.13], [784, 0.26], [1047, 0.39]].forEach(([f, d]) => { tone(f, 0.16, "square", 0.05, 0, d); tone(f * 1.005, 0.18, "triangle", 0.1, 0, d); }); tone(784, 0.5, "triangle", 0.09, 0, 0.55); tone(1047, 0.5, "square", 0.04, 0, 0.55); },
+    cheer() { noise(0.7, 900, 0.6, 0.12); },
+    miss() { noise(0.09, 2200, 0.8, 0.35, "highpass"); noise(0.09, 2200, 0.8, 0.3, "highpass", 0.11); tone(900, 0.42, "sine", 0.12, 180, 0.22); },
+    thud() { noise(0.18, 260, 1, 0.5, "lowpass"); tone(90, 0.16, "sine", 0.3, 50); },
+    hat() { tone(320, 0.05, "triangle", 0.12); tone(240, 0.05, "triangle", 0.1, 0, 0.16); },
+    bore() { tone(200, 0.45, "sine", 0.08, 140); },
+    tear() { noise(0.4, 3000, 0.5, 0.25, "highpass"); },
+  };
+
+  // ---------- 出来事 → 演出 ----------
+  function handleEvents() {
+    for (const e of S.ev) {
+      if (e.k === "boom") {
+        shake = 0.22;
+        fx.push({ k: "puff", t0: now, x: e.x + Math.cos(e.a) * 26, y: e.y - Math.sin(e.a) * 26, sc: 0.9, word: e.over ? "ドカン" : "ドン" });
+        sfx.boom();
+        // 煙の当たった所に煤の跡が1つ増える
+        const ty = 200 + Math.random() * 150, tx = clamp(e.x + (e.y - ty) / Math.tan(e.a) + (Math.random() - 0.5) * 30, 16, 404);
+        if (!e.over) fx.push({ k: "soot", at: now + 0.5, q: { x: tx, y: ty, r: 8 + Math.random() * 8, k: 1 + Math.floor(Math.random() * 9e5) } });
+      } else if (e.k === "ring") {
+        const r = S.rings.find((q) => q.id === e.id); if (r) { r.kick = 1; r.kickT = now; }
+        sfx.ring();
+      } else if (e.k === "hit") {
+        sfx.thud();
+        addSign(e.what === "bag" ? "砂袋に当たった" : "綱渡りにぶつかった", e.x, e.y + 40, false);
+      } else if (e.k === "land") {
+        netSagV += e.center ? 110 : 70; landPose = 0;
+        sfx.boing();
+        const a = e.center ? (e.fire ? "大当たり" : "ど真ん中") : "網に着地";
+        const b = `+${e.pts.toLocaleString("en-US")}` + (e.streak >= 2 ? ` ${e.streak}連続` : e.mult > 1 ? ` 輪×${e.mult}` : "");
+        addSign(a, S.ele.x, K.NET_Y - 58, true, b);
+        if (e.center) {
+          if (e.fire) sfx.fanfare(); else sfx.cheer();
+          for (let i = 0; i < 4; i++) fx.push({ k: "toss", t0: now + i * 0.07, x: 120 + Math.random() * 220, y: 440, vx: (Math.random() - 0.5) * 60, vy: -220 - Math.random() * 120, r: Math.random() * 6 });
+        }
+      } else if (e.k === "miss") {
+        sfx.miss();
+        const why = { floor: "網を外した", out: "網を越えて飛んでいった", bag: "", walker: "", over: "引きすぎて暴発した", bore: "お客が退屈して帰った" }[e.why];
+        if (why) addSign(why, e.why === "bore" ? 150 : clamp(e.x, 90, 330), e.why === "bore" ? 540 : e.why === "over" ? 120 : 620, false);
+        if (e.why !== "over" && e.why !== "bore") for (let i = 0; i < 14; i++) fx.push({ k: "dust", t0: now, x: clamp(e.x, 0, 420), y: K.FLOOR, vx: (Math.random() - 0.5) * 140, vy: -60 - Math.random() * 120 });
+        const peg = pegs[S.hats];
+        if (peg) {
+          const wx = (peg[0] - ox) / s, wy = (peg[1] - oy) / s;
+          fx.push({ k: "hat", t0: now, x: wx, y: wy, vx: 30, vy: -60, rot: 0, k2: hk / s });
+          sfx.hat();
+        }
+      } else if (e.k === "bore") { sfx.bore(); }
+      else if (e.k === "hot") { addSign("筒が焼けて、弾がぶれ始めた", 190, 520, false); sfx.thud(); }
+      else if (e.k === "tear") { tears.push({ x: e.x, k: 1 + Math.floor(Math.random() * 9e5) }); drawTear2(tears[tears.length - 1]); sfx.tear(); }
+      else if (e.k === "over") { overAt = now + 0.6; }
+    }
+    S.ev.length = 0;
+  }
+  function addSign(a, x, y, good, b) {
+    signs = signs.filter((g) => g.good !== good);
+    signs.push({ a, b, x, y, good, t0: now, life: good ? 1.5 : 1.7, tilt: (Math.random() - 0.5) * 0.16 });
+  }
+  function bgCtx() { const g = bg.getContext("2d"); g.setTransform(dpr * s, 0, 0, dpr * s, dpr * ox, dpr * oy); return g; }
+  function drawTear2(q) { drawTear(bgCtx(), q); }
+
+  function drawFx(dt) {
+    fx = fx.filter((f) => {
+      if (f.k === "puff") return drawPuff(f);
+      if (f.k === "soot") { if (now >= f.at) { soots.push(f.q); drawSoot(bgCtx(), f.q); return false; } return true; }
+      if (f.k === "smoke") {
+        const t = now - f.t0; if (t > 0.9) return false;
+        X.save(); X.globalAlpha = 0.4 * (1 - t / 0.9); X.fillStyle = C.sumi; rs = f.seed;
+        X.fill(P(blob(f.x + t * f.vx, f.y - t * 40, 3 + t * 9, 2.4 + t * 7, 9, 0.2), 0.6)); X.restore();
+        return true;
+      }
+      if (f.k === "dust") {
+        const t = now - f.t0; if (t > 0.7) return false;
+        X.fillStyle = Math.random() < 0.5 ? C.ita : C.ogakuzu; X.globalAlpha = 1 - t / 0.7;
+        X.fillRect(f.x + f.vx * t, f.y + f.vy * t + 300 * t * t, 2.2, 2.2); X.globalAlpha = 1;
+        return true;
+      }
+      if (f.k === "toss") {
+        const t = now - f.t0; if (t < 0) return true; if (t > 1.1) return false;
+        hatShape(X, f.x + f.vx * t, f.y + f.vy * t + 380 * t * t, 0.55, f.r + t * 8, C.kage);
+        return true;
+      }
+      if (f.k === "hat") {
+        // 看板の掛け釘から落ち、床を転がって画面の外へ
+        f.vy += 900 * dt; f.x += f.vx * dt; f.y += f.vy * dt;
+        const fl = 680;
+        if (f.y > fl) { f.y = fl; f.vy = -Math.abs(f.vy) * 0.35; if (Math.abs(f.vy) < 40) f.vy = 0; f.vx = Math.max(f.vx, 120); f.rot += f.vx * dt * 0.09; }
+        f.k2 = Math.max(0.9, f.k2 + (1 - f.k2) * dt * 3);
+        hatShape(X, f.x, f.y, f.k2, f.rot + (f.y >= fl ? 0 : 0.5 * Math.sin((now - f.t0) * 9)));
+        return f.x < K.W + ox / s + 40;
+      }
+      return false;
+    });
+  }
+
+  // ---------- 1フレーム ----------
+  function aimInfo() {
+    if (aim.on) return { ang: aim.ang, p: aim.p };
+    return { ang: S ? S.ang : 72 * D, p: 0 };
+  }
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (ts - lastT) / 1000)); lastT = ts;
+    if (!paused) now += dt;
+    if (state === "play" && !paused) {
+      if (aim.key) {
+        if (keys.up) aim.ang = clamp(aim.ang + 50 * D * dt, K.AMIN, K.AMAX);
+        if (keys.down) aim.ang = clamp(aim.ang - 50 * D * dt, K.AMIN, K.AMAX);
+        aim.p = Math.min(1.25, aim.p + dt * 0.62); creak();
+      } else if (!aim.on && (keys.up || keys.down) && S.phase === "ready") {
+        S.ang = clamp(S.ang + (keys.up ? 1 : -1) * 50 * D * dt, K.AMIN, K.AMAX);
+      }
+      SIM.step(S, dt);
+      if (S.phase !== "ready" && aim.on) cancelAim();
+      handleEvents();
+      if (overAt && now >= overAt) endGame();
+    } else if (state === "title" && S) { S.wait = 0; SIM.step(S, dt); S.ev.length = 0; }
+    // 網のたわみ（ばね）
+    netSagV += (-(netSag) * 60 - netSagV * 7) * dt; netSag += netSagV * dt;
+    if (shake > 0) shake = Math.max(0, shake - dt);
+    draw(dt);
+  }
+  function draw(dt) {
+    X.setTransform(1, 0, 0, 1, 0, 0);
+    X.drawImage(bg, 0, 0);
+    const shk = shake > 0 ? (shake / 0.22) * 4 : 0;
+    X.setTransform(dpr * s, 0, 0, dpr * s, dpr * (ox + (Math.random() - 0.5) * shk), dpr * (oy + (Math.random() - 0.5) * shk));
+    if (!S) return;
+    const wl = -ox / s - 4, wr = K.W + ox / s + 4, wt = -oy / s - 4;
+    // 揺れる張り綱（何もしていないときの動きはこれ1種類だけ）
+    rs = 401;
+    const sw = Math.sin(now * 0.8) * 3;
+    rope(X, seg([304, wt + 30], [wr + 10, 360], 14, 8 + sw), 2.2, C.ita);
+    rope(X, seg([296, wt + 60], [wl + 30, 410], 14, 12 - sw * 0.7), 1.8, C.ita);
+    S.walkers.forEach(drawTightrope);
+    S.rings.forEach(drawRing);
+    S.bags.forEach(drawBag);
+    // 象と網
+    const e = S.ele, dS = SIM.diff(S.t);
+    drawElephant(e.x, e.dir > 0 ? -1 : 1, e.pause > 0, e.walk);
+    drawNet(e.x, dS.netW, 16 + netSag * 0.3);
+    const a = S.ac;
+    if (S.phase === "land" && a) {
+      let y = K.NET_Y + 2 + netSag * 0.25, pose = "spread", rot = 0.1;
+      if (S.hold > 1.2) { const t = S.pt; if (t < 0.75) y -= Math.sin((t / 0.75) * Math.PI) * 48; pose = "star"; rot = t < 0.75 ? t * 8.4 : 0; }
+      drawAcrobat(e.x + a.landDx, y - 14, rot, pose);
+    }
+    // 大砲
+    const ai = aimInfo(), loaded = S.phase === "ready" && state !== "result";
+    const over = ai.p > 1, shakeA = ai.p > 1 ? 2.6 + (ai.p - 1) * 6 : ai.p > 0.7 ? (ai.p - 0.7) * 2 : 0;
+    drawCannon(ai.ang, ai.p, shakeA, loaded, S.wait > K.KICK && state === "play");
+    // 筒が焼けている（2段目）: 弾込め中の筒口から細い煙。狙いの点も焼け具合だけにじむ
+    if (loaded && !over && dS.jit > 1 && Math.random() < dt * Math.min(9, (dS.jit - 1) * 5)) { const [mx, my] = SIM.muzzle(ai.ang); fx.push({ k: "smoke", t0: now, x: mx, y: my, vx: (Math.random() - 0.5) * 10, seed: 1 + Math.floor(Math.random() * 1e5) }); }
+    if (over && Math.random() < dt * 22) { const [mx, my] = SIM.muzzle(ai.ang); fx.push({ k: "smoke", t0: now, x: mx + Math.random() * 4, y: my, vx: (Math.random() - 0.3) * 20, seed: 1 + Math.floor(Math.random() * 1e5) }); }
+    if (aim.on && S.phase === "ready" && ai.p > 0.02) drawDots(ai.ang, ai.p, dS.jit);
+    // 飛んでいる曲芸師／尻もち
+    if (a && (S.phase === "fly" || (S.phase === "miss" && !a.boom))) {
+      if (S.phase === "miss" && a.y >= K.FLOOR - 1) drawAcrobat(a.x, K.FLOOR - 14, 0, "sit");
+      else if (!a.boom || a.y > 0) drawAcrobat(a.x, a.y, a.spin, "spread");
+    }
+    drawFx(dt);
+    drawSigns();
+    drawHUD();
+  }
+  function drawDots(ang, p, jit = 1) {
+    const [mx, my] = SIM.muzzle(ang), v = SIM.speed(Math.min(p, 1)), vx = Math.cos(ang) * v, vy = Math.sin(ang) * v;
+    const tTot = (vy + Math.sqrt(vy * vy + 2 * K.G * (my - K.NET_Y))) / K.G;
+    const n = 9, over = p > 1;
+    X.fillStyle = C.sumi;
+    for (let i = 1; i <= n; i++) {
+      const t = (tTot / 3) * Math.pow(i / n, 0.85);
+      let x = mx + vx * t, y = my - vy * t + 0.5 * K.G * t * t;
+      if (over) { x += (Math.random() - 0.5) * 9; y += (Math.random() - 0.5) * 9; }
+      rs = 421 + i; X.globalAlpha = over ? 0.4 : 0.85;
+      X.fill(P(blob(x, y, 2.9 - i * 0.12, 2.5 - i * 0.1, 7, 0.2), 0.3));
+      // 焼けた筒: 点のまわりに、ぶれる幅だけ薄いにじみ（先の点ほど広い）
+      if (!over && jit > 1.05) { const r = 2.6 + (jit - 1) * i * 0.55; X.globalAlpha = 0.18; X.fill(P(blob(x, y, r, r * 0.85, 9, 0.25), 0.4)); }
+    }
+    X.globalAlpha = 1;
+  }
+
+  // ---------- 操作 ----------
+  function creak() {
+    if (now - aim.lastCreak > 0.09 && aim.p > 0.03) { aim.lastCreak = now; sfx.creak(Math.min(aim.p, 1.2)); }
+  }
+  function cancelAim() { aim.on = false; aim.key = false; aim.id = null; aim.p = 0; cv.classList.remove("pulling"); }
+  // 引っぱりは表示ピクセルで測る（横画面で世界が小さくなっても、指の移動量は縦と同じ）
+  const PULL0 = 14, PULL_OK = 110;
+  function updatePull(px, py) {
+    const fx2 = aim.sx - px, fy = py - aim.sy, L = Math.min(Math.hypot(fx2, fy), PULL0 + PULL_OK * 1.25);
+    if (L < PULL0) { aim.p = 0; return; }
+    aim.ang = clamp(Math.atan2(fy, fx2), K.AMIN, K.AMAX);
+    aim.p = (L - PULL0) / PULL_OK;
+    creak();
+  }
+  cv.addEventListener("pointerdown", (ev) => {
+    audioInit();
+    if (state !== "play" || paused || !S || S.phase !== "ready" || aim.key) return;
+    ev.preventDefault();
+    aim.on = true; aim.id = ev.pointerId; aim.sx = ev.clientX; aim.sy = ev.clientY; aim.p = 0; aim.ang = S.ang;
+    cv.classList.add("pulling");
+    try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+  });
+  cv.addEventListener("pointermove", (ev) => { if (aim.on && ev.pointerId === aim.id) { ev.preventDefault(); updatePull(ev.clientX, ev.clientY); } });
+  const release = (ev) => {
+    if (!aim.on || ev.pointerId !== aim.id) return;
+    updatePull(ev.clientX, ev.clientY);
+    const p = aim.p, ang = aim.ang;
+    cancelAim();
+    if (p > 0.02 && state === "play" && !paused) SIM.fire(S, ang, p);
+  };
+  cv.addEventListener("pointerup", release);
+  cv.addEventListener("pointercancel", () => cancelAim());
+  addEventListener("keydown", (ev) => {
+    const k = ev.code;
+    if (k === "KeyM") { toggleMute(); return; }
+    if (state === "title" || state === "result") {
+      if ((k === "Enter" || k === "Space") && !ev.repeat) { ev.preventDefault(); if (state === "result" && now < overAt + 0.8) return; start(); }
+      return;
+    }
+    if (k === "KeyP" || k === "Escape") { togglePause(); return; }
+    if (paused) { if (k === "Enter" || k === "Space") { ev.preventDefault(); togglePause(); } return; }
+    if (k === "ArrowUp" || k === "KeyW") { keys.up = true; ev.preventDefault(); }
+    if (k === "ArrowDown" || k === "KeyS") { keys.down = true; ev.preventDefault(); }
+    if (k === "Space") {
+      ev.preventDefault();
+      if (!ev.repeat && !aim.on && S.phase === "ready") { audioInit(); aim.key = true; aim.on = true; aim.p = 0; aim.ang = S.ang; }
+    }
+  });
+  addEventListener("keyup", (ev) => {
+    const k = ev.code;
+    if (k === "ArrowUp" || k === "KeyW") keys.up = false;
+    if (k === "ArrowDown" || k === "KeyS") keys.down = false;
+    if (k === "Space" && aim.key) {
+      const p = aim.p, ang = aim.ang; cancelAim();
+      if (state === "play" && !paused) SIM.fire(S, ang, p);
+    }
+  });
+
+  // ---------- 画面の流れ ----------
+  function showOnly(id) {
+    ["title", "pause", "result"].forEach((n) => ($(n).hidden = n !== id));
+  }
+  function start() {
+    audioInit();
+    S = SIM.create((Math.random() * 2147483646) | 0, ringR());
+    for (const k in ringLook) delete ringLook[k];
+    soots = [0, 1, 2].map((i) => ({ x: [70, 190, 352][i] + Math.random() * 20, y: [190, 140, 250][i] + Math.random() * 30, r: 9 + Math.random() * 6, k: 7 + i * 131 }));
+    tears = []; fx = []; signs = []; overAt = 0; netSag = 0; netSagV = 0;
+    buildBG();
+    state = "play"; paused = false; cancelAim();
+    showOnly(null); $("tools").hidden = false;
+    cv.focus && cv.focus();
+  }
+  function endGame() {
+    overAt = 0; state = "result"; cancelAim();
+    let isNew = false;
+    if (S.score > best) { best = S.score; isNew = S.score > 0; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+    $("rScore").textContent = S.score.toLocaleString("ja-JP");
+    $("rShots").textContent = `${S.shots}人`;
+    $("rCenter").textContent = `${S.centers}回`;
+    $("rStreak").textContent = S.bestStreak >= 2 ? `${S.bestStreak}連続` : "なし";
+    $("rSoot").textContent = `${soots.length}つ`;
+    $("rTime").textContent = `${Math.round(S.t)}秒`;
+    $("rBest").textContent = best.toLocaleString("ja-JP");
+    $("rNew").hidden = !isNew;
+    // その日の天幕を煤の跡ごと刷る
+    const rc = $("rTent"), rg = rc.getContext("2d");
+    const keep = { W, H, ox, oy, s, dpr, side, bg };
+    try {
+      dpr = 2; s = 320 / K.W; W = 320; H = K.H * s; ox = 0; oy = 0; side = false;
+      sootInk = true; buildBG();
+      rc.width = 640; rc.height = Math.round(300 * s * 2);
+      // 帆布の明るい面が白く飛ばないよう、少し締めて刷る
+      try { rg.filter = "contrast(1.2) brightness(0.93)"; } catch (e) {}
+      rg.drawImage(bg, 0, 40 * s * 2, 640, rc.height, 0, 0, rc.width, rc.height);
+      try { rg.filter = "none"; } catch (e) {}
+    } catch (e) {}
+    sootInk = false;
+    ({ W, H, ox, oy, s, dpr, side, bg } = keep);
+    overAt = now;
+    showOnly("result");
+    $("tools").hidden = true;
+    setTimeout(() => { try { $("bAgain").focus({ preventScroll: true }); } catch (e) {} }, 50);
+  }
+  function togglePause() {
+    if (state !== "play") return;
+    paused = !paused; cancelAim();
+    $("pause").hidden = !paused;
+    $("bPause").textContent = paused ? "続ける" : "一時停止";
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.8;
+    $("bMute").textContent = muted ? "音を出す" : "音を消す";
+    try { localStorage.setItem("circus_cannon_mute", muted ? "1" : "0"); } catch (e) {}
+  }
+  $("bStart").addEventListener("click", start);
+  $("bAgain").addEventListener("click", start);
+  $("bResume").addEventListener("click", togglePause);
+  $("bPause").addEventListener("click", (e) => { e.stopPropagation(); togglePause(); });
+  $("bMute").addEventListener("click", (e) => { e.stopPropagation(); audioInit(); toggleMute(); });
+  $("bMute").textContent = muted ? "音を出す" : "音を消す";
+  document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play" && !paused) togglePause(); });
+  addEventListener("resize", layout);
+  $("bestT").textContent = best > 0 ? `これまでの最高 ${best.toLocaleString("ja-JP")}` : "";
+
+  buildTextures();
+  S = SIM.create(20261006, 28);
+  soots = [{ x: 74, y: 196, r: 12, k: 7 }, { x: 196, y: 146, r: 10, k: 138 }, { x: 356, y: 262, r: 13, k: 269 }];
+  layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (bg) buildBG(); });
+  requestAnimationFrame((t) => { lastT = t; frame(t); });
+  window.__cc = { SIM, get S() { return S; }, get state() { return state; }, start };
+})();
+</script>
+</body>
+</html>
