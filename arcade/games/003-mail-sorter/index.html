@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>最終便まで</title>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Kaisei+Opti:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#e9dcc0; --red:#b8322a; --blue:#2f4f8f; --ink:#5b3f6e; --jute:#a4885a; --night:#2a2622;
+  --head:"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif;
+  --body:"Kaisei Opti","Hiragino Sans","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--night);color:var(--night);font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+.screen[hidden]{display:none}
+.env{position:relative;width:min(360px,100%);max-height:calc(100% - 4px);overflow:auto;background:var(--paper);
+  border:11px solid transparent;
+  border-image:repeating-linear-gradient(-45deg,var(--red) 0 13px,var(--paper) 13px 19px,var(--blue) 19px 32px,var(--paper) 32px 38px) 11;
+  padding:clamp(12px,3.2vh,22px) 18px clamp(12px,3vh,20px);transform:rotate(-.7deg);
+  box-shadow:4px 6px 0 rgba(0,0,0,.28)}
+.env::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;background-image:var(--grain)}
+.mark{position:absolute;right:6px;top:6px;width:96px;height:60px;pointer-events:none}
+h1{font-family:var(--head);font-weight:400;font-size:clamp(38px,9.5vh,58px);line-height:1.05;letter-spacing:.02em;
+  text-shadow:1.5px 1px 0 rgba(47,79,143,.45)}
+.sub{font-size:clamp(14px,2.4vh,16px);line-height:1.65;margin-top:clamp(4px,1.2vh,10px);max-width:20em}
+.how{font-size:clamp(13px,2.3vh,15px);line-height:1.65;margin-top:clamp(6px,1.8vh,14px);padding:6px 0 6px 10px;
+  border-left:3px solid var(--blue)}
+.keys{font-size:13px;line-height:1.5;margin-top:6px;color:#5a5047}
+.row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:clamp(8px,2.2vh,16px)}
+button{font-family:var(--head);font-weight:400;font-size:clamp(18px,3.4vh,21px);color:var(--paper);background:var(--blue);border:0;
+  padding:9px 20px 10px;cursor:pointer;border-radius:2px;box-shadow:3px 3px 0 var(--night);transition:transform .07s,box-shadow .07s}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--night)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+button.quiet{background:transparent;color:var(--night);box-shadow:none;font-family:var(--body);font-weight:700;font-size:15px;
+  padding:6px 4px;text-decoration:underline;text-underline-offset:4px}
+.best{font-size:14px;font-variant-numeric:tabular-nums}
+.res h2{font-family:var(--head);font-weight:400;font-size:clamp(24px,5vh,32px);line-height:1.1}
+.res canvas{display:block;width:100%;height:clamp(96px,22vh,170px);margin-top:8px}
+.stats{display:grid;grid-template-columns:repeat(2,auto);justify-content:start;gap:2px 18px;margin-top:8px;font-size:14px}
+.stats b{display:block;font-family:var(--head);font-weight:400;font-size:clamp(20px,4vh,26px);font-variant-numeric:tabular-nums;color:var(--night)}
+.score b{font-size:clamp(28px,6vh,40px)}
+.newbest{color:var(--ink);font-weight:700}
+#hudBtn{position:fixed;top:5px;left:50%;transform:translateX(-50%);width:42px;height:34px;padding:0;background:transparent;
+  box-shadow:none;border:2px solid rgba(233,220,192,.55);border-radius:2px}
+#hudBtn::before,#hudBtn::after{content:"";position:absolute;top:8px;width:5px;height:14px;background:var(--paper)}
+#hudBtn::before{left:13px}#hudBtn::after{right:13px}
+#hudBtn[hidden]{display:none}
+#pause .env{text-align:left}
+@media (orientation:landscape) and (max-height:520px){
+  .env{width:min(560px,100%)}
+  .res .wrap{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:center}
+  .res canvas{height:min(150px,40vh)}
+  .sub{max-width:none}
+  .how{margin-top:6px}
+}
+@media (prefers-reduced-motion:reduce){.env{transform:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="hudBtn" aria-label="一時停止" hidden></button>
+
+<section class="screen" id="title">
+  <div class="env">
+    <canvas class="mark" id="titleMark" width="192" height="120"></canvas>
+    <h1>最終便<br>まで</h1>
+    <p class="sub">夜勤の小さな郵便局。飛行機が来るまでの2分間。</p>
+    <p class="how">切手の印と同じ札の袋へ、封筒をはじく。<br>まちがえると時計が3秒進む。受け箱があふれると手さばきが半分に。</p>
+    <p class="keys">スワイプ／矢印キー・WASD。M で音、P で一時停止</p>
+    <div class="row"><button id="startBtn">勤務につく</button><span class="best" id="bestT"></span></div>
+  </div>
+</section>
+
+<section class="screen res" id="result" hidden>
+  <div class="env">
+    <h2 id="resHead">最終便、出発</h2>
+    <div class="wrap">
+      <canvas id="resCv"></canvas>
+      <div>
+        <div class="stats">
+          <div class="score">得点<b id="rScore">0</b></div>
+          <div>仕分けた通数<b id="rCount">0</b></div>
+          <div>最高の手さばき<b id="rMult">×1.0</b></div>
+          <div>誤配<b id="rMiss">0</b></div>
+        </div>
+        <p class="best" id="rBest" style="margin-top:6px"></p>
+        <div class="row"><button id="againBtn">もう一勤務</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="pause" hidden>
+  <div class="env">
+    <h2 style="font-family:var(--head);font-weight:400;font-size:28px">ひと休み</h2>
+    <p class="how">P か Esc、または下のボタンでつづける。</p>
+    <div class="row"><button id="resumeBtn">つづける</button><button class="quiet" id="muteBtn">音を消す</button></div>
+  </div>
+</section>
+
+<script>
+/*CORE-BEGIN*/
+// ゲームの規則（DOM を使わない。自動プレイのボットもこの部分をそのまま動かす）
+var CORE = (function () {
+  var SHIFT = 120, FINAL = 20, SWAPS = [90, 60, 35], QMAX = 6, PEN = 3, PENMAX = 30;
+  function rng(seed) {
+    var a = seed >>> 0 || 1;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function letter(s) {
+    var r = s.r, p = 0;
+    if (s.clock <= FINAL) p = 0.45; else if (s.clock <= 78) p = 0.12 + (78 - s.clock) / 58 * 0.16;
+    var n = r() < p ? 3 + ((r() * 3) | 0) : 1;
+    var town = (r() * 4) | 0;
+    if (town === s.last && r() < 0.55) town = (r() * 4) | 0;
+    s.last = town;
+    return { town: town, n: n, tint: (r() * 3) | 0, seed: (r() * 1e9) | 0, rot: (r() - 0.5) * 0.09 };
+  }
+  function interval(s) {
+    if (s.clock <= FINAL) return 0.78;
+    return 1.45 - 0.6 * Math.min(1, s.t / 95);
+  }
+  function mult(s) { return Math.min(3, 1 + 0.1 * s.streak); }
+  function newGame(seed) {
+    var r = rng(seed), s = { r: r, t: 0, clock: SHIFT, score: 0, streak: 0, maxMult: 1, sorted: 0, errors: 0, dropped: 0, penalty: 0,
+      queue: [], cur: null, arrive: 0, spawn: 0.9, map: [0, 1, 2, 3], swapIdx: 0, over: false, events: [], returned: false, last: -1 };
+    for (var i = 3; i > 0; i--) { var j = (r() * (i + 1)) | 0, k = s.map[i]; s.map[i] = s.map[j]; s.map[j] = k; }
+    s.queue.push(letter(s));
+    return s;
+  }
+  function update(s, dt) {
+    if (s.over) return;
+    s.t += dt; s.clock -= dt;
+    while (s.swapIdx < SWAPS.length && s.clock <= SWAPS[s.swapIdx]) {
+      var a = (s.r() * 4) | 0, b = (a + 1 + ((s.r() * 3) | 0)) % 4, k = s.map[a];
+      s.map[a] = s.map[b]; s.map[b] = k; s.swapIdx++;
+      s.events.push({ type: "swap", a: a, b: b });
+    }
+    s.spawn -= dt;
+    if (s.spawn <= 0) {
+      s.spawn += interval(s);
+      var nl = letter(s);
+      if (s.queue.length >= QMAX) { // 受け箱があふれた：来た封筒が机から落ち、手さばきが半分になる
+        var m0 = mult(s); s.dropped++; s.streak = Math.floor(s.streak / 2);
+        s.events.push({ type: "drop", item: nl, from: m0, to: mult(s) });
+      } else {
+        s.queue.push(nl);
+        if (s.queue.length === QMAX - 1) s.events.push({ type: "warn" });
+      }
+    }
+    if (!s.cur && s.queue.length) { s.cur = s.queue.shift(); s.arrive = 0.16; s.returned = false; s.events.push({ type: "arrive" }); }
+    if (s.arrive > 0) s.arrive -= dt;
+    if (s.clock <= 0) { s.clock = 0; s.over = true; s.events.push({ type: "end" }); }
+  }
+  function act(s, dir) {
+    if (s.over || !s.cur || s.arrive > 0) return null;
+    var c = s.cur, e;
+    if (s.map[dir] === c.town) {
+      var m = mult(s), fin = s.clock <= FINAL, pts = Math.round(10 * c.n * m * (fin ? 2 : 1));
+      s.score += pts; s.sorted += c.n; s.streak += c.n; s.maxMult = Math.max(s.maxMult, mult(s)); s.cur = null;
+      e = { type: "ok", dir: dir, pts: pts, item: c, mult: m, fin: fin };
+    } else {
+      var pen = Math.max(0, Math.min(PEN, PENMAX - s.penalty)); // 時計が進むのは1勤務で合計30秒まで
+      s.clock -= pen; s.penalty += pen; s.errors++; s.streak = 0; s.returned = true; s.arrive = 0.34;
+      e = { type: "miss", dir: dir, item: c, pen: pen };
+      if (s.clock <= 0) { s.clock = 0; s.over = true; s.events.push(e); e = { type: "end" }; }
+    }
+    s.events.push(e);
+    return e;
+  }
+  return { newGame: newGame, update: update, act: act, mult: mult, SHIFT: SHIFT, FINAL: FINAL, QMAX: QMAX };
+})();
+/*CORE-END*/
+
+(function () {
+"use strict";
+var P = { paper: "#e9dcc0", red: "#b8322a", blue: "#2f4f8f", ink: "#5b3f6e", jute: "#a4885a", night: "#2a2622" };
+var HEAD = '"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif';
+var BODY = '"Kaisei Opti","Hiragino Sans","Noto Sans JP",sans-serif';
+var TOWNS = ["灯台町", "山ノ辺", "麦野", "魚浜"];
+var STAMP = ["#cdd8c0", "#ecd59c", "#c8d2de"];
+var DIRV = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+var $ = function (id) { return document.getElementById(id); };
+var cv = $("c"), g = cv.getContext("2d");
+var W = 0, H = 0, DPR = 1, L = null, desk = null, grain = null;
+var state = "title", S = null, time = 0, last = 0, muted = false;
+var flyers = [], ghosts = [], bags = [{ puff: 0, flip: 0 }, { puff: 0, flip: 0 }, { puff: 0, flip: 0 }, { puff: 0, flip: 0 }];
+var marks = [], miss = null, swapMsg = 0, closeT = 0, hintT = 0, popups = [];
+var falls = [], dropNote = null, multFlash = 0, warnT = 0;
+var drag = null;
+
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+var best = parseInt(store("mail-sorter-best") || "0", 10) || 0;
+
+// ---------- 紙のざらつき（1回だけ作って使い回す） ----------
+function makeGrain() {
+  var c = document.createElement("canvas"); c.width = c.height = 128;
+  var x = c.getContext("2d"), d = x.createImageData(128, 128);
+  for (var i = 0; i < d.data.length; i += 4) {
+    var v = 150 + Math.random() * 105; d.data[i] = v; d.data[i + 1] = v * 0.97; d.data[i + 2] = v * 0.9;
+    d.data[i + 3] = Math.random() < 0.5 ? 40 : 0;
+  }
+  x.putImageData(d, 0, 0);
+  grain = g.createPattern(c, "repeat");
+  try { document.documentElement.style.setProperty("--grain", "url(" + c.toDataURL() + ")"); } catch (e) {}
+}
+
+// ---------- 配置 ----------
+function layout() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  var port = H >= W, hud = port ? 46 : 42;
+  var tb = port ? { w: Math.min(170, W * 0.44), h: Math.min(112, H * 0.13) } : { w: Math.min(190, W * 0.24), h: Math.min(78, H * 0.2) };
+  var sb = port ? { w: Math.min(86, W * 0.22), h: Math.min(170, H * 0.22) } : { w: Math.min(132, W * 0.16), h: Math.min(150, H * 0.42) };
+  var top = { x: W / 2, y: hud + 4 + tb.h / 2, w: tb.w, h: tb.h };
+  var bot = { x: W / 2, y: H - 8 - tb.h / 2, w: tb.w, h: tb.h };
+  var midY = (top.y + tb.h / 2 + bot.y - tb.h / 2) / 2;
+  var rgt = { x: W - 6 - sb.w / 2, y: midY, w: sb.w, h: sb.h };
+  var lft = { x: 6 + sb.w / 2, y: midY, w: sb.w, h: sb.h };
+  var space = (bot.y - tb.h / 2) - (top.y + tb.h / 2);
+  var ew = Math.min(W - 2 * sb.w - 22, 240);
+  var eh = ew * 0.6;
+  if (eh > space - 56) { eh = space - 56; ew = eh / 0.6; }
+  L = { port: port, hud: hud, bags: [top, rgt, bot, lft], cx: W / 2, cy: midY, ew: ew, eh: eh, fs: Math.max(13, Math.min(16, W / 28)) };
+  // 受け箱（待っている封筒の山）。縦画面は封筒の下、横画面は封筒の左
+  var pw, px, py;
+  if (port) { var gy0 = midY + eh / 2, gy1 = bot.y - tb.h / 2; pw = Math.min(ew * 0.46, 96, (gy1 - gy0 - 30) / 0.6 * 0.7); px = W / 2; py = (gy0 + gy1) / 2 + 12; }
+  else { var gx0 = lft.x + sb.w / 2, gx1 = W / 2 - ew / 2; pw = Math.min(ew * 0.46, 96, gx1 - gx0 - 26); px = (gx0 + gx1) / 2; py = midY + 18; }
+  pw = Math.max(46, pw);
+  L.pile = { x: px, y: py, w: pw, h: pw * 0.6 };
+  // 仕分け台（木目）を1回描いておく
+  desk = document.createElement("canvas"); desk.width = cv.width; desk.height = cv.height;
+  var d = desk.getContext("2d"); d.scale(DPR, DPR);
+  d.fillStyle = P.night; d.fillRect(0, 0, W, H);
+  var dx = 4, dy = hud + 2, dw = W - 8, dh = H - hud - 6;
+  d.fillStyle = "#6c573b"; d.fillRect(dx, dy, dw, dh);
+  for (var i = 0; i < dh / 5; i++) {
+    var y = dy + i * 5 + Math.random() * 3;
+    d.strokeStyle = Math.random() < 0.5 ? "rgba(42,38,34,.22)" : "rgba(164,136,90,.22)";
+    d.lineWidth = 0.6 + Math.random() * 1.4;
+    d.beginPath(); d.moveTo(dx, y);
+    for (var x = dx; x <= dx + dw; x += 24) d.lineTo(x, y + Math.sin(x * 0.013 + i) * 1.6 + (Math.random() - 0.5));
+    d.stroke();
+  }
+  d.globalAlpha = 0.35; d.fillStyle = grain; d.fillRect(dx, dy, dw, dh); d.globalAlpha = 1;
+  var v = d.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+  v.addColorStop(0, "rgba(42,38,34,0)"); v.addColorStop(1, "rgba(42,38,34,.75)");
+  d.fillStyle = v; d.fillRect(0, 0, W, H);
+}
+
+// ---------- 町の印 ----------
+function sym(c, town, x, y, s, col) {
+  c.save(); c.translate(x, y); c.scale(s / 40, s / 40);
+  c.fillStyle = col; c.strokeStyle = col; c.lineWidth = 3; c.lineJoin = "round"; c.lineCap = "round";
+  if (town === 0) { // 灯台
+    c.beginPath(); c.moveTo(-7, 17); c.lineTo(-4.5, -9); c.lineTo(4.8, -9); c.lineTo(7.4, 17.5); c.closePath(); c.fill();
+    c.fillStyle = "rgba(233,220,192,.9)"; c.fillRect(-6.2, 1, 12.6, 4); c.fillRect(-5.2, -6, 10.6, 3.2); c.fillStyle = col;
+    c.fillRect(-6, -15, 12, 5); c.beginPath(); c.moveTo(-7, -15); c.lineTo(0, -20.5); c.lineTo(7, -15); c.fill();
+    c.beginPath(); c.moveTo(9, -14); c.lineTo(18, -18); c.moveTo(9, -11); c.lineTo(18, -8); c.moveTo(-9, -14); c.lineTo(-18, -18); c.moveTo(-9, -11); c.lineTo(-18, -8); c.stroke();
+  } else if (town === 1) { // 山
+    c.beginPath(); c.moveTo(-19, 15); c.lineTo(-5, -14); c.lineTo(3, 2); c.lineTo(8, -5); c.lineTo(19.5, 15); c.closePath(); c.fill();
+    c.fillStyle = "rgba(233,220,192,.92)"; c.beginPath(); c.moveTo(-9.5, -5); c.lineTo(-5, -14); c.lineTo(-0.6, -5); c.lineTo(-3, -7.5); c.lineTo(-6.5, -4); c.closePath(); c.fill();
+  } else if (town === 2) { // 麦
+    c.beginPath(); c.moveTo(0, 19); c.quadraticCurveTo(1.5, 2, -0.5, -18); c.stroke();
+    for (var i = 0; i < 4; i++) {
+      var yy = -12 + i * 7;
+      c.save(); c.translate(-0.5, yy); c.rotate(-0.6); c.beginPath(); c.ellipse(-4.5, 0, 5, 2.4, 0, 0, 7); c.fill(); c.restore();
+      c.save(); c.translate(0.5, yy); c.rotate(0.6); c.beginPath(); c.ellipse(4.5, 0, 5, 2.4, 0, 0, 7); c.fill(); c.restore();
+    }
+    c.beginPath(); c.ellipse(-0.5, -18, 2.2, 4, 0, 0, 7); c.fill();
+  } else { // 魚
+    c.beginPath(); c.moveTo(-15, 0); c.quadraticCurveTo(-2, -12, 10, 0.5); c.quadraticCurveTo(-2, 11, -15, 0); c.fill();
+    c.beginPath(); c.moveTo(8, 0); c.lineTo(19, -9); c.lineTo(17, 0.5); c.lineTo(19.5, 9); c.closePath(); c.fill();
+    c.fillStyle = "rgba(233,220,192,.95)"; c.beginPath(); c.arc(-9, -1.5, 2, 0, 7); c.fill();
+    c.strokeStyle = "rgba(233,220,192,.8)"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-4, -6); c.quadraticCurveTo(-1.5, 0, -4, 6); c.stroke();
+  }
+  c.restore();
+}
+
+// ---------- 消印（作るときに1回描いてかすれを付け、以後は画像として押す） ----------
+function makeMark(text, sub, seed) {
+  var r = seed, rnd = function () { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  var c = document.createElement("canvas"); c.width = 192; c.height = 120;
+  var x = c.getContext("2d");
+  function draw(ox, oy, a) {
+    x.save(); x.translate(ox, oy); x.globalAlpha = a; x.strokeStyle = P.ink; x.fillStyle = P.ink;
+    x.lineWidth = 4; x.beginPath(); x.arc(56, 60, 46, 0, 7); x.stroke();
+    x.lineWidth = 2; x.beginPath(); x.arc(56, 60, 36, 0, 7); x.stroke();
+    x.font = "28px " + HEAD; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(text, 56, 63);
+    x.font = "bold 13px " + BODY; x.fillText(sub, 56, 36);
+    x.fillText("★", 56, 88);
+    x.lineWidth = 3.2;
+    for (var i = 0; i < 4; i++) {
+      var yy = 33 + i * 18; x.beginPath(); x.moveTo(106, yy);
+      for (var xx = 106; xx <= 188; xx += 4) x.lineTo(xx, yy + Math.sin((xx - 106) / 9) * 4);
+      x.stroke();
+    }
+    x.restore();
+  }
+  draw(2.5, 1.5, 0.35); draw(0, 0, 1);
+  x.globalCompositeOperation = "destination-out";
+  for (var i = 0; i < 260; i++) { x.globalAlpha = 0.4 + rnd() * 0.6; x.beginPath(); x.arc(rnd() * 192, rnd() * 120, 0.6 + rnd() * 2.2, 0, 7); x.fill(); }
+  x.globalAlpha = 0.55; x.fillRect(0, 70 + rnd() * 30, 192, 3 + rnd() * 4);
+  return c;
+}
+function clockText(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ":" + ("0" + (t % 60)).slice(-2); }
+
+// ---------- 封筒 ----------
+function envelope(c, it, w, h, opt) {
+  opt = opt || {};
+  if (it.n > 1) {
+    for (var b = Math.min(it.n, 4) - 1; b > 0; b--) {
+      c.save(); c.translate(b * 5, b * 4); c.rotate(b * 0.035 * (b % 2 ? 1 : -1));
+      c.fillStyle = "#d8c8a6"; c.fillRect(-w / 2, -h / 2, w, h); c.strokeStyle = "rgba(42,38,34,.35)"; c.lineWidth = 1; c.strokeRect(-w / 2, -h / 2, w, h);
+      c.restore();
+    }
+  }
+  c.fillStyle = "rgba(42,38,34,.35)"; c.fillRect(-w / 2 + 4, -h / 2 + 5, w, h);
+  c.fillStyle = P.paper; c.fillRect(-w / 2, -h / 2, w, h);
+  // 航空便の縁ストライプ（赤と青、わずかに版ずれ）
+  var bw = Math.max(6, w * 0.045);
+  c.save(); c.beginPath(); c.rect(-w / 2, -h / 2, w, h); c.rect(-w / 2 + bw, -h / 2 + bw, w - 2 * bw, h - 2 * bw); c.clip("evenodd");
+  var step = bw * 2.6;
+  for (var k = -w - h, n = 0; k < w + h; k += step, n++) {
+    c.fillStyle = n % 2 ? P.blue : P.red;
+    var off = n % 2 ? 1.2 : 0;
+    c.beginPath(); c.moveTo(-w / 2 + k + off, -h / 2 - 2); c.lineTo(-w / 2 + k + step * 0.55 + off, -h / 2 - 2);
+    c.lineTo(-w / 2 + k + step * 0.55 + h + off, h / 2 + 2); c.lineTo(-w / 2 + k + h + off, h / 2 + 2); c.fill();
+  }
+  c.restore();
+  if (grain) { c.save(); c.globalAlpha = 0.32; c.fillStyle = grain; c.fillRect(-w / 2, -h / 2, w, h); c.restore(); }
+  // 宛名の走り書き
+  c.strokeStyle = "rgba(47,79,143,.6)"; c.lineWidth = 1.6; c.lineCap = "round";
+  var sd = it.seed;
+  for (var l = 0; l < 3; l++) {
+    var ly = h * 0.08 + l * h * 0.14, lw = w * (0.42 - l * 0.06 + ((sd >> (l * 3)) % 7) * 0.012);
+    c.beginPath(); c.moveTo(-w * 0.34, ly);
+    for (var q = 0; q < lw; q += 5) c.lineTo(-w * 0.34 + q, ly + Math.sin(q * 0.45 + sd % 13 + l) * 1.6);
+    c.stroke();
+  }
+  // 切手（目打ちつき）
+  var sw = Math.min(w * 0.33, h * 0.54), sh = sw * 1.12, sx = w / 2 - bw - sw * 0.6 - 4, sy = -h / 2 + bw + sh / 2 + 4;
+  c.fillStyle = "#f4ecd9"; c.fillRect(sx - sw / 2, sy - sh / 2, sw, sh);
+  c.fillStyle = P.paper; var pr = sw * 0.045, gap = pr * 3.2;
+  for (var px = sx - sw / 2 + gap / 2; px < sx + sw / 2; px += gap) { c.beginPath(); c.arc(px, sy - sh / 2, pr, 0, 7); c.arc(px, sy + sh / 2, pr, 0, 7); c.fill(); }
+  for (var py = sy - sh / 2 + gap / 2; py < sy + sh / 2; py += gap) { c.beginPath(); c.arc(sx - sw / 2, py, pr, 0, 7); c.arc(sx + sw / 2, py, pr, 0, 7); c.fill(); }
+  c.fillStyle = STAMP[it.tint]; c.fillRect(sx - sw / 2 + sw * 0.12, sy - sh / 2 + sw * 0.12, sw * 0.76, sh - sw * 0.24);
+  c.strokeStyle = "rgba(42,38,34,.45)"; c.lineWidth = 1; c.strokeRect(sx - sw / 2 + sw * 0.16, sy - sh / 2 + sw * 0.16, sw * 0.68, sh - sw * 0.32);
+  sym(c, it.town, sx, sy + 1, sw * 0.62, P.night);
+  if (it.n > 1) { // 束ねた紐と通数
+    c.strokeStyle = "#7a6440"; c.lineWidth = 2.4;
+    c.beginPath(); c.moveTo(-w * 0.12, -h / 2 - 2); c.lineTo(-w * 0.1, h / 2 + 2); c.moveTo(-w / 2 - 2, h * 0.02); c.lineTo(w / 2 + 2, -h * 0.01); c.stroke();
+    c.fillStyle = P.night; c.font = Math.round(h * 0.22) + "px " + HEAD; c.textAlign = "left"; c.textBaseline = "alphabetic";
+    c.fillText(it.n + "通", -w / 2 + bw + 6, -h / 2 + bw + h * 0.24);
+  }
+  if (opt.returned) { // 返送の付箋
+    c.save(); c.translate(-w * 0.2, h * 0.18); c.rotate(-0.12);
+    c.fillStyle = "#e6d590"; c.fillRect(-w * 0.17, -h * 0.15, w * 0.34, h * 0.3);
+    c.strokeStyle = P.ink; c.lineWidth = 2; c.strokeRect(-w * 0.15, -h * 0.12, w * 0.3, h * 0.24);
+    c.fillStyle = P.ink; c.font = Math.round(h * 0.15) + "px " + HEAD; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("返送", 0, 1);
+    c.restore();
+  }
+  if (opt.mark) { c.save(); c.translate(-w * 0.12, -h * 0.02); c.rotate(opt.markRot || -0.15); var mw = h * 1.05; c.drawImage(opt.mark, -mw * 0.35, -mw * 0.31, mw, mw * 0.625); c.restore(); }
+}
+
+// ---------- 郵便袋 ----------
+function bag(i, B) {
+  var b = bags[i], town = S ? S.map[i] : i;
+  var sc = 1 + b.puff * 0.16;
+  g.save(); g.translate(B.x, B.y); g.scale(sc, sc);
+  var vert = i === 0 || i === 2, w = B.w, h = B.h;
+  // 袋の本体：口が台の中心を向く
+  g.save(); g.rotate([Math.PI, -Math.PI / 2, 0, Math.PI / 2][i]);
+  var bw = vert ? w : h, bh = vert ? h : w;
+  g.fillStyle = "#8d7349";
+  g.beginPath();
+  g.moveTo(-bw * 0.42, -bh * 0.5); g.quadraticCurveTo(-bw * 0.52, bh * 0.1, -bw * 0.4, bh * 0.5);
+  g.quadraticCurveTo(0, bh * 0.56, bw * 0.41, bh * 0.49); g.quadraticCurveTo(bw * 0.53, bh * 0.08, bw * 0.43, -bh * 0.5);
+  g.closePath(); g.fill();
+  g.fillStyle = P.jute; g.beginPath();
+  g.moveTo(-bw * 0.38, -bh * 0.46); g.quadraticCurveTo(-bw * 0.45, bh * 0.1, -bw * 0.34, bh * 0.44);
+  g.quadraticCurveTo(0, bh * 0.5, bw * 0.36, bh * 0.43); g.quadraticCurveTo(bw * 0.47, bh * 0.06, bw * 0.39, -bh * 0.46); g.closePath(); g.fill();
+  if (grain) { g.globalAlpha = 0.45; g.fillStyle = grain; g.fill(); g.globalAlpha = 1; }
+  // 麻の織り目
+  g.strokeStyle = "rgba(42,38,34,.18)"; g.lineWidth = 1;
+  for (var k = -bw * 0.4; k < bw * 0.4; k += 6) { g.beginPath(); g.moveTo(k, -bh * 0.44); g.lineTo(k + 1, bh * 0.42); g.stroke(); }
+  // 口（中心側）
+  g.fillStyle = "#2f2a24"; g.beginPath(); g.ellipse(0, -bh * 0.47, bw * 0.43, Math.max(5, bh * 0.08), 0, 0, 7); g.fill();
+  g.strokeStyle = "#5d4b30"; g.lineWidth = 3; g.stroke();
+  g.restore();
+  // 札
+  var flip = Math.cos(b.flip * Math.PI);
+  var tw = Math.min(vert ? w * 0.62 : w * 0.82, 112), th = Math.max(L.port ? 48 : 40, Math.min(58, (vert ? h : h * 0.5) * 0.62));
+  if (tw < 84) th = Math.max(th, Math.min(66, h * 0.4));
+  var ty = vert ? (i === 0 ? -h * 0.05 : h * 0.06) : 0;
+  g.save(); g.translate(0, ty); g.rotate(i % 2 ? 0.03 : -0.025); g.scale(Math.max(0.05, Math.abs(flip)), 1);
+  g.fillStyle = "#f1e7cf"; g.fillRect(-tw / 2, -th / 2, tw, th);
+  g.strokeStyle = P.blue; g.lineWidth = 2; g.strokeRect(-tw / 2 + 3, -th / 2 + 3, tw - 6, th - 6);
+  g.fillStyle = P.night; g.beginPath(); g.arc(-tw / 2 + 8, -th / 2 + 8, 2.2, 0, 7); g.fill();
+  var nm = TOWNS[town];
+  g.fillStyle = P.blue; g.textBaseline = "middle";
+  if (tw < 84) { // 幅が狭い札は、印を上・町名を下に縦に並べる
+    var ss = th * 0.5;
+    sym(g, town, 0, -th * 0.17, ss, P.blue);
+    g.fillStyle = P.blue; g.textAlign = "center"; g.font = "bold 13px " + BODY; g.fillText(nm, 0, th * 0.3);
+  } else {
+    var ss = th * 0.62;
+    sym(g, town, -tw / 2 + 6 + ss * 0.55, 0, ss, P.blue);
+    g.fillStyle = P.blue; g.font = "bold " + Math.round(Math.max(13, Math.min(16, tw * 0.15))) + "px " + BODY; g.textAlign = "left";
+    g.fillText(nm, -tw / 2 + 10 + ss * 1.05, 1);
+  }
+  g.restore();
+  g.restore();
+}
+
+// ---------- 受け箱（待ちの山） ----------
+function pile() {
+  var Pi = L.pile, n = S.queue.length, full = n >= CORE.QMAX - 1, step = Math.min(8, Pi.h * 0.15);
+  g.save(); g.translate(Pi.x, Pi.y);
+  // 木の受け箱
+  var bw = Pi.w + 16, bh = Pi.h + 14 + step * (CORE.QMAX - 1);
+  g.fillStyle = "rgba(42,38,34,.45)"; g.fillRect(-bw / 2 + 3, Pi.h / 2 + 7 - bh + 4, bw, bh);
+  g.fillStyle = "#4f3f2b"; g.fillRect(-bw / 2, Pi.h / 2 + 7 - bh, bw, bh);
+  g.strokeStyle = full ? P.red : "#7a6440"; g.lineWidth = full ? 3 : 2; g.strokeRect(-bw / 2 + 2, Pi.h / 2 + 9 - bh, bw - 4, bh - 4);
+  // 目盛り（6通で満杯）
+  for (var k = 0; k < CORE.QMAX; k++) {
+    var ky = Pi.h / 2 + 2 - k * step - step * 0.5;
+    g.fillStyle = k < n ? (k >= CORE.QMAX - 2 ? P.red : P.paper) : "rgba(233,220,192,.22)";
+    g.fillRect(bw / 2 - 7, ky - 1.5, 4, 3);
+  }
+  // 封筒の山（下から積む。上ほど新しい）
+  var wob = full ? Math.sin(time * 18) * 0.05 * (0.6 + 0.4 * Math.sin(time * 5)) : 0;
+  for (var i = 0; i < n; i++) {
+    var it = S.queue[i], ox = 0;
+    if (it._in !== undefined && it._in < 0.22) { var q = 1 - it._in / 0.22; ox = -q * q * (Pi.x + Pi.w); }
+    g.save(); g.translate(ox + ((it.seed >> 3) % 7 - 3) * 0.8, -i * step); g.rotate(it.rot * 0.6 + (i === n - 1 ? wob : 0));
+    envelope(g, it, Pi.w, Pi.h, { small: true });
+    g.restore();
+  }
+  g.restore();
+  // ラベル
+  var ly = Pi.y + Pi.h / 2 + 22;
+  g.font = "bold 13px " + BODY; g.textAlign = "center"; g.textBaseline = "middle";
+  var txt = full ? (n >= CORE.QMAX ? "満杯　次はこぼれる" : "あと1通であふれる") : "受け箱 " + n + "/" + CORE.QMAX;
+  var tw = g.measureText(txt).width + 14;
+  g.fillStyle = full ? (Math.floor(time * 4) % 2 ? P.red : "#8f241e") : "rgba(42,38,34,.72)";
+  g.fillRect(Pi.x - tw / 2, ly - 11, tw, 22);
+  g.fillStyle = P.paper; g.fillText(txt, Pi.x, ly + 1);
+}
+function drawFalls() {
+  var Pi = L.pile;
+  for (var i = 0; i < falls.length; i++) {
+    var f = falls[i], t = f.t, x = Pi.x - t * Pi.w * 1.6, y = Pi.y - f.h0 + t * t * H * 1.4;
+    g.save(); g.globalAlpha = Math.max(0, 1 - Math.max(0, t - 0.45) * 4); g.translate(x, y); g.rotate(-t * 2.2);
+    envelope(g, f.item, Pi.w, Pi.h, { small: true }); g.restore();
+  }
+  if (dropNote) { // 「取りこぼし」の付箋
+    var a = Math.min(1, (0.9 - dropNote.t) * 4), sc = dropNote.t < 0.1 ? 1.3 - dropNote.t * 3 : 1;
+    g.save(); g.globalAlpha = Math.max(0, a); g.translate(Pi.x, Pi.y - Pi.h * 0.9 - 6); g.rotate(-0.1); g.scale(sc, sc);
+    var two = dropNote.from !== dropNote.to, sub = "手さばき ×" + dropNote.from.toFixed(1) + "→" + dropNote.to.toFixed(1);
+    g.font = "bold 13px " + BODY; var nw = Math.max(112, two ? g.measureText(sub).width + 22 : 0), nh = two ? 52 : 36;
+    g.fillStyle = "#e6d590"; g.fillRect(-nw / 2, -nh / 2, nw, nh);
+    g.strokeStyle = P.ink; g.lineWidth = 2; g.strokeRect(-nw / 2 + 4, -nh / 2 + 4, nw - 8, nh - 8);
+    g.fillStyle = P.ink; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = "16px " + HEAD; g.fillText("取りこぼし", 0, two ? -8 : 1);
+    if (two) { g.font = "bold 13px " + BODY; g.fillText(sub, 0, 13); }
+    g.restore();
+  }
+}
+
+// ---------- 描く ----------
+function draw() {
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.drawImage(desk, 0, 0, W, H);
+  // 裸電球の光（何もしていないときに動くのはこれだけ）
+  var sway = Math.sin(time * 0.7) * W * 0.07;
+  var lg = g.createRadialGradient(W / 2 + sway, L.cy - H * 0.05, 10, W / 2 + sway, L.cy, Math.max(W, H) * 0.62);
+  lg.addColorStop(0, "rgba(255,226,160,.20)"); lg.addColorStop(1, "rgba(255,226,160,0)");
+  g.fillStyle = lg; g.fillRect(0, 0, W, H);
+  // 机に残る消印の跡
+  for (var i = 0; i < ghosts.length; i++) {
+    var gh = ghosts[i]; g.save(); g.globalAlpha = Math.max(0, gh.a) * 0.5; g.translate(gh.x, gh.y); g.rotate(gh.rot);
+    g.drawImage(gh.mark, -60, -38, 120, 75); g.restore();
+  }
+  for (var j = 0; j < 4; j++) bag(j, L.bags[j]);
+  if (S && state !== "title") pile();
+
+  // 封筒
+  if (S && S.cur && state !== "title") {
+    var it = S.cur, ox = 0, oy = 0, rot = it.rot;
+    if (S.arrive > 0 && !S.returned) { var ka = S.arrive / 0.16; ox = (L.pile.x - L.cx) * ka; oy = (L.pile.y - L.cy) * ka; rot += S.arrive * 1.2; }
+    if (drag && drag.on) { ox = drag.dx; oy = drag.dy; rot += drag.dx * 0.0015; }
+    if (miss && miss.t < 0.34) { var k = Math.sin(Math.PI * miss.t / 0.34) * Math.min(L.ew, 120) * 0.35; ox += DIRV[miss.dir][0] * k; oy += DIRV[miss.dir][1] * k; rot += Math.sin(miss.t * 60) * 0.05; }
+    g.save(); g.translate(L.cx + ox, L.cy + oy); g.rotate(rot);
+    envelope(g, it, L.ew, L.eh, { returned: S.returned });
+    g.restore();
+  }
+  // 飛んでいく封筒
+  for (var f = 0; f < flyers.length; f++) {
+    var fl = flyers[f], B = L.bags[fl.dir], p = Math.min(1, fl.t / 0.3);
+    var e = p < 0.18 ? 0 : (p - 0.18) / 0.82, ee = e * e * (3 - 2 * e);
+    var x = L.cx + fl.ox + (B.x - L.cx - fl.ox) * ee, y = L.cy + fl.oy + (B.y - L.cy - fl.oy) * ee;
+    var sc = (p < 0.18 ? 1.06 - p * 0.3 : 1) * (1 - 0.72 * ee);
+    g.save(); g.globalAlpha = 1 - Math.max(0, ee - 0.75) * 4; g.translate(x, y); g.rotate(fl.item.rot + ee * fl.spin); g.scale(sc, sc);
+    envelope(g, fl.item, L.ew, L.eh, { mark: fl.mark, markRot: fl.markRot });
+    g.restore();
+  }
+  if (state !== "title") drawFalls();
+  // 得点の小札（墨で縁取りして、封筒の上でも読めるように）
+  for (var q = 0; q < popups.length; q++) {
+    var pu = popups[q], py2 = pu.y - pu.t * 30; g.save(); g.globalAlpha = Math.min(1, 2.4 - pu.t * 2.4);
+    g.font = (pu.big ? 26 : 20) + "px " + HEAD; g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+    g.strokeStyle = P.night; g.lineWidth = 5; g.strokeText(pu.text, pu.x + 1.5, py2 + 1.5); g.strokeText(pu.text, pu.x, py2);
+    g.fillStyle = pu.fin ? "#f0c9b4" : P.paper; g.fillText(pu.text, pu.x, py2);
+    g.restore();
+  }
+  if (state !== "title") hud();
+  // 札の掛け替え
+  if (swapMsg > 0 && state === "play") {
+    g.save(); g.globalAlpha = Math.min(1, swapMsg * 2); var mw = Math.min(260, W - 40), my = L.cy - L.eh / 2 - 26;
+    g.translate(L.cx, my); g.rotate(-0.03);
+    g.fillStyle = "#f1e7cf"; g.fillRect(-mw / 2, -17, mw, 34); g.strokeStyle = P.ink; g.lineWidth = 2.5; g.strokeRect(-mw / 2 + 3, -14, mw - 6, 28);
+    g.fillStyle = P.ink; g.font = "17px " + HEAD; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("局長が札を掛け替えた", 0, 1);
+    g.restore();
+  }
+  // 遊び方のひとこと（はじめの数秒）
+  if (state === "play" && hintT > 0) {
+    g.save(); g.globalAlpha = Math.min(1, hintT); g.font = "bold " + L.fs + "px " + BODY; g.textAlign = "center"; g.textBaseline = "middle";
+    var hy = L.cy + L.eh / 2 + 24, txt = "切手の印と同じ札の袋へはじく";
+    var tw2 = g.measureText(txt).width + 18;
+    g.fillStyle = "rgba(42,38,34,.78)"; g.fillRect(L.cx - tw2 / 2, hy - 13, tw2, 26);
+    g.fillStyle = P.paper; g.fillText(txt, L.cx, hy + 1); g.restore();
+  }
+  // 扉が閉まる
+  if (state === "closing" || state === "result") {
+    var cp = Math.min(1, closeT / 0.7), dw = W / 2 * cp * cp * (3 - 2 * cp);
+    g.fillStyle = "#3a332c"; g.fillRect(0, 0, dw, H); g.fillRect(W - dw, 0, dw, H);
+    g.strokeStyle = "rgba(164,136,90,.35)"; g.lineWidth = 2;
+    for (var r = 0; r < 6; r++) { var yy = H * (r + 0.5) / 6; g.beginPath(); g.moveTo(0, yy); g.lineTo(dw, yy); g.moveTo(W - dw, yy); g.lineTo(W, yy); g.stroke(); }
+    if (closeT > 0.6) plane(W * 0.5 + (closeT - 0.6) * W * 0.9, H * 0.22 - (closeT - 0.6) * H * 0.12, 1.3);
+  }
+}
+function plane(x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = "#e9dcc0";
+  g.beginPath(); g.ellipse(0, 0, 22, 4.5, 0, 0, 7); g.fill();
+  g.fillRect(-4, -15, 7, 30); g.fillRect(-21, -7, 4, 14);
+  g.fillStyle = P.red; g.fillRect(-1, -15, 2, 30);
+  g.strokeStyle = "rgba(233,220,192,.7)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(23, -7 * Math.sin(time * 40)); g.lineTo(23, 7 * Math.sin(time * 40)); g.stroke();
+  g.restore();
+}
+function hud() {
+  var y = L.hud / 2 + 1, fin = S.clock <= CORE.FINAL;
+  if (fin) { // 最終便の帯
+    g.save(); g.beginPath(); g.rect(0, 0, W, L.hud); g.clip();
+    for (var k = -40, n = 0; k < W + 40; k += 16, n++) { g.fillStyle = n % 2 ? P.blue : P.red; g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 9, 0); g.lineTo(k + 9 - 12, L.hud); g.lineTo(k - 12, L.hud); g.fill(); }
+    g.fillStyle = "rgba(42,38,34,.72)"; g.fillRect(0, 4, W, L.hud - 8);
+    plane(W + 30 - (CORE.FINAL - S.clock) / CORE.FINAL * (W + 60), y, 0.7);
+    g.restore();
+  }
+  g.font = "26px " + HEAD; g.textBaseline = "middle"; g.textAlign = "left";
+  g.fillStyle = S.clock < 10 && Math.floor(time * 3) % 2 ? "#f0c9b4" : P.paper;
+  g.fillText(clockText(S.clock), 12, y);
+  g.textAlign = "right"; g.fillStyle = P.paper; g.font = "24px " + HEAD;
+  g.fillText(String(S.score), W - 12, y);
+  // 手さばき・最終便
+  var m = CORE.mult(S);
+  g.font = "bold " + (L.port ? 14 : 14) + "px " + BODY;
+  var label = "手さばき ×" + m.toFixed(1) + (fin ? "　最終便 ×2" : "");
+  var lx = L.port ? W - 12 : W / 2 + 34, ly = L.port ? L.hud + 14 : y;
+  var fl = multFlash > 0 && Math.floor(multFlash * 8) % 2 === 0;
+  g.textAlign = L.port ? "right" : "left";
+  var tw = g.measureText(label).width;
+  g.fillStyle = fl ? P.red : "rgba(42,38,34,.7)";
+  if (L.port) g.fillRect(lx - tw - 8, ly - 11, tw + 14, 22);
+  else if (fl) g.fillRect(lx - 7, ly - 11, tw + 14, 22);
+  g.fillStyle = fl ? "#f0c9b4" : fin ? "#f0c9b4" : P.paper; g.fillText(label, L.port ? lx - 1 : lx, ly + 1);
+}
+
+// ---------- 音 ----------
+var AC = null, noiseBuf = null, drone = null;
+function audio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+    var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { AC = null; }
+}
+function noise(t0, dur, f0, f1, q, gain, type) {
+  if (!AC || muted) return;
+  var s = AC.createBufferSource(); s.buffer = noiseBuf;
+  var f = AC.createBiquadFilter(); f.type = type || "bandpass"; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t0); f.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  var v = AC.createGain(); v.gain.setValueAtTime(gain, t0); v.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  s.connect(f); f.connect(v); v.connect(AC.destination); s.start(t0, Math.random() * 0.5); s.stop(t0 + dur + 0.02);
+}
+function tone(t0, dur, f0, f1, gain, type) {
+  if (!AC || muted) return;
+  var o = AC.createOscillator(); o.type = type || "sine";
+  o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  var v = AC.createGain(); v.gain.setValueAtTime(0.0001, t0); v.gain.exponentialRampToValueAtTime(gain, t0 + 0.006); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(v); v.connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+var SND = {
+  swish: function () { if (!AC) return; var t = AC.currentTime; noise(t, 0.12, 2600, 700, 1.2, 0.35); },
+  thud: function (big) { if (!AC) return; var t = AC.currentTime + 0.2; tone(t, 0.2, big ? 120 : 95, 45, 0.5); noise(t, 0.16, 500, 160, 0.8, 0.3, "lowpass"); },
+  ton: function (m, n) { if (!AC) return; var t = AC.currentTime + 0.03; for (var i = 0; i < n; i++) { var tt = t + i * 0.075, f = 330 * (1 + (m - 1) * 0.18); tone(tt, 0.07, f, f * 0.7, 0.32, "triangle"); noise(tt, 0.03, 1800, 1200, 2, 0.18); } },
+  crumple: function () { if (!AC) return; var t = AC.currentTime; for (var i = 0; i < 6; i++) noise(t + i * 0.035 + Math.random() * 0.02, 0.05, 3000 + Math.random() * 2500, 1500, 1.5, 0.22, "highpass"); },
+  flip: function () { if (!AC) return; var t = AC.currentTime; noise(t, 0.06, 1800, 900, 1, 0.3); noise(t + 0.12, 0.06, 1600, 800, 1, 0.3); },
+  slide: function () { if (!AC) return; var t = AC.currentTime; noise(t, 0.25, 1200, 300, 0.7, 0.2); tone(t + 0.3, 0.14, 140, 70, 0.22); noise(t + 0.3, 0.1, 700, 200, 0.8, 0.18, "lowpass"); },
+  warn: function () { if (!AC) return; var t = AC.currentTime; noise(t, 0.05, 900, 600, 3, 0.16); noise(t + 0.09, 0.05, 900, 600, 3, 0.12); },
+  bell: function () { if (!AC) return; var t = AC.currentTime; tone(t, 1.4, 1760, 1750, 0.22); tone(t, 0.9, 2640, 2630, 0.08); },
+  start: function () { if (!AC) return; var t = AC.currentTime; tone(t, 0.08, 260, 200, 0.3, "triangle"); tone(t + 0.1, 0.08, 260, 200, 0.3, "triangle"); }
+};
+function droneOn() {
+  if (!AC || drone) return;
+  try {
+    var o = AC.createOscillator(); o.type = "sawtooth"; o.frequency.value = 52;
+    var f = AC.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 220;
+    var v = AC.createGain(); v.gain.value = 0;
+    var lfo = AC.createOscillator(); lfo.frequency.value = 17; var lg = AC.createGain(); lg.gain.value = 0.025;
+    lfo.connect(lg); lg.connect(v.gain); o.connect(f); f.connect(v); v.connect(AC.destination); o.start(); lfo.start();
+    drone = { o: o, lfo: lfo, v: v };
+  } catch (e) {}
+}
+function droneLevel(x) { if (drone) drone.v.gain.setTargetAtTime(muted ? 0 : x, AC.currentTime, 0.3); }
+function droneOff() { if (drone) { try { drone.v.gain.setTargetAtTime(0, AC.currentTime, 0.2); drone.o.stop(AC.currentTime + 1); drone.lfo.stop(AC.currentTime + 1); } catch (e) {} drone = null; } }
+
+// ---------- 進行 ----------
+function show(id) { ["title", "result", "pause"].forEach(function (k) { $(k).hidden = k !== id; }); $("hudBtn").hidden = id !== null || state !== "play"; }
+function start() {
+  audio(); SND.start();
+  S = CORE.newGame((Math.random() * 1e9) | 0);
+  flyers = []; ghosts = []; marks = []; popups = []; falls = []; dropNote = null; multFlash = 0; miss = null; swapMsg = 0; closeT = 0; hintT = 4.5; drag = null;
+  bags.forEach(function (b) { b.puff = 0; b.flip = 0; });
+  state = "play"; show(null);
+}
+function sort(dir) {
+  if (state !== "play" || !S) return;
+  var e = CORE.act(S, dir); if (!e) return;
+  handle(e);
+}
+function handle(e) {
+  if (e.type === "ok") {
+    var mk = makeMark(clockText(S.clock), TOWNS[e.item.town], (e.item.seed % 2147483646) + 1), rot = (Math.random() - 0.5) * 0.7;
+    flyers.push({ item: e.item, dir: e.dir, t: 0, mark: mk, markRot: rot, spin: (Math.random() - 0.5) * 1.2, ox: drag && drag.on ? drag.dx : 0, oy: drag && drag.on ? drag.dy : 0 });
+    marks.push({ mark: mk, rot: rot, n: e.item.n });
+    ghosts.push({ mark: mk, x: L.cx + (Math.random() - 0.5) * L.ew * 0.6, y: L.cy + (Math.random() - 0.5) * L.eh * 0.5, rot: rot, a: 1 });
+    if (ghosts.length > 5) ghosts.shift();
+    bags[e.dir].puff = e.item.n > 1 ? 1.6 : 1;
+    var B = L.bags[e.dir];
+    popups.push({ text: "+" + e.pts, x: (B.x + L.cx) / 2, y: (B.y + L.cy) / 2, t: 0, big: e.item.n > 1, fin: e.fin });
+    SND.swish(); SND.ton(e.mult, e.item.n); SND.thud(e.item.n > 1);
+    hintT = Math.min(hintT, 0.6);
+  } else if (e.type === "miss") {
+    miss = { dir: e.dir, t: 0 }; SND.crumple();
+  }
+}
+function finish() {
+  state = "closing"; closeT = 0; $("hudBtn").hidden = true; droneOff();
+}
+function results() {
+  state = "result";
+  var nb = S.score > best;
+  if (nb) { best = S.score; store("mail-sorter-best", String(best)); }
+  $("rScore").textContent = S.score; $("rCount").textContent = S.sorted + "通";
+  $("rMult").textContent = "×" + S.maxMult.toFixed(1); $("rMiss").textContent = S.errors + "通";
+  $("rBest").innerHTML = nb ? '<span class="newbest">いちばんの勤務になった</span>' : "これまでの最高 " + best + "点";
+  $("resHead").textContent = S.sorted >= 120 ? "最終便、満載で出発" : "最終便、出発";
+  show("result");
+  resultEnvelope();
+  $("againBtn").focus({ preventScroll: true });
+}
+function resultEnvelope() {
+  var c = $("resCv"), r = c.getBoundingClientRect(), w = Math.max(200, r.width), h = Math.max(90, r.height);
+  c.width = w * DPR; c.height = h * DPR; var x = c.getContext("2d"); x.scale(DPR, DPR);
+  var ew = Math.min(w - 10, (h - 8) / 0.6), eh = ew * 0.6;
+  x.save(); x.translate(w / 2, h / 2); x.rotate(-0.02);
+  envelope(x, { town: 2, n: 1, tint: 0, seed: 7, rot: 0 }, ew, eh, {});
+  // その勤務で押した消印を全部重ねる
+  var list = marks.slice(-40);
+  for (var i = 0; i < list.length; i++) {
+    var m = list[i], last1 = i === list.length - 1, px = last1 ? -ew * 0.08 : (Math.random() - 0.6) * ew * 0.72, py = last1 ? 0 : (Math.random() - 0.5) * eh * 0.62;
+    x.save(); x.globalAlpha = last1 ? 1 : 0.22 + Math.random() * 0.3; x.translate(px, py); x.rotate(m.rot); x.drawImage(m.mark, -ew * 0.17, -ew * 0.106, ew * 0.34, ew * 0.2125); x.restore();
+  }
+  x.restore();
+}
+function pause(on) {
+  if (on && state === "play") { state = "pause"; show("pause"); droneLevel(0); $("resumeBtn").focus({ preventScroll: true }); }
+  else if (!on && state === "pause") { state = "play"; show(null); last = performance.now(); }
+}
+function setMute() { muted = !muted; $("muteBtn").textContent = muted ? "音を出す" : "音を消す"; if (muted) droneLevel(0); }
+
+function step(dt) {
+  time += dt;
+  if (state === "play") {
+    CORE.update(S, dt);
+    var ev = S.events; S.events = [];
+    for (var i = 0; i < ev.length; i++) {
+      var e = ev[i];
+      if (e.type === "swap") { bags[e.a].flip = 1; bags[e.b].flip = 1; swapMsg = 1.8; SND.flip(); }
+      else if (e.type === "end") { finish(); }
+      else if (e.type === "drop") {
+        falls.push({ item: e.item, t: 0, h0: Math.min(8, L.pile.h * 0.15) * (CORE.QMAX - 1) });
+        dropNote = { t: 0, from: e.from, to: e.to }; if (e.from !== e.to) multFlash = 0.8; SND.slide();
+      }
+      else if (e.type === "warn") { SND.warn(); }
+      else if (e.type === "ok" || e.type === "miss") handle(e);
+    }
+    if (S.clock <= CORE.FINAL && S.clock > 0) { droneOn(); droneLevel(0.05 + 0.13 * (1 - S.clock / CORE.FINAL)); }
+    for (var qi = 0; qi < S.queue.length; qi++) { var qq = S.queue[qi]; qq._in = qq._in === undefined ? 0 : qq._in + dt; }
+    if (hintT > 0) hintT -= dt;
+    if (swapMsg > 0) swapMsg -= dt;
+  }
+  if (state === "closing") {
+    closeT += dt;
+    if (closeT - dt < 0.55 && closeT >= 0.55) SND.bell();
+    if (closeT > 1.5) results();
+  }
+  if (state === "result") closeT += dt;
+  bags.forEach(function (b) { b.puff = Math.max(0, b.puff - dt * 4); if (b.flip > 0) b.flip = Math.max(0, b.flip - dt * 1.6); });
+  for (var f = flyers.length - 1; f >= 0; f--) { flyers[f].t += dt; if (flyers[f].t > 0.3) flyers.splice(f, 1); }
+  for (var p = popups.length - 1; p >= 0; p--) { popups[p].t += dt; if (popups[p].t > 1) popups.splice(p, 1); }
+  for (var k = 0; k < ghosts.length; k++) ghosts[k].a -= dt * 0.5;
+  if (miss) { miss.t += dt; if (miss.t > 0.4) miss = null; }
+  for (var fi = falls.length - 1; fi >= 0; fi--) { falls[fi].t += dt; if (falls[fi].t > 0.7) falls.splice(fi, 1); }
+  if (dropNote) { dropNote.t += dt; if (dropNote.t > 0.9) dropNote = null; }
+  if (multFlash > 0) multFlash -= dt;
+}
+function frame(now) {
+  var dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
+  if (state !== "pause") step(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- 入力 ----------
+var KEYS = { ArrowUp: 0, KeyW: 0, ArrowRight: 1, KeyD: 1, ArrowDown: 2, KeyS: 2, ArrowLeft: 3, KeyA: 3 };
+window.addEventListener("keydown", function (e) {
+  audio();
+  if (e.code === "KeyM") { setMute(); return; }
+  if (e.code === "KeyP" || e.code === "Escape") { if (state === "play") pause(true); else if (state === "pause") pause(false); return; }
+  if (state === "play" && e.code in KEYS) { e.preventDefault(); if (!e.repeat) sort(KEYS[e.code]); return; }
+  if ((e.code === "Enter" || e.code === "Space") && state === "title" && document.activeElement !== $("startBtn")) { e.preventDefault(); start(); }
+  if ((e.code === "Enter" || e.code === "Space") && state === "result" && closeT > 2.1 && document.activeElement !== $("againBtn")) { e.preventDefault(); start(); }
+});
+cv.addEventListener("pointerdown", function (e) {
+  audio();
+  if (state !== "play") return;
+  drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, t0: performance.now(), on: true };
+  try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+});
+cv.addEventListener("pointermove", function (e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  var lim = Math.max(W, H) * 0.4;
+  drag.dx = Math.max(-lim, Math.min(lim, e.clientX - drag.x0)); drag.dy = Math.max(-lim, Math.min(lim, e.clientY - drag.y0));
+});
+function release(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  var dx = e.clientX - drag.x0, dy = e.clientY - drag.y0, d = Math.hypot(dx, dy), ms = Math.max(1, performance.now() - drag.t0);
+  if (d > 34 || (d > 14 && d / ms > 0.45)) {
+    var dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+    drag.dx = dx; drag.dy = dy;
+    sort(dir);
+  }
+  drag = null;
+}
+cv.addEventListener("pointerup", release);
+cv.addEventListener("pointercancel", function () { drag = null; });
+cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+$("startBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", function () { if (closeT > 2.1) start(); });
+$("resumeBtn").addEventListener("click", function () { pause(false); });
+$("muteBtn").addEventListener("click", setMute);
+$("hudBtn").addEventListener("click", function () { audio(); pause(true); });
+window.addEventListener("blur", function () { pause(true); });
+document.addEventListener("visibilitychange", function () { if (document.hidden) pause(true); });
+window.addEventListener("resize", function () { layout(); if (state === "result") resultEnvelope(); });
+
+// ---------- はじめ ----------
+makeGrain(); layout();
+function titleMark() { var c = $("titleMark").getContext("2d"); c.clearRect(0, 0, 192, 120); c.save(); c.translate(96, 60); c.rotate(-0.2); c.drawImage(makeMark("2:00", "夜勤", 4242), -96, -60); c.restore(); }
+titleMark();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { titleMark(); layout(); });
+$("bestT").textContent = best ? "これまでの最高 " + best + "点" : "";
+S = CORE.newGame(1); S.cur = null;
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
