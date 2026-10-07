@@ -1,5 +1,5 @@
 {
- "plushAtlas": "",
+ "plushAtlas": "assets/plush/",
  "tile": 16,
  "view": {
   "w": 320,
