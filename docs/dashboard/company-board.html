@@ -197,7 +197,7 @@ footer{color:var(--muted);font-size:12px}
         <textarea id="cText" placeholder="例: 今日の1本は「夏祭り」がテーマで作って"></textarea>
         <div class="confirm" id="cConfirm" hidden>
           <div class="msg" id="cConfirmText"></div>
-          <div class="acts"><button type="button" class="btn" id="cGo">送信する</button><button type="button" class="btn ghost" id="cCancel">やめる</button></div>
+          <div class="acts"><a class="btn" id="cGo" href="#" target="_blank" rel="noopener">コピーしてセッションを開く ↗</a><button type="button" class="btn ghost" id="cCancel">やめる</button></div>
         </div>
         <div class="row"><button type="button" class="btn" id="cSend">送る前に確認</button><span class="cstat" id="cStatus" role="status"></span></div>
       </section>
@@ -219,7 +219,7 @@ footer{color:var(--muted);font-size:12px}
     <div class="games" id="games"></div>
   </section>
 
-  <footer id="foot">記録は相棒（Claude）が毎朝更新します。ライブ表示と指示の送信は、あなたの Claude Code（Claude Code Remote コネクタ）を通じて行います。</footer>
+  <footer id="foot">記録は相棒（Claude）が毎朝更新します。ライブ表示は、あなたの Claude Code（Claude Code Remote コネクタ）から読みます。指示は担当セッションを開いて貼り付けて送ります。</footer>
 </div>
 
 <script>
@@ -550,46 +550,35 @@ footer{color:var(--muted);font-size:12px}
   }
   function hhmm(d){ return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 
-  // 1回目のボタンで送り先と内容を見せ、2回目（送信する）で初めて送る
+  // claude.ai はページからセッションへの直接送信を許可していないので、
+  // 指示文をコピーして担当セッションを開き、そこで貼り付けて送ってもらう
   $("cSend").addEventListener("click", function(){
     var text = $("cText").value.trim(), t = target();
     if(!text){ setStatus("指示の内容を書いてください。", "bad"); $("cText").focus(); return; }
     if(!t.sid){ setStatus("送り先のセッションがまだ記録にありません。", "bad"); return; }
-    $("cConfirmText").textContent = t.label+"、次の内容を送ります。\n「"+text+"」";
+    var msg = buildMessage(t, text);
+    $("cConfirmText").textContent = t.label+"。押すと次の文がコピーされ、担当セッションが開きます。入力欄に貼り付けて送ってください。\n\n"+msg;
+    $("cGo").href = "https://claude.ai/code/"+t.sid;
+    $("cGo").dataset.msg = msg;
     $("cConfirm").hidden = false; setStatus("");
     $("cGo").focus();
   });
   $("cCancel").addEventListener("click", function(){ hideConfirm(); $("cText").focus(); });
   $("cText").addEventListener("input", hideConfirm);
   $("cGo").addEventListener("click", function(){
-    var text = $("cText").value.trim(), t = target();
-    if(!text || !t.sid || state.sending) return;
-    hideConfirm();
-    if(!mcpRef){ setStatus("このビューでは送れません。claude.ai にサインインした状態で開いてください。", "bad"); return; }
-    state.sending = true; updateComposer(); setStatus("送信中…");
-    mcpRef.callTool("Claude Code Remote","send_message",{session_id:t.sid, message:buildMessage(t, text)},{cache:false}).then(function(){
-      state.sending = false; updateComposer();
-      var at = new Date();
-      setStatus("送りました（"+hhmm(at)+"）。返事は箱庭のロボとセッションのメモに出ます。", "ok");
-      $("cText").value = "";
-      logOrder({dept:t.o.id, deptName:t.o.name, to:t.sid, via:t.via, text:text, at:at.toISOString()});
-      if(mcpRef.invalidate) mcpRef.invalidate("Claude Code Remote","list_sessions").catch(function(){});
-    }, function(err){
-      state.sending = false; updateComposer();
-      var c = err && err.code;
-      // 送信は書き込みなので自動で再送しない。届いたか不明なときは確認を促す
-      var msg = {
-        server_not_connected:"送れませんでした。claude.ai の設定 → コネクタで Claude Code Remote を追加してください。",
-        needs_reauth:"送れませんでした。Claude Code Remote を再接続してください。",
-        not_in_manifest:"送れませんでした。このページの権限メニューで Claude Code Remote を許可してください。",
-        blocked_by_policy:"組織の設定で送信が止められています。",
-        tool_error:"セッション側で受け取れませんでした: "+((err && err.message)||""),
-        server_unavailable:"届いたか分かりません。担当セッションを開いて確かめてから、必要なら送り直してください。",
-        upstream_error:"届いたか分かりません。担当セッションを開いて確かめてから、必要なら送り直してください。",
-        cancelled:"送信を取り消しました。"
-      }[c] || "送れませんでした（"+(c||"不明")+"）。";
-      setStatus(msg, "bad");
-    });
+    var text = $("cText").value.trim(), t = target(), msg = $("cGo").dataset.msg || "";
+    var at = new Date();
+    var done = function(copied){
+      setStatus(copied
+        ? "コピーしました（"+hhmm(at)+"）。開いたセッションの入力欄に貼り付けて送ってください。"
+        : "自動でコピーできませんでした。上の確認欄の文を長押しでコピーして、開いたセッションに貼り付けてください。", copied? "ok" : "bad");
+    };
+    try{
+      navigator.clipboard.writeText(msg).then(function(){ done(true); }, function(){ done(false); $("cConfirm").hidden = false; });
+    }catch(e){ done(false); }
+    logOrder({dept:t.o.id, deptName:t.o.name, to:t.sid, via:t.via, text:text, at:at.toISOString()});
+    // href の既定動作で新しいタブ（アプリ）にセッションが開く
+    setTimeout(function(){ hideConfirm(); $("cText").value = ""; }, 400);
   });
 
   // ---------- 指示の履歴（db の orders） ----------
