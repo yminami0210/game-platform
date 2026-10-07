@@ -1,0 +1,66 @@
+{
+  "run": "2026-10-01-planning-trial",
+  "department": "planning",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "research": {
+      "state": "pass",
+      "revisions": 1,
+      "note": "第2回で合格（出典の特定・最新版へ差し替え）"
+    },
+    "report": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "経営向けレポート（約5分）"
+    },
+    "audit": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "品質スコア84点"
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "research",
+      "state": "working",
+      "note": "市場と競合を調査中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "research",
+      "state": "revise",
+      "note": "障壁の数字の出典特定・資料の最新版確認"
+    },
+    {
+      "at": "2026-10-01 03:19",
+      "stage": "research",
+      "state": "pass",
+      "note": "第2回で合格（出典の特定・最新版へ差し替え）"
+    },
+    {
+      "at": "2026-10-01 03:19",
+      "stage": "report",
+      "state": "working",
+      "note": "経営向けレポートを作成中"
+    },
+    {
+      "at": "2026-10-01 03:21",
+      "stage": "report",
+      "state": "pass",
+      "note": "経営向けレポート（約5分）"
+    },
+    {
+      "at": "2026-10-01 03:21",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
+    },
+    {
+      "at": "2026-10-01 03:22",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア84点"
+    }
+  ]
+}
