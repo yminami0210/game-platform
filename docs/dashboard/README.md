@@ -30,7 +30,8 @@
    - `docs/company.md`、`docs/partner/sessions.md`（本部）→ 部署の状態、停止中の定期実行
    - `list_sessions`（mine）と `list_triggers` → 各セッションの post_turn_summary、arcade-daily の次回時刻
 3. ArtifactData で `hq/snapshot` を読み、`version` を `if_version` に付けて set する。`updatedAt` は更新した時刻（日本時間）。
-4. `inbox` には「オーナーにしか決められないこと」だけを入れる（公開判断・再開判断・セッションからの質問）。各項目に送り先の `deptId` と、答えの候補 `actions: [{label, text}]` を付ける。部署の `quick` は消さずに引き継ぐ。
+4. `inbox` には「オーナーにしか決められないこと」だけを入れる（公開判断・再開判断・セッションからの質問）。各項目に送り先の `deptId` と、答えの候補 `actions: [{label, text}]` を付ける。部署の `quick` は消さずに引き継ぐ。担当セッションが動けば片付く項目（質問への返事・再開など）には `clearOnActive: true` を付ける。
+6. ページ側の自動補正: 朝の記録（`updatedAt`）より後に (a) 判断待ちの答えと同じ文の指示が `orders` に入る、または (b) `clearOnActive` の項目で担当セッションが返事待ち以外の状態で動くと、その項目は「対応済み」に移る。部署の説明文も、記録より新しいライブの動きと指示があればそちらを優先して表示する。
 5. status の値: `working` 作業中 / `waiting` オーナー待ち / `paused` 一時停止 / `standby` 待機 / `done` 完了 / `failed` 失敗。
 
 文書の形は `company-board.html` の `deptView`・`renderDetail` を参照（`depts.<id>` に status・sessionId・project・headline・progress{label,value,max}・metrics[{label,value}]・notes[]・next）。

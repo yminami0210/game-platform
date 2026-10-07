@@ -97,6 +97,12 @@ header.top .mission{color:var(--muted);max-width:60ch;margin-top:4px}
 .p-standby,.p-unknown{color:var(--idle);background:var(--idle-bg)}
 .p-done{color:var(--ok);background:var(--ok-bg)}
 .p-failed{color:var(--bad);background:var(--bad-bg)}
+.p-report{color:var(--pause);background:var(--pause-bg)}
+.nowbox{display:grid;gap:4px;background:var(--ok-bg);border-radius:10px;padding:10px 12px}
+.nowbox .memo{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.depts .hl.now{color:var(--ink)}
+.inbox-done{display:grid;gap:4px;font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.inbox-done .chk{color:var(--ok);font-weight:600}
 .detail .headline{font-size:15px;font-weight:600}
 .detail ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
 .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
@@ -180,6 +186,7 @@ footer{color:var(--muted);font-size:12px}
   <section class="inbox" aria-labelledby="inboxTitle">
     <div class="inbox-head"><h2 id="inboxTitle">あなたの判断待ち</h2><span class="count num" id="inboxCount">–</span></div>
     <ul id="inbox"><li class="empty" style="background:none;padding:0">記録を読み込んでいます。</li></ul>
+    <div class="inbox-done" id="inboxDone" hidden></div>
   </section>
 
   <section class="stage">
@@ -238,9 +245,9 @@ footer{color:var(--muted);font-size:12px}
   ];
   var STATUS = {
     working:{label:"作業中"}, waiting:{label:"オーナー待ち"}, paused:{label:"一時停止"},
-    standby:{label:"待機"}, done:{label:"完了"}, failed:{label:"失敗"}, unknown:{label:"読み込み中"}
+    standby:{label:"待機"}, done:{label:"完了"}, failed:{label:"失敗"}, report:{label:"報告あり"}, unknown:{label:"読み込み中"}
   };
-  var state = {snap:null, live:null, liveAt:null, sel:"hq"};
+  var state = {snap:null, live:null, liveAt:null, sel:"hq", orders:[]};
   try{ var s = localStorage.getItem("hq-sel"); if(s) state.sel = s; }catch(e){}
 
   var $ = function(id){ return document.getElementById(id); };
@@ -274,19 +281,47 @@ footer{color:var(--muted);font-size:12px}
     return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
   }
 
-  // 記録（db）とライブ（セッション状態）を合わせて、部署ごとの表示内容を決める
+  function snapAt(){ return (state.snap && Date.parse(state.snap.updatedAt)) || 0; }
+  function short(t, n){ t = String(t||"").replace(/\s+/g," ").trim(); return t.length>n? t.slice(0,n)+"…" : t; }
+  // 朝の記録より後に、この部署へ出した指示（新しいもの）
+  function lastOrderFor(id){
+    var since = snapAt();
+    return state.orders.filter(function(r){ return r.dept===id && Date.parse(r.at)>since; })[0] || null;
+  }
+
+  // 記録（db）とライブ（セッション状態）を合わせて、部署ごとの表示内容を決める。
+  // 朝の記録より新しいライブの動きがあれば、そちらを優先する
   function deptView(o){
     var d = (state.snap && state.snap.depts && state.snap.depts[o.id]) || {};
     var st = d.status || (state.snap? "standby" : "unknown");
     var live = null;
     if(d.sessionId && state.live){ live = state.live[d.sessionId] || null; }
+    var fresh = !!(live && Date.parse(live.updated) > snapAt());
+    var order = lastOrderFor(o.id);
     if(live){
       var b = live.bucket;
       if(b==="WORKING") st = "working";
       else if(b==="FAILED") st = "failed";
-      else if(b==="BLOCKED" && st!=="paused") st = "waiting";
+      else if(b==="BLOCKED") st = "waiting";
+      else if(fresh && b==="REVIEW_READY") st = "report";
+      else if(fresh && b==="COMPLETED") st = "standby";
     }
-    return {o:o, d:d, st:st, live:live};
+    // いまの動き（日本語の一文）
+    var now = null;
+    if(fresh || (order && st==="working")){
+      var ot = order? "指示「"+short(order.text,26)+"」" : "";
+      now = {
+        working: ot? ot+"を受けて作業中" : "作業中",
+        report: ot? ot+"の作業を終えて、報告があります" : "作業を終えて、報告があります",
+        waiting: "あなたの返事を待っています",
+        failed: "直近の作業が失敗しました",
+        standby: ot? ot+"の作業を終えて、手が空いています" : "手が空いています"
+      }[st] || null;
+    } else if(order){
+      now = "指示「"+short(order.text,26)+"」を出しました（"+fmtDate(order.at)+"）。セッションが動き出すとここに出ます";
+    }
+    return {o:o, d:d, st:st, live:live, fresh:fresh, order:order, now:now,
+            headline: now || d.headline || ""};
   }
 
   // ---------- 箱庭 ----------
@@ -370,10 +405,10 @@ footer{color:var(--muted);font-size:12px}
       bot.appendChild(body);
       ov.appendChild(bot);
       // ふきだし
-      var bubTxt = {waiting:"!",paused:"II",working:"…",done:"✓",failed:"×"}[v.st];
+      var bubTxt = {waiting:"!",paused:"II",working:"…",done:"✓",failed:"×",report:"✓"}[v.st];
       if(bubTxt){
         var bub = sv("g",{class:"bubble",transform:"translate("+(rx+12)+","+(ry-46)+")"});
-        var fill = {waiting:"var(--warn)",paused:"var(--pause)",working:"var(--ok)",done:"var(--ok)",failed:"var(--bad)"}[v.st];
+        var fill = {waiting:"var(--warn)",paused:"var(--pause)",working:"var(--ok)",done:"var(--ok)",failed:"var(--bad)",report:"var(--pause)"}[v.st];
         bub.appendChild(sv("rect",{x:-10,y:-10,width:20,height:18,rx:9,fill:fill}));
         bub.appendChild(sv("path",{d:"M -4 7 L -8 13 L 2 7 Z",fill:fill}));
         bub.appendChild(sv("text",{x:0,y:3.5,"text-anchor":"middle","font-size":11,"font-weight":800,fill:"#fff","font-family":"var(--f-data)",text:bubTxt}));
@@ -405,7 +440,15 @@ footer{color:var(--muted);font-size:12px}
       el("span",{cls:"pill p-"+v.st,text:STATUS[v.st].label})
     ]));
     if(!state.snap){ box.appendChild(el("p",{cls:"loading",text:"記録を読み込んでいます。"})); return; }
-    if(d.headline) box.appendChild(el("div",{cls:"headline",text:d.headline}));
+    if(v.now){
+      var nowBox = el("div",{cls:"nowbox"},[el("div",{cls:"eyebrow",text:"いまの動き"+(v.live && v.live.updated? "（"+fmtDate(v.live.updated)+"）" : "")}), el("div",{cls:"headline",text:v.now})]);
+      if(v.live){
+        var memo = v.st==="working"? (v.live.doing || v.live.detail) : v.st==="waiting"? (v.live.needs || v.live.detail) : (v.live.detail || v.live.recent);
+        if(memo && v.fresh) nowBox.appendChild(el("div",{cls:"memo",text:"セッションのメモ（英語）: "+memo}));
+      }
+      box.appendChild(nowBox);
+    }
+    if(d.headline) box.appendChild(el("div",null,[v.now? el("div",{cls:"eyebrow",text:"朝の記録（"+fmtDate(state.snap.updatedAt)+"）"}) : null, el("div",{cls:v.now?"":"headline",text:d.headline})]));
     if(d.progress && d.progress.max){
       var pct = Math.round(100*d.progress.value/d.progress.max);
       var bar = el("div",{cls:"bar"}); var fillEl = el("i"); fillEl.style.width = Math.min(100,pct)+"%"; bar.appendChild(fillEl);
@@ -420,21 +463,38 @@ footer{color:var(--muted);font-size:12px}
       var ul = el("ul"); d.notes.forEach(function(t){ ul.appendChild(el("li",{text:t})); }); box.appendChild(ul);
     }
     if(d.next) box.appendChild(el("div",{cls:"next"},[el("div",{cls:"eyebrow",text:"次にやること"}), el("div",{text:d.next})]));
-    if(v.live){
-      var lv = el("div",{cls:"live"});
-      lv.appendChild(el("div",{text:"ライブ: "+({WORKING:"このセッションは今動いています",BLOCKED:"返事待ちで止まっています",REVIEW_READY:"確認待ちです",COMPLETED:"手が空いています",FAILED:"直近の作業が失敗しました"}[v.live.bucket]||"状態不明")+(v.live.updated? "（最終 "+fmtDate(v.live.updated)+"）":"")}));
-      if(v.live.note) lv.appendChild(el("div",{text:"セッションのメモ: "+v.live.note}));
-      box.appendChild(lv);
-    }
     if(d.sessionId){
       box.appendChild(el("div",null,[el("a",{cls:"btn",href:"https://claude.ai/code/"+d.sessionId,target:"_blank",rel:"noopener",text:"担当セッションを開く ↗"})]));
     }
   }
 
+  // 判断待ちが片付いたか: 朝の記録の後にその項目の答えを指示として出した、
+  // または（clearOnActive の項目は）担当セッションが記録の後に動いて返事待ちでなくなった
+  function resolvedBy(it){
+    var since = snapAt();
+    var texts = (it.actions||[]).map(function(a){ return a.text; });
+    var hit = state.orders.filter(function(r){ return r.dept===it.deptId && Date.parse(r.at)>since && texts.indexOf(r.text)>=0; })[0];
+    if(hit){
+      var lbl = (it.actions.filter(function(a){ return a.text===hit.text; })[0]||{}).label;
+      return "「"+lbl+"」と指示済み（"+fmtDate(hit.at)+"）";
+    }
+    if(it.clearOnActive){
+      var o = ORG.filter(function(x){ return x.id===it.deptId; })[0];
+      var v = o && deptView(o);
+      if(v && v.fresh && v.live.bucket!=="BLOCKED") return "担当セッションが動き出しました（"+fmtDate(v.live.updated)+"）";
+    }
+    return null;
+  }
+
   function renderInbox(){
     var ul = $("inbox"); ul.textContent = "";
-    var items = (state.snap && state.snap.inbox) || [];
+    var all = (state.snap && state.snap.inbox) || [];
+    var done = [], items = [];
+    all.forEach(function(it){ var r = resolvedBy(it); if(r) done.push({it:it, r:r}); else items.push(it); });
     $("inboxCount").textContent = state.snap? String(items.length) : "–";
+    var doneBox = $("inboxDone"); doneBox.textContent = "";
+    done.forEach(function(x){ doneBox.appendChild(el("div",null,[el("span",{cls:"chk",text:"✓ "}), x.it.title+" — "+x.r])); });
+    doneBox.hidden = !done.length;
     if(!state.snap){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"記録を読み込んでいます。"})); return; }
     if(!items.length){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"いま判断が必要なものはありません。"})); return; }
     items.forEach(function(it){
@@ -460,12 +520,12 @@ footer{color:var(--muted);font-size:12px}
       var btn = el("button",{type:"button","aria-pressed":String(state.sel===o.id)},[
         el("span",{cls:"name"},[o.name, el("small",{text:o.role})]),
         el("span",null,[el("span",{cls:"pill p-"+v.st,text:STATUS[v.st].label})]),
-        el("span",{cls:"hl",text:v.d.headline||""})
+        el("span",{cls:"hl"+(v.now?" now":""),text:v.headline})
       ]);
       btn.addEventListener("click", function(){ select(o.id); document.getElementById("scene").scrollIntoView({behavior:"smooth",block:"nearest"}); });
       ul.appendChild(el("li",null,[btn]));
     });
-    var order = ["working","waiting","paused","standby","done","failed"];
+    var order = ["working","waiting","report","paused","standby","done","failed"];
     $("boardSum").textContent = order.filter(function(k){return counts[k];}).map(function(k){return STATUS[k].label+" "+counts[k];}).join(" ・ ");
   }
 
@@ -608,7 +668,9 @@ footer{color:var(--muted);font-size:12px}
       if(!db){ state.snapMsg = "記録: このビューでは読めません"; renderChips(); return; }
       dbRef = db;
       db.collection("orders").orderBy("at","desc").limit(10).onSnapshot(function(q){
-        renderOrders(q.docs.map(function(d){ return d.data(); }));
+        state.orders = q.docs.map(function(d){ return d.data(); });
+        renderOrders(state.orders);
+        if(state.snap) renderAll();
       }, function(){});
       db.doc("hq/snapshot").onSnapshot(function(s){
         if(s.exists){ state.snap = s.data(); } else { state.snapMsg = "記録: まだありません"; }
@@ -627,7 +689,10 @@ footer{color:var(--muted);font-size:12px}
       map[s.id] = {
         bucket: String(s.status_bucket||"").replace("SESSION_STATUS_BUCKET_",""),
         updated: s.updated_at,
-        note: ps.needs_action || ps.recent_action || ""
+        doing: s.task_summary || (s.external_metadata && s.external_metadata.task_summary) || "",
+        detail: ps.status_detail || "",
+        needs: ps.needs_action || "",
+        recent: ps.recent_action || ""
       };
     });
     return map;
