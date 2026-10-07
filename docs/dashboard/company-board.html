@@ -202,11 +202,11 @@ footer{color:var(--muted);font-size:12px}
         <div class="quick" id="cQuick"></div>
         <label for="cText" class="eyebrow">指示の内容</label>
         <textarea id="cText" placeholder="例: 今日の1本は「夏祭り」がテーマで作って"></textarea>
-        <div class="confirm" id="cConfirm" hidden>
-          <div class="msg" id="cConfirmText"></div>
-          <div class="acts"><a class="btn" id="cGo" href="#" target="_blank" rel="noopener">コピーしてセッションを開く ↗</a><button type="button" class="btn ghost" id="cCancel">やめる</button></div>
+        <div class="confirm" id="cFallback" hidden>
+          <div>自動でコピーできませんでした。下の文を長押しでコピーして、開いたセッションに貼り付けてください。</div>
+          <div class="msg" id="cFallbackText"></div>
         </div>
-        <div class="row"><button type="button" class="btn" id="cSend">送る前に確認</button><span class="cstat" id="cStatus" role="status"></span></div>
+        <div class="row"><a class="btn" id="cGo" href="#" target="_blank" rel="noopener">コピーしてセッションを開く ↗</a><span class="cstat" id="cStatus" role="status"></span></div>
       </section>
     </div>
   </section>
@@ -581,7 +581,8 @@ footer{color:var(--muted);font-size:12px}
   function updateComposer(){
     var t = target();
     $("cTo").textContent = t.label;
-    $("cSend").disabled = !t.sid || !!state.sending;
+    $("cGo").href = t.sid? "https://claude.ai/code/"+t.sid : "#";
+    $("cGo").setAttribute("aria-disabled", String(!t.sid));
     var d = (state.snap && state.snap.depts && state.snap.depts[t.o.id]) || {};
     var quick = d.quick || [];
     var key = t.o.id+"|"+JSON.stringify(quick);
@@ -602,7 +603,7 @@ footer{color:var(--muted);font-size:12px}
     $("cText").focus();
   }
   function setStatus(msg, kind){ var s = $("cStatus"); s.textContent = msg||""; s.className = "cstat"+(kind?" "+kind:""); }
-  function hideConfirm(){ $("cConfirm").hidden = true; }
+  function hideConfirm(){ $("cFallback").hidden = true; }
   function buildMessage(t, text){
     var head = "【進捗ボードからの指示（オーナー）】";
     if(t.via) head += "\n宛先: "+t.o.name+"（担当セッションが無いので、本部が受けて対応・振り分けしてください）";
@@ -612,33 +613,25 @@ footer{color:var(--muted);font-size:12px}
 
   // claude.ai はページからセッションへの直接送信を許可していないので、
   // 指示文をコピーして担当セッションを開き、そこで貼り付けて送ってもらう
-  $("cSend").addEventListener("click", function(){
-    var text = $("cText").value.trim(), t = target();
-    if(!text){ setStatus("指示の内容を書いてください。", "bad"); $("cText").focus(); return; }
-    if(!t.sid){ setStatus("送り先のセッションがまだ記録にありません。", "bad"); return; }
-    var msg = buildMessage(t, text);
-    $("cConfirmText").textContent = t.label+"。押すと次の文がコピーされ、担当セッションが開きます。入力欄に貼り付けて送ってください。\n\n"+msg;
-    $("cGo").href = "https://claude.ai/code/"+t.sid;
-    $("cGo").dataset.msg = msg;
-    $("cConfirm").hidden = false; setStatus("");
-    $("cGo").focus();
-  });
-  $("cCancel").addEventListener("click", function(){ hideConfirm(); $("cText").focus(); });
+  // 押すと指示文をコピーし、href の既定動作で担当セッションを開く（貼り付けて送るのはセッション側）
   $("cText").addEventListener("input", hideConfirm);
-  $("cGo").addEventListener("click", function(){
-    var text = $("cText").value.trim(), t = target(), msg = $("cGo").dataset.msg || "";
-    var at = new Date();
-    var done = function(copied){
-      setStatus(copied
-        ? "コピーしました（"+hhmm(at)+"）。開いたセッションの入力欄に貼り付けて送ってください。"
-        : "自動でコピーできませんでした。上の確認欄の文を長押しでコピーして、開いたセッションに貼り付けてください。", copied? "ok" : "bad");
+  $("cGo").addEventListener("click", function(e){
+    var text = $("cText").value.trim(), t = target();
+    if(!t.sid){ e.preventDefault(); setStatus("送り先のセッションがまだ記録にありません。", "bad"); return; }
+    $("cGo").href = "https://claude.ai/code/"+t.sid;
+    if(!text){ setStatus("指示が空なので、セッションだけ開きました。"); return; }
+    var msg = buildMessage(t, text), at = new Date();
+    var fail = function(){
+      $("cFallbackText").textContent = msg; $("cFallback").hidden = false;
+      setStatus("", "");
     };
     try{
-      navigator.clipboard.writeText(msg).then(function(){ done(true); }, function(){ done(false); $("cConfirm").hidden = false; });
-    }catch(e){ done(false); }
+      navigator.clipboard.writeText(msg).then(function(){
+        hideConfirm(); $("cText").value = "";
+        setStatus("コピーしました（"+hhmm(at)+"）。開いたセッションに貼り付けて送ってください。", "ok");
+      }, fail);
+    }catch(err){ fail(); }
     logOrder({dept:t.o.id, deptName:t.o.name, to:t.sid, via:t.via, text:text, at:at.toISOString()});
-    // href の既定動作で新しいタブ（アプリ）にセッションが開く
-    setTimeout(function(){ hideConfirm(); $("cText").value = ""; }, 400);
   });
 
   // ---------- 指示の履歴（db の orders） ----------
