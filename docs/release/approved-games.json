@@ -1,0 +1,12 @@
+{
+  "note": "公開（GitHub Pages）をオーナーが承認したミニゲーム。ここに無いゲームは ready でも公開サイトに載らない。追加はオーナーの承認後に AI相棒が行う。",
+  "approved": [
+    {"id": "001-bloom-chain", "approved_on": "2026-10-07"},
+    {"id": "002-kite-wind", "approved_on": "2026-10-07"},
+    {"id": "003-mail-sorter", "approved_on": "2026-10-07"},
+    {"id": "004-water-lines", "approved_on": "2026-10-07"},
+    {"id": "005-lighthouse-keeper", "approved_on": "2026-10-07"},
+    {"id": "006-circus-cannon", "approved_on": "2026-10-07"},
+    {"id": "007-goldfish-scoop", "approved_on": "2026-10-07"}
+  ]
+}
