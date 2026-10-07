@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>とんでけ大砲 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Rampart+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#c4b184}
+  svg{display:block}
+</style></head>
+<body>
+<svg id="s" width="1200" height="960" viewBox="0 0 1200 960"></svg>
+<script src="print.js"></script>
+<script>
+const W = 1200, H = 960;
+const s = document.getElementById("s");
+const MARU = "'Kiwi Maru', 'Hiragino Maru Gothic ProN', sans-serif";
+const RAMP = "'Rampart One', 'Hiragino Maru Gothic ProN', sans-serif";
+defs(s);
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.hanpu }, s);
+el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#weave)", opacity: 0.5 }, s);
+// 帆布の継ぎ目（区切りの線の代わり。まっすぐにしない）
+el("path", { d: stroke(line([410, 0], [404, 960], 16), 2, 2, 0.6), fill: C.kage }, s);
+el("path", { d: stroke(line([0, 548], [1200, 556], 20), 2, 2, 0.6), fill: C.kage }, s);
+function T(x, y, str, size, opt = {}) {
+  const t = el("text", { x, y, "font-family": opt.f || MARU, "font-size": size, fill: opt.fill || C.sumi, "text-anchor": opt.a || "start", style: "font-variant-numeric: tabular-nums" }, s);
+  t.textContent = str; return t;
+}
+
+// 1) 色（板に塗った見本。面積の大きい順に大きく塗る）
+T(32, 46, "色（6色と重ね色）", 20);
+const cols = [
+  ["古帆布", C.hanpu, "地（天幕）", 18, 150],
+  ["鉋屑", C.ogakuzu, "地（床）", 22, 120],
+  ["馬車の深緑", C.midori, "看板・縁・台車", 13, 96],
+  ["緑の墨", C.sumi, "輪郭・文字", 4, 74],
+  ["衣装の牡丹", C.botan, "人と危ない物", 2, 74],
+  ["車輪の山吹", C.yamabuki, "主役（大砲・ドン・得点）", 2, 74],
+];
+let yy = 70;
+cols.forEach(([n, c, role, pct, h], i) => {
+  const x = 32, w = 100;
+  const hh = Math.max(40, h * 0.42);
+  el("path", { d: wobble([[x, yy], [x + w, yy + j(2)], [x + w + j(2), yy + hh], [x, yy + hh + j(1)]], 1), fill: c, stroke: C.sumi, "stroke-width": 1.4 }, s);
+  T(x + 116, yy + 20, n, 17);
+  T(x + 116, yy + 40, `${c}　${role}　約${pct}%`, 13);
+  yy += hh + 14;
+});
+T(32, yy + 18, "重ね色", 15);
+[[C.hinata, "日なた"], [C.kage, "帆布の影"], [C.zou, "象"], [C.ita, "客席の板"], [C.midori2, "明るい深緑"]].forEach(([c, n], i) => {
+  const x = 32 + i * 74, y = yy + 30;
+  el("path", { d: wobble([[x, y], [x + 60, y + j(1)], [x + 60, y + 30], [x, y + 30]], 0.8), fill: c, stroke: C.sumi, "stroke-width": 1 }, s);
+  T(x, y + 48, n, 12);
+});
+
+// 2) 文字（看板描きの影つき文字 ＋ 丸ゴシックの本文）
+const tb = 590;
+T(32, tb, "文字", 20);
+board(s, 32, tb + 18, 350, 120);
+signText(s, 50, tb + 66, "得点 1,240", 36, { family: RAMP });
+signText(s, 50, tb + 116, "ど真ん中", 30, { family: RAMP });
+T(32, tb + 172, "見出し・得点: Rampart One（影つきの看板文字）", 14);
+T(32, tb + 196, "本文: Kiwi Maru 14px 以上。2書体まで", 14);
+T(32, tb + 236, "大砲を後ろへ引いて、離すと飛びます。", 16);
+T(32, tb + 262, "引く向きで角度、引く長さで強さが決まります。", 16);
+T(32, tb + 300, "墨×古帆布 6.6、日なた×深緑 5.2、山吹×深緑 4.2（大きい字だけ）", 13);
+T(32, tb + 322, "小さい字は墨か日なた色だけ。牡丹の上に字を置かない", 13);
+
+// 3) 形（約束: 味方は丸い／危ない物は牡丹の印と角ばった形）
+T(440, 46, "形", 20);
+cannon(s, 500, 250, 40, 1.1);
+T(452, 300, "大砲: 山吹の放射の車輪、", 13); T(452, 318, "牡丹の筒、帯金3本", 13);
+// 引きすぎ（筒が震え、口から煙が漏れる。ゲージは出さない）
+const over = cannon(s, 740, 250, 30, 1.1, 8);
+for (let k = 0; k < 4; k++) el("path", { d: stroke([[790 + k * 4, 196 - k * 2], [800 + k * 6, 180 - k * 4]], 2.4, 0.6), fill: C.sumi, opacity: 0.7 }, s);
+[[692, 214], [700, 236], [790, 230]].forEach(([qx, qy]) => el("path", { d: stroke([[qx, qy], [qx - 6, qy + 3]], 1.6, 0.6), fill: C.sumi }, s));
+T(690, 300, "引きすぎ: 筒が震えて", 13); T(690, 318, "煙が漏れる（ゲージは無し）", 13);
+// 狙いの点（最初の3分の1だけ。筆で置いた点、間隔は少しずつ開く）
+let px = 900, py = 262;
+for (let k = 0; k < 7; k++) { el("path", { d: wobble(blob(px, py, 4 - k * 0.3, 3.2 - k * 0.2, 8, 0.2), 0.3), fill: C.sumi, opacity: 1 - k * 0.09 }, s); px += 14 + k * 1.5; py -= 16 - k * 1.6; }
+T(892, 300, "狙いの点: 最初の3分の1だけ", 13);
+
+elephant(s, 560, 474, 1.0);
+net(s, 562, 412, 118, 15);
+T(452, 530, "象と受け網: 袋のようにたわむ網、縁は麻縄", 13);
+acrobat(s, 760, 430, 20, 1.3);
+acrobat(s, 840, 430, 200, 1.3);
+T(724, 530, "曲芸師: 牡丹の衣装、山吹の帯", 13);
+fireRing(s, 1010, 130, 32, 1);
+T(940, 196, "火の輪: 炎は上半分だけ、上へ立つ", 13);
+sandbag(s, 1080, 330, 450, 1.3);
+T(1010, 530, "砂袋（触らない）", 13);
+walker(s, 980, 456, 1.2);
+el("path", { d: stroke(line([920, 458], [1040, 452], 8), 1.6, 1.6, 0.3), fill: C.sumi }, s);
+
+// 4) 場面の部品（下段）
+T(440, 600, "部品", 20);
+puff(s, 520, 690, 1.0);
+T(456, 760, "発射の「ドン」: 山吹と", 13);
+T(456, 778, "牡丹の2版、外側だけ墨", 13);
+board(s, 640, 620, 160, 84);
+silkHat(s, 680, 696, 1.3); silkHat(s, 724, 696, 1.3); silkHat(s, 768, 696, 1.3, true);
+T(640, 730, "シルクハット: 掛け釘に3つ。", 13);
+T(640, 750, "落とすと釘だけ残る", 13);
+fallenHat(s, 690, 806, 78);
+T(712, 806, "床を転がる帽子", 13);
+spectator(s, 880, 700, 2.0, 0, C.ita, 0);
+spectator(s, 940, 700, 2.0, 2, C.midori2, 1);
+spectator(s, 1000, 700, 2.0, 1, C.zou2, 2);
+T(850, 730, "お客の退屈: 見上げる、半目、あくび", 13);
+// ど真ん中の札（判ではなく、看板描きの札）
+board(s, 1050, 610, 120, 56);
+signText(s, 1110, 650, "ど真ん中", 24, { family: RAMP, anchor: "middle" });
+T(1050, 690, "着地の札", 13);
+// 煤の跡（撃つたびに天幕に残る）
+stain(s, 1090, 770, 24, 0.75);
+stain(s, 1136, 800, 13, 0.65);
+T(1036, 836, "煤の跡: 撃つたびに", 13);
+T(1036, 854, "天幕に増える", 13);
+// 客席の見本: 奥は顔なしの連れの塊、最前段は姿勢で変える
+el("path", { d: wobble([[450, 832], [1010, 828], [1010, 940], [450, 944]], 1), fill: C.kage }, s);
+clump(s, 470, 862, 3, 0.7, C.ita); clump(s, 560, 858, 2, 0.7, C.zou2); clump(s, 640, 864, 4, 0.7, C.zou); clump(s, 780, 860, 2, 0.7, C.ita); clump(s, 870, 862, 3, 0.7, C.zou2);
+[[480, "sit", C.midori, 1], [520, "talk", C.ita, 0, -1], [600, "shoulder", C.midori, 1], [680, "chin", C.sumi, 3], [760, "point", C.ita, 0], [840, "talk", C.zou2, 2], [900, "sit", C.sumi, 1, -1]].forEach(([x, pose, col, hat, fl]) => person(s, x, 920, 1.5, pose, col, hat, fl || 1));
+T(1024, 880, "客席: 奥は顔なし、", 13);
+T(1024, 898, "最前段は姿勢で変える", 13);
+T(1024, 916, "（話す・肩車・頬杖・", 13);
+T(1024, 934, "指さす）", 13);
+// 客席: 最前段だけ顔、奥は顔なしの連れの塊。型は姿勢で変える（牡丹は使わない）
+el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grain)", opacity: 0.14 }, s);
+</script>
+</body></html>
