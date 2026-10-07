@@ -14,7 +14,7 @@
 <main class="page" id="page">
   <header class="beam marquee wood">
     <div class="plank"><h1 class="sign" aria-label="あそびば"><span>あ</span><span>そ</span><span>び</span><span>ば</span></h1><i class="nail"></i><i class="nail r"></i></div>
-    <p class="sub">毎朝ひとつ、新しい演目がかかります。</p>
+    <p class="sub">毎朝ひとつ、新しい演目がかかります。</p><!-- 梁の右に画鋲で留めた紙片 -->
   </header>
 
   <div class="script notice" id="notice"><p id="notice-text">演目を読み込んでいます。</p></div>
@@ -27,17 +27,17 @@
 <!-- 舞台: 札を押すと現れ、扉が開いて札が抜かれ、奥でゲームが始まる -->
 <div class="playroom" id="playroom">
   <section class="stage" id="stage" aria-label="舞台">
-    <div class="pulled" id="pulled" aria-hidden="true"><img alt="" id="pulled-img"><span class="daiji" id="pulled-title"></span></div>
+    <div class="pulled" id="pulled" aria-hidden="true"><div class="pic"><img alt="" id="pulled-img"><span class="tag" id="pulled-title"></span></div></div>
     <header class="beam wood">
       <span class="back-wrap"><button class="back" id="back" type="button">演目にもどる</button></span>
     </header>
     <div class="box wood">
       <div class="window" id="window">
         <div class="behind" id="behind"></div>
+        <div class="oku" aria-hidden="true"></div>
+        <!-- 一覧の札と同じ 4:3 の絵札（同じ絵・題字の札・貼り紙）。扉が開くと横へ抜かれる -->
         <div class="card-out" id="stage-card" aria-hidden="true">
-          <img alt="" id="stage-img" hidden>
-          <span class="new" id="stage-new" hidden>新作</span>
-          <span class="daiji" id="stage-title"></span>
+          <div class="pic"><img alt="" id="stage-img" hidden><span class="new" id="stage-new" hidden>新作</span><span class="tag" id="stage-title"></span></div>
         </div>
       </div>
       <div class="door l wood" aria-hidden="true"><i></i><i></i></div>

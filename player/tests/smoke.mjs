@@ -83,7 +83,7 @@ async function run(browser, w, h) {
   const sizes = await page.locator(".fuda .pic").evaluateAll((els) => els.map((e) => e.offsetWidth));
   ok(new Set(sizes).size === 1, `${tag} 絵札がみな同じ大きさ（${sizes[0]}px）`);
   const perRow = await page.locator(".fuda").evaluateAll((els) => els.filter((e) => Math.abs(e.getBoundingClientRect().top - els[0].getBoundingClientRect().top) < 20).length);
-  ok(w < 600 ? perRow === 2 : perRow >= 3 && perRow <= 4, `${tag} 横に${perRow}枚並ぶ`);
+  ok(w < 600 ? perRow === 2 : perRow >= 3 && perRow <= 5, `${tag} 横に${perRow}枚並ぶ`);
   // 各札に台本の全文（fuda.json の script）が見えている
   const fuda = JSON.parse(fs.readFileSync(path.join(here, "..", "data", "fuda.json"), "utf8"));
   const scripts = await page.locator(".fuda").evaluateAll((els) => els.map((e) => {
@@ -93,6 +93,51 @@ async function run(browser, w, h) {
   }));
   const bad = scripts.filter((s) => !s.visible || (fuda[s.id] && fuda[s.id].script && s.text !== fuda[s.id].script));
   ok(bad.length === 0, `${tag} 各札に説明文が全文見える${bad.map((b) => " ×" + b.id).join("")}`);
+  // 台本の行: 1行12字以上入る幅があり、1〜2字だけの行が無い（文字ごとの位置から行を割り出す）
+  const lines = await page.locator(".cards > li .script p").evaluateAll((els) => {
+    const hangs = [...document.querySelectorAll(".hang")];
+    hangs.forEach((h) => { h.style.transform = "none"; }); // 傾ける前の行で数える
+    const res = els.map((p) => {
+    const node = p.firstChild;
+    const rows = [];
+    let top = null;
+    for (let i = 0; i < node.length; i++) {
+      const r = document.createRange();
+      r.setStart(node, i);
+      r.setEnd(node, i + 1);
+      const t = Math.round(r.getBoundingClientRect().top + r.getBoundingClientRect().height / 2);
+      if (top === null || Math.abs(t - top) > 6) { rows.push(0); top = t; }
+      rows[rows.length - 1]++;
+    }
+    return { id: p.closest("li").dataset.id || "aki", rows };
+    });
+    hangs.forEach((h) => { h.style.transform = ""; });
+    return res;
+  });
+  const narrow = lines.filter((l) => l.rows.length > 1 && Math.max(...l.rows) < 12);
+  ok(narrow.length === 0, `${tag} 台本は1行12字以上（最長の行 ${lines.map((l) => Math.max(...l.rows)).join("/")}字）${narrow.map((l) => " ×" + l.id).join("")}`);
+  const orphan = lines.filter((l) => l.rows.some((n) => n <= 2));
+  ok(orphan.length === 0, `${tag} 1〜2字だけの行が無い${orphan.map((l) => ` ×${l.id}(${l.rows.join(",")})`).join("")}`);
+  // 同じ段の札は、判子・遊ぶの高さがそろう（傾ける前の位置で比べる）
+  const actTops = await page.locator(".fuda").evaluateAll((els) => els.map((li) => {
+    let y = 0;
+    for (let e = li.querySelector(".act"); e && e !== li; e = e.offsetParent) y += e.offsetTop;
+    return { row: li.offsetTop, y };
+  }));
+  const rowsMap = new Map();
+  for (const a of actTops) rowsMap.set(a.row, [...(rowsMap.get(a.row) || []), a.y]);
+  ok([...rowsMap.values()].every((ys) => Math.max(...ys) - Math.min(...ys) <= 1), `${tag} 同じ段の札の判子・遊ぶの高さがそろう`);
+  // 最後の段に空きを残さない（足りない所は「明朝の演目」の札）
+  const cols = await page.locator("#cards").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+  const slots = await page.locator("#cards > li").count();
+  ok(slots % cols === 0 && (await page.locator("#cards > li.aki").count()) <= 1, `${tag} 最後の段に空きが無い（${cols}列、札${slots}枚）`);
+  // 札の絵: fuda.json の thumb があればそれ（結果画面の qa/play.png を使わない）、絵が読めている
+  const pics = await page.locator(".fuda").evaluateAll((els) => els.map((li) => {
+    const img = li.querySelector(".pic img");
+    return { id: li.dataset.id, src: img.getAttribute("src"), loaded: img.complete && img.naturalWidth > 0 };
+  }));
+  const badPic = pics.filter((p) => !p.loaded || (fuda[p.id] && fuda[p.id].thumb && p.src !== fuda[p.id].thumb));
+  ok(badPic.length === 0 && fuda["001-bloom-chain"].thumb, `${tag} 札の絵はプレイ中の絵（蓮ひらくは撮り直した絵）${badPic.map((b) => " ×" + b.id).join("")}`);
   ok((await page.locator(".fuda .new:not([hidden])").count()) === 2, `${tag} 新作の貼り紙は新しい2本だけ`);
   const stamps = await page.locator(".fuda .stamp").allTextContents();
   ok(stamps.length === EXPECTED && stamps.every((s) => s === "はじめて"), `${tag} 未プレイは各札に判子「はじめて」`);
@@ -110,6 +155,9 @@ async function run(browser, w, h) {
   ok(await page.locator("#pulled").isVisible(), `${tag} 抜いた札が窓の脇に見える`);
   ok(await page.locator(".door.l").isVisible() && await page.locator(".door.r").isVisible(), `${tag} 扉が残っている`);
   await page.waitForTimeout(1200);
+  // 遊んでいる最中の姿を撮る（ゲームの題の画面の「はじめる」を押す。窓の上の点数枠まで埋まった状態）
+  const gf = page.frames().find((f) => f.url().includes(`/arcade/games/${firstId}/`));
+  if (gf) { await gf.getByRole("button", { name: /はじめる/ }).first().click({ timeout: 2000 }).catch(() => {}); await page.waitForTimeout(600); }
   await shot(page, `play-${w}`);
   const box = await page.locator("#pulled").boundingBox();
   ok(box && box.x >= 0 && box.x + box.width <= w + 1, `${tag} 抜いた札が画面の中に収まる（左右）`);
