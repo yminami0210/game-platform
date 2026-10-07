@@ -1,6 +1,7 @@
 // ステージの描画。内部 256×144 のキャンバスに描き、画面へ整数倍で拡大する（地図と物語は 384×216 の別キャンバス）。
 // core の state を読むだけで、書き換えない（パーティクル等の演出はここで持つ）。
 import { T } from '../core/level.js';
+import { solidAt } from '../core/stage.js';
 import { PAL, bake } from './sprites.js';
 import { THEMES } from './themes.js';
 
@@ -8,13 +9,21 @@ const TS = 16;
 // 決定的なハッシュ（見た目の揺れ用。毎フレーム同じ結果になる）
 const hash = (x, y, k = 0) => { let h = (x * 374761393 + y * 668265263 + k * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
-export function createRenderer(canvas, view) {
+export function createRenderer(canvas, view, opts = {}) {
   const W = view.w, H = view.h;
   const screen = canvas.getContext('2d');
   const buf = document.createElement('canvas'); buf.width = W; buf.height = H;
   const g = buf.getContext('2d');
   const big = document.createElement('canvas'); big.width = 384; big.height = 216; // 地図・物語用
   const bigCtx = big.getContext('2d');
+  // ---- ぬいぐるみ層（4倍密度 1280x720。背景の上に重ねる別キャンバス）----
+  const PK = 4;
+  const pc = opts.plush ?? null;
+  const pg = pc ? pc.getContext('2d') : null;
+  if (pc) { pc.width = W * PK; pc.height = H * PK; pg.imageSmoothingEnabled = true; pg.imageSmoothingQuality = 'high'; }
+  let atlas = null; // { frames: { name: {r, l, w, h, ax, ay} } }。無ければ従来の絵
+  let pcamX = 0, pcamY = 0, plushOn = true;
+  const SHADOW = '31,53,80';
   let playerSpr = null; // 設定画から作ったツギのドット絵（sprite.json）
   const spr = bake(document);
   const cloth = makeClothTexture(W, H);
@@ -29,6 +38,80 @@ export function createRenderer(canvas, view) {
     // 整数倍がくっきり。ただし画面の15%以上が余るなら、少しにじんでも大きく出す
     scale = s >= 1 && Math.floor(s) / s >= 0.85 ? Math.floor(s) : s;
     ox = Math.floor((cw - W * scale) / 2); oy = Math.floor((ch - H * scale) / 2);
+    if (pc) { // 背景と同じ位置・同じ大きさ（整数倍でないときも）で重ねる
+      const kx = window.innerWidth / cw, ky = window.innerHeight / ch;
+      Object.assign(pc.style, { left: `${ox * kx}px`, top: `${oy * ky}px`, width: `${W * scale * kx}px`, height: `${H * scale * ky}px` });
+    }
+  }
+
+  // アトラスを焼く（左右反転も1回だけ作って使い回す）。欠けた枠は従来の絵に任せる
+  function setAtlas(json, img) {
+    const frames = {};
+    for (const [name, f] of Object.entries(json.frames ?? {})) {
+      if (!(f.w > 0 && f.h > 0) || f.x + f.w > img.width || f.y + f.h > img.height) continue;
+      const r = document.createElement('canvas'); r.width = f.w; r.height = f.h;
+      r.getContext('2d').drawImage(img, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+      const l = document.createElement('canvas'); l.width = f.w; l.height = f.h;
+      const lg = l.getContext('2d'); lg.translate(f.w, 0); lg.scale(-1, 1); lg.drawImage(r, 0, 0);
+      frames[name] = { r, l, w: f.w, h: f.h, ax: f.ax ?? f.w / 2, ay: f.ay ?? f.h };
+    }
+    atlas = Object.keys(frames).length ? { frames } : null;
+  }
+  const pf = (...names) => { if (!atlas) return null; for (const n of names) if (atlas.frames[n]) return atlas.frames[n]; return null; };
+  // 論理座標 (X, Y)（当たりの底の中央）に1論理画素へそろえて置く。置けたら true
+  function pdraw(f, X, Y, o = {}) {
+    if (!f) return false;
+    const sx = o.sx ?? 1, sy = o.sy ?? 1, w = f.w * sx, h = f.h * sy;
+    const ax = (o.flip ? f.w - f.ax : f.ax) * sx, ay = f.ay * sy;
+    const bx = Math.round(X) * PK, by = Math.round(Y) * PK;
+    const dx = bx - ax, dy = by - ay;
+    if (dx > pcamX + W * PK || dx + w < pcamX || dy > pcamY + H * PK || dy + h < pcamY) return true;
+    const img = o.flip ? f.l : f.r;
+    if (o.alpha !== undefined) pg.globalAlpha = o.alpha;
+    if (o.rot !== undefined) { // 当たりの中心 (cy 論理画素上) まわりに回す
+      const cy = (o.cy ?? 0) * PK;
+      pg.save(); pg.translate(bx, by - cy); pg.rotate(o.rot); pg.drawImage(img, -ax, -ay + cy, w, h); pg.restore();
+    } else if (o.vflip) {
+      pg.save(); pg.translate(dx + w / 2, dy + h / 2); pg.scale(1, -1); pg.drawImage(img, -w / 2, -h / 2, w, h); pg.restore();
+    } else pg.drawImage(img, dx, dy, w, h);
+    if (o.alpha !== undefined) pg.globalAlpha = 1;
+    return true;
+  }
+  // 接地影: 真下の足場を探し、藍濃の半透明を3段の階段で落とす（高いほど狭く薄い）
+  function groundBelow(s, X, footY) {
+    const L = s.level, tx = Math.floor(X / TS);
+    let best = null;
+    for (let ty = Math.max(0, Math.floor((footY + 0.5) / TS)); ty < Math.min(L.h, Math.floor(footY / TS) + 8); ty++) {
+      const tt = L.tiles[ty * L.w + tx], one = tt === T.ONEWAY && footY <= ty * TS + 1;
+      if (one || solidAt(s, tx, ty)) {
+        const up = x => !solidAt(s, x, ty - 1);
+        let a = tx, b = tx;
+        while (a > 0 && solidAt(s, a - 1, ty) && up(a - 1)) a--;
+        while (b < L.w - 1 && solidAt(s, b + 1, ty) && up(b + 1)) b++;
+        best = { y: ty * TS, x0: a * TS, x1: (b + 1) * TS }; break;
+      }
+    }
+    for (const m of s.movers) {
+      const my = Math.round(m.y), mx = Math.round(m.x);
+      if (footY <= my + 1 && X >= mx && X <= mx + 48 && (!best || my < best.y)) best = { y: my, x0: mx, x1: mx + 48 };
+    }
+    return best;
+  }
+  function shadow(s, X, footY, half) {
+    if (!pg) return;
+    X = Math.round(X); footY = Math.round(footY);
+    const gd = groundBelow(s, X, footY);
+    if (!gd) return;
+    const dist = Math.max(0, gd.y - footY), k = Math.min(1, dist / 80);
+    if (dist > 120) return;
+    const a0 = 0.5 - 0.38 * k, hw = half * (1 - 0.45 * k);
+    for (let i = 0; i < 3; i++) {
+      const w = Math.max(2, Math.round(hw - i * 1.5 * (1 - 0.4 * k)));
+      const x0 = Math.max(X - w, gd.x0), x1 = Math.min(X + w, gd.x1);
+      if (x1 <= x0) continue;
+      pg.fillStyle = `rgba(${SHADOW},${(a0 * (1 - 0.22 * i)).toFixed(3)})`;
+      pg.fillRect(x0 * PK, (gd.y + i) * PK, (x1 - x0) * PK, PK);
+    }
   }
   window.addEventListener('resize', resize); resize();
 
@@ -85,6 +168,9 @@ export function createRenderer(canvas, view) {
     const V = s.cam;
     let cx = Math.round(V.x), cy = Math.round(V.y);
     if (s.shake > 0) { cx += Math.round((Math.random() - 0.5) * s.shake * 2); cy += Math.round((Math.random() - 0.5) * s.shake * 2); }
+    pcamX = cx * PK; pcamY = cy * PK;
+    if (pg) { pg.setTransform(1, 0, 0, 1, 0, 0); pg.clearRect(0, 0, W * PK, H * PK); pg.setTransform(1, 0, 0, 1, -pcamX, -pcamY); }
+    if (pc && !plushOn) { pc.style.visibility = 'visible'; plushOn = true; }
     // 空と背景
     g.drawImage(bg.sky, 0, 0);
     // 背景はカメラが下端にいるときを基準に、上へ行くほど少しだけ下がる（視差）
@@ -100,6 +186,7 @@ export function createRenderer(canvas, view) {
     drawDynamicTiles(s, cx, cy, t);
     drawEntities(s, t);
     drawItems(s, t);
+    curS = s;
     for (const e of s.enemies) drawEnemy(e, t);
     if (s.boss) drawBoss(s.boss, t);
     drawPlayer(s, dt, t);
@@ -115,6 +202,7 @@ export function createRenderer(canvas, view) {
   }
 
   function present(src = buf) {
+    if (pc && src !== buf && plushOn) { pc.style.visibility = 'hidden'; plushOn = false; }
     screen.imageSmoothingEnabled = false;
     screen.fillStyle = '#1b2a44'; screen.fillRect(0, 0, canvas.width, canvas.height);
     screen.drawImage(src, ox, oy, W * scale, H * scale);
@@ -195,9 +283,12 @@ export function createRenderer(canvas, view) {
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
       const i = ty * L.w + tx, tt = s.tiles[i], x = tx * TS, y = ty * TS;
       switch (tt) {
-        case T.COIN: { const f = Math.floor(t * 6 + tx) % 4; const c = f === 1 || f === 3 ? spr.coin2 : spr.coin1; g.drawImage(c.r, x + 4, y + 4 + Math.round(Math.sin(t * 3 + tx) * 1)); break; }
-        case T.BOX_POWER: case T.BOX_COIN: drawBasket(x, y + bumpOffset(x, y), false, t); break;
-        case T.BOX_USED: drawBasket(x, y + bumpOffset(x, y), true, t); break;
+        case T.COIN: {
+          const bob = Math.round(Math.sin(t * 3 + tx) * 1);
+          if (pdraw(pf(`item.yarn.${Math.floor(t * 4 + tx) % 2}`, 'item.yarn.0'), x + 8, y + 12 + bob)) break;
+          const f = Math.floor(t * 6 + tx) % 4; const c = f === 1 || f === 3 ? spr.coin2 : spr.coin1; g.drawImage(c.r, x + 4, y + 4 + Math.round(Math.sin(t * 3 + tx) * 1)); break; }
+        case T.BOX_POWER: case T.BOX_COIN: if (!pdraw(pf('item.box'), x + 8, y + 16 + bumpOffset(x, y))) drawBasket(x, y + bumpOffset(x, y), false, t); break;
+        case T.BOX_USED: if (!pdraw(pf('item.box.used', 'item.box'), x + 8, y + 16 + bumpOffset(x, y))) drawBasket(x, y + bumpOffset(x, y), true, t); break;
         case T.CRUMBLE: {
           const c = s.crumbles[L.crumbleAt.get(i)];
           const jx = c.st === 1 ? Math.round(Math.sin(c.t * 80) * 1) : 0;
@@ -274,10 +365,11 @@ export function createRenderer(canvas, view) {
     for (const e of L.ents) {
       if (e.kind === 'medal' && !s.medals[e.idx]) {
         const by = Math.round(Math.sin(t * 2.5 + e.idx) * 2);
+        if (pdraw(pf('item.medal'), e.x + 8, e.y + 15 + by)) continue;
         g.drawImage(spr.medal.r, e.x + 1, e.y + 1 + by);
         if (Math.floor(t * 3 + e.idx) % 5 === 0) { g.fillStyle = PAL.n; g.fillRect(e.x + 11, e.y + 2 + by, 1, 3); g.fillRect(e.x + 10, e.y + 3 + by, 3, 1); }
       }
-      if (e.kind === 'goal' || e.kind === 'secret') drawGoal(e, s, t);
+      if (e.kind === 'goal' || e.kind === 'secret') { if (!pdraw(pf('item.goal'), e.x + 8, e.y + 16)) drawGoal(e, s, t); }
     }
     s.checkpoints.forEach((c, i) => drawCheckpoint(c, i <= s.checkpoint, t));
     for (const sp of s.springs) drawSpring(sp);
@@ -302,6 +394,7 @@ export function createRenderer(canvas, view) {
     }
   }
   function drawCheckpoint(c, on, t) {
+    if (pdraw(pf(on ? 'item.check.on' : 'item.check', 'item.check'), c.x + 8, c.y + 16)) return;
     // 待ち針: 立てると頭が茜になり、糸がなびく
     const x = c.x + 7, y = c.y - 16;
     g.fillStyle = PAL.S; g.fillRect(x, y + 6, 2, 26);
@@ -313,6 +406,7 @@ export function createRenderer(canvas, view) {
   }
   function drawSpring(sp) {
     // ばねボタン: 大きな茜のボタン。踏むと沈む
+    if (pdraw(sp.squash > 0 ? pf('item.spring.press', 'item.spring') : pf('item.spring'), sp.x + 8, sp.y + 7)) return;
     const sq = sp.squash > 0 ? Math.round(sp.squash / 0.18 * 4) : 0;
     const x = sp.x, y = sp.y + sq, h = 7 - sq;
     g.fillStyle = PAL.K; g.fillRect(x, y, 16, h + 1); g.fillRect(x + 1, y - 1, 14, 1);
@@ -345,15 +439,34 @@ export function createRenderer(canvas, view) {
 
   function drawItems(s, t) {
     for (const it of s.items) {
-      if (it.kind === 'wata') g.drawImage(spr.wata.r, Math.round(it.x), Math.round(it.y));
+      if (it.kind === 'wata') { if (!pdraw(pf('item.fluff'), it.x + it.w / 2, it.y + it.h)) g.drawImage(spr.wata.r, Math.round(it.x), Math.round(it.y)); }
     }
     if (s.boss?.knot) {
       const k = s.boss.knot;
+      if (pdraw(pf('item.knot'), k.x + 7, k.y + 14 + Math.round(Math.sin(t * 4)))) return;
       g.drawImage(spr.knot.r, Math.round(k.x), Math.round(k.y + Math.sin(t * 4) * 1));
     }
   }
 
+  function plushEnemy(e, t) {
+    const X = e.x + e.w / 2, Y = e.y + e.h, flip = e.dir < 0;
+    if (!e.alive && e.how === 'stomp') {
+      const f = pf(`${e.type}.squash`); if (!f) return false;
+      return pdraw(f, X, Y, { flip, alpha: Math.max(0, 1 - e.deadT / 0.6) });
+    }
+    if (!e.alive) return true;
+    const ab = e.type === 'choki' ? (e.st === 'hop' ? 'b' : 'a') : (Math.abs(Math.floor(t * 6 + (e.id | 0))) % 2 ? 'b' : 'a');
+    const f = pf(`${e.type}.${ab}`, `${e.type}.a`); if (!f) return false;
+    if (e.type === 'tsumu') { g.fillStyle = PAL.n; g.fillRect(Math.round(e.x + e.w / 2), Math.round(e.sy) - 16, 1, Math.round(e.y - e.sy) + 18); }
+    else shadow(curS, X, Y, e.w / 2 + 2);
+    let sy = 1;
+    if (e.type === 'kedama') sy = e.onGround ? 0.82 : e.vy < 0 ? 1.1 : 1;
+    if (e.type === 'choki' && e.st === 'wait' && e.t > 0.45) sy = Math.floor(t * 20) % 2 ? 0.92 : 1;
+    return pdraw(f, X, Y, { flip, sy });
+  }
+  let curS = null;
   function drawEnemy(e, t) {
+    if (plushEnemy(e, t)) return;
     if (!e.alive && e.how === 'stomp') {
       // 踏まれてぺしゃんこ
       const s0 = enemySpr?.[e.type] ? Object.values(enemySpr[e.type])[0] : (spr[e.type + '1'] ?? spr.iga1);
@@ -404,6 +517,18 @@ export function createRenderer(canvas, view) {
 
   function drawBoss(b, t) {
     if (b.mode === 'defeat' && b.dropped) return;
+    {
+      const m = b.mode;
+      const f = m === 'rest' ? pf('keba.rest.0') : m === 'defeat' ? pf('keba.defeat.0', 'keba.rest.0') : m === 'hurt' ? pf('keba.hurt.0', 'keba.hover.0')
+        : m === 'windup' ? pf('keba.windup.0', 'keba.hover.0') : m === 'swoop' ? pf('keba.swoop.0', 'keba.hover.0')
+        : pf(`keba.hover.${Math.floor(t * 7) % 2}`, 'keba.hover.0');
+      if (f) {
+        const X = b.x + b.w / 2 + (m === 'windup' ? Math.round(Math.sin(t * 60) * 1.5) : 0), Y = b.y + b.h;
+        shadow(curS, b.x + b.w / 2, Y, b.w / 2 + 2);
+        const blink = (m === 'hurt' && Math.floor(t * 10) % 2) || (m === 'defeat' && Math.floor(t * 8) % 2);
+        if (pdraw(f, X, Y, { flip: b.face < 0, alpha: blink ? 0.45 : undefined })) return;
+      }
+    }
     if (bossSpr) {
       let name = b.mode === 'rest' || b.mode === 'defeat' ? 'rest' : b.mode === 'windup' ? (bossSpr.windup ? 'windup' : 'up') : (Math.floor(t * (b.mode === 'swoop' ? 14 : 7)) % 2 ? 'up' : 'down');
       const sp = bossSpr[name] ?? bossSpr.up;
@@ -430,6 +555,22 @@ export function createRenderer(canvas, view) {
     }
   }
 
+  function plushPlayer(s, p, t, running) {
+    const air = !p.onGround && p.ride < 0;
+    let n;
+    if (s.status === 'dead') n = ['tsugi.hurt.0', 'tsugi.fall.0'];
+    else if (air) n = p.glide ? ['tsugi.glide.0', 'tsugi.fall.0'] : p.vy < 0 ? ['tsugi.jump.0'] : ['tsugi.fall.0', 'tsugi.jump.0'];
+    else if (p.skid) n = ['tsugi.land.0', 'tsugi.idle.0'];
+    else if (running) { const k = Math.floor(s.frame * Math.abs(p.vx) / 900) % 4; n = [`tsugi.run.${k}`, 'tsugi.run.0', 'tsugi.idle.0']; }
+    else if (fx.sy < 0.85) n = ['tsugi.land.0', 'tsugi.idle.0'];
+    else n = [`tsugi.idle.${Math.floor(t * 2.5) % 2}`, 'tsugi.idle.0'];
+    const f = pf(...n); if (!f) return false;
+    const X = p.x + p.w / 2, Y = p.y + p.h;
+    shadow(s, X, Y, p.w / 2 + 2);
+    const o = { flip: p.face < 0, sx: fx.sx, sy: fx.sy, vflip: s.status === 'dead' };
+    if (p.power) pdraw(pf('tsugi.fluff.0'), X, Y, o);
+    return pdraw(f, X, Y, o);
+  }
   function drawPlayer(s, dt, t) {
     const p = s.p;
     fx.sx += (1 - fx.sx) * Math.min(1, dt * 14); fx.sy += (1 - fx.sy) * Math.min(1, dt * 14);
@@ -443,6 +584,7 @@ export function createRenderer(canvas, view) {
     else name = running ? runF : 'stand';
     const face = p.face > 0 ? 'r' : 'l';
     const cx = Math.round(p.x + p.w / 2), by = Math.round(p.y + p.h);
+    if (atlas && plushPlayer(s, p, t, running)) return;
     let sp, bw, bh;
     if (playerSpr) {
       sp = playerSpr[name] ?? (name === 'skid' ? playerSpr.stand : name === 'dead' ? playerSpr.fall : null) ?? playerSpr.stand;
@@ -468,6 +610,8 @@ export function createRenderer(canvas, view) {
   }
 
   function drawShot(o) {
+    if (o.kind === 'pin') { if (pdraw(pf('shot.pin'), o.x + o.w / 2, o.y + o.h, { rot: Math.atan2(o.vy, o.vx), cy: o.h / 2 })) return; }
+    else if (o.kind === 'dust') { if (pdraw(pf('shot.dust'), o.x + o.w / 2, o.y + o.h)) return; }
     if (o.kind === 'pin') {
       if (shotSpr) { const sp = Object.values(shotSpr)[0]; g.save(); g.translate(Math.round(o.x + o.w / 2), Math.round(o.y + o.h / 2)); g.rotate(Math.atan2(o.vy, o.vx)); g.drawImage(sp.r, -sp.w / 2, -sp.h / 2); g.restore(); return; }
       const sp = spr.pin;
@@ -500,7 +644,7 @@ export function createRenderer(canvas, view) {
     fx.pops = fx.pops.filter(q => q.t < 1.1);
   }
 
-  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, bigCtx, presentBig: () => present(big), setPlayerSprite, setEnemySprites, setBossSprite, present, spr, fx, size: () => ({ scale, ox, oy }) };
+  return { setLevel, draw, onEvents, resize, get buffer() { return buf; }, get ctx() { return g; }, bigCtx, presentBig: () => present(big), setPlayerSprite, setEnemySprites, setBossSprite, setAtlas, hasAtlas: () => !!atlas, present, spr, fx, size: () => ({ scale, ox, oy }) };
 }
 
 // ---- 地形を一度だけ焼く ----

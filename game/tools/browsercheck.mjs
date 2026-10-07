@@ -1,7 +1,7 @@
 // 実ブラウザ（ヘッドレス Chromium）での通し確認。
 // タイトル → 物語 → 地図 → 1-1 をキー操作で進め、各ステージをクリア確認ボットの操作列で「本物のループのまま」クリアさせる。
 // 起動時間・コンソールエラー・FPS・各場面のスクショを出す。
-//   node game/tools/browsercheck.mjs [--out studio/.gate/browser] [--stages 1-1,1-2] [--mobile]
+//   node game/tools/browsercheck.mjs [--query '?atlas=assets/plush/_test'] [--out studio/.gate/browser] [--stages 1-1,1-2] [--mobile]
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { join, dirname, resolve } from 'node:path';
@@ -43,7 +43,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
   const { ctx, page } = await newPage(1280, 720);
   const t0 = Date.now();
   // load イベント（Web フォントの取得も含む）は待たず、遊べる状態（__GS__）までを測る
-  await page.goto(url + 'index.html', { waitUntil: 'commit' });
+  await page.goto(url + 'index.html' + arg('query', ''), { waitUntil: 'commit' });
   await page.waitForFunction(() => window.__GS__, null, { timeout: 15000 });
   summary.readyMs = Date.now() - t0;
   await sleep(600); await shot(page, 'title.png');
@@ -90,7 +90,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
 // 3) スマホ横持ち（仮想ボタンの表示）
 {
   const { ctx, page } = await newPage(844, 390, true);
-  await page.goto(url + 'index.html');
+  await page.goto(url + 'index.html' + arg('query', ''));
   await page.waitForFunction(() => window.__GS__, null, { timeout: 15000 });
   await page.evaluate(() => window.__GS__.enterStage('1-1'));
   await sleep(1200); await shot(page, 'mobile-844x390.png');
@@ -98,7 +98,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
   summary.mobilePad = padVisible;
   await ctx.close();
   const p2 = await newPage(390, 844, true);
-  await p2.page.goto(url + 'index.html'); await p2.page.waitForFunction(() => window.__GS__);
+  await p2.page.goto(url + 'index.html' + arg('query', '')); await p2.page.waitForFunction(() => window.__GS__);
   await sleep(500); await shot(p2.page, 'mobile-portrait.png');
   summary.portraitNotice = await p2.page.evaluate(() => !document.getElementById('rotate').hidden);
   await p2.ctx.close();

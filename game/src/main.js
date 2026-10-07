@@ -21,11 +21,24 @@ const canvas = $('stage');
 // ツギの絵（決まった案のドット絵）。無ければ仮の絵
 let playerSprite = null;
 if (tuning.playerSprite) { try { playerSprite = await getJSON(tuning.playerSprite); } catch {} }
-const renderer = createRenderer(canvas, tuning.view);
+const renderer = createRenderer(canvas, tuning.view, { plush: $('plush') });
 if (playerSprite) renderer.setPlayerSprite(playerSprite);
 // 敵とボスのドット絵（キャラ設定画から作ったもの）。無ければ仮の絵
 for (const [key, fn] of [['enemySprites', 'setEnemySprites'], ['bossSprite', 'setBossSprite']]) {
   if (tuning[key]) { try { renderer[fn](await getJSON(tuning[key])); } catch {} }
+}
+// ぬいぐるみ層の絵（アトラス）。?atlas=<フォルダ> か tuning.plushAtlas で指定。無い・壊れていれば従来の絵のまま
+{
+  const q = new URLSearchParams(location.search).get('atlas');
+  let dir = q ?? tuning.plushAtlas ?? '';
+  if (dir && dir !== 'off') {
+    if (!dir.endsWith('/')) dir += '/';
+    try {
+      const json = await getJSON(dir + 'atlas.json');
+      const img = new Image(); img.src = dir + 'atlas.png'; await img.decode();
+      renderer.setAtlas(json, img);
+    } catch {}
+  }
 }
 const mapView = createMapView(renderer, world);
 const input = createInput($('pad'));
@@ -358,6 +371,7 @@ requestAnimationFrame(frame);
 // ---- playtester / ボット用フック ----
 window.__GS__ = {
   version: 2,
+  get plush() { return renderer.hasAtlas(); },
   get state() { return S ? { scene, stage: stageId, x: S.p.x, y: S.p.y, status: S.status, deaths: S.deaths, medals: S.medals, time: S.time, coins: S.coins } : { scene }; },
   events,
   get running() { return scene === 'stage' && S?.status === 'play'; },
