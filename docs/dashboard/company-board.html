@@ -137,6 +137,30 @@ header.top .mission{color:var(--muted);max-width:60ch;margin-top:4px}
 .pips i.f{background:var(--accent)}
 .pips.d i.f{background:var(--pause)}
 footer{color:var(--muted);font-size:12px}
+.side{display:grid;gap:16px;min-width:0}
+.composer{background:var(--surface);border:2px solid var(--accent);border-radius:14px;padding:14px 16px;display:grid;gap:10px;min-width:0}
+.composer .row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.composer textarea{width:100%;min-height:84px;resize:vertical;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.quick{display:flex;flex-wrap:wrap;gap:6px}
+.qbtn{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 12px;font-size:12px;cursor:pointer}
+.qbtn:hover{border-color:var(--accent)}
+.btn{border:0;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn[disabled]{opacity:.5;cursor:default}
+.confirm{display:grid;gap:8px;background:var(--warn-bg);border-radius:10px;padding:10px 12px}
+.confirm .msg{white-space:pre-wrap;overflow-wrap:anywhere}
+.confirm .acts{display:flex;gap:8px;flex-wrap:wrap}
+.cstat{font-size:12px;color:var(--muted)}
+.cstat.ok{color:var(--ok)}.cstat.bad{color:var(--bad)}
+.inbox .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.inbox .qbtn{background:var(--surface)}
+.orders{list-style:none;margin:0;padding:0}
+.orders li{display:grid;grid-template-columns:110px 150px minmax(0,1fr);gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);align-items:baseline}
+.orders li:last-child{border-bottom:0}
+.orders li.empty{display:block;color:var(--muted)}
+.orders .txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.orders small{color:var(--muted)}
+@media (max-width:620px){.orders li{grid-template-columns:minmax(0,1fr) auto}.orders .txt{grid-column:1/-1}}
 .loading{color:var(--muted);font-size:13px}
 </style>
 
@@ -164,7 +188,20 @@ footer{color:var(--muted);font-size:12px}
       <span class="clock" id="clock"></span>
       <span class="hint">建物をタップで詳細</span>
     </div>
-    <aside class="detail" id="detail" aria-live="polite"><p class="loading">区画を選ぶと、その部署の状況が出ます。</p></aside>
+    <div class="side">
+      <aside class="detail" id="detail" aria-live="polite"><p class="loading">区画を選ぶと、その部署の状況が出ます。</p></aside>
+      <section class="composer" id="composer" aria-labelledby="cTitle">
+        <div class="row"><h3 id="cTitle">指示を出す</h3><span class="eyebrow" id="cTo"></span></div>
+        <div class="quick" id="cQuick"></div>
+        <label for="cText" class="eyebrow">指示の内容</label>
+        <textarea id="cText" placeholder="例: 今日の1本は「夏祭り」がテーマで作って"></textarea>
+        <div class="confirm" id="cConfirm" hidden>
+          <div class="msg" id="cConfirmText"></div>
+          <div class="acts"><button type="button" class="btn" id="cGo">送信する</button><button type="button" class="btn ghost" id="cCancel">やめる</button></div>
+        </div>
+        <div class="row"><button type="button" class="btn" id="cSend">送る前に確認</button><span class="cstat" id="cStatus" role="status"></span></div>
+      </section>
+    </div>
   </section>
 
   <section class="board" aria-labelledby="boardTitle">
@@ -172,12 +209,17 @@ footer{color:var(--muted);font-size:12px}
     <ul class="depts" id="depts"></ul>
   </section>
 
+  <section class="board" aria-labelledby="ordTitle">
+    <div class="board-head"><h2 id="ordTitle">指示の履歴</h2><span class="eyebrow">新しい順に10件</span></div>
+    <ul class="orders" id="orders"><li class="empty">まだ指示はありません。部署を選んで「指示を出す」から送れます。</li></ul>
+  </section>
+
   <section class="shelf" aria-labelledby="shelfTitle">
     <div class="board-head" style="padding:0;border:0"><h2 id="shelfTitle">ミニゲーム棚</h2><span class="eyebrow" id="shelfSum"></span></div>
     <div class="games" id="games"></div>
   </section>
 
-  <footer id="foot">記録は相棒（Claude）が毎朝更新します。ライブ表示は Claude Code のセッション状態を直接読みます。</footer>
+  <footer id="foot">記録は相棒（Claude）が毎朝更新します。ライブ表示と指示の送信は、あなたの Claude Code（Claude Code Remote コネクタ）を通じて行います。</footer>
 </div>
 
 <script>
@@ -396,7 +438,16 @@ footer{color:var(--muted);font-size:12px}
     if(!state.snap){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"記録を読み込んでいます。"})); return; }
     if(!items.length){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"いま判断が必要なものはありません。"})); return; }
     items.forEach(function(it){
-      var li = el("li",null,[el("span",{cls:"who",text:it.dept||""}), el("b",{text:it.title}), it.detail? el("small",{text:it.detail}) : null]);
+      var acts = null;
+      if(it.actions && it.actions.length && it.deptId){
+        acts = el("div",{cls:"acts"});
+        it.actions.forEach(function(a){
+          var b = el("button",{type:"button",cls:"qbtn",text:a.label});
+          b.addEventListener("click", function(){ prefill(it.deptId, a.text); });
+          acts.appendChild(b);
+        });
+      }
+      var li = el("li",null,[el("span",{cls:"who",text:it.dept||""}), el("b",{text:it.title}), it.detail? el("small",{text:it.detail}) : null, acts]);
       ul.appendChild(li);
     });
   }
@@ -452,8 +503,111 @@ footer{color:var(--muted);font-size:12px}
     if(state.snap && state.snap.mission) $("mission").textContent = state.snap.mission;
   }
 
-  function renderAll(){ drawWorld(); renderDetail(); renderInbox(); renderBoard(); renderGames(); renderChips(); }
-  function select(id){ state.sel = id; try{ localStorage.setItem("hq-sel", id); }catch(e){} renderAll(); }
+  function renderAll(){ drawWorld(); renderDetail(); renderInbox(); renderBoard(); renderGames(); renderChips(); updateComposer(); }
+  function select(id){ if(id!==state.sel) hideConfirm(); state.sel = id; try{ localStorage.setItem("hq-sel", id); }catch(e){} renderAll(); }
+
+  // ---------- 指示を出す ----------
+  // 担当セッションがある部署はそこへ、無い部署は本部セッションへ宛先付きで送る
+  var dbRef = null, mcpRef = null;
+  function target(){
+    var o = ORG.filter(function(x){return x.id===state.sel;})[0] || ORG[4];
+    var depts = (state.snap && state.snap.depts) || {};
+    var d = depts[o.id] || {}, hq = depts.hq || {};
+    if(d.sessionId) return {o:o, sid:d.sessionId, label:o.name+"の担当セッションへ", via:false};
+    if(hq.sessionId) return {o:o, sid:hq.sessionId, label:"本部経由で"+o.name+"へ", via:true};
+    return {o:o, sid:null, label:"送り先がまだありません", via:false};
+  }
+  var lastQuickKey = "";
+  function updateComposer(){
+    var t = target();
+    $("cTo").textContent = t.label;
+    $("cSend").disabled = !t.sid || !!state.sending;
+    var d = (state.snap && state.snap.depts && state.snap.depts[t.o.id]) || {};
+    var quick = d.quick || [];
+    var key = t.o.id+"|"+JSON.stringify(quick);
+    if(key===lastQuickKey) return;
+    lastQuickKey = key;
+    var box = $("cQuick"); box.textContent = "";
+    quick.forEach(function(q){
+      var b = el("button",{type:"button",cls:"qbtn",text:q.label});
+      b.addEventListener("click", function(){ $("cText").value = q.text; hideConfirm(); $("cText").focus(); });
+      box.appendChild(b);
+    });
+  }
+  function prefill(deptId, text){
+    select(deptId);
+    $("cText").value = text || "";
+    hideConfirm();
+    $("composer").scrollIntoView({behavior:"smooth", block:"center"});
+    $("cText").focus();
+  }
+  function setStatus(msg, kind){ var s = $("cStatus"); s.textContent = msg||""; s.className = "cstat"+(kind?" "+kind:""); }
+  function hideConfirm(){ $("cConfirm").hidden = true; }
+  function buildMessage(t, text){
+    var head = "【進捗ボードからの指示（オーナー）】";
+    if(t.via) head += "\n宛先: "+t.o.name+"（担当セッションが無いので、本部が受けて対応・振り分けしてください）";
+    return head+"\n"+text;
+  }
+  function hhmm(d){ return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+
+  // 1回目のボタンで送り先と内容を見せ、2回目（送信する）で初めて送る
+  $("cSend").addEventListener("click", function(){
+    var text = $("cText").value.trim(), t = target();
+    if(!text){ setStatus("指示の内容を書いてください。", "bad"); $("cText").focus(); return; }
+    if(!t.sid){ setStatus("送り先のセッションがまだ記録にありません。", "bad"); return; }
+    $("cConfirmText").textContent = t.label+"、次の内容を送ります。\n「"+text+"」";
+    $("cConfirm").hidden = false; setStatus("");
+    $("cGo").focus();
+  });
+  $("cCancel").addEventListener("click", function(){ hideConfirm(); $("cText").focus(); });
+  $("cText").addEventListener("input", hideConfirm);
+  $("cGo").addEventListener("click", function(){
+    var text = $("cText").value.trim(), t = target();
+    if(!text || !t.sid || state.sending) return;
+    hideConfirm();
+    if(!mcpRef){ setStatus("このビューでは送れません。claude.ai にサインインした状態で開いてください。", "bad"); return; }
+    state.sending = true; updateComposer(); setStatus("送信中…");
+    mcpRef.callTool("Claude Code Remote","send_message",{session_id:t.sid, message:buildMessage(t, text)},{cache:false}).then(function(){
+      state.sending = false; updateComposer();
+      var at = new Date();
+      setStatus("送りました（"+hhmm(at)+"）。返事は箱庭のロボとセッションのメモに出ます。", "ok");
+      $("cText").value = "";
+      logOrder({dept:t.o.id, deptName:t.o.name, to:t.sid, via:t.via, text:text, at:at.toISOString()});
+      if(mcpRef.invalidate) mcpRef.invalidate("Claude Code Remote","list_sessions").catch(function(){});
+    }, function(err){
+      state.sending = false; updateComposer();
+      var c = err && err.code;
+      // 送信は書き込みなので自動で再送しない。届いたか不明なときは確認を促す
+      var msg = {
+        server_not_connected:"送れませんでした。claude.ai の設定 → コネクタで Claude Code Remote を追加してください。",
+        needs_reauth:"送れませんでした。Claude Code Remote を再接続してください。",
+        not_in_manifest:"送れませんでした。このページの権限メニューで Claude Code Remote を許可してください。",
+        blocked_by_policy:"組織の設定で送信が止められています。",
+        tool_error:"セッション側で受け取れませんでした: "+((err && err.message)||""),
+        server_unavailable:"届いたか分かりません。担当セッションを開いて確かめてから、必要なら送り直してください。",
+        upstream_error:"届いたか分かりません。担当セッションを開いて確かめてから、必要なら送り直してください。",
+        cancelled:"送信を取り消しました。"
+      }[c] || "送れませんでした（"+(c||"不明")+"）。";
+      setStatus(msg, "bad");
+    });
+  });
+
+  // ---------- 指示の履歴（db の orders） ----------
+  function logOrder(rec){
+    if(!dbRef) return;
+    dbRef.collection("orders").add(rec).catch(function(){ setStatus($("cStatus").textContent+"（履歴への記録は失敗）", "ok"); });
+  }
+  function renderOrders(docs){
+    var ul = $("orders"); ul.textContent = "";
+    if(!docs.length){ ul.appendChild(el("li",{cls:"empty",text:"まだ指示はありません。部署を選んで「指示を出す」から送れます。"})); return; }
+    docs.forEach(function(r){
+      ul.appendChild(el("li",null,[
+        el("span",{cls:"num",text:fmtDate(r.at)}),
+        el("span",null,[el("b",{text:r.deptName||r.dept||""}), r.via? el("small",{text:" 本部経由"}) : null]),
+        el("span",{cls:"txt",text:r.text||""})
+      ]));
+    });
+  }
 
   renderAll();
   setInterval(drawWorld, 60000);
@@ -463,6 +617,10 @@ footer{color:var(--muted);font-size:12px}
     if(!window.claude || !window.claude.use){ state.snapMsg = "記録: このビューでは読めません"; renderChips(); return; }
     window.claude.use("db").then(function(db){
       if(!db){ state.snapMsg = "記録: このビューでは読めません"; renderChips(); return; }
+      dbRef = db;
+      db.collection("orders").orderBy("at","desc").limit(10).onSnapshot(function(q){
+        renderOrders(q.docs.map(function(d){ return d.data(); }));
+      }, function(){});
       db.doc("hq/snapshot").onSnapshot(function(s){
         if(s.exists){ state.snap = s.data(); } else { state.snapMsg = "記録: まだありません"; }
         renderAll();
@@ -489,6 +647,7 @@ footer{color:var(--muted);font-size:12px}
     if(!window.claude || !window.claude.use) return;
     window.claude.use("mcp").then(function(mcp){
       if(!mcp){ state.liveMsg = "ライブ: このビューでは使えません"; renderChips(); return; }
+      mcpRef = mcp;
       mcp.watchTool("Claude Code Remote","list_sessions",{limit:30, mine:true}, function(ev){
         if(ev.type==="data"){
           state.live = readSessions(ev.result.payload);
