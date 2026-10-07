@@ -1,0 +1,517 @@
+<title>ゲーム会社 進捗ボード</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Noto+Sans+JP:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 箱庭の本社（9区画のアイソメ島）を主役に、上に「判断待ち」、右（スマホは下）に区画の詳細、最後に部署一覧とミニゲーム棚 */
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --ink:#1A2238; --muted:#5B6580; --line:#D5DAE5;
+  --accent:#F2643A; --accent-ink:#FFFFFF;
+  --ok:#1F9D6B; --warn:#D98A00; --pause:#5C6FC4; --idle:#8A93A8; --bad:#D2433B;
+  --ok-bg:#E3F5EC; --warn-bg:#FFF3D9; --pause-bg:#E7EBFA; --idle-bg:#EEF0F4; --bad-bg:#FBE6E4;
+  --ground:#7FB685; --ground-side:#5E9465; --plot:#A8D3A3; --plot-sel:#FFE29A;
+  --f-display:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+  --f-body:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11152A; --surface:#1A2038; --ink:#E8ECF7; --muted:#9AA3BD; --line:#2C3455;
+  --accent:#FF7A50; --accent-ink:#1A1208;
+  --ok:#3CC98F; --warn:#F2B13A; --pause:#8FA0F0; --idle:#7E879E; --bad:#F06B62;
+  --ok-bg:#163428; --warn-bg:#3A2D10; --pause-bg:#232B52; --idle-bg:#242A40; --bad-bg:#3D1C1B;
+  --ground:#4E7F58; --ground-side:#36603F; --plot:#6E9E6C; --plot-sel:#C9A94E;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#11152A; --surface:#1A2038; --ink:#E8ECF7; --muted:#9AA3BD; --line:#2C3455;
+  --accent:#FF7A50; --accent-ink:#1A1208;
+  --ok:#3CC98F; --warn:#F2B13A; --pause:#8FA0F0; --idle:#7E879E; --bad:#F06B62;
+  --ok-bg:#163428; --warn-bg:#3A2D10; --pause-bg:#232B52; --idle-bg:#242A40; --bad-bg:#3D1C1B;
+  --ground:#4E7F58; --ground-side:#36603F; --plot:#6E9E6C; --plot-sel:#C9A94E;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.6;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:clamp(22px,3.4vw,30px);font-weight:800;letter-spacing:.01em}
+h2{font-size:17px;font-weight:800}
+h3{font-size:15px;font-weight:800}
+.eyebrow{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+header.top .mission{color:var(--muted);max-width:60ch;margin-top:4px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--idle);flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+
+/* 判断待ち */
+.inbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.inbox-head{display:flex;align-items:baseline;gap:10px}
+.inbox-head .count{font-family:var(--f-display);font-weight:800;color:var(--accent);font-size:20px}
+.inbox ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.inbox li{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--warn-bg);min-width:0}
+.inbox li b{font-weight:600}
+.inbox li small{color:var(--muted)}
+.inbox li .who{font-size:11px;letter-spacing:.06em;color:var(--warn);font-weight:600}
+.empty{color:var(--muted)}
+
+/* 箱庭 + 詳細 */
+.stage{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.stage{grid-template-columns:minmax(0,1fr)}}
+.scene{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#9fd0f0}
+.scene svg{display:block;width:100%;height:auto}
+.scene .clock{position:absolute;left:12px;top:10px;font-size:12px;color:#fff;background:rgba(10,16,40,.35);padding:2px 10px;border-radius:999px;backdrop-filter:blur(4px)}
+.scene .hint{position:absolute;right:12px;bottom:10px;font-size:11px;color:#fff;background:rgba(10,16,40,.35);padding:2px 10px;border-radius:999px}
+.plot{cursor:pointer}
+.plot .tile{fill:var(--plot);stroke:rgba(0,0,0,.08);transition:fill .2s}
+.plot:hover .tile{fill:var(--plot-sel)}
+.plot.sel .tile{fill:var(--plot-sel)}
+.plot:focus{outline:none}
+.plot:focus-visible .tile{stroke:var(--accent);stroke-width:3}
+.plot-ov text.lbl{font-family:var(--f-display);font-weight:800;font-size:11px;fill:#21311F;paint-order:stroke;stroke:rgba(255,255,255,.75);stroke-width:3px}
+.bot{transform-box:fill-box}
+.st-working .bot-body{animation:bob .9s ease-in-out infinite}
+.st-working .spark{animation:spark .9s steps(2) infinite}
+.st-waiting .bubble{animation:pulse 1.6s ease-in-out infinite}
+.st-standby .bot-body,.st-paused .bot-body{opacity:.85}
+.st-paused .zz{animation:drift 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+@keyframes spark{50%{opacity:0}}
+@keyframes pulse{50%{transform:translateY(-3px)}}
+@keyframes drift{0%{opacity:0;transform:translate(0,4px)}50%{opacity:1}100%{opacity:0;transform:translate(6px,-6px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.detail .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-working{color:var(--ok);background:var(--ok-bg)}
+.p-waiting{color:var(--warn);background:var(--warn-bg)}
+.p-paused{color:var(--pause);background:var(--pause-bg)}
+.p-standby,.p-unknown{color:var(--idle);background:var(--idle-bg)}
+.p-done{color:var(--ok);background:var(--ok-bg)}
+.p-failed{color:var(--bad);background:var(--bad-bg)}
+.detail .headline{font-size:15px;font-weight:600}
+.detail ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.kv div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.kv dt{font-size:11px;color:var(--muted)}
+.kv dd{margin:0;font-family:var(--f-data);font-variant-numeric:tabular-nums;font-size:16px}
+.kv{margin:0}
+.bar{height:8px;border-radius:999px;background:var(--idle-bg);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.next{border-left:3px solid var(--accent);padding-left:10px}
+.live{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--accent-ink);text-decoration:none;font-weight:600;border-radius:10px;padding:7px 14px;font-size:13px}
+
+/* 部署一覧 */
+.board{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.board-head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.depts{list-style:none;margin:0;padding:0}
+.depts li{border-bottom:1px solid var(--line)}
+.depts li:last-child{border-bottom:0}
+.depts button{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:150px 120px minmax(0,1fr);gap:12px;align-items:center;padding:10px 16px}
+.depts button:hover{background:var(--bg)}
+.depts button:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.depts .name{font-family:var(--f-display);font-weight:800}
+.depts .name small{display:block;font-family:var(--f-body);font-weight:400;font-size:11px;color:var(--muted)}
+.depts .hl{color:var(--muted);overflow-wrap:anywhere}
+@media (max-width:620px){.depts button{grid-template-columns:minmax(0,1fr) auto}.depts .hl{grid-column:1/-1}}
+
+/* ミニゲーム棚 */
+.shelf{display:grid;gap:10px}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.game{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:6px;min-width:0}
+.game .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.game .id{font-family:var(--f-data);font-size:11px;color:var(--muted)}
+.game p{margin:0;color:var(--muted);font-size:12.5px}
+.score{display:grid;grid-template-columns:5.5em minmax(0,1fr) 1.5em;gap:6px;align-items:center;font-size:11px;color:var(--muted)}
+.pips{display:grid;grid-template-columns:repeat(10,1fr);gap:2px}
+.pips i{height:6px;border-radius:2px;background:var(--idle-bg)}
+.pips i.f{background:var(--accent)}
+.pips.d i.f{background:var(--pause)}
+footer{color:var(--muted);font-size:12px}
+.loading{color:var(--muted);font-size:13px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">AI社員だけで回るインディーゲームスタジオ</div>
+      <h1>ゲーム会社 進捗ボード</h1>
+      <div class="mission" id="mission">忙しい毎日から離れて、時間を忘れて没頭できる遊びを届ける</div>
+    </div>
+    <div class="meta">
+      <span class="chip" id="snapChip"><span class="dot"></span><span>記録: 読み込み中</span></span>
+      <span class="chip" id="liveChip"><span class="dot"></span><span>ライブ: 未接続</span></span>
+    </div>
+  </header>
+
+  <section class="inbox" aria-labelledby="inboxTitle">
+    <div class="inbox-head"><h2 id="inboxTitle">あなたの判断待ち</h2><span class="count num" id="inboxCount">–</span></div>
+    <ul id="inbox"><li class="empty" style="background:none;padding:0">記録を読み込んでいます。</li></ul>
+  </section>
+
+  <section class="stage">
+    <div class="scene" id="scene">
+      <svg id="world" viewBox="-300 -175 600 445" role="img" aria-label="本社の箱庭。区画ごとに部署の建物とAI社員がいます"></svg>
+      <span class="clock" id="clock"></span>
+      <span class="hint">建物をタップで詳細</span>
+    </div>
+    <aside class="detail" id="detail" aria-live="polite"><p class="loading">区画を選ぶと、その部署の状況が出ます。</p></aside>
+  </section>
+
+  <section class="board" aria-labelledby="boardTitle">
+    <div class="board-head"><h2 id="boardTitle">部署の状況</h2><span class="eyebrow" id="boardSum"></span></div>
+    <ul class="depts" id="depts"></ul>
+  </section>
+
+  <section class="shelf" aria-labelledby="shelfTitle">
+    <div class="board-head" style="padding:0;border:0"><h2 id="shelfTitle">ミニゲーム棚</h2><span class="eyebrow" id="shelfSum"></span></div>
+    <div class="games" id="games"></div>
+  </section>
+
+  <footer id="foot">記録は相棒（Claude）が毎朝更新します。ライブ表示は Claude Code のセッション状態を直接読みます。</footer>
+</div>
+
+<script>
+(function(){
+  // 組織図（docs/company.md の部署の当てはめ）。状態や数字は db の記録から入る
+  var ORG = [
+    {id:"planning", name:"経営企画", role:"当たり分析・次の方針", i:0,j:0, h:46, color:"#C9B6E4"},
+    {id:"studio",   name:"大型タイトル", role:"開発（studio/）", i:1,j:0, h:84, color:"#F4A261"},
+    {id:"arcade",   name:"ミニゲーム工場", role:"開発（arcade/）", i:2,j:0, h:62, color:"#F6D365"},
+    {id:"legal",    name:"法務", role:"権利・ライセンス", i:0,j:1, h:40, color:"#9FB7E8"},
+    {id:"hq",       name:"本部", role:"進行役・オーナー窓口", i:1,j:1, h:100, color:"#EF7F6A"},
+    {id:"qa",       name:"品質保証", role:"自動QA・監査", i:2,j:1, h:50, color:"#8FD3C7"},
+    {id:"finance",  name:"経理", role:"収益と費用", i:0,j:2, h:36, color:"#B5D99C"},
+    {id:"pr",       name:"広報", role:"開発日記・告知", i:1,j:2, h:44, color:"#F2A7C3"},
+    {id:"sales",    name:"営業", role:"第2期（To B）", i:2,j:2, h:30, color:"#C7CCD8"}
+  ];
+  var STATUS = {
+    working:{label:"作業中"}, waiting:{label:"オーナー待ち"}, paused:{label:"一時停止"},
+    standby:{label:"待機"}, done:{label:"完了"}, failed:{label:"失敗"}, unknown:{label:"読み込み中"}
+  };
+  var state = {snap:null, live:null, liveAt:null, sel:"hq"};
+  try{ var s = localStorage.getItem("hq-sel"); if(s) state.sel = s; }catch(e){}
+
+  var $ = function(id){ return document.getElementById(id); };
+  function el(tag, attrs, kids){
+    var n = document.createElement(tag);
+    if(attrs) for(var k in attrs){ if(k==="text") n.textContent = attrs[k]; else if(k==="cls") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    (kids||[]).forEach(function(c){ if(c) n.appendChild(typeof c==="string"? document.createTextNode(c) : c); });
+    return n;
+  }
+  var NS = "http://www.w3.org/2000/svg";
+  function sv(tag, attrs, kids){
+    var n = document.createElementNS(NS, tag);
+    if(attrs) for(var k in attrs){
+      var val = attrs[k];
+      if(k==="text") n.textContent = val;
+      // CSS 変数は属性では効かないので style で渡す
+      else if(typeof val==="string" && val.indexOf("var(")===0) n.style.setProperty(k, val);
+      else n.setAttribute(k, val);
+    }
+    (kids||[]).forEach(function(c){ if(c) n.appendChild(c); });
+    return n;
+  }
+  function shade(hex, f){
+    var n = parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255;
+    function c(v){ return Math.max(0, Math.min(255, Math.round(f<0? v*(1+f) : v+(255-v)*f))); }
+    return "rgb("+c(r)+","+c(g)+","+c(b)+")";
+  }
+  function fmtDate(iso){
+    if(!iso) return "";
+    var d = new Date(iso); if(isNaN(d)) return iso;
+    return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  }
+
+  // 記録（db）とライブ（セッション状態）を合わせて、部署ごとの表示内容を決める
+  function deptView(o){
+    var d = (state.snap && state.snap.depts && state.snap.depts[o.id]) || {};
+    var st = d.status || (state.snap? "standby" : "unknown");
+    var live = null;
+    if(d.sessionId && state.live){ live = state.live[d.sessionId] || null; }
+    if(live){
+      var b = live.bucket;
+      if(b==="WORKING") st = "working";
+      else if(b==="FAILED") st = "failed";
+      else if(b==="BLOCKED" && st!=="paused") st = "waiting";
+    }
+    return {o:o, d:d, st:st, live:live};
+  }
+
+  // ---------- 箱庭 ----------
+  var TW = 82, TH = 46;
+  function iso(i,j){ return {x:(i-j)*TW, y:(i+j)*TH}; }
+  function skyPhase(h){ return h>=5&&h<7?"dawn": h>=7&&h<16?"day": h>=16&&h<19?"dusk":"night"; }
+  var SKY = {dawn:["#F7B9A1","#B7C9EE"], day:["#8CC9F0","#D8EEFA"], dusk:["#F08A5D","#6A5A9E"], night:["#0E1636","#28366B"]};
+
+  function drawWorld(){
+    var svg = $("world"); while(svg.firstChild) svg.removeChild(svg.firstChild);
+    var now = new Date(), ph = skyPhase(now.getHours()), sky = SKY[ph];
+    var defs = sv("defs");
+    var lg = sv("linearGradient",{id:"sky",x1:"0",y1:"0",x2:"0",y2:"1"});
+    lg.appendChild(sv("stop",{offset:"0","stop-color":sky[0]})); lg.appendChild(sv("stop",{offset:"1","stop-color":sky[1]}));
+    defs.appendChild(lg); svg.appendChild(defs);
+    svg.appendChild(sv("rect",{x:-300,y:-175,width:600,height:445,fill:"url(#sky)"}));
+    if(ph==="night"){
+      for(var k=0;k<40;k++){ var sx=-295+((k*97)%590), sy=-170+((k*53)%120); svg.appendChild(sv("circle",{cx:sx,cy:sy,r:(k%3?0.8:1.4),fill:"#fff",opacity:(k%4?0.5:0.9)})); }
+      svg.appendChild(sv("circle",{cx:240,cy:-135,r:14,fill:"#F4EFD6"}));
+      svg.appendChild(sv("circle",{cx:246,cy:-139,r:12,fill:sky[0]}));
+    } else {
+      var sunY = ph==="day"? -140 : -95;
+      svg.appendChild(sv("circle",{cx:-240,cy:sunY,r:16,fill:ph==="day"?"#FFE38A":"#FFC07A",opacity:.95}));
+      [[-120,-130],[110,-145],[40,-120]].forEach(function(c,ix){
+        var g = sv("g",{opacity: ph==="dusk"? .55 : .85});
+        g.appendChild(sv("ellipse",{cx:c[0],cy:c[1],rx:26,ry:8,fill:"#fff"}));
+        g.appendChild(sv("ellipse",{cx:c[0]+12,cy:c[1]-5,rx:14,ry:8,fill:"#fff"}));
+        svg.appendChild(g);
+      });
+    }
+    // 島
+    var top = iso(0,0), right = iso(2,0), bottom = iso(2,2), left = iso(0,2);
+    var pad = 1.6;
+    var P = [[top.x, top.y-TH*pad],[right.x+TW*pad, right.y],[bottom.x, bottom.y+TH*pad],[left.x-TW*pad, left.y]];
+    var depth = 22;
+    svg.appendChild(sv("polygon",{points:[P[3],P[2],[P[2][0],P[2][1]+depth],[P[3][0],P[3][1]+depth]].map(String).join(" "),fill:"var(--ground-side)"}));
+    svg.appendChild(sv("polygon",{points:[P[2],P[1],[P[1][0],P[1][1]+depth],[P[2][0],P[2][1]+depth]].map(String).join(" "),fill:shade("#4F8457",-0.1)}));
+    svg.appendChild(sv("polygon",{points:P.map(String).join(" "),fill:"var(--ground)"}));
+
+    var night = ph==="night" || ph==="dusk";
+    var overlays = [];
+    ORG.slice().sort(function(a,b){ return (a.i+a.j)-(b.i+b.j) || a.i-b.i; }).forEach(function(o){
+      var v = deptView(o), c = iso(o.i,o.j);
+      var g = sv("g",{class:"plot st-"+v.st+(state.sel===o.id?" sel":""),tabindex:"0",role:"button","aria-label":o.name+"、"+STATUS[v.st].label,"data-id":o.id});
+      var a = TW*0.9, b = TH*0.9;
+      g.appendChild(sv("polygon",{class:"tile",points:[[c.x,c.y-b],[c.x+a,c.y],[c.x,c.y+b],[c.x-a,c.y]].map(String).join(" ")}));
+      // 建物
+      var w = 30, hh = 17, h = Math.round(o.h*0.62), bx = c.x, by = c.y-4;
+      g.appendChild(sv("polygon",{points:[[bx-w,by-h],[bx,by+hh-h],[bx,by+hh],[bx-w,by]].map(String).join(" "),fill:shade(o.color,-0.12)}));
+      g.appendChild(sv("polygon",{points:[[bx+w,by-h],[bx,by+hh-h],[bx,by+hh],[bx+w,by]].map(String).join(" "),fill:shade(o.color,-0.28)}));
+      g.appendChild(sv("polygon",{points:[[bx,by-hh-h],[bx+w,by-h],[bx,by+hh-h],[bx-w,by-h]].map(String).join(" "),fill:shade(o.color,0.25)}));
+      // 窓（夜は点灯。作業中の部署だけ明るい）
+      var rows = Math.max(1, Math.floor((h-12)/16));
+      for(var r=0;r<rows;r++){
+        for(var q=0;q<2;q++){
+          var lit = night && (v.st==="working" || v.st==="waiting" || (r+q)%2===0);
+          var wx = bx-w+8+q*13, wy = by-h+12+r*16 + (8+q*13)*hh/w;
+          g.appendChild(sv("polygon",{points:[[wx,wy],[wx+7,wy+4],[wx+7,wy+11],[wx,wy+7]].map(String).join(" "),fill: lit? "#FFE6A3" : "rgba(30,40,70,.35)"}));
+        }
+      }
+      if(o.id==="hq"){ g.appendChild(sv("line",{x1:bx,y1:by-hh-h,x2:bx,y2:by-hh-h-20,stroke:"#555",["stroke-width"]:1.5})); g.appendChild(sv("polygon",{points:[[bx,by-hh-h-20],[bx+12,by-hh-h-16],[bx,by-hh-h-12]].map(String).join(" "),fill:"var(--accent)"})); }
+      var ov = sv("g",{class:"plot-ov st-"+v.st,"data-id":o.id,style:"cursor:pointer"});
+      ov.addEventListener("click", function(){ select(o.id); });
+      overlays.push(ov);
+      // AI社員（オリジナルの小さなロボ）
+      var rx = c.x+34, ry = c.y+22;
+      var bot = sv("g",{class:"bot",transform:"translate("+rx+","+ry+")"});
+      var body = sv("g",{class:"bot-body"});
+      body.appendChild(sv("ellipse",{cx:0,cy:2,rx:9,ry:3,fill:"rgba(0,0,0,.18)"}));
+      body.appendChild(sv("rect",{x:-6,y:-11,width:12,height:11,rx:4,fill:shade(o.color,-0.05),stroke:"rgba(0,0,0,.25)"}));
+      body.appendChild(sv("rect",{x:-9,y:-26,width:18,height:15,rx:5,fill:"#1E2440"}));
+      var eye = v.st==="paused"||v.st==="standby" ? 1 : 3;
+      body.appendChild(sv("rect",{x:-5,y:-21+(3-eye)/2,width:3,height:eye,rx:1,fill:"#7EF0E0"}));
+      body.appendChild(sv("rect",{x:2,y:-21+(3-eye)/2,width:3,height:eye,rx:1,fill:"#7EF0E0"}));
+      body.appendChild(sv("line",{x1:0,y1:-26,x2:0,y2:-31,stroke:"#1E2440","stroke-width":1.5}));
+      var ant = {working:"var(--ok)",waiting:"var(--warn)",paused:"var(--pause)",failed:"var(--bad)"}[v.st] || "var(--idle)";
+      body.appendChild(sv("circle",{cx:0,cy:-32,r:2.4,fill:ant}));
+      if(v.st==="working"){
+        body.appendChild(sv("path",{class:"spark",d:"M -15 -8 l -4 -3 M -15 -4 l -5 0 M -15 0 l -4 3",stroke:"#FFD24A","stroke-width":1.6,fill:"none"}));
+      }
+      bot.appendChild(body);
+      ov.appendChild(bot);
+      // ふきだし
+      var bubTxt = {waiting:"!",paused:"II",working:"…",done:"✓",failed:"×"}[v.st];
+      if(bubTxt){
+        var bub = sv("g",{class:"bubble",transform:"translate("+(rx+12)+","+(ry-46)+")"});
+        var fill = {waiting:"var(--warn)",paused:"var(--pause)",working:"var(--ok)",done:"var(--ok)",failed:"var(--bad)"}[v.st];
+        bub.appendChild(sv("rect",{x:-10,y:-10,width:20,height:18,rx:9,fill:fill}));
+        bub.appendChild(sv("path",{d:"M -4 7 L -8 13 L 2 7 Z",fill:fill}));
+        bub.appendChild(sv("text",{x:0,y:3.5,"text-anchor":"middle","font-size":11,"font-weight":800,fill:"#fff","font-family":"var(--f-data)",text:bubTxt}));
+        ov.appendChild(bub);
+      }
+      if(v.st==="paused"){ ov.appendChild(sv("text",{class:"zz",x:rx+8,y:ry-30,"font-size":9,"font-weight":800,fill:"#fff",text:"z"})); }
+      // 進捗バー（ある部署だけ）
+      if(v.d.progress && v.d.progress.max){
+        var pw = 48, pr = Math.max(0,Math.min(1,v.d.progress.value/v.d.progress.max));
+        g.appendChild(sv("rect",{x:bx-pw/2,y:by-hh-h-12,width:pw,height:5,rx:2.5,fill:"rgba(0,0,0,.25)"}));
+        g.appendChild(sv("rect",{x:bx-pw/2,y:by-hh-h-12,width:pw*pr,height:5,rx:2.5,fill:"var(--accent)"}));
+      }
+      ov.appendChild(sv("text",{class:"lbl",x:c.x-8,y:c.y+b-4,"text-anchor":"middle",text:o.name}));
+      g.addEventListener("click", function(){ select(o.id); });
+      g.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); select(o.id); } });
+      svg.appendChild(g);
+    });
+    overlays.forEach(function(n){ svg.appendChild(n); });
+    $("clock").textContent = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+" ・ "+({dawn:"夜明け",day:"昼",dusk:"夕方",night:"夜"})[ph];
+  }
+
+  // ---------- 詳細 ----------
+  function renderDetail(){
+    var o = ORG.filter(function(x){return x.id===state.sel;})[0] || ORG[4];
+    var v = deptView(o), d = v.d, box = $("detail");
+    box.textContent = "";
+    box.appendChild(el("div",{cls:"row"},[
+      el("div",null,[el("div",{cls:"eyebrow",text:o.role}), el("h3",{text:o.name+(d.project? "  ·  "+d.project : "")})]),
+      el("span",{cls:"pill p-"+v.st,text:STATUS[v.st].label})
+    ]));
+    if(!state.snap){ box.appendChild(el("p",{cls:"loading",text:"記録を読み込んでいます。"})); return; }
+    if(d.headline) box.appendChild(el("div",{cls:"headline",text:d.headline}));
+    if(d.progress && d.progress.max){
+      var pct = Math.round(100*d.progress.value/d.progress.max);
+      var bar = el("div",{cls:"bar"}); var fillEl = el("i"); fillEl.style.width = Math.min(100,pct)+"%"; bar.appendChild(fillEl);
+      box.appendChild(el("div",null,[el("div",{cls:"row"},[el("span",{cls:"eyebrow",text:d.progress.label}), el("span",{cls:"num",text:d.progress.value+" / "+d.progress.max})]), bar]));
+    }
+    if(d.metrics && d.metrics.length){
+      var dl = el("dl",{cls:"kv"});
+      d.metrics.forEach(function(m){ dl.appendChild(el("div",null,[el("dt",{text:m.label}), el("dd",{text:m.value})])); });
+      box.appendChild(dl);
+    }
+    if(d.notes && d.notes.length){
+      var ul = el("ul"); d.notes.forEach(function(t){ ul.appendChild(el("li",{text:t})); }); box.appendChild(ul);
+    }
+    if(d.next) box.appendChild(el("div",{cls:"next"},[el("div",{cls:"eyebrow",text:"次にやること"}), el("div",{text:d.next})]));
+    if(v.live){
+      var lv = el("div",{cls:"live"});
+      lv.appendChild(el("div",{text:"ライブ: "+({WORKING:"このセッションは今動いています",BLOCKED:"返事待ちで止まっています",REVIEW_READY:"確認待ちです",COMPLETED:"手が空いています",FAILED:"直近の作業が失敗しました"}[v.live.bucket]||"状態不明")+(v.live.updated? "（最終 "+fmtDate(v.live.updated)+"）":"")}));
+      if(v.live.note) lv.appendChild(el("div",{text:"セッションのメモ: "+v.live.note}));
+      box.appendChild(lv);
+    }
+    if(d.sessionId){
+      box.appendChild(el("div",null,[el("a",{cls:"btn",href:"https://claude.ai/code/"+d.sessionId,target:"_blank",rel:"noopener",text:"担当セッションを開く ↗"})]));
+    }
+  }
+
+  function renderInbox(){
+    var ul = $("inbox"); ul.textContent = "";
+    var items = (state.snap && state.snap.inbox) || [];
+    $("inboxCount").textContent = state.snap? String(items.length) : "–";
+    if(!state.snap){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"記録を読み込んでいます。"})); return; }
+    if(!items.length){ ul.appendChild(el("li",{cls:"empty",style:"background:none;padding:0",text:"いま判断が必要なものはありません。"})); return; }
+    items.forEach(function(it){
+      var li = el("li",null,[el("span",{cls:"who",text:it.dept||""}), el("b",{text:it.title}), it.detail? el("small",{text:it.detail}) : null]);
+      ul.appendChild(li);
+    });
+  }
+
+  function renderBoard(){
+    var ul = $("depts"); ul.textContent = "";
+    var counts = {};
+    ORG.forEach(function(o){
+      var v = deptView(o); counts[v.st] = (counts[v.st]||0)+1;
+      var btn = el("button",{type:"button","aria-pressed":String(state.sel===o.id)},[
+        el("span",{cls:"name"},[o.name, el("small",{text:o.role})]),
+        el("span",null,[el("span",{cls:"pill p-"+v.st,text:STATUS[v.st].label})]),
+        el("span",{cls:"hl",text:v.d.headline||""})
+      ]);
+      btn.addEventListener("click", function(){ select(o.id); document.getElementById("scene").scrollIntoView({behavior:"smooth",block:"nearest"}); });
+      ul.appendChild(el("li",null,[btn]));
+    });
+    var order = ["working","waiting","paused","standby","done","failed"];
+    $("boardSum").textContent = order.filter(function(k){return counts[k];}).map(function(k){return STATUS[k].label+" "+counts[k];}).join(" ・ ");
+  }
+
+  function pips(n, cls){
+    var p = el("div",{cls:"pips"+(cls?" "+cls:"")});
+    for(var k=1;k<=10;k++) p.appendChild(el("i",{cls:k<=n?"f":""}));
+    return p;
+  }
+  function renderGames(){
+    var box = $("games"); box.textContent = "";
+    var gs = (state.snap && state.snap.games) || [];
+    if(!state.snap){ box.appendChild(el("p",{cls:"loading",text:"記録を読み込んでいます。"})); return; }
+    if(!gs.length){ box.appendChild(el("p",{cls:"empty",text:"まだ完成したミニゲームはありません。工場が毎朝1本作ります。"})); return; }
+    var fun=0, des=0;
+    gs.forEach(function(g){
+      fun += g.fun||0; des += g.design||0;
+      box.appendChild(el("article",{cls:"game"},[
+        el("div",{cls:"t"},[el("h3",{text:g.title}), el("span",{cls:"id",text:g.created||""})]),
+        el("p",{text:g.pitch||""}),
+        el("div",{cls:"score"},[el("span",{text:"楽しさ"}), pips(g.fun||0), el("span",{cls:"num",text:String(g.fun||"–")})]),
+        el("div",{cls:"score"},[el("span",{text:"デザイン"}), pips(g.design||0,"d"), el("span",{cls:"num",text:String(g.design||"–")})]),
+        el("div",null,[el("span",{cls:"pill "+(g.status==="ready"?"p-waiting":"p-standby"),text:g.status==="ready"?"公開待ち":g.status==="published"?"公開中":(g.status||"")})])
+      ]));
+    });
+    $("shelfSum").textContent = gs.length+"本 ・ 平均 楽しさ "+(fun/gs.length).toFixed(1)+" / デザイン "+(des/gs.length).toFixed(1);
+  }
+
+  function renderChips(){
+    var sc = $("snapChip"); sc.textContent = "";
+    sc.appendChild(el("span",{cls:"dot"+(state.snap?" on":"")}));
+    sc.appendChild(el("span",{text: state.snap? "記録: "+fmtDate(state.snap.updatedAt)+" 更新" : state.snapMsg || "記録: 読み込み中"}));
+    var lc = $("liveChip"); lc.textContent = "";
+    lc.appendChild(el("span",{cls:"dot"+(state.live?" on":"")}));
+    lc.appendChild(el("span",{text: state.live? "ライブ: "+fmtDate(state.liveAt)+" 時点" : (state.liveMsg || "ライブ: 未接続")}));
+    if(state.snap && state.snap.mission) $("mission").textContent = state.snap.mission;
+  }
+
+  function renderAll(){ drawWorld(); renderDetail(); renderInbox(); renderBoard(); renderGames(); renderChips(); }
+  function select(id){ state.sel = id; try{ localStorage.setItem("hq-sel", id); }catch(e){} renderAll(); }
+
+  renderAll();
+  setInterval(drawWorld, 60000);
+
+  // ---------- 記録（db） ----------
+  function startDb(){
+    if(!window.claude || !window.claude.use){ state.snapMsg = "記録: このビューでは読めません"; renderChips(); return; }
+    window.claude.use("db").then(function(db){
+      if(!db){ state.snapMsg = "記録: このビューでは読めません"; renderChips(); return; }
+      db.doc("hq/snapshot").onSnapshot(function(s){
+        if(s.exists){ state.snap = s.data(); } else { state.snapMsg = "記録: まだありません"; }
+        renderAll();
+      }, function(){ state.snapMsg = "記録: 読み込みに失敗しました（再読み込みで直ります）"; renderChips(); });
+    });
+  }
+
+  // ---------- ライブ（Claude Code のセッション状態） ----------
+  function readSessions(payload){
+    var list = (payload && payload.ccr && payload.ccr.data) || (payload && payload.data) || [];
+    var map = {};
+    list.forEach(function(s){
+      if(!s || !s.id) return;
+      var ps = s.post_turn_summary || (s.external_metadata && s.external_metadata.post_turn_summary) || {};
+      map[s.id] = {
+        bucket: String(s.status_bucket||"").replace("SESSION_STATUS_BUCKET_",""),
+        updated: s.updated_at,
+        note: ps.needs_action || ps.recent_action || ""
+      };
+    });
+    return map;
+  }
+  function startLive(){
+    if(!window.claude || !window.claude.use) return;
+    window.claude.use("mcp").then(function(mcp){
+      if(!mcp){ state.liveMsg = "ライブ: このビューでは使えません"; renderChips(); return; }
+      mcp.watchTool("Claude Code Remote","list_sessions",{limit:30, mine:true}, function(ev){
+        if(ev.type==="data"){
+          state.live = readSessions(ev.result.payload);
+          state.liveAt = ev.result.cache? new Date(ev.result.cache.storedAt).toISOString() : new Date().toISOString();
+          state.liveMsg = null; renderAll();
+        } else {
+          var c = ev.error && ev.error.code;
+          var msg = {
+            server_not_connected:"ライブ: Claude Code Remote が未接続（設定 → コネクタ）",
+            needs_reauth:"ライブ: Claude Code Remote を再接続してください",
+            not_in_manifest:"ライブ: このページでは許可されていません",
+            blocked_by_policy:"ライブ: 組織の設定で使えません",
+            not_granted:"ライブ: このビューでは使えません",
+            capability_disabled:"ライブ: このビューでは使えません",
+            server_unavailable:"ライブ: 一時的に応答なし（自動で再試行）"
+          }[c] || "ライブ: 取得できませんでした";
+          if(c!=="server_unavailable"){ state.live = null; }
+          state.liveMsg = msg; renderAll();
+        }
+      }, {refetchInterval:60000});
+    });
+  }
+  startDb();
+  startLive();
+})();
+</script>
