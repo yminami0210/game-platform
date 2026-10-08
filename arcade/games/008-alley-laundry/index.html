@@ -318,7 +318,7 @@ const SIM = (() => {
       const L = ropeLoad(S, r);
       if (L > LIM) {
         if (R.strain === 0) emit(S, { type: "creak", rope: r });
-        R.strain += dt * (0.5 + (L - LIM) * 0.12);
+        R.strain += dt * 0.5; // きしみ始めてから2秒で切れる
         if (R.strain >= 1) { if (S.t - S.lastPen >= PEN_GAP) snap(S, r); else R.strain = 0.999; }
       } else R.strain = Math.max(0, R.strain - dt * 0.6);
     }
@@ -577,7 +577,7 @@ const SIM = (() => {
   }
   function patch(g, cx, cy, w, h, brick = false) {
     const pts = cutP(blobPts(cx, cy, w, h, 9, 0.28, J(0.3)), 1.5);
-    fillPts(g, pts, brick ? C.shiro : C.shita);
+    fillPts(g, pts, C.shita);
     if (!brick) grainPts(g, pts, "gShita", 0.9);
     else for (let i = 0; i < 3; i++) {
       const bx = cx - w * 0.6 + R() * w * 1.1, by = cy - h * 0.5 + i * (h * 0.24) + J(2), bw = 13 + R() * 6, bh = 6 + R() * 1.5;
@@ -605,10 +605,13 @@ const SIM = (() => {
     { const pot = cutP([[246, 252], [258, 252], [256, 260], [248, 260]], 0.4); fillPts(g, pot, C.tomato, 1, -1, 0.75); inkPts(g, pot, 1);
       for (const [x, y, a, b, r] of [[249, 248, 4, 3, -0.4], [255, 246, 5, 3, 0.5]]) fillPts(g, blobPts(x, y, a, b, 7, 0.15, r), C.midori, 1, -1, 1, false, true); }
     // 白いカーテンの窓: 他の窓と同じ大きさ。窓の幅いっぱいの紙の白が、窓台から外へ斜めに垂れる
-    farWin(g, 148, 512, 26, 32);
-    { const d = cutP([[147, 511], [175, 511], [176, 538], [190, 551], [194, 561], [181, 566], [166, 556], [151, 549], [148, 532]], 0.6);
+    farWin(g, 112, 574, 32, 36);
+    { // 窓の上のカーテンの棒から、窓の幅いっぱいの布が窓台の外へ扇のように斜めに垂れる（細長い靴下の形にしない）
+      line(g, [[109, 572], [148, 571]], 2, C.sumire, 0.9);
+      const d = cutP([[120, 573], [145, 572], [147, 590], [157, 606], [164, 619], [147, 625], [131, 621], [122, 613], [121, 595]], 0.6);
       fillPts(g, d, C.shiro); grainPts(g, d, "gShiro", 0.6); inkPts(g, d, 1.3);
-      line(g, [[157, 516], [160, 546]], 1, C.sumire, 0.55); line(g, [[167, 517], [171, 543], [184, 557]], 1, C.sumire, 0.5); }
+      for (const [a, b, c] of [[126, 576, [129, 614]], [133, 575, [139, 617]], [140, 575, [151, 618]]]) line(g, [[a, b], [a + J(1), b + 18], c], 1, C.sumire, 0.45);
+    }
     // 戸口: 鎧戸の緑の板戸を少し開けた形
     { const arch = [[236, 762], [236, 684], [246, 660], [266, 650], [286, 660], [296, 684], [296, 762]];
       fillPts(g, arch, C.midori, 1.5, -1, 1, false, true); smoothTo(g, arch, true, 1.5, -1); grain(g, "gShiro", 0.45);
@@ -616,16 +619,20 @@ const SIM = (() => {
       fillPts(g, cutP([[286, 662], [294, 676], [295, 762], [287, 762]], 0.4), C.sumire, 0, 0, 0.85);
       line(g, [[240, 700], [258, 699]], 2, C.sumire, 0.7); line(g, [[270, 702], [288, 701]], 2, C.sumire, 0.7);
       inkPts(g, arch, 1.6, 0.92, true, true); }
-    // 石段: 段ごとに高さと長さを変え、角を欠き、石の継ぎ目を入れる（板に見せない）
-    for (const [x, y, w, h, chip] of [[100, 722, 98, 8, 1], [82, 731, 136, 13, 0], [64, 745, 168, 10, 2]]) {
-      const pts = chip === 1 ? [[x, y], [x + w - 7, y - 2], [x + w, y + 3], [x + w + 3, y + h], [x - 2, y + h + 1]]
-        : chip === 2 ? [[x + 5, y], [x + w, y - 2], [x + w + 4, y + h], [x - 1, y + h + 1], [x - 2, y + 5]]
-        : [[x, y], [x + w, y - 3], [x + w + 2, y + h - 4], [x + w - 4, y + h], [x - 2, y + h + 1]];
-      const d = cutP(pts, 0.8);
-      fillPts(g, d, C.shiro); fillPts(g, d, C.odo, 1, -1, 0.75); grainPts(g, d, "gShita", 0.9); grainPts(g, d, "gShiro", 0.5, 7, 3);
-      line(g, [[x + 2, y + 2.2], [x + w * 0.7, y + 0.8]], 1, C.shiro, 0.8);
-      for (const f of [0.22 + R() * 0.15, 0.55 + R() * 0.2]) line(g, [[x + w * f, y + 1], [x + w * f + J(2), y + h - 1]], 1.1, C.sumire, 0.55);
-      inkPts(g, d, 1.5);
+    // 石段: 1段ずつ長さの違う石の塊を並べる（踏み面は明るい黄土、蹴上げは2度刷り）。角を欠き、継ぎ目は不揃い（板に見せない）
+    seed(74);
+    for (const [x0, y, w, h] of [[104, 718, 92, 7], [84, 727, 134, 12], [66, 741, 166, 14]]) {
+      let x = x0;
+      while (x < x0 + w - 8) {
+        const bw = Math.min(x0 + w - x, 26 + R() * 30), hh = h + J(1.5), top = 3 + R() * 1.5;
+        const c1 = R() < 0.35 ? 3 + R() * 3 : 0.5, c2 = R() < 0.35 ? 3 + R() * 3 : 0.5;
+        const blk = cutP([[x + c1, y - top], [x + bw - c2, y - top + J(0.8)], [x + bw, y - top + c2 + 1], [x + bw + J(0.8), y + hh], [x + 1, y + hh + J(0.8)], [x, y - top + c1 + 1]], 0.7);
+        fillPts(g, blk, C.shita, 1, -1); grainPts(g, blk, "gShiro", 0.35, R() * 40, R() * 40);
+        const tread = cutP([[x + c1, y - top], [x + bw - c2, y - top], [x + bw, y - top + c2 + 1], [x + bw, y + 0.5], [x + 1, y + 1], [x, y - top + c1 + 1]], 0.4);
+        fillPts(g, tread, C.shiro, 0.5, -0.5, 0.9); fillPts(g, tread, C.odo, 1, -1, 0.6);
+        inkPts(g, blk, 1.4, 0.85);
+        x += bw + 1.5 + R() * 1.5;
+      }
     }
     // 遠くの物干し（版を減らして薄く）
     { const y0 = (x) => 604 + (x - 214) * -0.05 + 6 * 4 * ((x - 214) / 122) * (1 - (x - 214) / 122);
@@ -979,7 +986,7 @@ const SIM = (() => {
       const pts = [[xx + 3, yy - h], [xx + w * 0.5, yy - h - sag], [xx + w - 3, yy - h + 0.5], [xx + w + 2.5 * k, yy - h * 0.5], [xx + w - 2, yy], [xx + w * 0.5, yy + 1], [xx + 2, yy], [xx - 1.5 * k, yy - h * 0.5]];
       fillPts(g, pts, c, 1.5, -1, 1, false, true);
       if (striped === 1) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx, yy - h * 0.62, w, h * 0.16); g.fillStyle = C.midori; g.fillRect(xx, yy - h * 0.3, w, h * 0.1); g.restore(); }
-      if (striped === 2) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx - 4, yy - h - 4, w + 8, h * 0.45 + 4); g.restore(); } // 靴下は赤い縁だけ見せる
+      if (striped === 2) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx - 4, yy - h - 4, w + 8, h * 0.22 + 4); g.restore(); } // 靴下は赤い細い縁だけ見せる
       if (e.stained) { g.save(); smoothTo(g, pts); g.clip(); fillPts(g, blobPts(xx + w * 0.35, yy - h * 0.5, w * 0.16, h * 0.42, 8, 0.2), e.stainCol === "b" ? C.gunjo : C.tomato, 0, 0, 0.4, false, true); g.restore(); }
       if (c === C.shiro) { smoothTo(g, pts); grain(g, "gShiro", 0.5); }
       line(g, [[xx + w * 0.62, yy - h + 2], [xx + w * 0.63, yy - h * 0.5], [xx + w * 0.62, yy - 3]], 1, C.sumire, 0.5);
@@ -989,26 +996,40 @@ const SIM = (() => {
   }
   function drawBasket(g) {
     const { x, y, w, h } = BASK;
-    if (!baskLook) { seed(62); baskLook = { body: cutP([[x, y + 4], [x + w, y], [x + w - 10, y + h], [x + 11, y + h + 1]], 1.2), bands: [0.42 + J(0.05), 0.72 + J(0.05)] }; baskLook.bd = mkDash(perim(baskLook.body)); }
+    if (!baskLook) {
+      seed(62);
+      // 胴は縁の下でいったん少しふくらみ、底へ丸くすぼまる（箱の台形にしない）
+      baskLook = { body: [[x - 1, y + 4], [x + w * 0.5, y + 7], [x + w + 1, y + 3], [x + w + 3, y + h * 0.4], [x + w - 7, y + h - 4], [x + w - 20, y + h + 1], [x + w * 0.5, y + h + 3], [x + 19, y + h + 1], [x + 7, y + h - 4], [x - 4, y + h * 0.4]].map(([a, b]) => [a + J(0.8), b + J(0.8)]),
+        bands: [0.38 + J(0.04), 0.7 + J(0.05)], bj: [J(2), J(2), J(2), J(2)] };
+      const tmp = new Path2D(); smoothTo(tmp, baskLook.body); baskLook.bd = mkDash(perim(baskLook.body));
+    }
     const t = baskLook;
+    // 縁の奥側の巻きと、かごの中の暗がり
+    g.save(); g.beginPath(); g.ellipse(x + w / 2, y + 3, w / 2 + 3, 7, -0.03, Math.PI, 0); g.lineWidth = 7; g.strokeStyle = C.shita; g.stroke(); g.lineWidth = 1.4; g.strokeStyle = C.sumire; g.stroke(); g.restore();
+    fillPts(g, blobPts(x + w / 2, y + 4, w / 2, 5.5, 14, 0.03), C.kage, 0, 0, 1, true, true);
     // 取っ手（付け根を縁の内側に差し込む）
-    for (const [cw, cc] of [[5, C.sumire], [2.4, C.odo]]) { g.save(); g.strokeStyle = cc; g.lineWidth = cw; g.beginPath(); g.moveTo(x + 16, y + 6); g.bezierCurveTo(x + 20, y - 36, x + w - 24, y - 40, x + w - 16, y + 4); g.stroke(); g.restore(); }
-    // 中のたたんだ山（取り込んだ最後の数枚。縁の上に2枚分の折り山が見える）
-    const d = S ? S.delivered.slice(-4) : [];
-    const list = d.length ? d : [];
-    if (list.length) foldedPile(g, x + w / 2 + 2, y + 18, list, 0.95);
-    // 胴: 縁から底へ少しすぼまる形＋高さ不揃いの帯2本（編み目は描かない）
-    const p = new Path2D(); poly(p, t.body);
+    for (const [cw, cc] of [[5, C.sumire], [2.4, C.odo]]) { g.save(); g.strokeStyle = cc; g.lineWidth = cw; g.beginPath(); g.moveTo(x + 16, y + 4); g.bezierCurveTo(x + 20, y - 38, x + w - 24, y - 42, x + w - 16, y + 2); g.stroke(); g.restore(); }
+    // 中のたたんだ山（取り込んだ最後の数枚。縁の上に2枚分以上の折り山が見える）
+    const list = S ? S.delivered.slice(-4) : [];
+    if (list.length) foldedPile(g, x + w / 2 + 2, y + 10, list, 0.95);
+    // 胴: 高さ不揃いの帯2本が胴のふくらみに沿って弧を描く（編み目は描かない）
+    const p = new Path2D(); smoothTo(p, t.body);
     g.save(); g.translate(1.5, -1); g.fillStyle = C.odo; g.fill(p); g.restore();
-    grain(g, "gShita", 1, 1.5, -1, p); grain(g, "gShiro", 0.4, 1.5, -1, p);
-    for (const b of t.bands) line(g, [[x + 4 + b * 5, y + h * b], [x + w - 5 - b * 6, y + h * b - 1.5]], 1.4, C.sumire, 0.6);
-    for (const b of t.bands) line(g, [[x + 6 + b * 5, y + h * b + 3], [x + w - 7 - b * 6, y + h * b + 1.6]], 1, C.shita, 0.9);
+    g.save(); g.clip(p);
+    grain(g, "gShita", 1, 1.5, -1); grain(g, "gShiro", 0.4, 1.5, -1);
+    t.bands.forEach((b, i) => {
+      const yy = y + h * b;
+      g.strokeStyle = C.sumire; g.globalAlpha = 0.65; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x - 6, yy + t.bj[i]); g.quadraticCurveTo(x + w / 2, yy + 7 + t.bj[i + 2], x + w + 6, yy - 1.5); g.stroke();
+      g.strokeStyle = C.shita; g.globalAlpha = 1; g.lineWidth = 3.2; g.beginPath(); g.moveTo(x - 6, yy + 3 + t.bj[i]); g.quadraticCurveTo(x + w / 2, yy + 10 + t.bj[i + 2], x + w + 6, yy + 1.5); g.stroke();
+    });
+    g.restore();
     strokeInk(g, p, 2, 0.92, t.bd);
-    // 縁の太い巻き（2度刷りの黄土＋すみれ茶の帯）
-    const rim = [[x - 4, y + 1], [x + w + 4, y - 3], [x + w + 3, y + 9], [x - 3, y + 13]];
-    fillPts(g, rim, C.shita, 1, -1); fillPts(g, [[x - 3, y + 9], [x + w + 3, y + 5], [x + w + 3, y + 9], [x - 3, y + 13]], C.sumire, 0, 0, 0.7);
-    line(g, [[x, y + 4], [x + w, y]], 1, C.shiro, 0.7);
-    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.6; poly(g, rim); g.stroke(); g.restore();
+    // 縁の手前側の太い巻き（2度刷りの黄土＋すみれ茶の帯）
+    g.save(); g.lineCap = "round";
+    g.beginPath(); g.ellipse(x + w / 2, y + 4, w / 2 + 3, 7, -0.03, 0.05, Math.PI - 0.05); g.lineWidth = 8.5; g.strokeStyle = C.sumire; g.globalAlpha = 0.92; g.stroke();
+    g.globalAlpha = 1; g.lineWidth = 5.5; g.strokeStyle = C.shita; g.stroke();
+    g.beginPath(); g.ellipse(x + w / 2 + 1, y + 3, w / 2 + 2, 6, -0.03, 0.4, Math.PI - 0.5); g.lineWidth = 1; g.strokeStyle = C.shiro; g.globalAlpha = 0.7; g.stroke();
+    g.restore();
     if (selId === "basket" && kbMode) focusRing(g, x - 6, y - 40, w + 12, h + 46);
   }
 
@@ -1407,6 +1428,7 @@ const SIM = (() => {
   }
 
   // ---- 描画 ----
+  let warnPg = null;
   function draw() {
     const g = ctx;
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1431,6 +1453,7 @@ const SIM = (() => {
     drawRope(g, 1); drawRope(g, 0);
     if (S) {
       for (const r of [1, 0]) if (!S.ropes[r].broken) for (const it of S.ropes[r].items) drawHung(g, it);
+      warnPg = null;
       for (const pg of S.pigeons) {
         if (S.ropes[pg.rope].broken && !pg.leaving) continue;
         const ry = ropeY(pg.rope, pg.x);
@@ -1439,6 +1462,7 @@ const SIM = (() => {
           const age = (pg.age = (pg.age || 0) + dtLast), k = Math.max(0, 1 - age / 0.5);
           const warn = lastTarget && lastTarget.type === "rope" && lastTarget.r === pg.rope && S.held && SIM.pigeonAt(S, pg.rope, lastTarget.x, lastTarget.x + S.held.w) === pg ? 1 : 0;
           drawPigeon(g, pg.x - k * 60 * (pg.flip ? -1 : 1), ry + 1 - k * 90, pg, k > 0 ? 1 : 0, warn);
+          if (warn) warnPg = [pg, ry];
         }
       }
       // しずく
@@ -1472,6 +1496,8 @@ const SIM = (() => {
       for (const part of lk.parts) g.fill(part.path); g.restore();
       drawLocalGarment(g, it);
       g.restore();
+      // 置こうとしている所に鳩がいるときは、持っている布の手前に鳩を出して見せる
+      if (warnPg) drawPigeon(g, warnPg[0].x, warnPg[1] + 1, warnPg[0], 0, 1);
     }
     // 得点の文字
     for (const f of fx) {
