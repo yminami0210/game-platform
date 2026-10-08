@@ -29,6 +29,8 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 #scoreW .tag{padding:12px 16px 11px 15px;min-width:118px}
 #cnt{font-size:13px;line-height:1.2;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 #score{font-family:var(--head);font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+#eveB{display:inline-block;margin-top:4px;font-family:var(--head);font-size:13px;color:var(--shiro);background:var(--sumire);padding:2px 8px 3px;transform:rotate(-2deg)}
+#eveB[hidden]{display:none}
 #score small{font-family:var(--body);font-size:14px;font-weight:700;margin-left:3px}
 #hintW{transform:rotate(-1deg);transition:opacity .25s;max-width:min(250px,64vw)}
 #hintW.off{opacity:0}
@@ -66,7 +68,8 @@ canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-actio
 .best{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
 #rTitle{font-family:var(--head);font-size:28px;line-height:1.15;text-shadow:2px 2px 0 var(--tomato)}
 #rWhy{font-size:13.5px;margin-top:6px;line-height:1.5}
-#pile{display:block;width:100%;height:170px;margin-top:6px}
+#pile{display:block;width:100%;height:190px;margin-top:6px}
+body.wide #pile{height:170px}
 #rScore{font-family:var(--head);font-size:46px;line-height:1;font-variant-numeric:tabular-nums}
 #rScore small{font-family:var(--body);font-size:17px;font-weight:700;margin-left:4px}
 #rList{font-size:13.5px;line-height:1.6;margin-top:6px;font-variant-numeric:tabular-nums}
@@ -82,7 +85,7 @@ body.wide .cols{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;align-it
 <canvas id="c" aria-label="路地の物干し"></canvas>
 <div id="hud" hidden>
   <div class="tagw" id="scoreW"><svg class="pin" style="left:54px" viewBox="0 0 9 22"><path d="M1.2 1 7.6 .6 8 21 1 21.4Z" fill="#e8c98a" stroke="#4a3446" stroke-width="1.3"/><path d="M4.5 1.5V20.5" stroke="#4a3446" stroke-width=".8" opacity=".7"/><path d="M.5 9q4 2.6 8 0" stroke="#4a3446" stroke-width="1.4" fill="none"/></svg>
-    <div class="tag"><div id="cnt">取りこみ 0まい</div><div id="score">0<small>てん</small></div></div></div>
+    <div class="tag"><div id="cnt">取りこみ 0まい</div><div id="score">0<small>てん</small></div><div id="eveB" hidden>夕方 ×1.5</div></div></div>
   <div class="tagw off" id="hintW"><div class="tag" id="hint"></div></div>
   <div class="tagw" id="muteW"><button class="tbtn" id="muteB" aria-label="音を消す（M）">おと</button></div>
   <div class="tagw" id="pauseW"><svg class="pin" style="left:36px" viewBox="0 0 9 22"><path d="M1 .8 7.8 1 7.4 21.2 1.3 21Z" fill="#e8c98a" stroke="#4a3446" stroke-width="1.3"/><path d="M4.5 1.5V20.5" stroke="#4a3446" stroke-width=".8" opacity=".7"/><path d="M.5 9q4 2.6 8 0" stroke="#4a3446" stroke-width="1.4" fill="none"/></svg><button class="tbtn" id="pauseB" aria-label="ひと休み（P）">ひと休み</button></div>
@@ -95,7 +98,7 @@ body.wide .cols{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;align-it
       <h1 class="logo">せんたく<br>日和</h1>
       <p class="lead">路地に渡した2本の綱に、濡れた洗濯物を干す。日が沈むまでに、乾いた物をかごへ。</p>
     </div><div>
-      <p class="how">たらいの洗濯物をつまんで綱へ。揺れはじめたら乾いた合図、つまんでかごへ。<br><b>上の綱の色物の真下に白い物</b>を干すと色が移る。重すぎると綱が切れる。</p>
+      <p class="how">たらいの洗濯物をつまんで綱へ。揺れはじめたら乾いた合図、つまんでかごへ。<br><b>上の綱の色物の真下に白い物</b>を干すと色が移る。重すぎると綱が切れる。<br>日が傾くと<b>夕風</b>で影でも乾き、取りこみは<b style="white-space:nowrap">1.5倍</b>。</p>
       <p class="keys">PC はマウスで同じ操作。キーなら Tab・矢印で選び Space で持つ／置く。M で音、P でひと休み</p>
     </div></div>
     <div class="row"><button class="go" id="startB">干しはじめる</button><span class="best" id="tBest"></span></div>
@@ -134,7 +137,10 @@ const SIM = (() => {
     { x1: 84, y1: 222, x2: 308, y2: 210 },
     { x1: 80, y1: 400, x2: 312, y2: 393 },
   ];
-  const LIM = 10.5;        // 1本の綱が耐えられる濡れ物の重さ
+  const LIM = 8.8;         // 1本の綱が耐えられる濡れ物の重さ
+  const EVE = 80;          // 夕方（夕風・夕方の取り込み）が始まる時刻
+  const TUB_END = 92;      // これより後はたらいが空（最後の取り込みに集中）
+  const EVE_MUL = 1.5;     // 夕方に取り込んだ物の点の倍率（切り上げ）
   const RESTRING = 10;     // 切れた綱の張り直し（秒）
   const PEN_GAP = 1.2;     // 操作と無関係の罰どうしの間（秒）
   const KINDS = {
@@ -185,7 +191,7 @@ const SIM = (() => {
   function create(seed) {
     const S = { r: (seed % 2147483646) + 1, t: 0, dur: DUR, nid: 0, lastKinds: [], over: false, endReason: "",
       ropes: [{ items: [], broken: false, restring: 0, strain: 0 }, { items: [], broken: false, restring: 0, strain: 0 }],
-      tub: { queue: [], wait: 0 }, held: null, score: 0, combo: 0, delivered: [], fallen: 0, blown: 0, stainedN: 0,
+      tub: { queue: [], wait: 0, empty: false }, eve: false, held: null, score: 0, combo: 0, delivered: [], fallen: 0, blown: 0, stainedN: 0,
       pigeons: [], pigT: 9, lastPen: -9, grace: 0, ev: [], log: [], quiet: false };
     S.tub.queue.push(newItem(S), newItem(S));
     return S;
@@ -238,7 +244,7 @@ const SIM = (() => {
   function pickTub(S) {
     if (S.held || S.over || S.tub.wait > 0 || !S.tub.queue.length) return null;
     const it = S.tub.queue.shift(); it.from = { tub: true }; S.held = it; S.tub.wait = 0.45;
-    while (S.tub.queue.length < 2) S.tub.queue.push(newItem(S));
+    while (!S.tub.empty && S.tub.queue.length < 2) S.tub.queue.push(newItem(S));
     emit(S, { type: "pick", id: it.id, tub: true });
     return it;
   }
@@ -269,16 +275,19 @@ const SIM = (() => {
   function deliver(S) {
     const it = S.held; if (!it || it.wet > 0) return false;
     S.held = null;
-    const pts = it.stained ? 0 : it.pt;
+    const evening = S.t >= EVE;
+    const pts = it.stained ? 0 : evening ? Math.ceil(it.pt * EVE_MUL) : it.pt;
     S.score += pts; S.delivered.push(it);
     if (it.stained) S.combo = 0; else S.combo++;
-    emit(S, { type: "deliver", id: it.id, pts, stained: it.stained, kind: it.kind });
+    emit(S, { type: "deliver", id: it.id, pts, stained: it.stained, kind: it.kind, eve: evening && !it.stained });
     // 5枚続けて色移りなし → おばあさんの拍手（続くほど大きい）
     if (!it.stained && S.combo > 0 && S.combo % 5 === 0) { const b = S.combo / 5 + 1; S.score += b; emit(S, { type: "grandma", n: S.combo, bonus: b }); }
     return true;
   }
   // 海からの風は時間とともに強まる: よく乾くが、乾いた物を放っておくと飛ばされやすい
   function windDry(p) { return 0.5 + 2.0 * p; }
+  // 夕風: 日なたが細くなる代わりに、影の中でも風で乾く（終盤ほど速い）
+  function eveK(t) { return clamp((t - EVE) / (DUR - EVE), 0, 1); }
   function flutterTime(p) { return 9 - 4.5 * p; }
 
   function snap(S, r) {
@@ -297,6 +306,9 @@ const SIM = (() => {
     S.t += dt;
     const p = clamp(S.t / DUR, 0, 1);
     if (S.tub.wait > 0) S.tub.wait -= dt;
+    if (!S.eve && S.t >= EVE) { S.eve = true; emit(S, { type: "evening" }); }
+    // たらいが空になる（まだ手に取っていない物は今日の分はおしまい。戻した物は残す）
+    if (!S.tub.empty && S.t >= TUB_END) { S.tub.empty = true; S.tub.queue = S.tub.queue.filter((it) => it.from); emit(S, { type: "tubEmpty" }); }
     for (let r = 0; r < 2; r++) {
       const R = S.ropes[r];
       if (R.broken) { R.restring -= dt; if (R.restring <= 0) { R.broken = false; emit(S, { type: "restrung", rope: r }); } continue; }
@@ -304,7 +316,8 @@ const SIM = (() => {
         const it = R.items[i];
         if (it.wet > 0) {
           const sun = sunFrac(S, it);
-          it.wet -= dt * (1 / it.dry) * (0.2 + 0.8 * sun) * windDry(p) * (it.pegs < 2 ? 0.45 : 1);
+          const shade = S.t >= EVE ? 0.45 + 0.25 * eveK(S.t) : 0.2;
+          it.wet -= dt * (1 / it.dry) * (shade + (1 - shade) * sun) * windDry(p) * (it.pegs < 2 ? 0.45 : 1);
           if (it.wet <= 0) { it.wet = 0; it.dryFor = 0; emit(S, { type: "dried", id: it.id }); }
         } else {
           it.dryFor += dt;
@@ -331,7 +344,7 @@ const SIM = (() => {
           if (overlaps(U.x + 4, U.x + U.w - 4, L.x, L.x + L.w) > 0) {
             if (L.stain === 0) emit(S, { type: "stainStart", id: L.id, from: U.id });
             L.stain += dt * 0.34 * Math.min(1, U.wet); L.stainCol = U.col;
-            if (L.stain >= 1) { L.stain = 1; L.stained = true; S.stainedN++; emit(S, { type: "stained", id: L.id, pen: true }); break; }
+            if (L.stain >= 1) { L.stain = 1; L.stained = true; S.stainedN++; S.lastPen = S.t; emit(S, { type: "stained", id: L.id, pen: true }); break; }
           }
         }
       }
@@ -369,7 +382,7 @@ const SIM = (() => {
       else end(S, "sunset");
     }
   }
-  return { W, H, DUR, ROPES, LIM, KINDS, STEPS, clamp, edgeX, edgeBase, sunFrac, load, ropeLoad, create, step, canPlace, place, pickTub, pickHung, cancel, toTub, deliver, freeSpot, pigeonAt, flutterTime, ropeMidY };
+  return { EVE, TUB_END, EVE_MUL, eveK, W, H, DUR, ROPES, LIM, KINDS, STEPS, clamp, edgeX, edgeBase, sunFrac, load, ropeLoad, create, step, canPlace, place, pickTub, pickHung, cancel, toTub, deliver, freeSpot, pigeonAt, flutterTime, ropeMidY };
 })();
 // </sim>
 
@@ -954,7 +967,7 @@ const SIM = (() => {
 
   // ---- 亜鉛のたらい（濡れかご）と籐のかご ----
   const TUB = { x: 18, y: 770, w: 112, h: 56 }, BASK = { x: 264, y: 774, w: 100, h: 54 };
-  let tubLook = null, baskLook = null;
+  let tubLook = null, baskLook = null; const baskCache = { key: null, c: null, r: null };
   function drawTub(g) {
     const { x, y, w, h } = TUB;
     if (!tubLook) { seed(61); tubLook = { body: cutP([[x, y], [x + w, y + 2], [x + w - 12, y + h], [x + 10, y + h - 1]], 1), rim: blobPts(x + w / 2, y + 1, w / 2 + 3, 9, 16, 0.03) }; tubLook.bd = mkDash(perim(tubLook.body)); }
@@ -984,35 +997,43 @@ const SIM = (() => {
       const [w0, h0, c, striped] = PILE[e.kind]; const w = w0 * k, h = h0 * k;
       const xx = x - w / 2 + J(4 * k) + (i % 2 ? 4 : -3) * k, sag = (1.5 + R() * 1.5) * k;
       const pts = [[xx + 3, yy - h], [xx + w * 0.5, yy - h - sag], [xx + w - 3, yy - h + 0.5], [xx + w + 2.5 * k, yy - h * 0.5], [xx + w - 2, yy], [xx + w * 0.5, yy + 1], [xx + 2, yy], [xx - 1.5 * k, yy - h * 0.5]];
+      // 影版の平網を下の布へ落とす（ぼかさず、同じ形をずらして multiply）
+      fillPts(g, pts, C.kage, 2.5 * k, 2 * k, 0.7, true, true);
       fillPts(g, pts, c, 1.5, -1, 1, false, true);
-      if (striped === 1) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx, yy - h * 0.62, w, h * 0.16); g.fillStyle = C.midori; g.fillRect(xx, yy - h * 0.3, w, h * 0.1); g.restore(); }
-      if (striped === 2) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx - 4, yy - h - 4, w + 8, h * 0.22 + 4); g.restore(); } // 靴下は赤い細い縁だけ見せる
-      if (e.stained) { g.save(); smoothTo(g, pts); g.clip(); fillPts(g, blobPts(xx + w * 0.35, yy - h * 0.5, w * 0.16, h * 0.42, 8, 0.2), e.stainCol === "b" ? C.gunjo : C.tomato, 0, 0, 0.4, false, true); g.restore(); }
-      if (c === C.shiro) { smoothTo(g, pts); grain(g, "gShiro", 0.5); }
-      line(g, [[xx + w * 0.62, yy - h + 2], [xx + w * 0.63, yy - h * 0.5], [xx + w * 0.62, yy - 3]], 1, C.sumire, 0.5);
+      const P = new Path2D(); smoothTo(P, pts);
+      g.save(); g.clip(P);
+      // 折り目の下側（布の裏へ回り込む所）は影版の平網で一段沈める
+      fillPts(g, [[xx - 6, yy - h * 0.34], [xx + w * 0.5, yy - h * 0.3 + J(1)], [xx + w + 6, yy - h * 0.38], [xx + w + 6, yy + 4], [xx - 6, yy + 4]], C.kage, 0, 0, c === C.shiro ? 0.42 : 0.3, true);
+      if (c === C.gunjo) grain(g, "gGunjo", 0.9, 1.5, -1, P);
+      else grain(g, "gGunjo", 0.14, 1.5, -1, P); // 青み付けの白（暗い擦れは乗せない）
+      if (striped === 1) { g.fillStyle = C.tomato; g.fillRect(xx, yy - h * 0.66, w, h * 0.16); g.fillStyle = C.midori; g.fillRect(xx, yy - h * 0.36, w, h * 0.1); }
+      if (striped === 2) { g.fillStyle = C.tomato; g.fillRect(xx - 4, yy - h - 4, w + 8, h * 0.3 + 4); g.fillStyle = C.shiro; g.fillRect(xx - 4, yy - h * 0.62, w + 8, h * 0.08); }
+      if (e.kind === "jeans") { g.save(); g.setLineDash([3 * k, 2.5 * k]); line(g, [[xx + 4, yy - h * 0.55], [xx + w * 0.5, yy - h * 0.52], [xx + w - 3, yy - h * 0.57]], 1.1 * k, C.odo, 0.95); g.restore(); }
+      if (e.kind === "shirt" || e.kind === "shirtB") {
+        line(g, [[xx + w * 0.36, yy - h - 2], [xx + w * 0.5, yy - h * 0.45], [xx + w * 0.64, yy - h - 2]], 1.2 * k, C.sumire, 0.75);
+        for (let b = 0; b < 2; b++) fillPts(g, blobPts(xx + w * 0.5 + 0.5, yy - h * (0.3 - b * 0.18) + 1, 1.3 * k, 1.1 * k, 6, 0.1), c === C.gunjo ? C.shiro : C.sumire, 0, 0, 0.8);
+      }
+      if (e.kind === "sheet") line(g, [[xx + 5, yy - h * 0.52], [xx + w * 0.4, yy - h * 0.5 + J(1)], [xx + w - 6, yy - h * 0.55]], 1, C.sumire, 0.45);
+      if (e.stained) fillPts(g, blobPts(xx + w * 0.35, yy - h * 0.5, w * 0.16, h * 0.42, 8, 0.2), e.stainCol === "b" ? C.gunjo : C.tomato, 0, 0, 0.45, false, true);
+      g.restore();
+      line(g, [[xx + w * 0.78, yy - h + 2], [xx + w * 0.79, yy - h * 0.5], [xx + w * 0.78, yy - 3]], 1, C.sumire, 0.5);
       inkPts(g, pts, 1.5 * Math.min(1.4, k), 0.92, true, true);
       yy -= h - 3 * k;
     });
   }
-  function drawBasket(g) {
-    const { x, y, w, h } = BASK;
-    if (!baskLook) {
-      seed(62);
-      // 胴は縁の下でいったん少しふくらみ、底へ丸くすぼまる（箱の台形にしない）
-      baskLook = { body: [[x - 1, y + 4], [x + w * 0.5, y + 7], [x + w + 1, y + 3], [x + w + 3, y + h * 0.4], [x + w - 7, y + h - 4], [x + w - 20, y + h + 1], [x + w * 0.5, y + h + 3], [x + 19, y + h + 1], [x + 7, y + h - 4], [x - 4, y + h * 0.4]].map(([a, b]) => [a + J(0.8), b + J(0.8)]),
-        bands: [0.38 + J(0.04), 0.7 + J(0.05)], bj: [J(2), J(2), J(2), J(2)] };
-      const tmp = new Path2D(); smoothTo(tmp, baskLook.body); baskLook.bd = mkDash(perim(baskLook.body));
-    }
-    const t = baskLook;
-    // 縁の奥側の巻きと、かごの中の暗がり
-    g.save(); g.beginPath(); g.ellipse(x + w / 2, y + 3, w / 2 + 3, 7, -0.03, Math.PI, 0); g.lineWidth = 7; g.strokeStyle = C.shita; g.stroke(); g.lineWidth = 1.4; g.strokeStyle = C.sumire; g.stroke(); g.restore();
-    fillPts(g, blobPts(x + w / 2, y + 4, w / 2, 5.5, 14, 0.03), C.kage, 0, 0, 1, true, true);
-    // 取っ手（付け根を縁の内側に差し込む）
-    for (const [cw, cc] of [[5, C.sumire], [2.4, C.odo]]) { g.save(); g.strokeStyle = cc; g.lineWidth = cw; g.beginPath(); g.moveTo(x + 16, y + 4); g.bezierCurveTo(x + 20, y - 38, x + w - 24, y - 42, x + w - 16, y + 2); g.stroke(); g.restore(); }
-    // 中のたたんだ山（取り込んだ最後の数枚。縁の上に2枚分以上の折り山が見える）
-    const list = S ? S.delivered.slice(-4) : [];
-    if (list.length) foldedPile(g, x + w / 2 + 2, y + 10, list, 0.95);
-    // 胴: 高さ不揃いの帯2本が胴のふくらみに沿って弧を描く（編み目は描かない）
+  function wickerLook(x, y, w, h, sd0) {
+    seed(sd0);
+    const t = { body: [[x - 1, y + 4], [x + w * 0.5, y + 7], [x + w + 1, y + 3], [x + w + 3, y + h * 0.4], [x + w - 7, y + h - 4], [x + w - 20, y + h + 1], [x + w * 0.5, y + h + 3], [x + 19, y + h + 1], [x + 7, y + h - 4], [x - 4, y + h * 0.4]].map(([a, b]) => [a + J(0.8), b + J(0.8)]),
+      bands: [0.38 + J(0.04), 0.7 + J(0.05)], bj: [J(2), J(2), J(2), J(2)] };
+    t.bd = mkDash(perim(t.body));
+    return t;
+  }
+  // 籐かご: 胴は縁の下でいったん少しふくらみ、底へ丸くすぼまる（箱の台形にしない）。inner() で中身を描く
+  function drawWicker(g, x, y, w, h, t, inner, handle = true, ry = 7) {
+    g.save(); g.beginPath(); g.ellipse(x + w / 2, y + 3, w / 2 + 3, ry, -0.03, Math.PI, 0); g.lineWidth = 7; g.strokeStyle = C.shita; g.stroke(); g.lineWidth = 1.4; g.strokeStyle = C.sumire; g.stroke(); g.restore();
+    fillPts(g, blobPts(x + w / 2, y + 4, w / 2, ry - 1.5, 14, 0.03), C.kage, 0, 0, 1, true, true);
+    if (handle) for (const [cw, cc] of [[5, C.sumire], [2.4, C.odo]]) { g.save(); g.strokeStyle = cc; g.lineWidth = cw; g.beginPath(); g.moveTo(x + 16, y + 4); g.bezierCurveTo(x + 20, y - 38, x + w - 24, y - 42, x + w - 16, y + 2); g.stroke(); g.restore(); }
+    if (inner) inner();
     const p = new Path2D(); smoothTo(p, t.body);
     g.save(); g.translate(1.5, -1); g.fillStyle = C.odo; g.fill(p); g.restore();
     g.save(); g.clip(p);
@@ -1026,10 +1047,27 @@ const SIM = (() => {
     strokeInk(g, p, 2, 0.92, t.bd);
     // 縁の手前側の太い巻き（2度刷りの黄土＋すみれ茶の帯）
     g.save(); g.lineCap = "round";
-    g.beginPath(); g.ellipse(x + w / 2, y + 4, w / 2 + 3, 7, -0.03, 0.05, Math.PI - 0.05); g.lineWidth = 8.5; g.strokeStyle = C.sumire; g.globalAlpha = 0.92; g.stroke();
+    g.beginPath(); g.ellipse(x + w / 2, y + 4, w / 2 + 3, ry, -0.03, 0.05, Math.PI - 0.05); g.lineWidth = 8.5; g.strokeStyle = C.sumire; g.globalAlpha = 0.92; g.stroke();
     g.globalAlpha = 1; g.lineWidth = 5.5; g.strokeStyle = C.shita; g.stroke();
-    g.beginPath(); g.ellipse(x + w / 2 + 1, y + 3, w / 2 + 2, 6, -0.03, 0.4, Math.PI - 0.5); g.lineWidth = 1; g.strokeStyle = C.shiro; g.globalAlpha = 0.7; g.stroke();
+    g.beginPath(); g.ellipse(x + w / 2 + 1, y + 3, w / 2 + 2, ry - 1, -0.03, 0.4, Math.PI - 0.5); g.lineWidth = 1; g.strokeStyle = C.shiro; g.globalAlpha = 0.7; g.stroke();
     g.restore();
+  }
+  function drawBasket(g) {
+    const { x, y, w, h } = BASK;
+    if (!baskLook) baskLook = wickerLook(x, y, w, h, 62);
+    // 中のたたんだ山（取り込んだ最後の数枚。縁の上に2枚分以上の折り山が見える）
+    // かごは中身が変わったときだけ描き直す（毎フレームは作り置きを貼るだけ）
+    const list = S ? S.delivered.slice(-4) : [], k = scale * dpr;
+    const key = k + ":" + list.map((e) => e.id).join(",");
+    if (baskCache.key !== key) {
+      const bx = x - 24, by = y - 64, bw = w + 48, bh = h + 76;
+      if (!baskCache.c) baskCache.c = document.createElement("canvas");
+      const c = baskCache.c; c.width = Math.ceil(bw * k); c.height = Math.ceil(bh * k);
+      const b = c.getContext("2d"); b.setTransform(k, 0, 0, k, -bx * k, -by * k);
+      drawWicker(b, x, y, w, h, baskLook, () => { if (list.length) foldedPile(b, x + w / 2 + 2, y + 10, list, 0.95); });
+      baskCache.key = key; baskCache.r = [bx, by, bw, bh];
+    }
+    g.drawImage(baskCache.c, ...baskCache.r);
     if (selId === "basket" && kbMode) focusRing(g, x - 6, y - 40, w + 12, h + 46);
   }
 
@@ -1319,6 +1357,7 @@ const SIM = (() => {
     state = "play"; paused = false; drag = null; kbHold = null; ghost = null; lastTarget = null; selId = "tub";
     drips.length = 0; fallers.length = 0; fx.length = 0; grandma.t = -1; said.clear();
     for (const m of disp) m.clear();
+    $("eveB").hidden = true;
     $("titleS").hidden = true; $("resultS").hidden = true; $("pauseS").hidden = true; $("hud").hidden = false;
     hint("たらいの洗濯物をつまんで、綱へ", 3.5);
     updateHud();
@@ -1346,18 +1385,30 @@ const SIM = (() => {
   }
   function drawPileResult() {
     const pc = $("pile"), k = Math.min(2, window.devicePixelRatio || 1);
-    const cw = pc.clientWidth || 300, ch = pc.clientHeight || 150;
+    const cw = pc.clientWidth || 300, ch = pc.clientHeight || 170;
     pc.width = cw * k; pc.height = ch * k;
     const g = pc.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, cw, ch);
     const list = S.delivered.slice();
-    if (!list.length) { g.font = "700 14px " + getComputedStyle(document.body).fontFamily; g.fillStyle = C.sumire; g.fillText("かごは空っぽ", 14, ch / 2); return; }
-    // 2〜3山に分けて、たたんだ山を大きく
-    const nCol = list.length > 16 ? 3 : list.length > 7 ? 2 : 1;
-    const per = Math.ceil(list.length / nCol);
-    let hMax = 0; const cols = [];
-    for (let c = 0; c < nCol; c++) { const a = list.slice(c * per, (c + 1) * per); cols.push(a); hMax = Math.max(hMax, a.reduce((s, e) => s + PILE[e.kind][1] - 3, 3)); }
-    const k2 = Math.min(2.4, (ch - 10) / hMax, cw / nCol / 72);
-    cols.forEach((a, c) => foldedPile(g, cw * (c + 0.5) / nCol, ch - 6, a, k2));
+    // 白い札の上で白い布が埋もれないよう、大きな籐かごに入れて見せる（遊ぶ画面のかごと同じ描き方）
+    const bh = Math.min(62, ch * 0.34), bw = Math.min(cw - 44, 250), bx = (cw - bw) / 2, by = ch - bh - 6;
+    const look = wickerLook(bx, by, bw, bh, 97);
+    if (!list.length) {
+      drawWicker(g, bx, by, bw, bh, look, null, false, 10);
+      g.font = "700 14px " + getComputedStyle(document.body).fontFamily; g.fillStyle = C.sumire; g.fillText("かごは空っぽ", bx + 14, by - 14); return;
+    }
+    // 2〜3山に分けて、たたんだ山を大きく（色移りした物はしみのまま一番上へ）
+    list.sort((a, b) => (a.stained - b.stained));
+    const base = by + 18;
+    // 山の数は、布がいちばん大きく見える数を選ぶ
+    let nCol = 1, cols = [], k2 = 0;
+    for (let n = 1; n <= 4; n++) {
+      const per = Math.ceil(list.length / n), cs = [];
+      let hMax = 0;
+      for (let c = 0; c < n; c++) { const a = list.slice(c * per, (c + 1) * per); if (!a.length) continue; cs.push(a); hMax = Math.max(hMax, a.reduce((s, e) => s + PILE[e.kind][1] - 3, 3)); }
+      const kk = Math.min(2.4, (base - 6) / hMax, (bw - 20) / cs.length / 72);
+      if (kk > k2 + 0.05) { k2 = kk; nCol = cs.length; cols = cs; }
+    }
+    drawWicker(g, bx, by, bw, bh, look, () => cols.forEach((a, c) => foldedPile(g, bx + bw * (c + 0.5) / nCol + (c - (nCol - 1) / 2) * 4, base, a, k2)), false, 10);
   }
   function updateHud() {
     if (!S) return;
@@ -1372,6 +1423,7 @@ const SIM = (() => {
       switch (e.type) {
         case "deliver":
           sfx.fuwa(); fx.push({ x: BASK.x + BASK.w / 2, y: BASK.y - 30, t: 0, text: e.stained ? "色移り 0" : "+" + e.pts, red: e.stained });
+          if (e.eve) { tone(784 * pitch(), 0.16, "triangle", 0.06, 988 * pitch(), 0.08); hint("夕方の取りこみは1.5倍", 1.8, "eve2"); }
           if (e.stained) hint("色が移った物は点にならない", 2.4);
           updateHud(); break;
         case "grandma":
@@ -1399,6 +1451,10 @@ const SIM = (() => {
           kick[it.rope] += 1.2; break;
         }
         case "place": kick[e.rope] += 0.4; break;
+        case "evening":
+          grandma.t = 0; say("夕風やねえ、はよ取りこみ"); hint("影の中でも夕風で乾く。乾いた物から急いで", 3);
+          [523, 659, 784].forEach((f, i) => tone(f * pitch(), 0.3, "triangle", 0.07, null, i * 0.12, 1800)); $("eveB").hidden = false; break;
+        case "tubEmpty": hint("たらいが空になった。残りを全部取りこもう", 2.8); sfx.peg(); break;
         case "end": endT = 0; state = "ending"; sfx.sunset(); hint(e.why === "ropes" ? "綱が両方切れた" : "日が沈んだ", 3); break;
       }
     }
@@ -1429,12 +1485,7 @@ const SIM = (() => {
 
   // ---- 描画 ----
   let warnPg = null;
-  function draw() {
-    const g = ctx;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = C.sumire; g.fillRect(0, 0, cv.width, cv.height);
-    g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
-    const p = S ? clamp(S.t / S.dur, 0, 1) : 0.3;
+  function drawBg(g, p) {
     g.drawImage(L.sky, 0, 0, W, H);
     const eve = clamp((p - 0.55) / 0.4, 0, 1);
     if (eve > 0) { // 夕方の版は地平から上へ刷り替わる（重ねて濁らせない）
@@ -1447,8 +1498,27 @@ const SIM = (() => {
       g.fillStyle = C.odo; g.beginPath(); g.arc(sx + 3, sy - 2, 24.5, 0, 7); g.fill();
       g.fillStyle = C.shiro; g.beginPath(); g.arc(sx, sy, 24, 0, 7); g.fill(); }
     g.drawImage(L.bld, 0, 0, W, H);
-    const edge = shadowEdge(p);
-    drawShadow(g, edge, 1);
+    g.restore();
+  }
+  function drawShadowOn(g, edge) { g.save(); g.clip(innerPath); drawShadow(g, edge, 1); g.restore(); }
+  function draw() {
+    const g = ctx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = C.sumire; g.fillRect(0, 0, cv.width, cv.height);
+    g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
+    const p0 = S ? clamp(S.t / S.dur, 0, 1) : 0.3;
+    // 空・太陽・家・影の1回目は、時刻が 1/400 進むごと（約0.25秒）にだけ作り置きを描き直す
+    const bk = Math.round(p0 * 400), kk = scale * dpr;
+    if (!L.bg || L.bgKey !== bk || L.bgK !== kk) {
+      if (!L.bg || L.bgK !== kk) [L.bg, L.bgG] = mkLayer();
+      const p = bk / 400, b = L.bgG;
+      b.save(); b.setTransform(1, 0, 0, 1, 0, 0); b.clearRect(0, 0, L.bg.width, L.bg.height); b.restore();
+      drawBg(b, p); L.bgKey = bk; L.bgK = kk; L.bgP = p; L.edge = shadowEdge(p);
+      drawShadowOn(b, L.edge);
+    }
+    const p = L.bgP, edge = L.edge;
+    g.drawImage(L.bg, 0, 0, W, H);
+    g.save(); g.clip(innerPath);
     // 綱と洗濯物（下の綱 → 上の綱）
     drawRope(g, 1); drawRope(g, 0);
     if (S) {
