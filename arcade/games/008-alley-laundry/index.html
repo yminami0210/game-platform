@@ -1,0 +1,1548 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>せんたく日和</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Kosugi+Maru&display=swap" rel="stylesheet">
+<style>
+:root{
+  --odo:#e8c98a; --gunjo:#3f7fb8; --midori:#3d7a5a; --tomato:#d2452f; --shiro:#edf0ee; --sumire:#4a3446;
+  --kage:#a890c4; --shita:#d9b778;
+  --head:"Mochiy Pop One","Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
+  --body:"Kosugi Maru","Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--sumire);color:var(--sumire);font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;overscroll-behavior:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+/* 石鹸の包み紙の札: 紙の白にトマトの二重枠（版ずれ1px）、角は切り紙の不揃い。角丸カードにしない */
+.tagw{position:absolute;filter:drop-shadow(4px 5px 0 rgba(74,52,70,.32))}
+.tag{position:relative;background:var(--shiro);color:var(--sumire);
+  clip-path:polygon(0 4%,46% 0,100% 3%,99% 55%,100% 100%,52% 97%,1% 100%,0 50%)}
+.tag::before,.tag::after{content:"";position:absolute;pointer-events:none;border:2px solid var(--tomato);inset:4px 5px 5px 4px;transform:translate(1px,-1px)}
+.tag::after{border-width:1px;inset:8px 9px 9px 8px}
+.pin{position:absolute;top:-9px;width:9px;height:22px;pointer-events:none;z-index:2}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:3}
+#hud[hidden]{display:none}
+#scoreW{transform:rotate(-2.5deg);transform-origin:0 0}
+#scoreW .tag{padding:12px 16px 11px 15px;min-width:118px}
+#cnt{font-size:13px;line-height:1.2;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+#score{font-family:var(--head);font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+#score small{font-family:var(--body);font-size:14px;font-weight:700;margin-left:3px}
+#hintW{transform:rotate(-1deg);transition:opacity .25s;max-width:min(250px,64vw)}
+#hintW.off{opacity:0}
+#hintW .tag{padding:9px 13px 9px 12px;font-size:13px;line-height:1.45;font-weight:700;clip-path:polygon(0 6%,60% 0,100% 5%,99.5% 100%,40% 96%,0 100%)}
+#hintW .tag::before,#hintW .tag::after{display:none}
+.tbtn{pointer-events:auto;border:0;cursor:pointer;font-family:var(--body);font-weight:700;font-size:14px;color:var(--sumire);
+  padding:12px 13px 11px;min-height:44px;background:var(--shiro);clip-path:polygon(0 3%,100% 0,98% 100%,2% 96%);touch-action:manipulation}
+.tbtn:active{transform:translate(1px,2px)}
+.tbtn:focus-visible{outline:2px dashed var(--sumire);outline-offset:-6px}
+#muteB.off{text-decoration:line-through;text-decoration-thickness:2px}
+#pauseW{transform:rotate(3.5deg)}
+#muteW{transform:rotate(-2deg)}
+#sayW{position:fixed;z-index:4;transform:rotate(2deg);transition:opacity .25s;pointer-events:none}
+#sayW.off{opacity:0}
+#sayW .tag{padding:9px 13px 10px;font-family:var(--head);font-size:15px;white-space:nowrap}
+#sayW .tag::before,#sayW .tag::after{display:none}
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:14px;z-index:6}
+.screen[hidden]{display:none}
+.bw{position:relative;width:min(350px,100%);max-height:100%;display:flex;filter:drop-shadow(5px 7px 0 rgba(74,52,70,.38))}
+.board{position:relative;width:100%;max-height:100%;overflow:auto;touch-action:pan-y;background:var(--shiro);padding:26px 24px 22px;
+  clip-path:polygon(0 1%,38% 0,100% 1.2%,99.4% 50%,100% 99%,58% 100%,.5% 98.8%,0 52%)}
+.board::before,.board::after{content:"";position:absolute;pointer-events:none;border:2.4px solid var(--tomato);inset:7px 8px 8px 7px;transform:translate(1px,-1px)}
+.board::after{border-width:1px;inset:12px 13px 13px 12px}
+.logo{font-family:var(--head);font-weight:400;font-size:44px;line-height:1.08;letter-spacing:.01em;color:var(--sumire);
+  text-shadow:2.5px 2.5px 0 var(--tomato)}
+.lead{font-size:15px;line-height:1.6;margin-top:10px;font-weight:700}
+.how{font-size:14px;line-height:1.65;margin-top:10px}
+.how b{font-weight:700;border-bottom:2px solid var(--odo)}
+.keys{font-size:12.5px;line-height:1.55;margin-top:8px;opacity:.9}
+.row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px;position:relative;z-index:1}
+.go{white-space:nowrap;font-family:var(--head);font-size:21px;color:var(--shiro);background:var(--sumire);border:0;cursor:pointer;padding:11px 20px 12px;
+  clip-path:polygon(0 5%,100% 0,98% 100%,2% 95%);touch-action:manipulation}
+.go:active{transform:translate(1px,2px)}
+.go:focus-visible{outline:3px dashed var(--tomato);outline-offset:3px}
+.best{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+#rTitle{font-family:var(--head);font-size:28px;line-height:1.15;text-shadow:2px 2px 0 var(--tomato)}
+#rWhy{font-size:13.5px;margin-top:6px;line-height:1.5}
+#pile{display:block;width:100%;height:170px;margin-top:6px}
+#rScore{font-family:var(--head);font-size:46px;line-height:1;font-variant-numeric:tabular-nums}
+#rScore small{font-family:var(--body);font-size:17px;font-weight:700;margin-left:4px}
+#rList{font-size:13.5px;line-height:1.6;margin-top:6px;font-variant-numeric:tabular-nums}
+#rBest{margin-top:4px}
+.nb{display:inline-block;font-family:var(--head);font-size:14px;color:var(--shiro);background:var(--tomato);padding:3px 9px 4px;margin-left:6px;transform:rotate(-3deg)}
+body.wide .bw{width:min(560px,100%)}
+body.wide .board{padding:20px 24px 16px}
+body.wide .cols{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;align-items:start}
+@media (prefers-reduced-motion:reduce){#hintW,#sayW{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="路地の物干し"></canvas>
+<div id="hud" hidden>
+  <div class="tagw" id="scoreW"><svg class="pin" style="left:54px" viewBox="0 0 9 22"><path d="M1.2 1 7.6 .6 8 21 1 21.4Z" fill="#e8c98a" stroke="#4a3446" stroke-width="1.3"/><path d="M4.5 1.5V20.5" stroke="#4a3446" stroke-width=".8" opacity=".7"/><path d="M.5 9q4 2.6 8 0" stroke="#4a3446" stroke-width="1.4" fill="none"/></svg>
+    <div class="tag"><div id="cnt">取りこみ 0まい</div><div id="score">0<small>てん</small></div></div></div>
+  <div class="tagw off" id="hintW"><div class="tag" id="hint"></div></div>
+  <div class="tagw" id="muteW"><button class="tbtn" id="muteB" aria-label="音を消す（M）">おと</button></div>
+  <div class="tagw" id="pauseW"><svg class="pin" style="left:36px" viewBox="0 0 9 22"><path d="M1 .8 7.8 1 7.4 21.2 1.3 21Z" fill="#e8c98a" stroke="#4a3446" stroke-width="1.3"/><path d="M4.5 1.5V20.5" stroke="#4a3446" stroke-width=".8" opacity=".7"/><path d="M.5 9q4 2.6 8 0" stroke="#4a3446" stroke-width="1.4" fill="none"/></svg><button class="tbtn" id="pauseB" aria-label="ひと休み（P）">ひと休み</button></div>
+</div>
+<div class="tagw off" id="sayW"><div class="tag" id="say"></div></div>
+
+<div class="screen" id="titleS">
+  <div class="bw"><div class="board">
+    <div class="cols"><div>
+      <h1 class="logo">せんたく<br>日和</h1>
+      <p class="lead">路地に渡した2本の綱に、濡れた洗濯物を干す。日が沈むまでに、乾いた物をかごへ。</p>
+    </div><div>
+      <p class="how">たらいの洗濯物をつまんで綱へ。揺れはじめたら乾いた合図、つまんでかごへ。<br><b>上の綱の色物の真下に白い物</b>を干すと色が移る。重すぎると綱が切れる。</p>
+      <p class="keys">PC はマウスで同じ操作。キーなら Tab・矢印で選び Space で持つ／置く。M で音、P でひと休み</p>
+    </div></div>
+    <div class="row"><button class="go" id="startB">干しはじめる</button><span class="best" id="tBest"></span></div>
+  </div></div>
+</div>
+
+<div class="screen" id="pauseS" hidden>
+  <div class="bw"><div class="board">
+    <h2 class="logo" style="font-size:32px">ひと休み</h2>
+    <p class="how">太陽も綱も止まっています。</p>
+    <div class="row"><button class="go" id="resumeB">つづける</button></div>
+  </div></div>
+</div>
+
+<div class="screen" id="resultS" hidden>
+  <div class="bw"><div class="board">
+    <div class="cols"><div>
+      <h2 id="rTitle">日が沈んだ</h2>
+      <p id="rWhy"></p>
+      <canvas id="pile" width="300" height="170" aria-label="その日のかごの中身"></canvas>
+    </div><div>
+      <div id="rScore">0<small>てん</small></div>
+      <p id="rList"></p>
+      <p class="best" id="rBest"></p>
+      <div class="row"><button class="go" id="againB">もう一回干す</button></div>
+    </div></div>
+  </div></div>
+</div>
+<script>
+"use strict";
+// <sim> ここから下は DOM に触らない（自動プレイのボットがそのまま読み込む）
+const SIM = (() => {
+  const W = 390, H = 844, DUR = 100;
+  // 綱の両端（滑車の位置）。0 = 上の綱、1 = 下の綱
+  const ROPES = [
+    { x1: 84, y1: 222, x2: 308, y2: 210 },
+    { x1: 80, y1: 400, x2: 312, y2: 393 },
+  ];
+  const LIM = 10.5;        // 1本の綱が耐えられる濡れ物の重さ
+  const RESTRING = 10;     // 切れた綱の張り直し（秒）
+  const PEN_GAP = 1.2;     // 操作と無関係の罰どうしの間（秒）
+  const KINDS = {
+    sock:   { w: 34,  h: 54,  wt: 1.0, pt: 1, col: "r", dry: 6.5, name: "靴下" },
+    shirt:  { w: 66,  h: 84,  wt: 2.0, pt: 2, col: "",  dry: 9.5, name: "シャツ" },
+    shirtB: { w: 66,  h: 84,  wt: 2.0, pt: 2, col: "b", dry: 9.5, name: "青いシャツ" },
+    towel:  { w: 48,  h: 82,  wt: 2.4, pt: 2, col: "",  dry: 11,  name: "タオル" },
+    jeans:  { w: 70,  h: 110, wt: 3.8, pt: 3, col: "b", dry: 12,  name: "ジーンズ" },
+    sheet:  { w: 118, h: 120, wt: 5.6, pt: 5, col: "",  dry: 14,  name: "シーツ" },
+  };
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const rnd = (S) => ((S.r = (S.r * 16807) % 2147483647) / 2147483647);
+
+  // 影の境目: 左の手前の家の屋根の輪郭（軒・腕金・窓台の鉢・下の窓台・樋の金具）をなぞった段つき。
+  // p = 0（昼すぎ）〜 1（日没）。描く絵もこの式で多角形を作る
+  const STEPS = [[112, 131, 10], [198, 246, 15], [338, 366, 13], [438, 468, 15], [588, 614, 11]];
+  function edgeBase(y, p) {
+    const q = Math.pow(clamp(p, 0, 1), 3.2);
+    const A = 66 + 262 * q, B = 198 + 236 * q;
+    return A + (B - A) * clamp((y - 112) / 588, 0, 1.3);
+  }
+  function edgeX(y, p) { let x = edgeBase(y, p); for (const [a, b, k] of STEPS) if (y >= a && y <= b) x += k; return x; }
+  const ropeMidY = (r) => (ROPES[r].y1 + ROPES[r].y2) / 2;
+  function sunFrac(S, it) {
+    const sx = edgeX(ropeMidY(it.rope), S.t / DUR);
+    return clamp((it.x + it.w - sx) / it.w, 0, 1);
+  }
+  const load = (it) => it.wt * (0.3 + 0.7 * Math.min(1, it.wet)) * Math.max(1, it.wet);
+  function ropeLoad(S, r) { let s = 0; for (const it of S.ropes[r].items) s += load(it); return s; }
+
+  function newItem(S) {
+    const p = clamp(S.t / DUR, 0, 1);
+    const wts = { sock: 3 - 1.6 * p, shirt: 3 - 1.4 * p, towel: 2, shirtB: 0.5 + 1.6 * p, jeans: 0.7 + 2.0 * p, sheet: 0.5 + 2.3 * p };
+    let kind;
+    for (let tries = 0; tries < 6; tries++) {
+      let tot = 0; for (const k in wts) tot += wts[k];
+      let u = rnd(S) * tot; kind = "sock";
+      for (const k in wts) { u -= wts[k]; if (u <= 0) { kind = k; break; } }
+      if (!(S.lastKinds[0] === kind && S.lastKinds[1] === kind)) break;
+    }
+    S.lastKinds.unshift(kind); S.lastKinds.length = 2;
+    const K = KINDS[kind];
+    const wet = 1 + 0.38 * p + rnd(S) * 0.08;
+    return { id: ++S.nid, kind, w: K.w, h: K.h, wt: K.wt, pt: K.pt, col: K.col, dry: K.dry, wet, wet0: wet,
+      stain: 0, stained: false, stainCol: "", pegs: 2, dryFor: -1, flutter: false, flutterAt: 0, rope: -1, x: 0, seed: (rnd(S) * 1e9) | 0 };
+  }
+
+  function create(seed) {
+    const S = { r: (seed % 2147483646) + 1, t: 0, dur: DUR, nid: 0, lastKinds: [], over: false, endReason: "",
+      ropes: [{ items: [], broken: false, restring: 0, strain: 0 }, { items: [], broken: false, restring: 0, strain: 0 }],
+      tub: { queue: [], wait: 0 }, held: null, score: 0, combo: 0, delivered: [], fallen: 0, blown: 0, stainedN: 0,
+      pigeons: [], pigT: 9, lastPen: -9, grace: 0, ev: [], log: [], quiet: false };
+    S.tub.queue.push(newItem(S), newItem(S));
+    return S;
+  }
+  function emit(S, e) { e.t = S.t; S.ev.push(e); S.log.push(e); }
+
+  function overlaps(a0, a1, b0, b1) { return Math.min(a1, b1) - Math.max(a0, b0); }
+  // 置ける位置を探す（重なっていたら近くの空きへずらす）。無ければ null
+  function freeSpot(S, r, x, w, ignoreId) {
+    const R = ROPES[r], lo = R.x1 + 5, hi = R.x2 - 5 - w;
+    if (hi < lo) return null;
+    const ok = (xx) => S.ropes[r].items.every((o) => o.id === ignoreId || overlaps(xx, xx + w, o.x - 1, o.x + o.w + 1) <= 0);
+    x = clamp(x, lo, hi);
+    for (let d = 0; d <= 40; d += 2) {
+      for (const s of d ? [x - d, x + d] : [x]) { if (s >= lo && s <= hi && ok(s)) return s; }
+    }
+    return null;
+  }
+  function pigeonAt(S, r, x0, x1) { return S.pigeons.find((p) => p.rope === r && !p.leaving && overlaps(x0, x1, p.x - 17, p.x + 17) > 0); }
+
+  function canPlace(S, r, x) {
+    const it = S.held; if (!it || S.over || S.ropes[r].broken) return null;
+    return freeSpot(S, r, x, it.w);
+  }
+  function hang(S, it, r, x) { it.rope = r; it.x = x; S.ropes[r].items.push(it); S.ropes[r].items.sort((a, b) => a.x - b.x); }
+  function place(S, r, x) {
+    const it = S.held; if (!it) return false;
+    const xx = canPlace(S, r, x); if (xx == null) return false;
+    S.held = null; it.pegs = 2; hang(S, it, r, xx);
+    emit(S, { type: "place", id: it.id, rope: r, x: xx });
+    const pg = pigeonAt(S, r, xx, xx + it.w);
+    if (pg) {
+      pg.leaving = true; pg.leaveT = 0;
+      // 羽ばたきで、いちばん近い洗濯物（無ければ今の物）の洗濯ばさみが1つ外れる
+      let best = null, bd = 1e9;
+      for (const o of S.ropes[r].items) { if (o.id === it.id) continue; const d = Math.abs(o.x + o.w / 2 - pg.x); if (d < bd) { bd = d; best = o; } }
+      const vic = best && bd < 130 ? best : it;
+      S.lastPen = S.t;
+      if (vic.wet <= 0 && vic !== it) {
+        // 乾いて軽い物は、片方の洗濯ばさみが外れるとそのまま路地へ落ちる
+        S.ropes[r].items.splice(S.ropes[r].items.indexOf(vic), 1); S.fallen++; S.combo = 0;
+        emit(S, { type: "pigeonFly", x: pg.x, rope: r, id: vic.id, item: vic, fell: true, pen: true });
+      } else {
+        vic.pegs = 1; vic.droopSide = vic.x + vic.w / 2 < pg.x ? 1 : -1;
+        emit(S, { type: "pigeonFly", x: pg.x, rope: r, id: vic.id, pen: true });
+      }
+    }
+    return true;
+  }
+  function pickTub(S) {
+    if (S.held || S.over || S.tub.wait > 0 || !S.tub.queue.length) return null;
+    const it = S.tub.queue.shift(); it.from = { tub: true }; S.held = it; S.tub.wait = 0.45;
+    while (S.tub.queue.length < 2) S.tub.queue.push(newItem(S));
+    emit(S, { type: "pick", id: it.id, tub: true });
+    return it;
+  }
+  function pickHung(S, id) {
+    if (S.held || S.over) return null;
+    for (let r = 0; r < 2; r++) {
+      const a = S.ropes[r].items, i = a.findIndex((o) => o.id === id);
+      if (i >= 0) { const it = a.splice(i, 1)[0]; it.from = { rope: r, x: it.x }; it.rope = -1; S.held = it; emit(S, { type: "pick", id, rope: r, x: it.x, load: load(it) }); return it; }
+    }
+    return null;
+  }
+  function cancel(S) {
+    const it = S.held; if (!it) return;
+    S.held = null;
+    const f = it.from || { tub: true };
+    if (!f.tub && !S.ropes[f.rope].broken) {
+      const xx = freeSpot(S, f.rope, f.x, it.w);
+      if (xx != null) { hang(S, it, f.rope, xx); emit(S, { type: "back", id: it.id, rope: f.rope }); return; }
+    }
+    S.tub.queue.unshift(it); S.tub.wait = 0;
+    emit(S, { type: "back", id: it.id, tub: true });
+  }
+  function toTub(S) {
+    const it = S.held; if (!it) return;
+    S.held = null; S.tub.queue.unshift(it); S.tub.wait = 0;
+    emit(S, { type: "back", id: it.id, tub: true });
+  }
+  function deliver(S) {
+    const it = S.held; if (!it || it.wet > 0) return false;
+    S.held = null;
+    const pts = it.stained ? 0 : it.pt;
+    S.score += pts; S.delivered.push(it);
+    if (it.stained) S.combo = 0; else S.combo++;
+    emit(S, { type: "deliver", id: it.id, pts, stained: it.stained, kind: it.kind });
+    // 5枚続けて色移りなし → おばあさんの拍手（続くほど大きい）
+    if (!it.stained && S.combo > 0 && S.combo % 5 === 0) { const b = S.combo / 5 + 1; S.score += b; emit(S, { type: "grandma", n: S.combo, bonus: b }); }
+    return true;
+  }
+  // 海からの風は時間とともに強まる: よく乾くが、乾いた物を放っておくと飛ばされやすい
+  function windDry(p) { return 0.5 + 2.0 * p; }
+  function flutterTime(p) { return 9 - 4.5 * p; }
+
+  function snap(S, r) {
+    const R = S.ropes[r];
+    const lost = R.items.splice(0);
+    S.fallen += lost.length; S.combo = 0;
+    R.broken = true; R.restring = RESTRING; R.strain = 0;
+    S.lastPen = S.t;
+    emit(S, { type: "snap", rope: r, items: lost, pen: true });
+    if (S.ropes[1 - r].broken) end(S, "ropes");
+  }
+  function end(S, why) { if (S.over) return; S.over = true; S.endReason = why; emit(S, { type: "end", why }); }
+
+  function step(S, dt) {
+    if (S.over) return;
+    S.t += dt;
+    const p = clamp(S.t / DUR, 0, 1);
+    if (S.tub.wait > 0) S.tub.wait -= dt;
+    for (let r = 0; r < 2; r++) {
+      const R = S.ropes[r];
+      if (R.broken) { R.restring -= dt; if (R.restring <= 0) { R.broken = false; emit(S, { type: "restrung", rope: r }); } continue; }
+      for (let i = R.items.length - 1; i >= 0; i--) {
+        const it = R.items[i];
+        if (it.wet > 0) {
+          const sun = sunFrac(S, it);
+          it.wet -= dt * (1 / it.dry) * (0.2 + 0.8 * sun) * windDry(p) * (it.pegs < 2 ? 0.45 : 1);
+          if (it.wet <= 0) { it.wet = 0; it.dryFor = 0; emit(S, { type: "dried", id: it.id }); }
+        } else {
+          it.dryFor += dt;
+          if (!it.flutter && it.dryFor > flutterTime(p)) { it.flutter = true; it.flutterAt = S.t; emit(S, { type: "flutter", id: it.id }); }
+          if (it.flutter && S.t - it.flutterAt >= 3 && S.t - S.lastPen >= PEN_GAP) {
+            R.items.splice(i, 1); S.blown++; S.lastPen = S.t; S.combo = 0;
+            emit(S, { type: "blown", id: it.id, item: it, pen: true });
+          }
+        }
+      }
+      const L = ropeLoad(S, r);
+      if (L > LIM) {
+        if (R.strain === 0) emit(S, { type: "creak", rope: r });
+        R.strain += dt * (0.5 + (L - LIM) * 0.12);
+        if (R.strain >= 1) { if (S.t - S.lastPen >= PEN_GAP) snap(S, r); else R.strain = 0.999; }
+      } else R.strain = Math.max(0, R.strain - dt * 0.6);
+    }
+    // 上の段のしずく: 濡れた色物の真下の白い物に色が移る
+    if (!S.ropes[0].broken && !S.ropes[1].broken) {
+      for (const L of S.ropes[1].items) {
+        if (L.col || L.stained) continue;
+        for (const U of S.ropes[0].items) {
+          if (!U.col || U.wet <= 0.05) continue;
+          if (overlaps(U.x + 4, U.x + U.w - 4, L.x, L.x + L.w) > 0) {
+            if (L.stain === 0) emit(S, { type: "stainStart", id: L.id, from: U.id });
+            L.stain += dt * 0.34 * Math.min(1, U.wet); L.stainCol = U.col;
+            if (L.stain >= 1) { L.stain = 1; L.stained = true; S.stainedN++; emit(S, { type: "stained", id: L.id, pen: true }); break; }
+          }
+        }
+      }
+    }
+    // 鳩: 綱の空いた所にときどき止まり、数秒で勝手に飛び去る
+    for (let i = S.pigeons.length - 1; i >= 0; i--) {
+      const pg = S.pigeons[i];
+      if (pg.leaving) { pg.leaveT += dt; if (pg.leaveT > 1.2) S.pigeons.splice(i, 1); continue; }
+      pg.life -= dt;
+      if (pg.life <= 0 || S.ropes[pg.rope].broken) { pg.leaving = true; pg.leaveT = 0; emit(S, { type: "pigeonLeave", x: pg.x, rope: pg.rope }); }
+    }
+    if (!S.quiet) {
+      S.pigT -= dt;
+      if (S.pigT <= 0) {
+        S.pigT = 7 + rnd(S) * 5 - p * 2.5;
+        const r = rnd(S) < 0.5 ? 0 : 1, R = ROPES[r];
+        if (!S.ropes[r].broken && S.pigeons.length < 2) {
+          // 空いている区間（34px 以上）を探す
+          const a = S.ropes[r].items, gaps = []; let prev = R.x1 + 6;
+          for (const o of a) { if (o.x - prev >= 40) gaps.push([prev, o.x]); prev = o.x + o.w; }
+          if (R.x2 - 6 - prev >= 40) gaps.push([prev, R.x2 - 6]);
+          if (gaps.length) {
+            const g = gaps[Math.floor(rnd(S) * gaps.length)];
+            const x = g[0] + 20 + rnd(S) * (g[1] - g[0] - 40);
+            if (!S.pigeons.some((q) => q.rope === r && Math.abs(q.x - x) < 50)) {
+              const pg = { x, rope: r, life: 5 + rnd(S) * 3, leaving: false, leaveT: 0, flip: rnd(S) < 0.5, hunch: rnd(S), s: 1.05 + rnd(S) * 0.3 };
+              S.pigeons.push(pg); emit(S, { type: "pigeonLand", x, rope: r });
+            }
+          }
+        }
+      }
+    }
+    if (S.t >= DUR) {
+      if (S.held) { S.grace += dt; if (S.grace > 4) { cancel(S); end(S, "sunset"); } }
+      else end(S, "sunset");
+    }
+  }
+  return { W, H, DUR, ROPES, LIM, KINDS, STEPS, clamp, edgeX, edgeBase, sunFrac, load, ropeLoad, create, step, canPlace, place, pickTub, pickHung, cancel, toTub, deliver, freeSpot, pigeonAt, flutterTime, ropeMidY };
+})();
+// </sim>
+
+// ================= ここから描画・入力・音（DOM を使う） =================
+(() => {
+  const { W, H, ROPES, LIM, KINDS, STEPS, clamp } = SIM;
+  const C = { odo: "#e8c98a", gunjo: "#3f7fb8", midori: "#3d7a5a", tomato: "#d2452f", shiro: "#edf0ee", sumire: "#4a3446",
+    kage: "#a890c4", nure: "#8f8094", shita: "#d9b778" };
+  const BEST_KEY = "alley_laundry_best";
+  const $ = (id) => document.getElementById(id);
+  const cv = $("c"), ctx = cv.getContext("2d");
+
+  // ---- 固定の揺れ（1個ごとに決めて、フレームごとに変えない） ----
+  let sd = 1;
+  const seed = (s) => (sd = (Math.abs(s | 0) % 2147483646) + 1);
+  const R = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  const J = (a) => (R() * 2 - 1) * a;
+  const cutP = (pts, a = 1) => pts.map(([x, y]) => [x + J(a), y + J(a)]);
+  function poly(g, pts, close = true, dx = 0, dy = 0) {
+    if (g.beginPath) g.beginPath();
+    for (let i = 0; i < pts.length; i++) { const p = pts[i]; if (i) g.lineTo(p[0] + dx, p[1] + dy); else g.moveTo(p[0] + dx, p[1] + dy); }
+    if (close) g.closePath();
+  }
+  function smoothTo(g, pts, close = true, dx = 0, dy = 0, fresh = true) {
+    const n = pts.length; const P = (i) => pts[close ? (i + n) % n : Math.max(0, Math.min(n - 1, i))];
+    if (fresh && g.beginPath) g.beginPath();
+    g.moveTo(pts[0][0] + dx, pts[0][1] + dy);
+    for (let i = 0; i < (close ? n : n - 1); i++) {
+      const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+      g.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6 + dx, p1[1] + (p2[1] - p0[1]) / 6 + dy, p2[0] - (p3[0] - p1[0]) / 6 + dx, p2[1] - (p3[1] - p1[1]) / 6 + dy, p2[0] + dx, p2[1] + dy);
+    }
+    if (close) g.closePath();
+  }
+  function blobPts(cx, cy, rx, ry, n = 12, rough = 0.15, rot = 0) {
+    const a = [];
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * Math.PI * 2 + J(0.12), k = 1 + J(rough);
+      const x = Math.cos(t) * rx * k, y = Math.sin(t) * ry * k;
+      a.push([cx + x * Math.cos(rot) - y * Math.sin(rot), cy + x * Math.sin(rot) + y * Math.cos(rot)]);
+    }
+    return a;
+  }
+  function perim(pts, close = true) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (close) L += Math.hypot(pts[0][0] - pts.at(-1)[0], pts[0][1] - pts.at(-1)[1]); return L; }
+  // 輪郭の切れ目は1本に1〜2か所だけ、位置は不揃い（等間隔の破線にしない）
+  function mkDash(L) {
+    if (L <= 40) return { da: [], re: null };
+    const n = L > 220 ? 2 : 1, cuts = [];
+    for (let i = 0; i < n; i++) cuts.push(L * (0.12 + R() * 0.76));
+    cuts.sort((a, b) => a - b);
+    const da = []; let at = 0;
+    for (const c of cuts) { const gap = 2.5 + R() * 3; da.push(Math.max(1, c - at), gap); at = c + gap; }
+    da.push(L * 2, 0);
+    const re = L > 160 ? { d: [0.01, R() * L * 0.5, L * (0.2 + R() * 0.3), L * 2], ox: J(0.9), oy: J(0.9) } : null;
+    return { da, re };
+  }
+  function strokeInk(g, path, w, op, dash) {
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = w; g.globalAlpha *= op; g.lineJoin = "round"; g.lineCap = "round";
+    g.setLineDash(dash.da); g.stroke(path);
+    if (dash.re) { g.translate(dash.re.ox, dash.re.oy); g.lineWidth = w * 0.6; g.globalAlpha *= 0.8; g.setLineDash(dash.re.d); g.stroke(path); }
+    g.restore();
+  }
+  function inkPts(g, pts, w = 2, op = 0.92, close = true, smooth = false) {
+    const p = new Path2D(); (smooth ? smoothTo : poly)(p, pts, close);
+    strokeInk(g, p, w, op, mkDash(perim(pts, close)));
+  }
+  function line(g, pts, w, col, op = 1, cap = "round") { g.save(); g.globalAlpha *= op; g.strokeStyle = col; g.lineWidth = w; g.lineCap = cap; g.lineJoin = "round"; poly(g, pts, false); g.stroke(); g.restore(); }
+  function fillPts(g, pts, col, dx = 0, dy = 0, op = 1, mul = false, smooth = false) {
+    g.save(); g.globalAlpha *= op; if (mul) g.globalCompositeOperation = "multiply"; g.fillStyle = col; (smooth ? smoothTo : poly)(g, pts, true, dx, dy); g.fill(); g.restore();
+  }
+
+  // ---- クレヨンの擦れ・紙の目: 1回だけ作って pattern で使い回す ----
+  let PK = 1; const PAT = {}; const patCache = new WeakMap();
+  function grainCanvas(color, n, size = 180, lmin = 3, lmax = 6, clump = 0.55, ang = -0.42) {
+    const c = document.createElement("canvas"); c.width = c.height = Math.ceil(size * PK);
+    const g = c.getContext("2d"); g.scale(PK, PK); g.strokeStyle = color; g.lineCap = "round";
+    for (let i = 0; i < n; i++) {
+      const x = R() * size, y = R() * size, k = R() < clump ? 2 + Math.floor(R() * 3) : 1;
+      for (let m = 0; m < k; m++) {
+        const l = lmin + R() * (lmax - lmin), a = ang + J(0.22), px = x + J(3), py = y + J(2.5);
+        g.globalAlpha = 0.5 + R() * 0.5; g.lineWidth = 0.7 + R() * 0.8;
+        for (const [ox, oy] of [[0, 0], [size, 0], [-size, 0], [0, size], [0, -size]]) { g.beginPath(); g.moveTo(px + ox, py + oy); g.lineTo(px + ox + Math.cos(a) * l, py + oy + Math.sin(a) * l); g.stroke(); }
+      }
+    }
+    return c;
+  }
+  function paperCanvas(size = 240) {
+    const c = document.createElement("canvas"); c.width = c.height = Math.ceil(size * PK);
+    const g = c.getContext("2d"); g.scale(PK, PK);
+    for (let i = 0; i < 520; i++) {
+      const x = R() * size, y = R() * size, a = R() * Math.PI, l = 2 + R() * 7;
+      g.strokeStyle = R() < 0.5 ? "rgba(74,52,70,0.10)" : "rgba(255,255,255,0.35)"; g.lineWidth = 0.6;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+    }
+    g.fillStyle = "rgba(74,52,70,0.07)";
+    for (let i = 0; i < 60; i++) { g.beginPath(); g.arc(R() * size, R() * size, 0.5 + R(), 0, 7); g.fill(); }
+    return c;
+  }
+  function makePatterns(k) {
+    PK = Math.max(1, Math.min(3, k));
+    seed(101);
+    PAT.gSumire = grainCanvas(C.sumire, 700);
+    PAT.gShiro = grainCanvas(C.shiro, 520, 180, 2.5, 5.5, 0.6);
+    PAT.gGunjo = grainCanvas(C.gunjo, 800, 180, 2.5, 5);
+    PAT.gShita = grainCanvas(C.shita, 300, 180, 2.5, 5.5);
+    PAT.paper = paperCanvas();
+  }
+  function pat(g, name) {
+    let m = patCache.get(g); if (!m) { m = {}; patCache.set(g, m); }
+    if (!m[name] || m[name].src !== PAT[name]) {
+      const p = g.createPattern(PAT[name], "repeat");
+      try { p.setTransform(new DOMMatrix([1 / PK, 0, 0, 1 / PK, 0, 0])); } catch (e) {}
+      m[name] = { p, src: PAT[name] };
+    }
+    return m[name].p;
+  }
+  // 今のパスに擦れを乗せる（dx,dy は擦れの位置だけをずらす）
+  function grain(g, name, op = 1, dx = 0, dy = 0, path) {
+    g.save(); g.globalAlpha *= op; g.translate(dx, dy); g.fillStyle = pat(g, name);
+    if (path) { g.translate(-dx, -dy); g.fill(path); } else g.fill();
+    g.restore();
+  }
+  function grainPts(g, pts, name, op = 1, dx = 0, dy = 0, smooth = false) { (smooth ? smoothTo : poly)(g, pts, true); grain(g, name, op, dx, dy); }
+
+  // ---- 画面の割り付け ----
+  let VW = 0, VH = 0, dpr = 1, scale = 1, ox = 0, oy = 0;
+  let wide = false;
+  const L = {}; // 作り置きの絵
+  const INNER = [[10, 11], [W - 11, 10], [W - 10, H - 11], [11, H - 10]];
+  let innerPath = null;
+
+  function resize() {
+    VW = innerWidth; VH = innerHeight;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    scale = Math.min(VW / W, VH / H);
+    ox = (VW - W * scale) / 2; oy = (VH - H * scale) / 2;
+    cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr);
+    wide = ox > 150;
+    document.body.classList.toggle("wide", VW > VH * 1.15);
+    buildLayers();
+    layoutHud();
+  }
+
+  function mkLayer() {
+    const k = scale * dpr, c = document.createElement("canvas");
+    c.width = Math.ceil(W * k); c.height = Math.ceil(H * k);
+    const g = c.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0);
+    return [c, g];
+  }
+  function buildLayers() {
+    makePatterns(scale * dpr);
+    seed(11); const inn = cutP(INNER, 1.2); innerPath = new Path2D(); poly(innerPath, inn);
+    let g;
+    [L.sky, g] = mkLayer(); drawSky(g, false);
+    [L.eve, g] = mkLayer(); drawSky(g, true);
+    [L.bld, g] = mkLayer(); drawBuildings(g);
+  }
+
+  // ---- 空（群青のベタ。屋根ぎわだけクレヨンの擦れ）。日没前は黄土の薄刷りと紙の白、トマトは地平の帯だけ ----
+  function drawSky(g, eve) {
+    g.fillStyle = C.shiro; g.fillRect(0, 0, W, H);
+    g.save(); g.clip(innerPath);
+    seed(12);
+    const sky = cutP([[0, 0], [W, 0], [W, 170], [300, 176], [210, 168], [120, 174], [0, 170]], 1.5);
+    const lo = cutP([[0, 150], [120, 156], [210, 150], [300, 158], [W, 150], [W, 240], [0, 240]], 1.5);
+    if (!eve) {
+      fillPts(g, sky, C.gunjo, 0, -1);
+      grainPts(g, lo, "gGunjo", 1); grainPts(g, lo, "gGunjo", 0.9, 37, 23);
+      grainPts(g, cutP([[0, 160], [W, 160], [W, 178], [0, 180]], 1), "gSumire", 0.35);
+    } else {
+      fillPts(g, sky, C.odo, 0, -1, 0.55);
+      grainPts(g, cutP([[0, 0], [W, 0], [W, 70], [0, 84]], 1), "gShiro", 0.8);
+      fillPts(g, cutP([[0, 140], [W, 134], [W, 176], [0, 178]], 1.5), C.tomato, 1.5, -1, 0.85);
+      grainPts(g, cutP([[0, 136], [W, 130], [W, 150], [0, 154]], 1), "gShiro", 0.7);
+      grainPts(g, cutP([[0, 160], [W, 160], [W, 190], [0, 190]], 1), "gGunjo", 0.6);
+    }
+    g.restore();
+    g.save(); g.globalCompositeOperation = "multiply"; g.fillStyle = pat(g, "paper"); g.fillRect(0, 0, W, H); g.restore();
+  }
+
+  // ---- 窓と鎧戸 ----
+  function shutter(g, x, y, w, h, skew = 0) {
+    const pts = cutP([[x, y], [x + w, y + skew], [x + w, y + h + skew], [x, y + h]], 0.8);
+    fillPts(g, pts, C.midori, 2, 1.5); poly(g, pts, true, 2, 1.5); grain(g, "gShiro", 0.35, 2, 1.5);
+    for (const c of [0.28 + J(0.04), 0.63 + J(0.05)]) line(g, [[x + w * c, y + skew * c + 2], [x + w * c + J(0.8), y + h + skew * c - 2]], 1.3, C.sumire, 0.75);
+    for (const t of [0.2 + J(0.03), 0.74 + J(0.04)]) line(g, cutP([[x + 2, y + h * t + skew * 0.05], [x + w - 2, y + h * t + skew * 0.95 + J(1.5)]], 0.5), 3.2, C.sumire, 0.7);
+    inkPts(g, pts, 1.8);
+  }
+  function windowAt(g, x, y, w, h, opt = {}) {
+    const o = cutP([[x, y], [x + w, y + 1], [x + w - 1, y + h], [x + 1, y + h - 1]], 0.8);
+    fillPts(g, o, C.nure, 0, 0, 0.9, true); fillPts(g, o, C.kage, 0, 0, 1, true);
+    grainPts(g, cutP([[x, y], [x + w, y + 1], [x + w, y + h * 0.35], [x, y + h * 0.4]], 0.5), "gSumire", 0.9);
+    line(g, cutP([[x - 3, y - 1], [x + w + 3, y]], 0.5), 2.4, C.sumire);
+    const sill = cutP([[x - 6, y + h - 1], [x + w + 6, y + h], [x + w + 5, y + h + 7], [x - 5, y + h + 6]], 0.6);
+    fillPts(g, sill, C.shita, 1, 1); inkPts(g, sill, 1.4);
+    if (opt.left !== false) shutter(g, x - (opt.lw || w * 0.42), y + 2, opt.lw || w * 0.42, h - 3, -3);
+    if (opt.right !== false) shutter(g, x + w, y + 1, opt.rw || w * 0.44, h - 2, 3);
+  }
+  function farWin(g, x, y, w, h) {
+    const o = cutP([[x, y], [x + w, y + 1], [x + w, y + h], [x, y + h - 1]], 0.6);
+    fillPts(g, o, C.kage, 0, 0, 1, true);
+    grainPts(g, cutP([[x, y], [x + w, y + 1], [x + w, y + h * 0.4], [x, y + h * 0.45]], 0.4), "gSumire", 0.8);
+    line(g, cutP([[x - 3, y - 1], [x + w + 3, y]], 0.4), 1.8, C.sumire);
+    const sill = cutP([[x - 4, y + h], [x + w + 4, y + h + 1], [x + w + 3, y + h + 5], [x - 3, y + h + 4]], 0.4);
+    fillPts(g, sill, C.shita, 1, -1); inkPts(g, sill, 1.1); inkPts(g, o, 1.3);
+  }
+  function patch(g, cx, cy, w, h, brick = false) {
+    const pts = cutP(blobPts(cx, cy, w, h, 9, 0.28, J(0.3)), 1.5);
+    fillPts(g, pts, brick ? C.shiro : C.shita);
+    if (!brick) grainPts(g, pts, "gShita", 0.9);
+    else for (let i = 0; i < 3; i++) {
+      const bx = cx - w * 0.6 + R() * w * 1.1, by = cy - h * 0.5 + i * (h * 0.24) + J(2), bw = 13 + R() * 6, bh = 6 + R() * 1.5;
+      const bd = cutP([[bx, by], [bx + bw, by + J(1)], [bx + bw + J(1), by + bh], [bx + J(1), by + bh]], 0.6);
+      fillPts(g, bd, C.tomato, 1.2, -0.8, 0.7); grainPts(g, bd, "gShiro", 0.6);
+    }
+    inkPts(g, pts, 1.2, 0.6);
+  }
+
+  // ---- 建物・路地（起動時に1回だけ描く） ----
+  function drawBuildings(g) {
+    g.save(); g.clip(innerPath);
+    seed(21);
+    // 奥の家は版を減らした2色だけ（黄土の薄刷り／紙の白）。家ごとに色を変えない
+    const farA = cutP([[52, 168], [96, 160], [102, 150], [114, 150], [116, 158], [206, 156], [210, 776], [52, 776]], 1);
+    fillPts(g, farA, C.shiro); fillPts(g, farA, C.odo, 1.5, -1, 0.5); grainPts(g, farA, "gShiro", 0.7, 1.5, -1); inkPts(g, farA, 1.5, 0.75);
+    const farB = cutP([[200, 196], [262, 186], [338, 192], [338, 776], [200, 776]], 1);
+    fillPts(g, farB, C.shiro); grainPts(g, farB, "gShita", 0.5); inkPts(g, farB, 1.5, 0.75);
+    line(g, cutP([[330, 196], [331, 420], [329, 770]], 0.5), 2.2, C.sumire, 0.7);
+    seed(71);
+    // 奥の窓は3つだけ、1つずつ違う物
+    farWin(g, 80, 212, 22, 30);
+    { const d = cutP([[102, 213], [114, 209], [114, 247], [102, 243]], 0.5); fillPts(g, d, C.midori, 1.5, 1); grainPts(g, d, "gShiro", 0.4, 1.5, 1); inkPts(g, d, 1.2); line(g, [[103, 222], [113, 219]], 1.6, C.sumire); line(g, [[103, 236], [113, 234]], 1.6, C.sumire); }
+    farWin(g, 240, 232, 22, 26);
+    { const pot = cutP([[246, 252], [258, 252], [256, 260], [248, 260]], 0.4); fillPts(g, pot, C.tomato, 1, -1, 0.75); inkPts(g, pot, 1);
+      for (const [x, y, a, b, r] of [[249, 248, 4, 3, -0.4], [255, 246, 5, 3, 0.5]]) fillPts(g, blobPts(x, y, a, b, 7, 0.15, r), C.midori, 1, -1, 1, false, true); }
+    // 白いカーテンの窓: 他の窓と同じ大きさ。窓の幅いっぱいの紙の白が、窓台から外へ斜めに垂れる
+    farWin(g, 148, 512, 26, 32);
+    { const d = cutP([[147, 511], [175, 511], [176, 538], [190, 551], [194, 561], [181, 566], [166, 556], [151, 549], [148, 532]], 0.6);
+      fillPts(g, d, C.shiro); grainPts(g, d, "gShiro", 0.6); inkPts(g, d, 1.3);
+      line(g, [[157, 516], [160, 546]], 1, C.sumire, 0.55); line(g, [[167, 517], [171, 543], [184, 557]], 1, C.sumire, 0.5); }
+    // 戸口: 鎧戸の緑の板戸を少し開けた形
+    { const arch = [[236, 762], [236, 684], [246, 660], [266, 650], [286, 660], [296, 684], [296, 762]];
+      fillPts(g, arch, C.midori, 1.5, -1, 1, false, true); smoothTo(g, arch, true, 1.5, -1); grain(g, "gShiro", 0.45);
+      line(g, [[266, 654], [266, 762]], 1.3, C.sumire, 0.8);
+      fillPts(g, cutP([[286, 662], [294, 676], [295, 762], [287, 762]], 0.4), C.sumire, 0, 0, 0.85);
+      line(g, [[240, 700], [258, 699]], 2, C.sumire, 0.7); line(g, [[270, 702], [288, 701]], 2, C.sumire, 0.7);
+      inkPts(g, arch, 1.6, 0.92, true, true); }
+    // 石段: 段ごとに高さと長さを変え、角を欠き、石の継ぎ目を入れる（板に見せない）
+    for (const [x, y, w, h, chip] of [[100, 722, 98, 8, 1], [82, 731, 136, 13, 0], [64, 745, 168, 10, 2]]) {
+      const pts = chip === 1 ? [[x, y], [x + w - 7, y - 2], [x + w, y + 3], [x + w + 3, y + h], [x - 2, y + h + 1]]
+        : chip === 2 ? [[x + 5, y], [x + w, y - 2], [x + w + 4, y + h], [x - 1, y + h + 1], [x - 2, y + 5]]
+        : [[x, y], [x + w, y - 3], [x + w + 2, y + h - 4], [x + w - 4, y + h], [x - 2, y + h + 1]];
+      const d = cutP(pts, 0.8);
+      fillPts(g, d, C.shiro); fillPts(g, d, C.odo, 1, -1, 0.75); grainPts(g, d, "gShita", 0.9); grainPts(g, d, "gShiro", 0.5, 7, 3);
+      line(g, [[x + 2, y + 2.2], [x + w * 0.7, y + 0.8]], 1, C.shiro, 0.8);
+      for (const f of [0.22 + R() * 0.15, 0.55 + R() * 0.2]) line(g, [[x + w * f, y + 1], [x + w * f + J(2), y + h - 1]], 1.1, C.sumire, 0.55);
+      inkPts(g, d, 1.5);
+    }
+    // 遠くの物干し（版を減らして薄く）
+    { const y0 = (x) => 604 + (x - 214) * -0.05 + 6 * 4 * ((x - 214) / 122) * (1 - (x - 214) / 122);
+      const pts = []; for (let i = 0; i <= 12; i++) { const x = 214 + i * 122 / 12; pts.push([x, y0(x)]); }
+      line(g, pts, 1.1, C.sumire, 0.9);
+      for (const [x, w, h, c] of [[224, 12, 16, C.shiro], [242, 10, 22, C.gunjo], [276, 18, 14, C.shiro], [306, 9, 12, C.tomato]]) {
+        const d = cutP([[x, y0(x)], [x + w, y0(x + w)], [x + w, y0(x + w) + h], [x, y0(x) + h + J(2)]], 0.6);
+        fillPts(g, d, c, 1, -1, c === C.shiro ? 1 : 0.6); inkPts(g, d, 1, 0.6);
+      }
+    }
+    // 手前の左右の家（同じ黄土。明るさの違いは日なたか影かだけ。見上げているので上ほど内へ傾く）
+    seed(22);
+    const LW = cutP([[0, 108], [64, 116], [56, 776], [0, 776]], 0.6), RW = cutP([[330, 86], [W, 80], [W, 776], [338, 776]], 0.6);
+    fillPts(g, LW, C.odo, 1.5, -1); grainPts(g, LW, "gShiro", 0.45, 1.5, -1);
+    fillPts(g, RW, C.odo, -1.5, 1); grainPts(g, RW, "gShiro", 0.45, -1.5, 1);
+    seed(23);
+    patch(g, 20, 300, 18, 30, true); patch(g, 44, 640, 12, 40); patch(g, 362, 470, 16, 26); patch(g, 372, 690, 14, 34); patch(g, 352, 150, 16, 18);
+    fillPts(g, cutP([[0, 100], [74, 108], [72, 118], [0, 112]], 0.8), C.sumire);
+    fillPts(g, cutP([[320, 78], [W, 72], [W, 84], [322, 88]], 0.8), C.sumire);
+    inkPts(g, LW, 2); inkPts(g, RW, 2);
+    windowAt(g, 6, 196, 38, 60, { left: false, rw: 22 });
+    windowAt(g, 4, 372, 40, 64, { left: false, rw: 24 });
+    windowAt(g, 346, 180, 40, 62, { right: false, lw: 22 });
+    windowAt(g, 348, 360, 40, 64, { right: false, lw: 22 });
+    // 窓台のトマトの鉢
+    { const pot = cutP([[352, 452], [374, 452], [370, 468], [356, 468]], 0.6);
+      fillPts(g, pot, C.tomato, 1.5, -1, 0.7); grainPts(g, pot, "gShiro", 0.4, 1.5, -1); inkPts(g, pot, 1.4);
+      for (const [x, y, a, b, r] of [[358, 444, 7, 4, -0.5], [366, 440, 8, 4, 0.6], [362, 433, 6, 3.5, -0.2]]) { const d = blobPts(x, y, a, b, 8, 0.15, r); fillPts(g, d, C.midori, 1, -1, 1, false, true); inkPts(g, d, 1, 0.92, true, true); }
+      for (const [x, y] of [[355, 437], [369, 434]]) fillPts(g, blobPts(x, y, 2.6, 2.4, 7, 0.1), C.tomato, 0, 0, 1, false, true); }
+    // 左の家の鉢（影の段の元）
+    { const pot = cutP([[40, 338], [60, 338], [57, 352], [43, 352]], 0.6);
+      fillPts(g, pot, C.tomato, 1.5, -1, 0.7); inkPts(g, pot, 1.3);
+      for (const [x, y, a, b, r] of [[46, 331, 6, 3.5, -0.4], [54, 328, 7, 3.5, 0.5]]) { const d = blobPts(x, y, a, b, 8, 0.15, r); fillPts(g, d, C.midori, 1, -1, 1, false, true); inkPts(g, d, 1, 0.92, true, true); } }
+    // 樋の金具
+    line(g, [[50, 600], [62, 598]], 3, C.sumire, 0.8);
+    // 地面（石の床）
+    const gd = cutP([[0, 772], [W, 768], [W, H], [0, H]], 1);
+    fillPts(g, gd, C.odo, 0, 0, 0.6); grainPts(g, gd, "gShita", 0.9);
+    line(g, [[0, 772], [W, 768]], 1.8, C.sumire, 0.75);
+    line(g, [[0, 806], [150, 803]], 1.4, C.sumire, 0.5); line(g, [[180, 812], [W, 816]], 1.4, C.sumire, 0.5);
+    g.restore();
+    g.save(); g.globalCompositeOperation = "source-atop"; g.globalAlpha = 0.8; g.fillStyle = pat(g, "paper"); g.fillRect(0, 0, W, H); g.restore();
+  }
+
+  // ---- 影の版: 屋根の輪郭をなぞった段のある形。奥の壁の付け根（y=700）で折れる ----
+  const EVJ = []; { seed(43); for (let i = 0; i <= 8; i++) EVJ.push(J(3)); }
+  const EJ = []; { seed(41); for (let i = 0; i < 40; i++) EJ.push([J(0.8), J(0.8)]); }
+  function shadowEdge(p) {
+    const e = []; const B = (y) => SIM.edgeBase(y, p);
+    e.push([B(112) - 2, 110]);
+    for (const [a, b, k] of STEPS) {
+      if (a > 112) e.push([B(a), a]);
+      e.push([B(a) + k, a + 3]); e.push([B(b) + k, b - 3]); e.push([B(b), b]);
+    }
+    e.push([B(700), 700]);
+    const x7 = B(700);
+    e.push([x7 + (W + 6 - x7) * 0.45, 700 + 22]); e.push([W + 6, 756]);
+    return e.map(([x, y], i) => [x + EJ[i][0], y + EJ[i][1]]);
+  }
+  function shadowPath(edge) { const p = new Path2D(); poly(p, [[0, 98]].concat(edge, [[W + 6, H + 6], [0, H + 6]])); return p; }
+  function drawShadow(g, edge, pass) {
+    const sp = shadowPath(edge);
+    g.save(); g.globalCompositeOperation = "multiply"; g.globalAlpha = pass === 1 ? 0.62 : 0.34; g.fillStyle = C.kage;
+    g.translate(2, 1); g.fill(sp); g.restore();
+    if (pass === 1) {
+      // 境目は線でなく、影の内側 20〜40px のクレヨンの擦れの帯（濃い擦れはここだけ）
+      const inside = edge.map(([x, y], i) => [x - 18 - (i % 3) * 7, y + 9 + (i % 2) * 6]);
+      const band = new Path2D(); poly(band, edge.concat(inside.reverse()));
+      g.save(); g.translate(2, 1);
+      grain(g, "gSumire", 0.72, 0, 0, band); grain(g, "gSumire", 0.42, 41, 13, band);
+      g.restore();
+    }
+  }
+
+  // ---- 洗濯物の形（切り絵の多角形）。1枚ごとに生成時に点列と切れ目を決めて保持する ----
+  const SHAPES = {
+    shirt: { w: 72, pts: [[0, 0], [25, 0], [35, 10], [46, 0], [72, 0], [82, 30], [71, 36], [69, 86], [36, 88], [4, 84], [2, 37], [-9, 32]] },
+    sock: { w: 15, pts: [[0, 0], [15, 0], [16, 38], [27, 41], [30, 51], [12, 54], [1, 47]] },
+    jeans: { w: 76, pts: [[0, 0], [76, 0], [75, 34], [73, 118], [48, 120], [41, 37], [36, 37], [29, 119], [4, 117], [1, 34]] },
+    sheet: { w: 150, pts: [[0, 0], [150, 0], [152, 66], [154, 124], [134, 133], [112, 141], [88, 152], [70, 149], [46, 141], [22, 136], [-2, 126], [-1, 58]] },
+    towel: { w: 56, pts: [[0, 0], [56, 0], [57, 92], [44, 95], [30, 92], [14, 96], [-1, 93]] },
+  };
+  const COLOR = { sock: C.tomato, shirt: C.shiro, shirtB: C.gunjo, towel: C.shiro, jeans: C.gunjo, sheet: C.shiro };
+  function makeLook(it) {
+    if (it.look) return it.look;
+    seed(it.seed);
+    const base = it.kind === "shirtB" ? "shirt" : it.kind;
+    const S0 = SHAPES[base];
+    const lk = { parts: [], color: COLOR[it.kind], ox: 1.8 + J(0.3), oy: -1.2 + J(0.3), folds: [], stripes: [], stains: [], pegs: [], extra: [] };
+    if (it.kind === "sock") { lk.ox = 2.2; lk.oy = -1.4; }
+    const mk = (pts) => { const p = new Path2D(); poly(p, pts); return { pts, path: p, dash: mkDash(perim(pts)) }; };
+    if (base === "sock") {
+      for (const dx of [0, 19]) { const k = 1 + J(0.04); lk.parts.push(mk(cutP(S0.pts.map(([x, y]) => [dx + x * k, y * k]), 0.9))); }
+      lk.pegs = [7.5, 26.5];
+    } else {
+      const k = it.w / S0.w;
+      lk.parts.push(mk(cutP(S0.pts.map(([x, y]) => [x * k, y * k]), 0.9)));
+      lk.pegs = base === "sheet" ? [4, it.w * 0.5 + J(6), it.w - 4] : [4 + R() * 3, it.w - 4 - R() * 3];
+    }
+    const P = lk.parts[0].pts;
+    const ys = P.map((p) => p[1]); lk.top = Math.min(...ys); lk.bot = Math.max(...ys);
+    // 折り目・しわ（短い曲線を1〜3本、向きと長さ不揃い）
+    const nF = base === "sock" ? 0 : base === "sheet" ? 3 : 2;
+    for (let i = 0; i < nF; i++) {
+      const x = it.w * (0.25 + R() * 0.5), y = base === "sheet" ? 70 + R() * 20 : it.h * (0.3 + R() * 0.3);
+      lk.folds.push([x, y, x + J(4), y + 8 + R() * 6, x + J(5), y + 14 + R() * 14]);
+    }
+    if (base === "towel") for (const [y0, h, c] of [[10 + R() * 6, 4 + R() * 4, C.tomato], [22 + R() * 4, 2 + R() * 2, C.tomato], [58 + R() * 10, 6 + R() * 5, C.midori], [72 + R() * 4, 2 + R() * 1.5, C.tomato]]) {
+      const pts = []; for (let i = 0; i <= 5; i++) pts.push([-6 + i * (it.w + 12) / 5, y0 + J(1.4) + i * 0.5]);
+      lk.stripes.push({ pts: pts.concat(pts.slice().reverse().map(([x, y]) => [x, y + h + J(1)])), c });
+    }
+    // 色移りのしみの形（上から垂れたしずくの跡）
+    for (let i = 0; i < 3; i++) {
+      const cx = it.w * (0.18 + i * 0.3 + J(0.06)), cy = 10 + R() * 18;
+      const pts = [[cx - 4, cy - 10], [cx + 5, cy - 9], [cx + 7, cy + 6], [cx + 4, cy + 22 + R() * 14], [cx, cy + 14], [cx - 4, cy + 26 + R() * 10], [cx - 7, cy + 4]];
+      lk.stains.push({ pts: pts.map(([x, y]) => [x + J(1.5), y + J(1.5)]), cx, cy });
+    }
+    lk.edge = []; const tE = J(5); for (let i = 0; i <= 4; i++) lk.edge.push([-6 + (it.w + 12) * i / 4, tE * (i / 4 - 0.5) + J(2.5)]);
+    lk.pegJ = lk.pegs.map(() => ({ rot: J(8), h: 17 + J(1.5), w: 5.2 + J(0.4), s: base === "sock" ? 0.9 : 1, cut: cutP([[0, 0], [1, 0], [1, 1], [0, 1]], 0.06) }));
+    lk.phase = R() * 6.28; lk.freq = 1.6 + R() * 0.8;
+    it.look = lk;
+    return lk;
+  }
+  function drawLocalGarment(g, it, opt = {}) {
+    const lk = makeLook(it);
+    const wet = Math.min(1, it.wet);
+    const base = it.kind === "shirtB" ? "shirt" : it.kind;
+    for (const part of lk.parts) {
+      g.save(); g.translate(lk.ox, lk.oy); g.fillStyle = lk.color; g.fill(part.path); g.restore();
+      g.save(); g.clip(part.path); g.translate(lk.ox, lk.oy);
+      for (const s of lk.stripes) fillPts(g, s.pts, s.c, 0.5, 0, 0.9, false, true);
+      if (it.stain > 0) {
+        const col = it.stainCol === "b" ? C.gunjo : C.tomato, k = Math.min(1, 0.25 + it.stain * 0.9);
+        for (let i = 0; i < lk.stains.length; i++) {
+          if (it.stain < i * 0.28) break;
+          const s = lk.stains[i];
+          g.save(); g.translate(s.cx, s.cy - 10); g.scale(k, k); g.translate(-s.cx, -(s.cy - 10));
+          fillPts(g, s.pts, col, 0, 0, it.stained ? 0.5 : 0.36, false, true); g.restore();
+        }
+      }
+      if (wet > 0) {
+        // 濡れ＝群青の薄刷り（青みの白。灰色にしない）＋水がたまる裾ほど濃い帯
+        const wk = lk.color === C.shiro ? 1 : 0.8;
+        g.save(); g.globalCompositeOperation = "multiply";
+        g.globalAlpha = (0.05 + wet * 0.09) * wk; g.fillStyle = C.gunjo; g.fillRect(-20, -10, it.w + 40, 200);
+        const yb = lk.bot - (lk.bot - lk.top) * (0.25 + wet * 0.45);
+        const pts = lk.edge.map(([x, y]) => [x, y + yb]).concat([[it.w + 8, lk.bot + 10], [-8, lk.bot + 10]]);
+        g.globalAlpha = (0.07 + wet * 0.15) * wk; fillPts(g, pts, C.gunjo, 0, 0, 1, false, true);
+        g.restore();
+        if (wet > 0.3) { const e = lk.edge.map(([x, y]) => [x, y + yb - 2]).concat(lk.edge.slice().reverse().map(([x, y]) => [x, y + yb + 5])); grainPts(g, e, "gGunjo", 0.25 * wet, 0, 0, true); }
+      } else {
+        g.fillStyle = pat(g, "gShiro"); g.globalAlpha = 0.5; g.fillRect(-20, -10, it.w + 40, 200);
+      }
+      g.restore();
+    }
+    // 折り目・しわ
+    if (lk.folds.length) { g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.1; g.globalAlpha *= 0.55; g.lineCap = "round";
+      for (const f of lk.folds) { g.beginPath(); g.moveTo(f[0], f[1]); g.quadraticCurveTo(f[2], f[3], f[4], f[5]); g.stroke(); } g.restore(); }
+    if (base === "jeans") line(g, [[3, 9], [it.w - 3, 9]], 1.2, C.sumire, 0.6);
+    if (base === "sheet") { // 綱に掛けた上端の細い二重の折り返し
+      line(g, [[1, 8], [it.w * 0.33, 8.8], [it.w * 0.66, 7.6], [it.w - 1, 8.4]], 1.3, C.sumire, 0.85);
+      line(g, [[1, 10.6], [it.w * 0.5, 11.2], [it.w - 1, 10.8]], 1, C.shiro, 0.9);
+    }
+    for (const part of lk.parts) strokeInk(g, part.path, opt.lw || 1.9, 0.92, part.dash);
+  }
+  // 洗濯ばさみ（木・ばね）。1本ずつ角度と長さが違う
+  function drawPeg(g, x, y, pj, rot = 0) {
+    g.save(); g.translate(x, y); g.rotate((rot + pj.rot) * Math.PI / 180); g.scale(pj.s, pj.s);
+    const w = pj.w, h = pj.h, c = pj.cut;
+    const pts = [[-w / 2 + c[0][0], -6 + c[0][1]], [w / 2 + c[1][0], -6.5 + c[1][1]], [w / 2 + 0.4, h - 6], [-w / 2 + 0.3, h - 5.5]];
+    fillPts(g, pts, C.odo, 0.8, 0.6);
+    line(g, [[0, -5.5], [0.2, h - 6]], 0.8, C.sumire, 0.7);
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.3; g.globalAlpha *= 0.92; g.lineJoin = "round"; poly(g, pts); g.stroke(); g.restore();
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-w / 2 - 0.5, 2); g.quadraticCurveTo(0, 4.4, w / 2 + 0.5, 2); g.stroke(); g.restore();
+    g.restore();
+  }
+
+  // ---- 鳩 ----
+  function pigeonLook(pg) {
+    if (pg.look) return pg.look;
+    seed(Math.round(pg.x * 13 + pg.rope * 7));
+    const h = pg.hunch;
+    pg.look = {
+      body: blobPts(0, -11, 17, 10 + h * 2, 11, 0.08, -0.12),
+      tail: cutP([[-14, -12], [-31, -5 + h * 3], [-30, 0 + h * 2], [-12, -5]], 0.6),
+      head: blobPts(13 + h * 2, -24 + h * 4, 6.5, 6, 9, 0.06),
+      neck: cutP([[6, -24 + h * 3], [16, -20 + h * 4], [15, -12], [5, -11]], 0.8),
+      wing: cutP([[-12, -16], [6, -18], [10, -10], [-4, -6], [-16, -9]], 0.7),
+    };
+    return pg.look;
+  }
+  function drawPigeon(g, x, y, pg, fly = 0, ruffle = 0) {
+    const lk = pigeonLook(pg), h = pg.hunch;
+    g.save(); g.translate(x, y); g.scale((pg.flip ? -1 : 1) * pg.s, pg.s);
+    if (ruffle) g.rotate(Math.sin(now * 30) * 0.06 * ruffle);
+    for (const [pts, sm] of [[lk.tail, false], [lk.body, true], [lk.head, true]]) {
+      fillPts(g, pts, C.shiro, 0, 0, 1, false, sm); fillPts(g, pts, C.nure, 1.5, -1, 0.62, true, sm);
+    }
+    fillPts(g, lk.neck, C.midori, 2, -1, 0.75);
+    if (fly > 0) {
+      const a = Math.sin(now * 28) * 0.9;
+      for (const s of [1, -1]) { g.save(); g.translate(-2, -14); g.rotate(-1.2 * s * (0.5 + a * 0.5)); fillPts(g, [[0, 0], [-6, -26], [8, -24], [10, -2]], C.shiro); fillPts(g, [[0, 0], [-6, -26], [8, -24], [10, -2]], C.nure, 0, 0, 0.7, true); inkPts(g, [[0, 0], [-6, -26], [8, -24], [10, -2]], 1.3); g.restore(); }
+    } else {
+      fillPts(g, lk.wing, C.nure, 0, 0, 1, true);
+      line(g, [[-6, -15], [-3, -8]], 2.2, C.sumire, 0.85); line(g, [[-1, -16], [2, -8]], 2.2, C.sumire, 0.85);
+      line(g, [[-2, -2], [-3, 4]], 1.8, C.tomato); line(g, [[4, -2], [5, 4]], 1.8, C.tomato);
+    }
+    fillPts(g, [[19 + h * 2, -25 + h * 4], [24 + h * 2, -23.5 + h * 4], [19 + h * 2, -22.3 + h * 4]], C.sumire);
+    g.fillStyle = C.tomato; g.beginPath(); g.arc(15 + h * 2, -26 + h * 4, 1.7, 0, 7); g.fill();
+    g.fillStyle = C.sumire; g.beginPath(); g.arc(15.3 + h * 2, -26 + h * 4, 0.8, 0, 7); g.fill();
+    g.save(); g.strokeStyle = C.sumire; g.lineJoin = "round";
+    g.lineWidth = 1.6; smoothTo(g, lk.body); g.stroke(); g.lineWidth = 1.5; smoothTo(g, lk.head); g.stroke(); g.lineWidth = 1.4; poly(g, lk.tail); g.stroke(); g.restore();
+    g.restore();
+  }
+
+  // ---- 綱と腕金 ----
+  const ROPE_J = [[], []]; { seed(51); for (let r = 0; r < 2; r++) for (let i = 0; i <= 24; i++) ROPE_J[r].push(i && i < 24 ? J(0.7) : 0); }
+  const ROPE_DA = [[], []]; { seed(52); for (let r = 0; r < 2; r++) for (let i = 0; i < 10; i++) ROPE_DA[r].push(3 + R() * 9, 5 + R() * 14); }
+  const disp = [new Map(), new Map()]; // 綱のたわみ（ばねで寄せる）
+  const kick = [0, 0];
+  let ghost = null; // 持っている物の置き先（たわみの予告）
+  function ropeEnds(r) {
+    const A = ROPES[r];
+    return [A.x1, A.y1, A.x2, A.y2 + bend[r]];
+  }
+  const bend = [0, 0];
+  function ropeY(r, x) {
+    const [x1, y1, x2, y2] = ropeEnds(r);
+    const t = (x - x1) / (x2 - x1);
+    let y = y1 + (y2 - y1) * t + 6 * 4 * t * (1 - t);
+    for (const d of disp[r].values()) { const a = d.x; const s = x < a ? (x - x1) / (a - x1) : (x2 - x) / (x2 - a); y += d.w * Math.max(0, s); }
+    return y;
+  }
+  function updateRopes(dt) {
+    for (let r = 0; r < 2; r++) {
+      const m = disp[r], seen = new Set();
+      const tgt = (id, x, w) => { seen.add(id); let d = m.get(id); if (!d) { d = { x, w: 0, v: 0, tw: 0 }; m.set(id, d); } d.x = x; d.tw = w; };
+      if (S && !S.ropes[r].broken) for (const it of S.ropes[r].items) tgt(it.id, it.x + it.w / 2, SIM.load(it) * 3.6);
+      if (ghost && ghost.r === r && S.held) tgt("g", ghost.x + S.held.w / 2, SIM.load(S.held) * 3.6);
+      for (const [id, d] of m) {
+        if (!seen.has(id)) d.tw = 0;
+        const a = (d.tw - d.w) * 70 - d.v * 6.5; d.v += a * dt; d.w += d.v * dt;
+        if (!seen.has(id) && Math.abs(d.w) < 0.05 && Math.abs(d.v) < 0.05) m.delete(id);
+      }
+      kick[r] *= Math.exp(-dt * 2.2);
+      // 重すぎ: 腕金が少しずつ下を向く（震えや波線は出さない）
+      let ld = S ? SIM.ropeLoad(S, r) : 0; if (ghost && ghost.r === r && S && S.held) ld += SIM.load(S.held);
+      const over = S && !S.ropes[r].broken ? Math.max(0, ld / LIM - 0.8) * 14 + S.ropes[r].strain * 7 : 0;
+      bend[r] += (over - bend[r]) * Math.min(1, dt * 4);
+    }
+  }
+  function drawBracket(g, x, y, dir, b, chip) {
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 2.6; g.lineCap = "round";
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + dir * 22, y + b); g.moveTo(x, y + 14); g.lineTo(x + dir * 18, y + 2 + b); g.stroke(); g.restore();
+    const cx = x + dir * 24, cy = y + b + 1;
+    g.fillStyle = C.odo; g.beginPath(); g.arc(cx + 1, cy - 1, 5.5, 0, 7); g.fill();
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.6; g.beginPath(); g.ellipse(cx, cy, 5.6, 5.3, 0.3, 0, 7); g.stroke(); g.restore();
+    g.fillStyle = C.sumire; g.beginPath(); g.arc(cx, cy, 1.3, 0, 7); g.fill();
+    if (chip > 0.05) { // 漆喰の欠け
+      g.save(); g.globalAlpha = Math.min(1, chip * 2);
+      const pts = [[x - dir * 2, y + 18], [x + dir * 6, y + 17], [x + dir * 9, y + 24], [x + dir * 3, y + 29], [x - dir * 3, y + 25]];
+      fillPts(g, pts, C.shiro); line(g, pts.concat([pts[0]]), 1.2, C.sumire, 0.8); g.restore();
+    }
+  }
+  function drawRope(g, r) {
+    const A = ROPES[r], RS = S && S.ropes[r];
+    const bx = [[A.x1 - 24, A.y1 + 4, 1], [A.x2 + 24, A.y2 + 4, -1]];
+    if (RS && RS.broken) {
+      // 切れた綱: 両端から垂れる。張り直しの最後の1秒で戻る
+      const k = clamp((1.2 - RS.restring) / 1.2, 0, 1);
+      drawBracket(g, bx[0][0], bx[0][1], 1, 0, 0); drawBracket(g, bx[1][0], bx[1][1], -1, 0, 0);
+      if (k <= 0) {
+        line(g, [[A.x1, A.y1], [A.x1 + 6, A.y1 + 30], [A.x1 + 3, A.y1 + 62]], 2.2, C.sumire, 0.95);
+        line(g, [[A.x2, A.y2], [A.x2 - 7, A.y2 + 34], [A.x2 - 2, A.y2 + 70]], 2.2, C.sumire, 0.95);
+        return;
+      }
+      const xm = A.x1 + (A.x2 - A.x1) * k;
+      line(g, [[A.x1, A.y1], [(A.x1 + xm) / 2, A.y1 + 10 * (1 - k)], [xm, A.y1 + (A.y2 - A.y1) * k]], 2.2, C.sumire, 0.95);
+      return;
+    }
+    drawBracket(g, bx[0][0], bx[0][1], 1, 0, 0);
+    drawBracket(g, bx[1][0], bx[1][1], -1, bend[r] - 1, RS ? Math.max(RS.strain, 0) : 0);
+    const pts = [];
+    const [x1, , x2] = ropeEnds(r);
+    for (let i = 0; i <= 24; i++) { const x = x1 + (x2 - x1) * i / 24; pts.push([x, ropeY(r, x) + ROPE_J[r][i]]); }
+    const p = new Path2D(); smoothTo(p, pts, false);
+    g.save(); g.lineCap = "round"; g.strokeStyle = C.sumire; g.lineWidth = 2.2; g.globalAlpha = 0.95; g.stroke(p);
+    g.strokeStyle = C.shiro; g.lineWidth = 0.7; g.globalAlpha = 0.5; g.setLineDash(ROPE_DA[r]); g.translate(0, -0.6); g.stroke(p); g.restore();
+  }
+
+  // ---- 洗濯物を綱に掛けて描く（綱に沿う変形＋風の傾き） ----
+  function swayOf(it) {
+    const lk = makeLook(it);
+    let a = 0.012 * Math.sin(now * lk.freq + lk.phase);
+    if (it.wet <= 0) a = 0.09 * Math.sin(now * (lk.freq * 1.6) + lk.phase); // 乾いた合図: ふわっと揺れる
+    if (it.flutter) a = 0.22 * Math.sin(now * 9 + lk.phase) + 0.06 * Math.sin(now * 23); // はためき（飛ばされる予告）
+    a += kick[it.rope] * Math.sin(now * 7 + lk.phase) * 0.12;
+    return a;
+  }
+  function hangTransform(g, it) {
+    const xa = it.x, xb = it.x + it.w, ya = ropeY(it.rope, xa), yb = ropeY(it.rope, xb);
+    const tilt = swayOf(it);
+    g.transform((xb - xa) / it.w, (yb - ya) / it.w, tilt, 1, xa, ya);
+    if (it.pegs < 2) { // 片側の洗濯ばさみが外れて垂れる
+      const left = it.droopSide > 0; const px = left ? 0 : it.w;
+      g.translate(px, 0); g.rotate((left ? 0.8 : -0.8) + Math.sin(now * 2) * 0.04); g.translate(-px, 0);
+    }
+  }
+  function drawHung(g, it) {
+    g.save(); hangTransform(g, it); drawLocalGarment(g, it);
+    const lk = it.look;
+    lk.pegs.forEach((px, i) => { if (it.pegs < 2 && ((it.droopSide > 0 && i === lk.pegs.length - 1) || (it.droopSide < 0 && i === 0))) return; drawPeg(g, px, -2, lk.pegJ[i]); });
+    g.restore();
+    if (selId === it.id && kbMode && !S.held) focusRing(g, it.x - 5, ropeY(it.rope, it.x + it.w / 2) - 10, it.w + 10, it.h + 18);
+  }
+  function focusRing(g, x, y, w, h) {
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 2; g.setLineDash([7, 5]); g.lineDashOffset = -now * 12; g.strokeRect(x, y, w, h); g.restore();
+  }
+
+  // ---- 亜鉛のたらい（濡れかご）と籐のかご ----
+  const TUB = { x: 18, y: 770, w: 112, h: 56 }, BASK = { x: 264, y: 774, w: 100, h: 54 };
+  let tubLook = null, baskLook = null;
+  function drawTub(g) {
+    const { x, y, w, h } = TUB;
+    if (!tubLook) { seed(61); tubLook = { body: cutP([[x, y], [x + w, y + 2], [x + w - 12, y + h], [x + 10, y + h - 1]], 1), rim: blobPts(x + w / 2, y + 1, w / 2 + 3, 9, 16, 0.03) }; tubLook.bd = mkDash(perim(tubLook.body)); }
+    const t = tubLook;
+    fillPts(g, t.rim, C.shiro, 0, 0, 1, false, true); smoothTo(g, t.rim); grain(g, "gGunjo", 0.8, 1.5, -1);
+    // 中の濡れ物（次に干す物）が縁から顔を出す
+    const q = S ? S.tub.queue : [];
+    if (q[1]) { g.save(); g.translate(x + 74, y - 4); g.rotate(0.5); g.scale(0.42, 0.42); g.translate(-q[1].w / 2, 0); drawLocalGarment(g, q[1], { lw: 3 }); g.restore(); }
+    if (q[0] && S.tub.wait <= 0 && !(S.held && S.held.id === q[0].id)) {
+      const it = q[0], bob = Math.sin(now * 3) * 1.2;
+      g.save(); g.translate(x + 40, y - 22 + bob); g.rotate(-0.28); g.scale(0.58, 0.58); g.translate(-it.w / 2, 0); drawLocalGarment(g, it, { lw: 2.6 }); g.restore();
+      if (selId === "tub" && kbMode && !S.held) focusRing(g, x - 4, y - 46, w + 8, h + 50);
+    }
+    const p = new Path2D(); poly(p, t.body);
+    fillPts(g, t.body, C.shiro); grain(g, "gGunjo", 0.55, 1.5, -1, p);
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.2; g.globalAlpha = 0.6; g.beginPath(); g.moveTo(x + 6, y + h * 0.45); g.quadraticCurveTo(x + w / 2, y + h * 0.45 + 10, x + w - 4, y + h * 0.45); g.stroke(); g.restore();
+    strokeInk(g, p, 2, 0.92, t.bd);
+    line(g, [[x + 2, y + 6], [x + w - 2, y + 7]], 2, C.sumire, 0.9);
+    line(g, [[x - 2, y + 8], [x - 10, y + 13], [x - 3, y + 20]], 2.2, C.sumire); line(g, [[x + w + 1, y + 9], [x + w + 8, y + 15], [x + w + 1, y + 20]], 2.2, C.sumire);
+  }
+  const PILE = { sock: [32, 8, C.shiro, 2], shirt: [52, 11, C.shiro], shirtB: [52, 11, C.gunjo], towel: [46, 11, C.shiro, 1], jeans: [56, 12, C.gunjo], sheet: [64, 13, C.shiro] };
+  // たたんだ布: 角を丸め、折り山の側がふくらみ、上の布ほど少しずれて沈む
+  function foldedPile(g, x, y, list, k = 1) {
+    let yy = y;
+    list.forEach((e, i) => {
+      seed(e.seed || i * 31 + 7);
+      const [w0, h0, c, striped] = PILE[e.kind]; const w = w0 * k, h = h0 * k;
+      const xx = x - w / 2 + J(4 * k) + (i % 2 ? 4 : -3) * k, sag = (1.5 + R() * 1.5) * k;
+      const pts = [[xx + 3, yy - h], [xx + w * 0.5, yy - h - sag], [xx + w - 3, yy - h + 0.5], [xx + w + 2.5 * k, yy - h * 0.5], [xx + w - 2, yy], [xx + w * 0.5, yy + 1], [xx + 2, yy], [xx - 1.5 * k, yy - h * 0.5]];
+      fillPts(g, pts, c, 1.5, -1, 1, false, true);
+      if (striped === 1) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx, yy - h * 0.62, w, h * 0.16); g.fillStyle = C.midori; g.fillRect(xx, yy - h * 0.3, w, h * 0.1); g.restore(); }
+      if (striped === 2) { g.save(); smoothTo(g, pts); g.clip(); g.fillStyle = C.tomato; g.fillRect(xx - 4, yy - h - 4, w + 8, h * 0.45 + 4); g.restore(); } // 靴下は赤い縁だけ見せる
+      if (e.stained) { g.save(); smoothTo(g, pts); g.clip(); fillPts(g, blobPts(xx + w * 0.35, yy - h * 0.5, w * 0.16, h * 0.42, 8, 0.2), e.stainCol === "b" ? C.gunjo : C.tomato, 0, 0, 0.4, false, true); g.restore(); }
+      if (c === C.shiro) { smoothTo(g, pts); grain(g, "gShiro", 0.5); }
+      line(g, [[xx + w * 0.62, yy - h + 2], [xx + w * 0.63, yy - h * 0.5], [xx + w * 0.62, yy - 3]], 1, C.sumire, 0.5);
+      inkPts(g, pts, 1.5 * Math.min(1.4, k), 0.92, true, true);
+      yy -= h - 3 * k;
+    });
+  }
+  function drawBasket(g) {
+    const { x, y, w, h } = BASK;
+    if (!baskLook) { seed(62); baskLook = { body: cutP([[x, y + 4], [x + w, y], [x + w - 10, y + h], [x + 11, y + h + 1]], 1.2), bands: [0.42 + J(0.05), 0.72 + J(0.05)] }; baskLook.bd = mkDash(perim(baskLook.body)); }
+    const t = baskLook;
+    // 取っ手（付け根を縁の内側に差し込む）
+    for (const [cw, cc] of [[5, C.sumire], [2.4, C.odo]]) { g.save(); g.strokeStyle = cc; g.lineWidth = cw; g.beginPath(); g.moveTo(x + 16, y + 6); g.bezierCurveTo(x + 20, y - 36, x + w - 24, y - 40, x + w - 16, y + 4); g.stroke(); g.restore(); }
+    // 中のたたんだ山（取り込んだ最後の数枚。縁の上に2枚分の折り山が見える）
+    const d = S ? S.delivered.slice(-4) : [];
+    const list = d.length ? d : [];
+    if (list.length) foldedPile(g, x + w / 2 + 2, y + 18, list, 0.95);
+    // 胴: 縁から底へ少しすぼまる形＋高さ不揃いの帯2本（編み目は描かない）
+    const p = new Path2D(); poly(p, t.body);
+    g.save(); g.translate(1.5, -1); g.fillStyle = C.odo; g.fill(p); g.restore();
+    grain(g, "gShita", 1, 1.5, -1, p); grain(g, "gShiro", 0.4, 1.5, -1, p);
+    for (const b of t.bands) line(g, [[x + 4 + b * 5, y + h * b], [x + w - 5 - b * 6, y + h * b - 1.5]], 1.4, C.sumire, 0.6);
+    for (const b of t.bands) line(g, [[x + 6 + b * 5, y + h * b + 3], [x + w - 7 - b * 6, y + h * b + 1.6]], 1, C.shita, 0.9);
+    strokeInk(g, p, 2, 0.92, t.bd);
+    // 縁の太い巻き（2度刷りの黄土＋すみれ茶の帯）
+    const rim = [[x - 4, y + 1], [x + w + 4, y - 3], [x + w + 3, y + 9], [x - 3, y + 13]];
+    fillPts(g, rim, C.shita, 1, -1); fillPts(g, [[x - 3, y + 9], [x + w + 3, y + 5], [x + w + 3, y + 9], [x - 3, y + 13]], C.sumire, 0, 0, 0.7);
+    line(g, [[x, y + 4], [x + w, y]], 1, C.shiro, 0.7);
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.6; poly(g, rim); g.stroke(); g.restore();
+    if (selId === "basket" && kbMode) focusRing(g, x - 6, y - 40, w + 12, h + 46);
+  }
+
+  // ---- おばあさん（5枚続けて色移りなしで取り込むと、右の下の窓から顔を出して手を叩く） ----
+  function drawGrandma(g, k) {
+    const x = 366, y = 392 + (1 - k) * 30;
+    g.save(); g.beginPath(); g.rect(348, 361, 42, 62); g.clip();
+    fillPts(g, [[350, y + 22], [384, y + 20], [390, y + 50], [348, y + 50]], C.midori, 1.5, -1); // 上着
+    fillPts(g, blobPts(x, y, 11, 12, 10, 0.05), C.shiro, 0, 0, 1, false, true);
+    fillPts(g, blobPts(x, y, 11, 12, 10, 0.05), C.odo, 1.5, -1, 0.55, false, true);
+    fillPts(g, blobPts(x + 1, y - 12, 12, 6, 9, 0.08), C.shiro, 0, 0, 1, false, true); // 白い髪
+    fillPts(g, blobPts(x + 4, y - 19, 5, 4, 8, 0.1), C.shiro, 0, 0, 1, false, true); // まげ
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.5;
+    g.beginPath(); g.ellipse(x, y, 11, 12, 0, 0, 7); g.stroke();
+    g.beginPath(); g.ellipse(x + 4, y - 19, 5, 4, 0, 0, 7); g.stroke();
+    g.beginPath(); g.moveTo(x - 6, y - 1); g.quadraticCurveTo(x - 4, y + 1.5, x - 2, y - 1); g.moveTo(x + 3, y - 1); g.quadraticCurveTo(x + 5, y + 1.5, x + 7, y - 1); g.stroke();
+    g.beginPath(); g.moveTo(x - 3, y + 6); g.quadraticCurveTo(x + 1, y + 9, x + 5, y + 6); g.stroke(); g.restore();
+    const c = Math.abs(Math.sin(now * 11)) * 5;
+    for (const s of [-1, 1]) { fillPts(g, blobPts(x - 6 + s * (3 + c), y + 22, 4, 5, 7, 0.1), C.shiro, 0, 0, 1, false, true); g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x - 6 + s * (3 + c), y + 22, 4, 5, 0, 0, 7); g.stroke(); g.restore(); }
+    g.restore();
+  }
+
+  // ---- 枠（紙の白の余白とトマトの二重枠） ----
+  let frameLook = null;
+  function drawFrame(g) {
+    if (!frameLook) { seed(13); frameLook = { a: cutP([[3.5, 4], [W - 4, 3.5], [W - 3.5, H - 4], [4, H - 3.5]], 0.6), b: cutP([[7, 7.5], [W - 7.5, 7], [W - 7, H - 7.5], [7.5, H - 7]], 0.5) }; }
+    g.save(); g.strokeStyle = C.sumire; g.lineWidth = 1.2; g.globalAlpha = 0.55; g.stroke(innerPath); g.restore();
+    g.save(); g.translate(0.8, -0.6); g.strokeStyle = C.tomato; g.lineWidth = 2; poly(g, frameLook.a); g.stroke(); g.lineWidth = 0.9; poly(g, frameLook.b); g.stroke(); g.restore();
+  }
+
+  // ---- 状態 ----
+  let S = null, state = "title", paused = false, now = 0;
+  let drag = null, kbMode = false, selId = "tub", kbHold = null;
+  let hx = 0, hy = 0;           // 持っている物の吊り位置（上辺の真ん中）
+  const drips = [], fallers = [], fx = [];
+  let grandma = { t: -1 }, endT = 0, lastTarget = null;
+  let best = 0;
+  try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) {}
+
+  // ---- 音（Web Audio で生成。最初のタップで鳴らし始める） ----
+  const AU = { c: null, m: null, on: true, nextMus: 4, nextGull: 9 };
+  function audio() {
+    if (!AU.c) { try { AU.c = new (window.AudioContext || window.webkitAudioContext)(); AU.m = AU.c.createGain(); AU.m.gain.value = AU.on ? 0.55 : 0; AU.m.connect(AU.c.destination); } catch (e) { AU.c = null; } }
+    if (AU.c && AU.c.state === "suspended") AU.c.resume().catch(() => {});
+  }
+  function pitch() { return S ? 1 - 0.12 * clamp(S.t / S.dur, 0, 1) : 1; }
+  function tone(f, dur, type = "sine", vol = 0.2, f2 = null, delay = 0, lp = 0) {
+    if (!AU.c || !AU.on) return;
+    const t = AU.c.currentTime + delay, o = AU.c.createOscillator(), gn = AU.c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.02, dur / 4)); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let n = o; if (lp) { const f = AU.c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = lp; o.connect(f); n = f; }
+    n.connect(gn); gn.connect(AU.m); o.start(t); o.stop(t + dur + 0.05);
+  }
+  let noiseBuf = null;
+  function noise(dur, vol = 0.2, freq = 1000, q = 1, type = "bandpass", delay = 0, f2 = null) {
+    if (!AU.c || !AU.on) return;
+    if (!noiseBuf) { noiseBuf = AU.c.createBuffer(1, AU.c.sampleRate, AU.c.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const t = AU.c.currentTime + delay, s = AU.c.createBufferSource(), f = AU.c.createBiquadFilter(), gn = AU.c.createGain();
+    s.buffer = noiseBuf; f.type = type; f.frequency.setValueAtTime(freq, t); if (f2) f.frequency.exponentialRampToValueAtTime(f2, t + dur); f.Q.value = q;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(gn); gn.connect(AU.m); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+  }
+  const sfx = {
+    pinch() { noise(0.05, 0.12, 2400, 2); },
+    peg() { noise(0.035, 0.3, 3200, 3); tone(1700, 0.05, "square", 0.06, 900, 0, 3000); },
+    fuwa() { noise(0.42, 0.13, 500, 0.7, "lowpass", 0, 2400); },
+    byon() { const p = pitch(); tone(200 * p, 0.42, "sine", 0.22, 330 * p); tone(330 * p, 0.25, "sine", 0.12, 190 * p, 0.12); },
+    drip() { tone(1500 * pitch(), 0.09, "sine", 0.07, 700); },
+    plop() { tone(520, 0.14, "sine", 0.13, 260); tone(880, 0.06, "triangle", 0.05, 600, 0.03); },
+    creak() { tone(82, 0.55, "sawtooth", 0.07, 70, 0, 520); tone(95, 0.4, "sawtooth", 0.05, 120, 0.15, 600); },
+    snap() { noise(0.25, 0.4, 900, 0.8); tone(170, 0.5, "triangle", 0.2, 50); },
+    flap() { for (let i = 0; i < 5; i++) noise(0.06, 0.16, 700 + i * 60, 1.2, "bandpass", i * 0.07); },
+    pata() { for (let i = 0; i < 4; i++) noise(0.05, 0.1, 1100, 1.5, "bandpass", i * 0.09); },
+    blown() { noise(0.7, 0.18, 300, 0.6, "bandpass", 0, 2600); },
+    stain() { tone(330, 0.3, "triangle", 0.12, 196); },
+    clap() { for (let i = 0; i < 4; i++) noise(0.05, 0.25, 1600, 1, "bandpass", i * 0.16); tone(660, 0.18, "triangle", 0.06, null, 0.1); },
+    no() { tone(240, 0.16, "triangle", 0.1, 200); },
+    sunset() { const p = pitch(); [392, 330, 262].forEach((f, i) => tone(f * p, 0.6, "triangle", 0.1, null, i * 0.22, 1600)); },
+    // 路地のアコーディオンを思わせる短い2音（実在曲ではない）
+    accordion() {
+      const p = pitch(), pair = [[440, 330], [392, 294], [494, 370]][Math.floor(Math.random() * 3)];
+      pair.forEach((f, i) => { tone(f * p, 0.7, "sawtooth", 0.035, null, i * 0.42, 1300); tone(f * p * 1.006, 0.7, "sawtooth", 0.03, null, i * 0.42, 1300); });
+    },
+    gull() { tone(1250, 0.22, "sine", 0.025, 950, 0); tone(1300, 0.3, "sine", 0.02, 900, 0.28); },
+  };
+  function setMute(off) {
+    AU.on = !off; $("muteB").classList.toggle("off", off); $("muteB").setAttribute("aria-label", off ? "音を出す（M）" : "音を消す（M）");
+    if (AU.m) AU.m.gain.value = AU.on ? 0.55 : 0;
+  }
+
+  // ---- ひとこと ----
+  let hintT = 0;
+  const said = new Set();
+  function hint(text, dur = 2.6, once) {
+    if (once) { if (said.has(once)) return; said.add(once); }
+    $("hint").textContent = text; $("hintW").classList.remove("off"); hintT = dur;
+  }
+  const SAY = ["よう乾いとるねえ", "ええ風やねえ", "まっ白やねえ", "手際がええこと", "お日さまのにおい"];
+  function say(text) {
+    const s = $("sayW"); $("say").textContent = text; s.classList.remove("off");
+    const [sx, sy] = toScreen(338, 330); s.style.left = Math.max(4, sx - s.offsetWidth) + "px"; s.style.top = sy + "px";
+  }
+
+  // ---- 画面の座標 ----
+  const toWorld = (cx, cy) => [(cx - ox) / scale, (cy - oy) / scale];
+  const toScreen = (x, y) => [ox + x * scale, oy + y * scale];
+  function layoutHud() {
+    const sw = $("scoreW"), hw = $("hintW"), mw = $("muteW"), pw = $("pauseW");
+    if (wide) {
+      sw.style.left = Math.max(10, ox - 168) + "px"; sw.style.top = "22px";
+      hw.style.left = Math.max(10, ox - 22 - Math.min(250, ox - 32)) + "px"; hw.style.top = "120px"; hw.style.maxWidth = Math.min(250, ox - 32) + "px";
+      pw.style.left = (ox + W * scale + 22) + "px"; pw.style.top = "22px";
+      mw.style.left = (ox + W * scale + 22) + "px"; mw.style.top = "84px";
+    } else {
+      const [x0, y0] = toScreen(14, 18);
+      sw.style.left = x0 + "px"; sw.style.top = y0 + "px";
+      hw.style.left = x0 + "px"; hw.style.top = (y0 + 84) + "px"; hw.style.maxWidth = "";
+      const [x1] = toScreen(W - 14, 0);
+      pw.style.left = (x1 - 92) + "px"; pw.style.top = (y0 + 4) + "px";
+      mw.style.left = (x1 - 154) + "px"; mw.style.top = (y0 + 6) + "px";
+    }
+  }
+
+  // ---- 当たり判定 ----
+  function hitHung(x, y) {
+    if (!S) return null;
+    for (const r of [0, 1]) {
+      if (S.ropes[r].broken) continue;
+      const a = S.ropes[r].items;
+      for (let i = a.length - 1; i >= 0; i--) {
+        const it = a[i], ry = ropeY(r, it.x + it.w / 2);
+        const h = it.pegs < 2 ? it.h * 0.8 : it.h;
+        const x0 = it.pegs < 2 ? (it.droopSide > 0 ? it.x - 10 : it.x + it.w - h * 0.8) : it.x - 4;
+        const x1 = it.pegs < 2 ? (it.droopSide > 0 ? it.x + h * 0.8 : it.x + it.w + 10) : it.x + it.w + 4;
+        if (x >= x0 && x <= x1 && y >= ry - 14 && y <= ry + h * 0.95) return it;
+      }
+    }
+    return null;
+  }
+  const inRect = (x, y, r, pad = 0) => x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
+  const TUB_HIT = { x: 10, y: 726, w: 132, h: 112 }, BASK_HIT = { x: 246, y: 724, w: 136, h: 114 };
+  // 持っている物の置き先（上辺の真ん中の位置で決める）
+  function findTarget(gx, gy, px, py) {
+    if (!S || !S.held) return null;
+    if (inRect(px, py, BASK_HIT)) return { type: "basket" };
+    if (inRect(px, py, TUB_HIT)) return { type: "tub" };
+    let best = null;
+    for (const r of [0, 1]) {
+      if (S.ropes[r].broken) continue;
+      const ry = ropeY(r, clamp(gx, ROPES[r].x1, ROPES[r].x2));
+      const d = Math.abs(gy - ry);
+      if (d < 48 && gx > ROPES[r].x1 - 30 && gx < ROPES[r].x2 + 30 && (!best || d < best.d)) best = { type: "rope", r, d };
+    }
+    if (best) { const x = SIM.canPlace(S, best.r, gx - S.held.w / 2); if (x == null) return { type: "full", r: best.r }; best.x = x; }
+    return best;
+  }
+
+  // ---- 入力（ポインタ） ----
+  cv.addEventListener("pointerdown", (e) => {
+    audio();
+    if (state !== "play" || paused || !S || S.over) return;
+    e.preventDefault();
+    if (kbHold) return;
+    kbMode = false;
+    const [x, y] = toWorld(e.clientX, e.clientY);
+    const it = hitHung(x, y);
+    if (it) {
+      const ry = ropeY(it.rope, it.x + it.w / 2);
+      SIM.pickHung(S, it.id);
+      drag = { id: e.pointerId, ox: clamp(it.x + it.w / 2 - x, -30, 30), oy: Math.min(-18, ry - y) };
+    } else if (inRect(x, y, TUB_HIT) && SIM.pickTub(S)) {
+      drag = { id: e.pointerId, ox: 0, oy: -30 };
+    } else return;
+    sfx.pinch();
+    try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+    hx = x + drag.ox; hy = y + drag.oy; drag.px = x; drag.py = y;
+    lastTarget = findTarget(hx, hy, x, y);
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id || !S || !S.held) return;
+    e.preventDefault();
+    const [x, y] = toWorld(e.clientX, e.clientY);
+    hx = x + drag.ox; hy = y + drag.oy; drag.px = x; drag.py = y;
+    lastTarget = findTarget(hx, hy, x, y);
+  });
+  function release() {
+    if (!S || !S.held) { drag = null; return; }
+    const t = lastTarget;
+    if (t && t.type === "rope") { if (SIM.place(S, t.r, t.x)) { sfx.peg(); } else { SIM.cancel(S); sfx.no(); } }
+    else if (t && t.type === "basket") {
+      if (S.held.wet > 0) { hint("まだ濡れている。揺れはじめたら乾いた合図", 2.4); sfx.no(); SIM.cancel(S); }
+      else SIM.deliver(S);
+    } else if (t && t.type === "tub") SIM.toTub(S);
+    else { if (t && t.type === "full") hint("そこは空きが足りない", 1.6); SIM.cancel(S); }
+    drag = null; lastTarget = null; ghost = null;
+  }
+  const up = (e) => { if (!drag || e.pointerId !== drag.id) return; e.preventDefault(); release(); };
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", (e) => { if (!drag || e.pointerId !== drag.id) return; if (S && S.held) SIM.cancel(S); drag = null; ghost = null; lastTarget = null; });
+
+  // ---- 入力（キーボード）: Tab/←→ で選ぶ、Space で持つ、↑↓←→ で行き先、Space で置く ----
+  function selList() {
+    const a = [];
+    if (S && S.tub.wait <= 0 && S.tub.queue.length) a.push("tub");
+    for (const r of [0, 1]) for (const it of S.ropes[r].items) a.push(it.id);
+    return a;
+  }
+  function kbTargetPos() {
+    const t = kbHold; if (!t || !S.held) return;
+    if (t.mode === "rope") { const x = SIM.canPlace(S, t.r, t.x); lastTarget = x == null ? { type: "full", r: t.r } : { type: "rope", r: t.r, x }; const xx = x == null ? t.x : x; hx = xx + S.held.w / 2; hy = ropeY(t.r, hx) - 16; }
+    else if (t.mode === "basket") { lastTarget = { type: "basket" }; hx = BASK.x + BASK.w / 2; hy = BASK.y - 56; }
+    else { lastTarget = { type: "tub" }; hx = TUB.x + TUB.w / 2; hy = TUB.y - 56; }
+  }
+  document.addEventListener("keydown", (e) => {
+    const k = e.code;
+    if (k === "KeyM") { audio(); setMute(AU.on); return; }
+    if (state === "title" || state === "result") {
+      if ((k === "Enter" || k === "Space") && !e.repeat && document.activeElement?.tagName !== "BUTTON") { e.preventDefault(); audio(); start(); }
+      return;
+    }
+    if (state !== "play") return;
+    if (k === "KeyP" || (k === "Escape" && !kbHold)) { e.preventDefault(); setPause(!paused); return; }
+    if (paused) { if (k === "Space" || k === "Enter") { e.preventDefault(); setPause(false); } return; }
+    if (!S || S.over) return;
+    const navKeys = ["Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space", "Enter", "Escape"];
+    if (!navKeys.includes(k)) return;
+    e.preventDefault(); audio(); kbMode = true;
+    if (drag) return;
+    if (kbHold && S.held) {
+      const t = kbHold, step = e.shiftKey ? 24 : 8;
+      if (k === "ArrowLeft" && t.mode === "rope") t.x -= step;
+      if (k === "ArrowRight" && t.mode === "rope") t.x += step;
+      if (k === "ArrowUp" || k === "ArrowDown") {
+        const modes = [["rope", 0], ["rope", 1], ["basket"], ["tub"]];
+        let i = modes.findIndex((m) => m[0] === t.mode && (m[0] !== "rope" || m[1] === t.r));
+        i = (i + (k === "ArrowDown" ? 1 : modes.length - 1)) % modes.length;
+        while (modes[i][0] === "rope" && S.ropes[modes[i][1]].broken) i = (i + (k === "ArrowDown" ? 1 : modes.length - 1)) % modes.length;
+        t.mode = modes[i][0]; if (t.mode === "rope") t.r = modes[i][1];
+      }
+      if (t.mode === "rope") t.x = clamp(t.x, ROPES[t.r].x1 + 5, ROPES[t.r].x2 - 5 - S.held.w);
+      if (k === "Escape") { SIM.cancel(S); kbHold = null; ghost = null; lastTarget = null; return; }
+      kbTargetPos();
+      if (k === "Space" || k === "Enter") { release(); kbHold = null; }
+      return;
+    }
+    const a = selList(); if (!a.length) return;
+    let i = a.indexOf(selId); if (i < 0) i = 0;
+    if (k === "Tab" || k === "ArrowRight" || k === "ArrowDown") selId = a[(i + (e.shiftKey && k === "Tab" ? a.length - 1 : 1)) % a.length];
+    else if (k === "ArrowLeft" || k === "ArrowUp") selId = a[(i + a.length - 1) % a.length];
+    else if (k === "Space" || k === "Enter") {
+      const id = a[i];
+      let it = null;
+      if (id === "tub") it = SIM.pickTub(S); else it = SIM.pickHung(S, id);
+      if (!it) return;
+      sfx.pinch();
+      if (it.wet <= 0) kbHold = { mode: "basket" };
+      else { const f = it.from || {}; const r = f.tub ? (S.ropes[0].broken ? 1 : 0) : f.rope; kbHold = { mode: "rope", r, x: f.tub ? 200 - it.w / 2 : f.x }; }
+      kbTargetPos();
+    }
+  });
+
+  // ---- 一時停止 ----
+  function setPause(p) {
+    if (state !== "play") return;
+    paused = p; $("pauseS").hidden = !p;
+    if (p && S && S.held && !kbHold) { SIM.cancel(S); drag = null; ghost = null; lastTarget = null; }
+    if (!p) last = performance.now();
+  }
+  $("pauseB").addEventListener("click", () => { audio(); setPause(true); });
+  $("resumeB").addEventListener("click", () => setPause(false));
+  $("muteB").addEventListener("click", () => { audio(); setMute(AU.on); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play" && !paused) setPause(true); });
+  $("startB").addEventListener("click", () => { audio(); start(); });
+  $("againB").addEventListener("click", () => { audio(); start(); });
+
+  // ---- 流れ ----
+  function newDemo() {
+    S = SIM.create(20261008); S.quiet = true;
+    const put = (r, x, wet, kind) => { const it = S.tub.queue[0]; if (kind) { Object.assign(it, { kind, ...KINDS[kind] }); it.w = KINDS[kind].w; it.h = KINDS[kind].h; it.col = KINDS[kind].col; } SIM.pickTub(S); S.tub.wait = 0; SIM.place(S, r, x); it.wet = wet; if (wet <= 0) it.dryFor = 1; };
+    put(0, 92, 0.9, "sock"); put(0, 150, 0, "shirt"); put(0, 250, 0.5, "towel");
+    put(1, 100, 0.7, "shirt"); put(1, 185, 0.85, "sheet");
+    S.ev.length = 0;
+  }
+  function start() {
+    S = SIM.create((Math.random() * 2147483646) | 0);
+    state = "play"; paused = false; drag = null; kbHold = null; ghost = null; lastTarget = null; selId = "tub";
+    drips.length = 0; fallers.length = 0; fx.length = 0; grandma.t = -1; said.clear();
+    for (const m of disp) m.clear();
+    $("titleS").hidden = true; $("resultS").hidden = true; $("pauseS").hidden = true; $("hud").hidden = false;
+    hint("たらいの洗濯物をつまんで、綱へ", 3.5);
+    updateHud();
+    AU.nextMus = 3; AU.nextGull = 8;
+    last = performance.now();
+  }
+  function finish() {
+    state = "result"; $("hud").hidden = true; $("sayW").classList.add("off");
+    const sc = S.score;
+    let nb = false;
+    if (sc > best) { best = sc; nb = sc > 0; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+    $("rTitle").textContent = S.endReason === "ropes" ? "綱が両方切れた" : "日が沈んだ";
+    $("rWhy").textContent = S.endReason === "ropes" ? "2本の綱が同時に切れて、今日の洗濯はここまで。" : "その日のかごの中身。綱に残った物は点になりません。";
+    $("rScore").innerHTML = `${sc}<small>てん</small>`;
+    const ok = S.delivered.filter((d) => !d.stained).length, st = S.delivered.length - ok;
+    const lines = [`取りこみ ${S.delivered.length}まい（色移り ${st}まい）`];
+    if (S.fallen) lines.push(`路地に落ちた ${S.fallen}まい`);
+    if (S.blown) lines.push(`風に飛ばされた ${S.blown}まい`);
+    const left = S.ropes[0].items.length + S.ropes[1].items.length; if (left) lines.push(`綱に残った ${left}まい`);
+    $("rList").innerHTML = lines.join("<br>");
+    $("rBest").innerHTML = `いちばん ${best} てん` + (nb ? '<span class="nb">新記録</span>' : "");
+    drawPileResult();
+    $("resultS").hidden = false;
+    setTimeout(() => $("againB").focus({ preventScroll: true }), 50);
+  }
+  function drawPileResult() {
+    const pc = $("pile"), k = Math.min(2, window.devicePixelRatio || 1);
+    const cw = pc.clientWidth || 300, ch = pc.clientHeight || 150;
+    pc.width = cw * k; pc.height = ch * k;
+    const g = pc.getContext("2d"); g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, cw, ch);
+    const list = S.delivered.slice();
+    if (!list.length) { g.font = "700 14px " + getComputedStyle(document.body).fontFamily; g.fillStyle = C.sumire; g.fillText("かごは空っぽ", 14, ch / 2); return; }
+    // 2〜3山に分けて、たたんだ山を大きく
+    const nCol = list.length > 16 ? 3 : list.length > 7 ? 2 : 1;
+    const per = Math.ceil(list.length / nCol);
+    let hMax = 0; const cols = [];
+    for (let c = 0; c < nCol; c++) { const a = list.slice(c * per, (c + 1) * per); cols.push(a); hMax = Math.max(hMax, a.reduce((s, e) => s + PILE[e.kind][1] - 3, 3)); }
+    const k2 = Math.min(2.4, (ch - 10) / hMax, cw / nCol / 72);
+    cols.forEach((a, c) => foldedPile(g, cw * (c + 0.5) / nCol, ch - 6, a, k2));
+  }
+  function updateHud() {
+    if (!S) return;
+    $("cnt").textContent = `取りこみ ${S.delivered.length}まい`;
+    $("score").innerHTML = `${S.score}<small>てん</small>`;
+  }
+
+  // ---- 出来事 → 音・ひとこと・動き ----
+  function itemTop(it) { return [it.x + it.w / 2, ropeY(it.rope, it.x + it.w / 2)]; }
+  function handleEvents() {
+    for (const e of S.ev) {
+      switch (e.type) {
+        case "deliver":
+          sfx.fuwa(); fx.push({ x: BASK.x + BASK.w / 2, y: BASK.y - 30, t: 0, text: e.stained ? "色移り 0" : "+" + e.pts, red: e.stained });
+          if (e.stained) hint("色が移った物は点にならない", 2.4);
+          updateHud(); break;
+        case "grandma":
+          grandma.t = 0; sfx.clap(); say(SAY[(e.n / 5 - 1) % SAY.length] + `　+${e.bonus}`); updateHud(); break;
+        case "pick": if (e.rope != null) { kick[e.rope] += 1; if ((e.load || 0) > 2.5) sfx.byon(); } break;
+        case "stainStart": hint("上の綱の色物のしずくが、白い物に落ちている", 2.8, "stain1"); sfx.stain(); break;
+        case "stained": hint("色が移った。この白い物は点にならない", 2.8); sfx.stain(); break;
+        case "creak": sfx.creak(); hint("綱がきしんでいる。重い物を外して", 2.4); break;
+        case "snap": {
+          sfx.snap(); hint("綱が切れた。張り直しまで10秒", 3);
+          for (const it of e.items) fallers.push({ it, x: it.x, y: ropeY(e.rope, it.x + it.w / 2), vx: (Math.random() - 0.5) * 40, vy: -40, rot: 0, vr: (Math.random() - 0.5) * 3, t: 0, mode: "fall" });
+          disp[e.rope].clear(); break;
+        }
+        case "restrung": hint("綱を張り直した", 1.6); sfx.peg(); break;
+        case "pigeonLand": hint("鳩のいる所に置くと、羽ばたきで洗濯ばさみが外れる", 2.8, "pg1"); tone(520, 0.12, "sine", 0.04, 470); break;
+        case "pigeonFly":
+          sfx.flap(); hint(e.fell ? "鳩が飛び立って、乾いた物が路地に落ちた" : "鳩が飛び立って、洗濯ばさみが外れた", 2.6);
+          if (e.item) fallers.push({ it: e.item, x: e.item.x, y: ropeY(e.rope, e.item.x + e.item.w / 2), vx: 10, vy: -20, rot: 0, vr: 1.5, t: 0, mode: "fall" });
+          break;
+        case "pigeonLeave": break;
+        case "flutter": sfx.pata(); hint("乾いた物がはためいている。早く取り込んで", 2.4, "fl1"); break;
+        case "blown": {
+          sfx.blown(); hint("乾かしすぎて、風に飛ばされた", 2.4);
+          const it = e.item; fallers.push({ it, x: it.x, y: ropeY(it.rope, it.x + it.w / 2), vx: 160, vy: -150, rot: 0, vr: 2.4, t: 0, mode: "blow" });
+          kick[it.rope] += 1.2; break;
+        }
+        case "place": kick[e.rope] += 0.4; break;
+        case "end": endT = 0; state = "ending"; sfx.sunset(); hint(e.why === "ropes" ? "綱が両方切れた" : "日が沈んだ", 3); break;
+      }
+    }
+    S.ev.length = 0;
+  }
+
+  // ---- しずく（描くだけ。色移りの判定は SIM） ----
+  let dripAcc = 0;
+  function updateDrips(dt) {
+    if (state === "play" && S) {
+      for (const r of [0, 1]) for (const it of S.ropes[r].items) {
+        const w = Math.min(1, it.wet); if (w < 0.12) continue;
+        if (Math.random() < dt * (0.5 + w * 1.6) * (it.w / 60)) {
+          const x = it.x + 4 + Math.random() * (it.w - 8);
+          drips.push({ x, y: ropeY(r, x) + it.h * (0.82 + Math.random() * 0.12), vy: 30, r, col: it.col, from: it.id });
+        }
+      }
+    }
+    for (let i = drips.length - 1; i >= 0; i--) {
+      const d = drips[i]; d.vy += 900 * dt; d.y += d.vy * dt;
+      if (d.r === 0 && !d.hit && S) {
+        const L = S.ropes[1].items.find((o) => d.x >= o.x && d.x <= o.x + o.w);
+        if (L && d.y > ropeY(1, d.x) + 8 + (d.x * 7 % 20)) { d.hit = true; if (d.col && !L.col) { dripAcc++; if (dripAcc % 2 === 0) sfx.plop(); } else if (Math.random() < 0.3) sfx.drip(); drips.splice(i, 1); continue; }
+      }
+      if (d.y > 790 + (d.x * 13 % 30)) { if (Math.random() < 0.15) sfx.drip(); drips.splice(i, 1); }
+    }
+  }
+
+  // ---- 描画 ----
+  function draw() {
+    const g = ctx;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = C.sumire; g.fillRect(0, 0, cv.width, cv.height);
+    g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
+    const p = S ? clamp(S.t / S.dur, 0, 1) : 0.3;
+    g.drawImage(L.sky, 0, 0, W, H);
+    const eve = clamp((p - 0.55) / 0.4, 0, 1);
+    if (eve > 0) { // 夕方の版は地平から上へ刷り替わる（重ねて濁らせない）
+      const yl = 200 * (1 - eve);
+      g.save(); g.beginPath(); g.moveTo(0, yl + EVJ[0]); for (let i = 1; i <= 8; i++) g.lineTo(W * i / 8, yl + EVJ[i]); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.clip();
+      g.drawImage(L.eve, 0, 0, W, H); g.restore(); }
+    g.save(); g.clip(innerPath);
+    // 太陽: 光線・光の輪は描かない。空の版を丸く抜いた紙の白（黄土の版が片側にずれて出る）
+    { const sx = 150 + 222 * p, sy = 62 + 62 * Math.pow(p, 1.6);
+      g.fillStyle = C.odo; g.beginPath(); g.arc(sx + 3, sy - 2, 24.5, 0, 7); g.fill();
+      g.fillStyle = C.shiro; g.beginPath(); g.arc(sx, sy, 24, 0, 7); g.fill(); }
+    g.drawImage(L.bld, 0, 0, W, H);
+    const edge = shadowEdge(p);
+    drawShadow(g, edge, 1);
+    // 綱と洗濯物（下の綱 → 上の綱）
+    drawRope(g, 1); drawRope(g, 0);
+    if (S) {
+      for (const r of [1, 0]) if (!S.ropes[r].broken) for (const it of S.ropes[r].items) drawHung(g, it);
+      for (const pg of S.pigeons) {
+        if (S.ropes[pg.rope].broken && !pg.leaving) continue;
+        const ry = ropeY(pg.rope, pg.x);
+        if (pg.leaving) { const k = pg.leaveT; drawPigeon(g, pg.x + (pg.flip ? -1 : 1) * k * 140, ry + 1 - k * 170 - k * k * 40, pg, 1); }
+        else {
+          const age = (pg.age = (pg.age || 0) + dtLast), k = Math.max(0, 1 - age / 0.5);
+          const warn = lastTarget && lastTarget.type === "rope" && lastTarget.r === pg.rope && S.held && SIM.pigeonAt(S, pg.rope, lastTarget.x, lastTarget.x + S.held.w) === pg ? 1 : 0;
+          drawPigeon(g, pg.x - k * 60 * (pg.flip ? -1 : 1), ry + 1 - k * 90, pg, k > 0 ? 1 : 0, warn);
+        }
+      }
+      // しずく
+      for (const d of drips) line(g, [[d.x, d.y], [d.x, d.y + 5]], 2.2, d.col === "r" ? C.tomato : C.gunjo, 0.8);
+    }
+    drawShadow(g, edge, 2);
+    // おばあさん
+    if (grandma.t >= 0) { const t = grandma.t, k = t < 0.4 ? t / 0.4 : t > 2.6 ? Math.max(0, 1 - (t - 2.6) / 0.4) : 1; drawGrandma(g, k); }
+    // 路地に落ちた物・飛ばされた物
+    for (const f of fallers) {
+      g.save(); g.globalAlpha = f.mode === "fall" ? clamp(1 - (f.t - 2.4) / 0.8, 0, 1) : clamp(1 - f.t / 1.4, 0, 1);
+      g.translate(f.x + f.it.w / 2, f.y); g.rotate(f.rot); g.translate(-f.it.w / 2, 0); drawLocalGarment(g, f.it); g.restore();
+    }
+    drawTub(g); drawBasket(g);
+    // 持っている物: 6〜9°傾けて持ち上げ、平らな影版（ぼかし無し）を 12px ずらして落とす
+    if (S && S.held) {
+      const it = S.held, ang = -0.13 + (drag ? clamp((drag.vx || 0) * -0.002, -0.08, 0.08) : 0);
+      const t = lastTarget;
+      if (t && t.type === "rope") {
+        // 置き先の予告: 洗濯ばさみの位置と、色移りの筋
+        const lk = makeLook(it);
+        g.save(); g.globalAlpha = 0.7;
+        for (const px of lk.pegs) { const x = t.x + px, y = ropeY(t.r, x); g.strokeStyle = C.sumire; g.lineWidth = 1.5; g.strokeRect(x - 3, y - 7, 6, 15); }
+        g.restore();
+        const risk = stainRisk(it, t.r, t.x);
+        for (const [x, y0, y1, c] of risk) { g.save(); g.strokeStyle = c; g.lineWidth = 2; g.setLineDash([3, 7]); g.lineDashOffset = -now * 30; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y1); g.stroke(); g.restore(); }
+      }
+      g.save(); g.translate(hx, hy); g.rotate(ang); g.translate(-it.w / 2, 0);
+      const lk = makeLook(it);
+      g.save(); g.globalCompositeOperation = "multiply"; g.globalAlpha = 0.85; g.fillStyle = C.kage; g.translate(12, 14);
+      for (const part of lk.parts) g.fill(part.path); g.restore();
+      drawLocalGarment(g, it);
+      g.restore();
+    }
+    // 得点の文字
+    for (const f of fx) {
+      const s = Math.max(20, 15 / scale);
+      g.save(); g.globalAlpha = clamp(1.4 - f.t, 0, 1); g.font = `${s}px ${FONT_HEAD}`; g.textAlign = "center";
+      g.fillStyle = C.tomato; g.fillText(f.text, f.x + 1.5, f.y - f.t * 30 + 1.5);
+      g.fillStyle = C.sumire; g.fillText(f.text, f.x, f.y - f.t * 30); g.restore();
+    }
+    g.restore();
+    drawFrame(g);
+  }
+  const FONT_HEAD = '"Mochiy Pop One","Hiragino Maru Gothic ProN",sans-serif';
+  function stainRisk(it, r, x) {
+    const out = [];
+    if (!it.col && r === 1) for (const U of S.ropes[0].items) if (U.col && U.wet > 0.05) {
+      const a = Math.max(U.x + 4, x), b = Math.min(U.x + U.w - 4, x + it.w);
+      if (b > a) for (let xx = a + 3; xx < b; xx += 12) out.push([xx, ropeY(0, xx) + U.h * 0.9, ropeY(1, xx) + 10, U.col === "r" ? C.tomato : C.gunjo]);
+    }
+    if (it.col && it.wet > 0.05 && r === 0) for (const Lo of S.ropes[1].items) if (!Lo.col && !Lo.stained) {
+      const a = Math.max(Lo.x, x + 4), b = Math.min(Lo.x + Lo.w, x + it.w - 4);
+      if (b > a) for (let xx = a + 3; xx < b; xx += 12) out.push([xx, ropeY(0, xx) + it.h * 0.9, ropeY(1, xx) + 10, it.col === "r" ? C.tomato : C.gunjo]);
+    }
+    return out;
+  }
+
+  // ---- ループ ----
+  let last = performance.now(), dtLast = 0;
+  const fps = { n: 0, t: 0, v: 0 };
+  function frame(ts) {
+    let dt = Math.min(0.05, Math.max(0, (ts - last) / 1000)); last = ts; dtLast = dt;
+    fps.n++; fps.t += dt; if (fps.t >= 1) { fps.v = fps.n / fps.t; fps.n = 0; fps.t = 0; }
+    if (paused) dt = 0;
+    now += dt;
+    if (state === "play" && S) {
+      // 持っている物の動きの速さ（傾きに使う）
+      if (drag) { drag.vx = ((hx - (drag.lx ?? hx)) / Math.max(dt, 1e-3)); drag.lx = hx; }
+      ghost = S.held && lastTarget && lastTarget.type === "rope" ? { r: lastTarget.r, x: lastTarget.x } : null;
+      let left = dt; while (left > 1e-6) { const h = Math.min(left, 1 / 60); SIM.step(S, h); left -= h; }
+      handleEvents();
+      if (S.t > S.dur - 12 && !said.has("dusk")) hint("もうすぐ日が沈む。綱に残った物は点にならない", 3, "dusk");
+      // 遠くのかもめとアコーディオン（日没に向けて音程が下がる）
+      AU.nextMus -= dt; AU.nextGull -= dt;
+      if (AU.nextMus <= 0) { sfx.accordion(); AU.nextMus = 10 + Math.random() * 6; }
+      if (AU.nextGull <= 0) { sfx.gull(); AU.nextGull = 14 + Math.random() * 8; }
+    } else if (state === "ending") {
+      endT += dt; if (S.ev.length) handleEvents();
+      if (endT > 1.6) finish();
+    }
+    if (dt > 0) {
+      updateRopes(dt); updateDrips(dt);
+      for (let i = fallers.length - 1; i >= 0; i--) {
+        const f = fallers[i]; f.t += dt;
+        if (f.mode === "fall") { if (f.y < 790) { f.vy += 700 * dt; f.y += f.vy * dt; f.x += f.vx * dt; f.rot += f.vr * dt; } else { f.y = 790; f.rot *= 0.9; } if (f.t > 3.2) fallers.splice(i, 1); }
+        else { f.vy += -60 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += f.vr * dt; if (f.t > 1.4) fallers.splice(i, 1); }
+      }
+      for (let i = fx.length - 1; i >= 0; i--) { fx[i].t += dt; if (fx[i].t > 1.4) fx.splice(i, 1); }
+      if (grandma.t >= 0) { grandma.t += dt; if (grandma.t > 3) { grandma.t = -1; $("sayW").classList.add("off"); } }
+      if (hintT > 0) { hintT -= dt; if (hintT <= 0) $("hintW").classList.add("off"); }
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  addEventListener("resize", () => { resize(); });
+  resize();
+  newDemo();
+  $("tBest").textContent = best ? `これまでの いちばん ${best} てん` : "";
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (state === "result") drawPileResult(); }).catch(() => {});
+  requestAnimationFrame((t) => { last = t; frame(t); });
+  window.__gs = { SIM, get S() { return S; }, get state() { return state; }, get fps() { return fps.v; }, start, finish, setPause, toScreen, toWorld, ropeY };
+})();
+</script>
+</body>
+</html>

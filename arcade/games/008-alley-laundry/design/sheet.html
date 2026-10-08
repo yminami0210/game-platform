@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>せんたく日和 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Kosugi+Maru&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#edf0ee}
+  svg{display:block}
+  .mp{font-family:"Mochiy Pop One","Hiragino Maru Gothic ProN",sans-serif}
+  .km{font-family:"Kosugi Maru","Hiragino Maru Gothic ProN",sans-serif}
+  .num{font-variant-numeric:tabular-nums}
+</style></head>
+<body>
+<svg id="s" width="1200" height="960" viewBox="0 0 1200 960"></svg>
+<script src="print.js"></script>
+<script>
+const svg = document.getElementById("s");
+defs(svg);
+const W = 1200, H = 960;
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.shiro }, svg);
+setSeed(5);
+const T = (x, y, s, cls, size, fill = C.sumire, g = svg, extra = {}) => { const t = el("text", Object.assign({ x, y, class: cls, "font-size": size, fill }, extra), g); t.textContent = s; return t; };
+const head = (x, y, s) => T(x, y, s, "mp", 19);
+
+// ---- 色（石鹸の包み紙の色見本のように、版で刷った紙片） ----
+head(32, 44, "色（6版）");
+const cols = [
+  ["漆喰の黄土", C.odo, "地。手前の壁・奥の壁（薄刷り）", "壁 約30%"],
+  ["昼の空の群青", C.gunjo, "空・ジーンズ・たらいの粒", "約15%"],
+  ["鎧戸の緑", C.midori, "板戸・鉢の葉・鳩の首", "約4%"],
+  ["トマトの赤", C.tomato, "主役。赤い物・色移り・札の枠", "約3%"],
+  ["青み付けの白", C.shiro, "紙の白・白い洗濯物・太陽", "約20%"],
+  ["影のすみれ茶", C.sumire, "墨の代わり。輪郭・文字・影版", "線と窓"],
+];
+cols.forEach(([name, c, role, area], i) => {
+  const x = 32 + (i % 3) * 182, y = 64 + Math.floor(i / 3) * 128;
+  const d = cut([[x, y], [x + 70, y + j(2)], [x + 72 + j(2), y + 62], [x + j(2), y + 64]], 1.2);
+  if (c === C.shiro) { grain(svg, d, "gShita", 0.35); }
+  else { plate(svg, d, c, 1.5, -1); grain(svg, d, "gShiro", 0.5, 1.5, -1); }
+  ink(svg, d, 1.6);
+  T(x + 80, y + 16, name, "km", 14, C.sumire, svg, { "font-weight": 700 });
+  T(x + 80, y + 35, c, "km num", 13);
+  const lines = role.match(/.{1,7}/g);
+  lines.slice(0, 3).forEach((l, k) => T(x + 80, y + 54 + k * 16, l, "km", 12.5));
+  T(x, y + 84, area, "km", 12.5);
+});
+// 重ね色
+T(32, 330, "重ね刷りでできる色（新しい色は足さない）", "km", 14, C.sumire, svg, { "font-weight": 700 });
+[["影版", C.kage, "平網を重ねる"], ["濡れ", C.gunjo, "群青の薄刷り"], ["塗り直し", C.shita, "黄土を2度"]].forEach(([n, c, r], i) => {
+  const x = 32 + i * 182, y = 344;
+  const base = cut([[x, y], [x + 70, y], [x + 70, y + 46], [x, y + 46]], 1);
+  plate(svg, base, i === 2 ? C.shiro : C.odo, 0, 0);
+  if (i === 0) el("path", Object.assign({ d: cut([[x + 22, y - 4], [x + 76, y - 2], [x + 74, y + 50], [x + 20, y + 48]], 1), fill: c }, mul), svg);
+  if (i === 1) { plate(svg, base, C.shiro, 0, 0); el("path", Object.assign({ d: cut([[x + 22, y - 4], [x + 76, y - 2], [x + 74, y + 50], [x + 20, y + 48]], 1), fill: c, opacity: 0.2 }, mul), svg); }
+  else plate(svg, cut([[x + 4, y + 3], [x + 66, y + 4], [x + 67, y + 44], [x + 3, y + 42]], 1), c, 1.5, -1);
+  grain(svg, base, "gShiro", 0.4);
+  T(x + 84, y + 18, n, "km", 14, C.sumire, svg, { "font-weight": 700 });
+  T(x + 84, y + 36, r.slice(0, 9), "km", 12.5); if (r.length > 9) T(x + 84, y + 52, r.slice(9), "km", 12.5);
+});
+
+// ---- 文字 ----
+head(32, 446, "文字");
+// 版ずれで重ねた見出し（トマトの版を 2.5px ずらして下に）
+T(34.5, 509.5, "せんたく日和", "mp", 54, C.tomato);
+T(32, 512, "せんたく日和", "mp", 54);
+T(32, 566, "0123456789", "mp num", 34);
+T(330, 566, "38てん", "mp num", 34, C.sumire);
+T(32, 598, "Mochiy Pop One: 題・得点・おばあさんのひとこと", "km", 13);
+T(32, 634, "上の綱の色物の真下に、白い物を干さない。", "km", 16);
+T(32, 658, "乾いた物は、つまんでかごへ。綱に残った物は点にならない。", "km", 14);
+T(32, 682, "Kosugi Maru: 説明・結果。12.5px 以上、紙の白か黄土の上だけ", "km", 13);
+T(32, 708, "すみれ茶×青み付けの白 9.8：1、すみれ茶×黄土 7.0：1", "km", 12.5);
+T(32, 726, "トマト×黄土は 2.8：1 なので、赤で文字を書かない", "km", 12.5);
+
+// ---- 洗濯物（濡れ → 乾き） ----
+head(600, 44, "洗濯物（上が濡れ、下が乾き。乾くと色が戻り、紙の白が粒で出る）");
+const SDp = cut([[930, 58], [1174, 58], [1174, 398], [1000, 400]], 1.5);
+// 洗濯物の後ろに壁（黄土）を敷き、白い物が紙に溶けないようにする
+(() => { const d = cut([[596, 60], [1172, 58], [1174, 398], [594, 400]], 1.5); plate(svg, d, C.odo, 1.5, -1); grain(svg, d, "gShiro", 0.45, 1.5, -1); el("path", Object.assign({ d: SDp, fill: C.kage, opacity: 0.55 }, mul), svg); grain(svg, cut([[930, 58], [960, 58], [1030, 400], [1000, 400]], 1), "gSumire", 0.7); })();
+const rowY = [80, 242];
+rowY.forEach((y, r) => {
+  const ry = rope(svg, 596, y, 1172, y + 2, [{ x: 700, w: 3 + (1 - r) * 4 }, { x: 1020, w: 4 + (1 - r) * 8 }], { w: 2 });
+  const wet = r === 0 ? 0.85 : 0.0;
+  const tl = r === 0 ? 0 : 0.08;
+  garment(svg, "sock", 616, ry(616), 631, ry(631), C.tomato, { wet, tilt: tl });
+  garment(svg, "sock", 640, ry(640), 654, ry(654), C.tomato, { wet, tilt: tl * 1.4 });
+  garment(svg, "shirt", 680, ry(680), 748, ry(748), C.shiro, { wet, tilt: tl, folds: [[3, 8]] });
+  garment(svg, "towel", 784, ry(784), 836, ry(836), C.shiro, { wet: wet * 0.8, tilt: tl, decor: (g, P, ox, oy, d) => {
+    const id = "ct" + r; const cl = el("clipPath", { id }, svg); el("path", { d }, cl);
+    const gg = el("g", { "clip-path": `url(#${id})` }, g);
+    [[12, 7, C.tomato], [23, 3, C.tomato], [62, 10, C.midori], [76, 2.5, C.tomato]].forEach(([y0, h, c]) => { const pts = []; for (let i = 0; i <= 5; i++) { const x = 778 + i * 13; pts.push([x, ry(Math.min(836, x)) + y0 + j(1.4) + i * 0.5]); } el("path", { d: smooth(pts.concat(pts.slice().reverse().map(([x, y]) => [x, y + h + j(1)]))), fill: c, transform: `translate(${ox + (tl * 70)},${oy})`, opacity: 0.9 }, gg); });
+  } });
+  garment(svg, "jeans", 868, ry(868), 924, ry(924), C.gunjo, { wet, tilt: tl * 0.6, ox: -2, oy: 1.6, k: 0.9 });
+  const sh = garment(svg, "sheet", 990, ry(990), 1150, ry(1150), C.shiro, { wet, tilt: tl * 0.4, k: 0.85 });
+  const fold = []; for (let i = 0; i <= 6; i++) { const x = 990 + 160 * i / 6; fold.push([x + 1, ry(x) + 7 + j(1)]); }
+  el("path", { d: smooth(fold, false), fill: "none", stroke: C.sumire, "stroke-width": 1.2, opacity: 0.85 }, sh.g);
+  el("path", { d: smooth(fold.map(([x, y]) => [x, y + 2.4]), false), fill: "none", stroke: C.shiro, "stroke-width": 1 }, sh.g);
+  [616, 640, 684, 744, 788, 832, 872, 918, 994, 1066, 1144].forEach((x) => peg(svg, x + 4, ry(x + 4) - 2, j(8), 0.85));
+});
+el("path", Object.assign({ d: SDp, fill: C.kage, opacity: 0.32 }, mul), svg); // 布には半分の濃さ
+T(606, 390, "右の影の中は乾きが遅い。布には影版を半分だけ乗せ、壁より明るく浮かせる", "km", 12.5);
+// ---- 色移り・しずく・綱の状態 ----
+head(600, 436, "色移り・綱の重さ");
+(() => {
+  // 色移り: 上の赤い靴下の真下の白シャツ
+  const ry1 = rope(svg, 600, 450, 720, 452, [{ x: 650, w: 4 }], { w: 1.8 });
+  garment(svg, "sock", 622, ry1(622), 637, ry1(637), C.tomato, { wet: 0.9 }); peg(svg, 629, ry1(629) - 2, 3, 0.85);
+  [[628, 524, 7], [630, 559, 4]].forEach(([x, y, l]) => el("path", { d: `M${x},${y} l0,${l}`, stroke: C.tomato, "stroke-width": 2.6, "stroke-linecap": "round", opacity: 0.75 }, svg));
+  const ry2 = rope(svg, 600, 580, 720, 582, [{ x: 650, w: 7 }], { w: 1.8 });
+  garment(svg, "shirt", 616, ry2(616), 684, ry2(684), C.shiro, { wet: 0.4, decor: (g, P, ox, oy, d) => {
+    const cl = el("clipPath", { id: "cps" }, svg); el("path", { d }, cl); const gg = el("g", { "clip-path": "url(#cps)" }, g);
+    el("path", { d: smooth([[619, 586], [632, 584], [638, 598], [634, 612], [637, 630], [629, 624], [626, 644], [622, 618], [616, 606], [614, 594]]), fill: C.tomato, opacity: 0.38, transform: `translate(${ox},${oy})` }, gg);
+    el("path", { d: smooth([[641, 604], [647, 602], [648, 611], [642, 613]]), fill: C.tomato, opacity: 0.3 }, gg);
+  } });
+  peg(svg, 620, ry2(620) - 2, -4, 0.85); peg(svg, 680, ry2(680) - 2, 5, 0.85);
+  T(600, 700, "染まった白は 0 点。", "km", 13);
+  T(600, 718, "桃色のしみで見せる。", "km", 13);
+})();
+(() => {
+  // 綱: ふつう / 重すぎ（金具がゆがむ）/ 切れた
+  const X = [760, 900, 1040];
+  // ふつう
+  bracket(svg, X[0], 470, 1); bracket(svg, X[0] + 120, 470, -1);
+  const r1 = rope(svg, X[0] + 24, 466, X[0] + 96, 466, [{ x: X[0] + 60, w: 8 }], { w: 1.8 });
+  garment(svg, "shirt", X[0] + 30, r1(X[0] + 30), X[0] + 84, r1(X[0] + 84), C.shiro, { wet: 0.5 });
+  // 重すぎ: 金具が下を向き、壁の漆喰に欠け（波線・効果線は描かない）
+  bracket(svg, X[1], 470, 1, 12); bracket(svg, X[1] + 120, 470, -1, 14);
+  const r2 = rope(svg, X[1] + 24, 479, X[1] + 96, 481, [{ x: X[1] + 60, w: 30 }], { w: 1.8 });
+  garment(svg, "sheet", X[1] + 26, r2(X[1] + 26), X[1] + 94, r2(X[1] + 94), C.shiro, { wet: 0.95, k: 0.45 });
+  [[X[1] - 2, 482], [X[1] + 121, 486]].forEach(([x, y]) => el("path", { d: cut([[x, y], [x + 5, y + 3], [x + 2, y + 9], [x - 3, y + 5]], 0.6), fill: C.shiro, stroke: C.sumire, "stroke-width": 1 }, svg));
+  // 切れた: 両端が垂れ、洗濯物は路地へ
+  bracket(svg, X[2], 470, 1); bracket(svg, X[2] + 120, 470, -1);
+  el("path", { d: smooth([[X[2] + 24, 466], [X[2] + 30, 500], [X[2] + 26, 540]], false), fill: "none", stroke: C.sumire, "stroke-width": 1.8 }, svg);
+  el("path", { d: smooth([[X[2] + 96, 466], [X[2] + 92, 494], [X[2] + 97, 520]], false), fill: "none", stroke: C.sumire, "stroke-width": 1.8 }, svg);
+  const fallen = cut([[X[2] + 36, 640], [X[2] + 92, 632], [X[2] + 98, 652], [X[2] + 50, 660], [X[2] + 30, 654]], 1.5);
+  plate(svg, fallen, C.shiro, 0, 0); plate(svg, fallen, C.gunjo, 1.5, -1, Object.assign({ opacity: 0.2 }, mul)); ink(svg, fallen, 1.6);
+  const fs = cut([[X[2] + 62, 642], [X[2] + 78, 628], [X[2] + 84, 636], [X[2] + 70, 650]], 1); plate(svg, fs, C.tomato, 1.5, -1); ink(svg, fs, 1.4);
+  el("path", { d: `M${X[2]},668 L${X[2] + 130},666`, stroke: C.sumire, "stroke-width": 1.6 }, svg);
+  T(X[0] + 10, 700, "ふつう", "km", 13); T(X[1] + 10, 700, "重すぎ：金具が下がる", "km", 13); T(X[2] + 10, 700, "切れた：路地へ", "km", 13);
+})();
+
+// ---- 鳩・太陽・札 ----
+head(600, 760, "鳩・太陽（時間）・札");
+pigeon(svg, 640, 840, { hunch: 0.9, s: 1.5 });
+pigeon(svg, 720, 836, { hunch: 0.1, s: 1.4, flip: true });
+const tl = el("path", { d: `M600,842 L760,840`, stroke: C.sumire, "stroke-width": 2 }, svg);
+// 太陽の3つの時刻: 版を抜いた紙の白（光線・光の輪は描かない）。夕方は空の版にトマトを重ね、太陽にも薄くかかる
+[[790, "昼"], [880, "昼すぎ"], [970, "日没前"]].forEach(([x, name], i) => {
+  const box = cut([[x, 780], [x + 80, 780], [x + 80, 860], [x, 860]], 1.2);
+  const sunD = blob(x + 22 + i * 16, 812 + i * 14, 14 - i, 14 - i, 12, 0.05);
+  if (i < 2) {
+    el("path", { d: box + " " + sunD, fill: C.gunjo, "fill-rule": "evenodd" }, svg);
+    if (i === 1) { const lo = cut([[x, 836], [x + 80, 832], [x + 80, 860], [x, 860]], 1); el("path", { d: lo, fill: C.shiro }, svg); grain(svg, lo, "gGunjo", 1); }
+  } else {
+    // 日没前: 上は黄土の薄刷りと紙の白、トマトは地平（屋根ぎわ）の帯だけ。全面に重ねて濁らせない
+    el("path", { d: box + " " + sunD, fill: C.odo, "fill-rule": "evenodd", opacity: 0.55 }, svg);
+    grain(svg, cut([[x, 780], [x + 80, 780], [x + 80, 800], [x, 804]], 1), "gGunjo", 0.8);
+    el("path", { d: cut([[x, 838], [x + 80, 834], [x + 80, 860], [x, 860]], 1), fill: C.tomato, opacity: 0.55 }, svg);
+  }
+  el("path", { d: blob(x + 24 + i * 16, 810 + i * 14, 14 - i, 14 - i, 12, 0.05), fill: C.odo }, svg);
+  el("path", { d: sunD, fill: C.shiro }, svg);
+  el("path", { d: cut([[x + 60, 780], [x + 80, 780], [x + 80, 860], [x + 56, 860]], 1), fill: C.odo }, svg);
+  if (i) el("path", Object.assign({ d: cut([[x, 852 - i * 8], [x + 58, 856 - i * 10], [x + 56, 860], [x, 860]], 1), fill: C.kage, opacity: 0.9 }, mul), svg);
+  ink(svg, box, 1.4);
+  T(x + 4, 880, name, "km", 13);
+});
+// 得点の札と「ひと休み」の札
+(() => {
+  const g = el("g", { transform: "translate(1060,780) rotate(-2)" }, svg);
+  const d = cut([[0, 4], [110, 2], [112, 56], [-2, 58]], 1);
+  el("path", Object.assign({ d: cut([[6, 12], [118, 10], [120, 64], [4, 66]], 1), fill: C.kage }, mul), g);
+  plate(g, d, C.shiro, 0, 0); el("path", { d, fill: "url(#paper)" }, g);
+  el("path", { d: cut([[5, 9], [105, 7], [107, 51], [3, 53]], 0.8), fill: "none", stroke: C.tomato, "stroke-width": 2.2, transform: "translate(1.5,-1)" }, g);
+  ink(g, d, 1.6);
+  T(12, 26, "取りこみ 9まい", "km num", 12.5, C.sumire, g);
+  T(12, 48, "38", "mp num", 22, C.sumire, g); T(48, 47, "てん", "km", 13, C.sumire, g, { "font-weight": 700 });
+  peg(g, 56, -2, 4, 1);
+  const g2 = el("g", { transform: "translate(1070,870) rotate(3)" }, svg);
+  const d2 = cut([[0, 0], [76, 2], [74, 32], [2, 30]], 1);
+  plate(g2, d2, C.shiro, 0, 0); el("path", { d: d2, fill: "url(#paper)" }, g2); ink(g2, d2, 1.5);
+  T(11, 22, "ひと休み", "km", 14, C.sumire, g2, { "font-weight": 700 }); peg(g2, 38, -4, -5, 0.9);
+})();
+
+// ---- 手の跡（拡大） ----
+head(32, 760, "手の跡（3倍）");
+(() => {
+  const g = el("g", { transform: "translate(30,770) scale(3)" }, svg);
+  const cl = el("clipPath", { id: "zoom" }, svg); el("rect", { x: 30, y: 772, width: 170, height: 168 }, cl);
+  const z = el("g", { "clip-path": "url(#zoom)" }, svg); z.appendChild(g);
+  plate(g, cut([[0, 0], [60, 0], [60, 60], [0, 60]], 0), C.odo, 0, 0);
+  el("path", Object.assign({ d: cut([[30, 0], [60, 0], [60, 60], [16, 60]], 0), fill: C.kage }, mul), g);
+  grain(g, cut([[26, 0], [36, 0], [24, 60], [12, 60]], 0), "gSumire", 0.5);
+  rope(g, 0, 10, 60, 12, [{ x: 30, w: 3 }], { w: 1.4 });
+  garment(g, "sock", 16, 13, 30, 13.5, C.tomato, { wet: 0.3, ox: 2, oy: -1.3, lw: 1.2 });
+  peg(g, 23, 12, 4, 0.6);
+})();
+T(212, 790, "版ずれ：赤の版が輪郭から 2px はみ出し、", "km", 12.5);
+T(212, 808, "反対側に紙の白が細く残る", "km", 12.5);
+T(212, 836, "影版：平網 1 枚を multiply。境目は線でなく", "km", 12.5);
+T(212, 854, "クレヨンの粒の帯", "km", 12.5);
+T(212, 882, "輪郭：すみれ茶 2px、筆圧の切れ目は不揃い", "km", 12.5);
+T(212, 910, "粒と紙の目は 1 回作って使い回す（filter なし）", "km", 12.5);
+
+el("rect", Object.assign({ x: 0, y: 0, width: W, height: H, fill: "url(#paper)" }, mul), svg);
+</script>
+</body></html>
