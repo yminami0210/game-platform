@@ -21,7 +21,9 @@ const C = {
   mochiS: "#dfe8f2",  // 餅のくぼみの陰（青みの白。灰色で濁らせない）
   grain: "#c9d5e3",   // 残った米粒（青みの薄い色）
   dai: "#e8761f",     // ビールケースの橙（差し色。拍の札・危ない手の縁・ケース）
-  usudai: "#f3c7a4",  // 顔の紙（橙の薄い画用紙。重ね色）
+  usudai: "#f3c7a4",  // 顔の紙（薄だいだいの画用紙。重ね色）
+  hoho: "#e9a77f",    // 頬（顔の紙を2枚重ね。重ね色）
+  asphalt: "#5e5952", // 駐車場のアスファルト（セメントを暗くした重ね色）
   sumi: "#33251c",    // 焦げた蒸籠の茶黒（墨の代わり。マジック・影・文字）
 };
 let seed = 9;
@@ -77,12 +79,13 @@ function smooth(pts, close = true) {
 }
 // 紙1枚: 影 → ちぎり辺の芯 → 塗り → 紙の目
 function piece(g, d, fill, o = {}) {
-  const sh = o.sh === undefined ? [3, 3.5] : o.sh;
-  if (sh) el("path", { d, fill: C.sumi, opacity: o.shOp ?? 0.3, transform: `translate(${sh[0]},${sh[1]})` }, g);
+  const sh = o.sh === undefined ? [3, 4] : o.sh;
+  if (sh) el("path", { d, fill: C.sumi, opacity: o.shOp ?? 0.45, transform: `translate(${sh[0]},${sh[1]})` }, g);
   if (o.edge) el("path", { d, fill: "none", stroke: o.edge, "stroke-width": o.ew ?? 3.2, "stroke-linejoin": "round" }, g);
   const p = el("path", { d, fill }, g);
   if (o.op !== undefined) p.setAttribute("opacity", o.op);
   if (o.tex) el("path", { d, fill: `url(#${o.tex})`, opacity: o.texOp ?? 1 }, g);
+  if (o.tex2) el("path", { d, fill: `url(#${o.tex2})`, opacity: 0.8 }, g);
   if (o.line) el("path", { d, fill: "none", stroke: o.line, "stroke-width": o.lw ?? 2.4, "stroke-linejoin": "round" }, g);
   return p;
 }
@@ -113,33 +116,48 @@ function defs(svg) {
 }
 
 // ===== 物 =====
-// 白い軍手（命の札にも使う）。cuff=縁かがりの青、danger=橙の縁取り
+// 白い軍手（自分の手と命の札だけに使う）
+// o.danger=茶黒の太い二重の縁（危ない拍。色ではなく形で知らせる）、o.spread=指を開いた「待った」、
+// o.fist=さっと引いて握った形、o.flip=失った札（点線）、o.knit=毛糸の茶の手袋（見物人用）
 function gunte(g, x, y, s = 1, rot = 0, o = {}) {
   const t = el("g", { transform: `translate(${x},${y}) rotate(${rot}) scale(${s})` }, g);
   const palm = [[-15, -4], [16, -6], [18, 20], [-14, 22]];
-  const fingers = [[-13, -4, -17, -30], [-4, -6, -5, -36], [5, -6, 6, -34], [13, -5, 17, -26]];
+  let fingers = o.spread
+    ? [[-13, -4, -27, -27], [-4, -6, -10, -38], [5, -6, 11, -37], [13, -5, 28, -22]]
+    : [[-13, -4, -17, -30], [-4, -6, -5, -36], [5, -6, 6, -34], [13, -5, 17, -26]];
+  if (o.fist) fingers = fingers.map(([ax, ay, bx, by]) => [ax, ay, ax + (bx - ax) * 0.3, ay + (by - ay) * 0.3]);
   const parts = [];
   for (const [ax, ay, bx, by] of fingers) {
     const w = 4.6 + j(0.5);
     const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy), nx = (-dy / L) * w, ny = (dx / L) * w;
     parts.push(smooth([[ax - nx, ay - ny], [bx - nx * 0.9, by - ny * 0.9], [bx + dx / L * 3.5, by + dy / L * 3.5], [bx + nx * 0.9, by + ny * 0.9], [ax + nx, ay + ny]]));
   }
-  parts.push(smooth([[-12, 12], [-26, 2], [-31, -6], [-25, -9], [-16, 0], [-10, 4]])); // 親指
+  parts.push(o.spread ? smooth([[-12, 12], [-28, 8], [-36, 0], [-31, -5], [-18, 2], [-10, 4]]) : o.fist ? smooth([[-12, 10], [-20, 4], [-18, -2], [-10, 2]]) : smooth([[-12, 12], [-26, 2], [-31, -6], [-25, -9], [-16, 0], [-10, 4]]));
   const body = torn(palm, 1.1, 3);
+  const all = [...parts, body];
   if (o.danger) {
-    for (const d of [...parts, body]) el("path", { d, fill: "none", stroke: C.sumi, "stroke-width": 11, "stroke-linejoin": "round" }, t);
-    for (const d of [...parts, body]) el("path", { d, fill: "none", stroke: C.dai, "stroke-width": 7, "stroke-linejoin": "round" }, t);
+    for (const d of all) el("path", { d, fill: "none", stroke: C.sumi, "stroke-width": 15, "stroke-linejoin": "round" }, t);
+    for (const d of all) el("path", { d, fill: "none", stroke: C.mochi, "stroke-width": 9.5, "stroke-linejoin": "round" }, t);
+    for (const d of all) el("path", { d, fill: "none", stroke: C.sumi, "stroke-width": 4.5, "stroke-linejoin": "round" }, t);
   }
-  for (const d of [...parts, body]) el("path", { d, fill: C.sumi, opacity: o.flip ? 0 : 0.28, transform: "translate(2.5,3)" }, t);
-  const col = o.flip ? "none" : C.mochi;
-  for (const d of parts) el("path", { d, fill: col, stroke: o.flip ? C.sumi : "none", "stroke-width": 2, "stroke-dasharray": o.flip ? "4 3" : "" }, t);
-  el("path", { d: body, fill: col, stroke: o.flip ? C.sumi : "none", "stroke-width": 2, "stroke-dasharray": o.flip ? "4 3" : "" }, t);
-  if (!o.flip) {
-    // 縁かがり（青い糸）と、編み目の印を2〜3か所だけ
-    el("path", { d: cut([[-15, 17], [18, 15], [19, 25], [-14, 27]], 0.8), fill: C.aoD }, t);
+  if (!o.flip) for (const d of all) el("path", { d, fill: C.sumi, opacity: 0.45, transform: "translate(2.5,3.5)" }, t);
+  const col = o.flip ? "none" : o.knit ? C.keyakiD : C.mochi;
+  for (const d of all) {
+    el("path", { d, fill: col, stroke: o.flip ? C.sumi : "none", "stroke-width": 2, "stroke-dasharray": o.flip ? "4 3" : "" }, t);
+    if (o.knit) el("path", { d, fill: "url(#fib)" }, t);
+  }
+  if (!o.flip && !o.knit) {
+    // 縁かがり（青い糸）は別の紙片で貼る。編み目の印は2か所だけ
+    piece(t, cut([[-15, 17], [18, 15], [19, 25], [-14, 27]], 0.8), C.aoD, { sh: [1.2, 1.5] });
     marker(t, [[-12, 21], [-2, 20.5], [8, 21], [16, 20]], 1.2, C.mochi, 0.4);
     marker(t, [[-6, 6], [-3, 7]], 1.3, C.grain, 0.3);
     marker(t, [[6, 2], [9, 3.5]], 1.3, C.grain, 0.3);
+  }
+  if (o.matte) {
+    // 「まって」の白い小札（茶黒の字）
+    const m = el("g", { transform: `scale(${1 / s}) rotate(${-rot})` }, t);
+    piece(m, torn([[18, -58], [70, -60], [71, -38], [19, -36]], 1, 3), C.mochi, { line: C.sumi, lw: 1.6 });
+    el("text", { x: 44, y: -42, "text-anchor": "middle", "font-family": "Stick, sans-serif", "font-size": 17, fill: C.sumi }, m).textContent = "まって";
   }
   return t;
 }
@@ -152,26 +170,27 @@ function usu(g, cx, cy, s, st = {}) {
   const front = ell(0, 98, 112, 40, 14, Math.PI, 0); // 手前の弧（左→右）
   const bodyPts = [[-124, 0], [-121, 22], [-107, 56], [-110, 80], ...front.slice(1, -1), [110, 80], [107, 56], [121, 22], ...ell(0, 0, 124, 50, 10, 0, -Math.PI).slice(0, -1)];
   const bodyD = smooth(bodyPts.map((p) => [p[0] + j(0.6), p[1] + j(0.6)]));
-  piece(t, bodyD, C.keyaki, { tex: "wood", sh: [4, 4], shOp: 0.35 });
+  piece(t, bodyD, C.keyaki, { tex: "wood", tex2: "fib", sh: [4, 5] });
   const clipId = "uc" + Math.floor(rnd() * 1e6);
   el("path", { d: bodyD }, el("clipPath", { id: clipId }, t));
   const fg = el("g", { "clip-path": `url(#${clipId})` }, t);
   // 円筒に見せる: 左寄りに明るい帯、右端に暗い帯（どちらも曲線で切った1枚）
-  piece(fg, smooth([[-92, -5], [-60, -5], [-58, 60], [-62, 150], [-96, 150], [-98, 60]]), C.keyakiL, { sh: null, op: 0.55 });
-  piece(fg, smooth([[84, -5], [140, -5], [140, 150], [80, 150], [88, 60]]), C.keyakiD, { sh: null, op: 0.6 });
+  // 明るい帯・暗い帯は別の紙片として 1〜2px ずらして貼る（継ぎ目と影が見える）
+  piece(fg, smooth([[-92, -5], [-60, -5], [-58, 60], [-62, 150], [-96, 150], [-98, 60]]), "#9e6a42", { sh: [2, 1.5], tex2: "fib" });
+  piece(fg, smooth([[84, -5], [140, -5], [140, 150], [80, 150], [88, 60]]), C.keyakiD, { sh: [-2, 1.5], shOp: 0.5, tex2: "fib" });
   // 腰のくびれの陰と、手斧の跡を2つだけ
   piece(fg, smooth([[-130, 50], [0, 60], [130, 50], [130, 64], [0, 74], [-130, 64]]), C.keyakiD, { sh: null, op: 0.28 });
   marker(fg, [[-30, 22], [-24, 34], [-27, 44]], 1.6, C.keyakiD, 0.5);
   marker(fg, [[40, 84], [47, 96]], 1.6, C.keyakiD, 0.5);
   // 木口（縁）と内側
-  piece(t, smooth(ell(0, 0, 125, 56, 20, 0, Math.PI * 2, 0.006)), C.keyakiL, { tex: "wood", sh: [0, 3], shOp: 0.4 });
-  piece(t, smooth(ell(1, 3, 101, 42, 20, 0, Math.PI * 2, 0.006)), C.keyakiD, { sh: null });
+  piece(t, smooth(ell(1.5, -1, 125, 56, 20, 0, Math.PI * 2, 0.006)), C.keyakiL, { tex: "wood", tex2: "fib", sh: [0, 4] });
+  piece(t, smooth(ell(1, 3, 101, 42, 20, 0, Math.PI * 2, 0.006)), C.keyakiD, { sh: [1.5, -2], shOp: 0.5 });
   marker(t, ell(0, 0, 125, 56, 14, 0.15 * Math.PI, 0.85 * Math.PI), 1.4, C.keyakiD, 0.5);
   // 餅
   const puni = st.puni || 0;
   const mr = st.dent ? [96, 38] : [92 + puni * 3, 35 + puni * 6];
   const my = 5 - puni * 8;
-  el("path", { d: smooth(ell(1, my + 4, mr[0] - 2, mr[1] - 2, 18, 0, Math.PI * 2, 0.01)), fill: C.sumi, opacity: 0.32 }, t);
+  el("path", { d: smooth(ell(2, my + 4, mr[0] - 2, mr[1] - 2, 18, 0, Math.PI * 2, 0.01)), fill: C.sumi, opacity: 0.45 }, t);
   el("path", { d: smooth(ell(0, my, mr[0], mr[1], 18, 0, Math.PI * 2, 0.012)), fill: C.mochi }, t);
   // 残った米粒（縁ほど多い。大きさ・向きをそろえない）
   setSeed(77);
@@ -201,12 +220,12 @@ function kine(g, hx, hy, s = 1, ang = 30, o = {}) {
   const a = (ang * Math.PI) / 180, L = o.len ?? 190, cx = 0, cy = -46;
   const ex = cx + Math.cos(a) * L, ey = cy + Math.sin(a) * L;
   const nx = -Math.sin(a) * 8, ny = Math.cos(a) * 8;
-  piece(t, cut([[cx + nx, cy + ny], [ex + nx, ey + ny], [ex - nx, ey - ny], [cx - nx, cy - ny]], 0.8), C.keyakiL, { tex: "wood", sh: [6, 8], shOp: 0.3 });
+  piece(t, cut([[cx + nx, cy + ny], [ex + nx, ey + ny], [ex - nx, ey - ny], [cx - nx, cy - ny]], 0.8), C.keyakiL, { tex: "wood", tex2: "fib", sh: [6, 8], shOp: 0.4 });
   // 頭（円柱を縦に。下端は餅に隠れ、上端の木口が見える）
   const head = smooth([[-29, -88], [0, -92], [29, -88], [30, -48], [29, -6], [0, -2], [-29, -6], [-30, -48]]);
-  piece(t, head, C.keyakiD, { tex: "wood", sh: [5, 5], shOp: 0.35 });
-  piece(t, smooth([[-24, -84], [-12, -86], [-11, -48], [-12, -8], [-24, -9], [-25, -48]]), C.keyaki, { sh: null, op: 0.95 });
-  piece(t, smooth(ell(0, -89, 29, 10, 12)), C.keyakiL, { sh: null, tex: "wood" });
+  piece(t, head, C.keyakiD, { tex: "wood", tex2: "fib", sh: [5, 6] });
+  piece(t, smooth([[-24, -84], [-12, -86], [-11, -48], [-12, -8], [-24, -9], [-25, -48]]), C.keyaki, { sh: [1.5, 1.5], tex2: "fib" });
+  piece(t, smooth(ell(1.5, -90, 29, 10, 12)), C.keyakiL, { sh: [0, 2.5], tex: "wood" });
   marker(t, ell(0, -89, 29, 10, 10, 0.1, Math.PI - 0.1), 1.4, C.keyakiD, 0.4);
   if (o.grip) gunte(t, ex - Math.cos(a) * 18, ey - Math.sin(a) * 18 - 4, 0.95, ang + 70);
   return t;
@@ -242,7 +261,7 @@ function nawa(g, cx, cy, rx, ry, cur = 2, o = {}) {
 // 吹き出し（ちぎった白い紙）
 function fukidashi(g, x, y, w, h, tail, o = {}) {
   const pts = [[x, y], [x + w, y + j(2)], [x + w + j(2), y + h], ...(tail ? [[tail[0] + 14, y + h], tail, [tail[0] + 2, y + h]] : []), [x + j(2), y + h + j(1)]];
-  return piece(g, torn(pts, 1.4, 4), o.fill || C.mochi, { edge: o.edge, sh: [3, 4], shOp: 0.32 });
+  return piece(g, torn(pts, 1.4, 4), o.fill || C.mochi, { edge: o.edge, sh: [3, 4], shOp: 0.45 });
 }
 // 切り抜き文字（1字ずつ傾け、影を落とす）。stroke で紙の縁を太らせる
 function kiriMoji(g, str, x, y, size, o = {}) {
