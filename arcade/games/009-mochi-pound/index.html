@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ぺったん二人前</title>
+<link href="https://fonts.googleapis.com/css2?family=Stick&family=Zen+Kurenaido&display=swap" rel="stylesheet">
+<style>
+:root{--ao:#2b6cb5;--block:#b8b1a3;--keyaki:#8b5632;--mochi:#fcfbf6;--dai:#e8761f;--sumi:#33251c;--asphalt:#5e5952}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--asphalt);color:var(--sumi);
+  touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+body{font-family:"Zen Kurenaido","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif}
+canvas{position:fixed;left:0;top:0;width:100vw;height:100vh;display:block;touch-action:none}
+.layer{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;pointer-events:none}
+.layer.on{display:flex}
+.layer>*{pointer-events:auto}
+.shade{filter:drop-shadow(3px 4px 0 rgba(51,37,28,.45))}
+.paper{background:var(--mochi);padding:16px 20px 18px;max-width:340px;width:100%}
+.logo{font-family:Stick,"Zen Kurenaido",sans-serif;font-size:min(46px,11.5vw);white-space:nowrap;flex-wrap:nowrap;line-height:1.1;color:var(--mochi);display:flex;justify-content:center;gap:0 2px;margin:0;font-weight:400}
+.logo span{display:inline-block;text-shadow:3px 4px 0 rgba(51,37,28,.55),-1px -1px 0 var(--mochi)}
+.lead{font-size:16px;line-height:1.7;margin:0 0 6px}
+.keys{font-size:13px;line-height:1.6;margin:0 0 10px;opacity:.85}
+.best{font-size:14px;margin:0 0 10px;font-variant-numeric:tabular-nums}
+.btn{font-family:Stick,"Zen Kurenaido",sans-serif;font-size:24px;color:var(--mochi);background:var(--sumi);border:0;padding:10px 26px 12px;cursor:pointer;display:block;margin:0 auto;touch-action:manipulation}
+.btn:focus-visible,.tag:focus-visible,.mini:focus-visible{outline:3px solid var(--dai);outline-offset:3px}
+.btn.sub{font-size:18px;background:transparent;color:var(--sumi);border:2px solid var(--sumi);padding:6px 16px 8px}
+.row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}
+.score{font-family:Stick,"Zen Kurenaido",sans-serif;font-size:54px;line-height:1;margin:4px 0 6px;font-variant-numeric:tabular-nums;text-align:center}
+.score small{font-family:"Zen Kurenaido",sans-serif;font-size:18px;margin-left:6px}
+.res-h{font-family:Stick,"Zen Kurenaido",sans-serif;font-size:24px;margin:0 0 4px;text-align:center;font-weight:400}
+.res-why{font-size:15px;margin:0 0 6px;text-align:center;line-height:1.5}
+.res-st{font-size:14px;margin:0 0 12px;text-align:center;font-variant-numeric:tabular-nums}
+.tagw{position:fixed;display:none;z-index:3}.tagw.on{display:block}
+.tag{font-family:"Zen Kurenaido",sans-serif;font-size:14px;color:var(--sumi);background:var(--mochi);border:0;padding:6px 10px 7px;cursor:pointer;display:block;box-shadow:inset 0 0 0 2px var(--sumi);touch-action:manipulation;min-width:64px}
+.mini{font-family:Stick,sans-serif;font-size:22px;width:44px;height:40px;border:2px solid var(--sumi);background:var(--mochi);color:var(--sumi);cursor:pointer;touch-action:manipulation}
+#calib{font-family:Stick,sans-serif;font-size:24px;min-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+#result{justify-content:flex-start;padding-top:9vh}
+body.wide #result{align-items:flex-end;justify-content:center;padding-top:16px;padding-right:4vw}
+body.wide #title{flex-direction:row;gap:28px}
+body.wide .logo{flex-direction:column;font-size:46px;max-height:330px;align-content:center}
+@media (prefers-reduced-motion:reduce){.logo span{transform:none!important}}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="餅つきの臼と杵"></canvas>
+<div id="title" class="layer on">
+  <h1 class="logo" id="logo" aria-label="ぺったん二人前"></h1>
+  <div class="shade"><div class="paper torn">
+    <p class="lead">右で杵をつき、左で餅を返す。吹き出しの掛け声どおりに、拍に合わせて。<br>「まって」の拍は手が臼の中。杵を下ろさない。</p>
+    <p class="keys">スマホ: 画面の右をタップ＝杵、左＝返し（「みず」は左を長押し）<br>PC: J・→＝杵、F・←＝返し（長押しで水）　M 音　P 一時停止</p>
+    <p class="best" id="bestT"></p>
+    <button class="btn" id="startB">つきはじめる</button>
+  </div></div>
+</div>
+<div id="result" class="layer">
+  <div class="shade"><div class="paper torn">
+    <h2 class="res-h" id="resH"></h2>
+    <p class="res-why" id="resWhy"></p>
+    <div class="score" id="resS"></div>
+    <p class="res-st" id="resSt"></p>
+    <div class="row"><button class="btn" id="againB">もう一回</button></div>
+  </div></div>
+</div>
+<div id="pause" class="layer">
+  <div class="shade"><div class="paper torn">
+    <h2 class="res-h">とまっています</h2>
+    <p class="res-why">拍ずれ調整（いつも遅れて判定されるなら＋）</p>
+    <div class="row" style="margin-bottom:14px"><button class="mini" id="calM" aria-label="調整を減らす">－</button><span id="calib">0ms</span><button class="mini" id="calP" aria-label="調整を増やす">＋</button></div>
+    <div class="row"><button class="btn" id="resumeB">つづける</button><button class="btn sub" id="quitB">やめる</button></div>
+  </div></div>
+</div>
+<div class="tagw shade" id="muteW"><button class="tag torn" id="muteB">音 あり</button></div>
+<div class="tagw shade" id="pauseW"><button class="tag torn" id="pauseB">とめる</button></div>
+<script>
+//SIM-START
+// ---- 遊びの中身（描画と無関係。自動プレイでもそのまま使う）。時刻はすべて秒（拍の時計） ----
+const SIM = (() => {
+  const BPM = [92, 104, 116, 128, 140, 152]; // 臼ごとに一段ずつ速くなる
+  const KPER = 14; // ひと臼でつく回数（杵の拍の数）
+  const GAP = 2.6; // ひと臼つき上がってから次の臼まで
+  const HOLD_W = 0.18; // 水: 左をこれ以上押さえる
+  const LOOSE = 0.42; // 水でない拍にこれ以上押さえると餅がゆるむ
+  // 4拍の型。K=杵 H=返し W=水 R=ひと休み M=まって（手が臼にある拍）
+  const PATS = { A: "KHKH", B: "KKHM", C: "KWKH", D: "KHRR", E: "HMKK", F: "KHMK", G: "RKHM", H: "KRKH", I: "WKHM" };
+  const WEIGHT = [
+    { A: 4, H: 2, D: 1, C: 1, B: 1.2 },
+    { A: 3, B: 2, C: 1, D: 1, F: 1.4, H: 1 },
+    { A: 2, B: 2, C: 2, D: 1, F: 2, E: 1.2, H: 1 },
+    { A: 1, B: 2, C: 2.5, D: 2, E: 2, F: 2, G: 1.6, I: 1 },
+    { A: 1, B: 2, C: 2.5, D: 2, E: 2, F: 2, G: 2, I: 1.5 },
+    { A: 0.6, B: 2, C: 2.5, D: 2, E: 2.4, F: 2.4, G: 2.4, I: 2 },
+  ];
+  const WORD = { K: "ぺったん", H: "はいっ", W: "みず", R: "やすみ", M: "まって" };
+  const COUNT = ["いち", "に", "さん", "し"];
+  function rnd(S) { // mulberry32（状態は数値で持つ＝複製できる）
+    let t = (S.rs = (S.rs + 0x6d2b79f5) | 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function create(seed, t0 = 0) {
+    const S = {
+      rs: seed | 0, u: -1, lives: 3, score: 0, combo: 0, maxCombo: 0, beats: [], bi: 0,
+      phase: "gap", next: t0 + 0.6, usuEnd: 0, b: 0.6, endT: 0, over: "",
+      hand: { where: "rest", from: -9, out: -9, down: -9, holding: false, wBeat: -1, loose: false, mBeat: -1 },
+      lastK: -9, dryLeft: 0, cracks: 0, kPts: 0, kSlots: 0, mochi: [], ev: [], lastPun: -1,
+      st: { perfect: 0, good: 0, miss: 0, stop: 0, swing: 0, dry: 0, loose: 0, wait: 0 },
+      log: [], // [t, 点] 得点の時刻
+    };
+    return S;
+  }
+  const ev = (S, type, t, o) => S.ev.push(Object.assign({ type, t }, o || {}));
+  const UM = [1, 1.4, 1.9, 2.5, 3.2, 4.1];
+  const um = (S) => UM[Math.max(0, S.u)];
+  const cm = (S) => (S.combo >= 16 ? 2 : S.combo >= 8 ? 1.5 : 1);
+  function add(S, pts, t) { S.score = Math.max(0, S.score + Math.round(pts)); S.log.push([t, Math.round(pts)]); }
+  function win(S) { const u = Math.max(0, S.u); return { p: 0.075 - 0.006 * u, g: 0.15 - 0.011 * u, late: 0.02 }; }
+  function pick(S) {
+    const w = WEIGHT[S.u]; let sum = 0;
+    for (const k in w) sum += w[k];
+    let r = rnd(S) * sum;
+    for (const k in w) { r -= w[k]; if (r <= 0) return k; }
+    return "A";
+  }
+  function startUsu(S, t0) {
+    S.u++; S.b = 60 / BPM[S.u]; S.beats = []; S.bi = 0; S.kPts = 0; S.kSlots = 0; S.cracks = 0; S.dryLeft = 0;
+    const b = S.b;
+    for (let i = 0; i < 4; i++) S.beats.push({ t: t0 + i * b, s: "C", w: COUNT[i], bar: 0, i });
+    let k = 0, bar = 1, prev = "";
+    while (k < KPER) {
+      let p = S.u === 0 && bar <= 2 ? "A" : pick(S);
+      if (p === prev && rnd(S) < 0.5) p = pick(S);
+      prev = p;
+      for (let j = 0; j < 4; j++) {
+        const s = PATS[p][j];
+        if (s === "K") k++;
+        S.beats.push({ t: t0 + (bar * 4 + j) * b, s, w: WORD[s], bar, i: S.beats.length, p });
+      }
+      bar++;
+    }
+    S.kSlots = k; S.bars = bar;
+    S.usuEnd = S.beats[S.beats.length - 1].t + b;
+    S.phase = "play";
+    ev(S, "usuStart", t0, { u: S.u });
+  }
+  // いちばん近い、その手がまだ使っていない拍（判定幅の中）
+  function findBeat(S, t, hand) {
+    const W = win(S); let best = null, bd = 9;
+    for (let i = Math.max(0, S.bi - 2); i < S.beats.length; i++) {
+      const bt = S.beats[i]; const d = t - bt.t;
+      if (d < -W.g) break;
+      if (d > W.g + W.late) continue;
+      if (hand === "K" ? bt.kU : bt.hU) continue;
+      if (Math.abs(d) < bd) { bd = Math.abs(d); best = bt; }
+    }
+    return best;
+  }
+  function beatAt(S, t) { // 罰を数える拍（いちばん近い拍）
+    let best = null, bd = 9;
+    for (const bt of S.beats) { const d = Math.abs(t - bt.t); if (d < bd) { bd = d; best = bt; } }
+    return best ? best.i : -1;
+  }
+  function pun(S, t) { const i = beatAt(S, t) + 1000 * S.u; if (S.lastPun === i) return false; S.lastPun = i; return true; }
+  function handIn(S, t) { const h = S.hand; return h.where === "usu" && t >= h.from && (t < h.out || h.holding); }
+  function grade(S, d, dryK) {
+    const W = win(S); const k = dryK ? 0.6 : 1;
+    if (Math.abs(d) <= W.p * k) return "p";
+    if (d <= (W.g + W.late) * k && d >= -W.g * k) return "g";
+    return "";
+  }
+  function press(S, hand, t) {
+    if (S.phase === "over") return;
+    update(S, t);
+    if (hand === "K") {
+      if (t - S.lastK < 0.09) return;
+      S.lastK = t;
+      if (handIn(S, t)) { // 杵は手の前でぴたっと止まる。札が1枚減る
+        S.hand.where = "rest"; S.hand.out = t; S.hand.holding = false; S.combo = 0;
+        const bt = findBeat(S, t, "K"); if (bt) bt.kU = true;
+        const near = S.beats[Math.max(0, beatAt(S, t))];
+        const warm = S.phase !== "play" || !near || near.s === "C"; // 数え始め（いち・に・さん・し）の間は札を減らさない
+        if (!warm && pun(S, t)) {
+          S.lives--; S.st.stop++;
+          ev(S, "stop", t, { lives: S.lives });
+          if (S.lives <= 0) { S.phase = "over"; S.over = "hand"; S.endT = t; }
+        } else ev(S, "stopSoft", t);
+        return;
+      }
+      const bt = findBeat(S, t, "K");
+      if (bt && bt.s === "K") {
+        const g = grade(S, t - bt.t, S.dryLeft > 0);
+        if (g) {
+          bt.kU = true; bt.ok = true;
+          if (S.dryLeft > 0) S.dryLeft--;
+          const v = g === "p" ? 1 : 0.6;
+          S.kPts += v;
+          if (g === "p") { S.combo++; S.st.perfect++; } else S.st.good++;
+          S.maxCombo = Math.max(S.maxCombo, S.combo);
+          add(S, (g === "p" ? 100 : 50) * um(S) * cm(S), t);
+          ev(S, "hit", t, { g, combo: S.combo });
+          if (g === "p" && S.combo > 0 && S.combo % 8 === 0) ev(S, "cheer", t);
+          return;
+        }
+      }
+      // 空振り（拍外れ・型にない拍）: 餅が冷える。終わりにはならない
+      if (bt) bt.kU = true;
+      if (bt && bt.s === "C") { ev(S, "swing", t, { soft: true }); return; }
+      S.combo = 0; S.st.swing++;
+      if (bt && bt.s !== "K" && pun(S, t)) add(S, -20 * um(S), t);
+      ev(S, "swing", t);
+      return;
+    }
+    // 左手
+    const h = S.hand;
+    if (h.holding) return;
+    h.holding = true; h.down = t; h.loose = false;
+    const bt = findBeat(S, t, "H");
+    if (bt && bt.s === "W") { // 手水のボウルへ
+      bt.hU = true; h.where = "bowl"; h.from = t; h.wBeat = bt.i; h.wG = grade(S, t - bt.t, false) || "g";
+      ev(S, "dip", t);
+      return;
+    }
+    let out = t + 0.5 * S.b; h.mBeat = -1;
+    if (bt && bt.s === "H") {
+      const g = grade(S, t - bt.t, false);
+      bt.hU = true;
+      if (g) {
+        bt.ok = true;
+        if (g === "p") { S.combo++; S.st.perfect++; } else S.st.good++;
+        S.maxCombo = Math.max(S.maxCombo, S.combo);
+        add(S, (g === "p" ? 30 : 15) * um(S) * cm(S), t);
+        if (g === "p" && S.combo % 8 === 0) ev(S, "cheer", t);
+      }
+      const nx = S.beats[bt.i + 1];
+      if (nx && nx.s === "M") { out = nx.t + 0.45 * S.b; h.mBeat = nx.i; }
+    } else if (bt && bt.s === "M") {
+      bt.hU = true; out = bt.t + 0.45 * S.b; h.mBeat = bt.i;
+    } else {
+      if (bt) bt.hU = true;
+      if (!bt || bt.s !== "C") S.combo = 0;
+    }
+    h.where = "usu"; h.from = t; h.out = out;
+    ev(S, "turn", t, { long: h.mBeat >= 0 });
+  }
+  function release(S, hand, t) {
+    if (hand !== "H" || S.phase === "over") return;
+    update(S, t);
+    const h = S.hand;
+    if (!h.holding) return;
+    h.holding = false;
+    if (h.where === "bowl") {
+      if (h.wBeat >= 0) waterResult(S, t, t - h.down >= HOLD_W);
+      h.where = "rest"; h.out = t;
+    } else if (h.where === "usu") h.out = Math.max(h.out, t + 0.12);
+  }
+  function waterResult(S, t, ok) {
+    const bt = S.beats[S.hand.wBeat]; S.hand.wBeat = -1;
+    if (!bt) return;
+    bt.done = true;
+    if (ok) {
+      bt.ok = true;
+      if (S.hand.wG === "p") { S.combo++; S.st.perfect++; } else S.st.good++;
+      S.maxCombo = Math.max(S.maxCombo, S.combo);
+      add(S, 40 * um(S) * cm(S), t);
+      S.dryLeft = 0;
+      ev(S, "water", t);
+    } else dry(S, t);
+  }
+  function dry(S, t) {
+    S.combo = 0;
+    if (!pun(S, t)) return;
+    S.dryLeft = 2; S.cracks++; S.st.dry++;
+    add(S, -40 * um(S), t);
+    ev(S, "dry", t);
+  }
+  function update(S, t) {
+    if (S.phase === "over") return;
+    if (S.phase === "gap") { if (t >= S.next) startUsu(S, S.next); else return; }
+    const W = win(S), h = S.hand;
+    if (h.where === "bowl" && h.holding && h.wBeat >= 0 && t - h.down >= HOLD_W) waterResult(S, t, true);
+    if (h.where === "usu" && h.holding && !h.loose && t - h.down >= LOOSE && h.mBeat < 0) {
+      h.loose = true; S.st.loose++;
+      if (pun(S, t)) { add(S, -30 * um(S), t); ev(S, "loose", t); }
+    }
+    if (h.where === "usu" && !h.holding && t >= h.out) h.where = "rest";
+    while (S.bi < S.beats.length && S.beats[S.bi].t + W.g + W.late < t) {
+      const bt = S.beats[S.bi];
+      if (bt.s === "K" && !bt.ok) { S.combo = 0; S.st.miss++; ev(S, "miss", bt.t); }
+      if (bt.s === "H" && !bt.ok) { S.combo = 0; S.st.miss++; }
+      if (bt.s === "W" && !bt.hU) dry(S, bt.t + W.g);
+      if (bt.s === "M" && !bt.kU) { S.st.wait++; add(S, 20 * um(S), bt.t); ev(S, "wait", bt.t); }
+      S.bi++;
+    }
+    if (t >= S.usuEnd) {
+      const q = Math.max(0, Math.min(1, S.kPts / S.kSlots - 0.06 * S.cracks));
+      add(S, 600 * q * um(S), t);
+      S.mochi.push({ q, u: S.u, cracks: S.cracks });
+      ev(S, "usuDone", t, { q });
+      if (S.u >= BPM.length - 1) { S.phase = "over"; S.over = "done"; S.endT = t; }
+      else { S.phase = "gap"; S.next = t + GAP; }
+    }
+  }
+  // いま見えている拍（今の小節と次の小節）だけを返す。ボットも画面もこれだけを読む
+  function visible(S, t) {
+    if (S.phase !== "play") return [];
+    let cur = S.beats[0].bar;
+    for (const bt of S.beats) if (bt.t - S.b / 2 <= t) cur = bt.bar;
+    return S.beats.filter((bt) => bt.bar === cur || bt.bar === cur + 1);
+  }
+  function grains(S) { return S.kSlots ? Math.max(0, 1 - S.kPts / S.kSlots) : 1; }
+  return { create, press, release, update, visible, handIn, grains, win, BPM, KPER, GAP, HOLD_W, WORD };
+})();
+if (typeof module !== "undefined") module.exports = SIM;
+//SIM-END
+// ===== 色画用紙の切り貼り絵の道具（canvas。ロード時・画面の大きさが変わった時に1回だけ描く） =====
+// 借りる物: 公民館の駐車場で開く町内会の餅つきの会場の道具（ブルーシート・ビールケース・軍手・手水ボウル・蒸籠・ブロック塀・もろぶた）
+//   を、子ども会の色画用紙の切り貼り絵で。紙片は「影（茶黒を3〜4pxずらす）→ 塗り → 紙の目」の順。ctx.filter・shadowBlur は使わない
+const C = {
+  ao: "#2b6cb5", aoL: "#4f8bd0", aoD: "#1d5193", block: "#b8b1a3", blockD: "#958e80", blockL: "#d9d5cc",
+  keyaki: "#8b5632", keyakiL: "#b07a4c", keyakiD: "#5f3a20", mochi: "#fcfbf6", mochiS: "#dfe8f2", grain: "#c9d5e3",
+  dai: "#e8761f", usudai: "#f3c7a4", hoho: "#e9a77f", asphalt: "#5e5952", sumi: "#33251c",
+};
+const FH = 'Stick, "Zen Kurenaido", sans-serif', FB = '"Zen Kurenaido", sans-serif';
+let seedV = 9;
+const setSeed = (s) => (seedV = s);
+const rnd = () => (seedV = (seedV * 16807) % 2147483647) / 2147483647;
+const j = (a) => (rnd() * 2 - 1) * a;
+const f1 = (n) => n.toFixed(1);
+const ptsD = (p, close = true) => p.map((q, i) => `${i ? "L" : "M"}${f1(q[0])},${f1(q[1])}`).join("") + (close ? "Z" : "");
+const cut = (pts, amt = 1) => ptsD(pts.map((p) => [p[0] + j(amt), p[1] + j(amt)]));
+function densify(pts, step = 4, amp = 1.5) {
+  const out = [], n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+    const k = Math.max(1, Math.round(len / step)), nx = -dy / len, ny = dx / len;
+    for (let t = 0; t < k; t++) { const u = t / k, w = j(amp) * (rnd() < 0.12 ? 2.2 : 1); out.push([a[0] + dx * u + nx * w, a[1] + dy * u + ny * w]); }
+  }
+  return out;
+}
+const torn = (pts, amp = 1.5, step = 4) => ptsD(densify(pts, step, amp));
+function ell(cx, cy, rx, ry, n = 32, a0 = 0, a1 = Math.PI * 2, rough = 0) {
+  const a = [], full = Math.abs(a1 - a0 - Math.PI * 2) < 1e-6;
+  for (let i = 0; i < (full ? n : n + 1); i++) { const t = a0 + ((a1 - a0) * i) / n, k = 1 + j(rough); a.push([cx + Math.cos(t) * rx * k, cy + Math.sin(t) * ry * k]); }
+  return a;
+}
+function smooth(pts, close = true) {
+  const n = pts.length; let d = `M${f1(pts[0][0])},${f1(pts[0][1])}`;
+  const P = (i) => pts[close ? (i + n) % n : Math.max(0, Math.min(n - 1, i))];
+  for (let i = 0; i < (close ? n : n - 1); i++) {
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    d += `C${f1(p1[0] + (p2[0] - p0[0]) / 6)},${f1(p1[1] + (p2[1] - p0[1]) / 6)} ${f1(p2[0] - (p3[0] - p1[0]) / 6)},${f1(p2[1] - (p3[1] - p1[1]) / 6)} ${f1(p2[0])},${f1(p2[1])}`;
+  }
+  return d + (close ? "Z" : "");
+}
+// 紙の目・欅の筋（タイルを1回だけ作る）
+const PAT = {};
+function makePatterns(g0, k) {
+  const tile = (w, h, fn) => {
+    const c = document.createElement("canvas"); c.width = Math.ceil(w * k); c.height = Math.ceil(h * k);
+    const g = c.getContext("2d"); g.scale(k, k); fn(g);
+    const p = g0.createPattern(c, "repeat"); if (p.setTransform) p.setTransform(new DOMMatrix().scale(1 / k)); return p;
+  };
+  setSeed(101);
+  PAT.fib = tile(157, 139, (g) => {
+    for (let i = 0; i < 52; i++) {
+      const x = rnd() * 157, y = rnd() * 139 * (i % 3 ? 1 : 0.45), a = rnd() * Math.PI, l = 3 + rnd() * 8;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + j(2), y + Math.sin(a) * l * 0.5 + j(2), x + Math.cos(a) * l, y + Math.sin(a) * l);
+      g.strokeStyle = i % 2 ? "rgba(255,255,255,.22)" : "rgba(51,37,28,.1)"; g.lineWidth = 0.9; g.stroke();
+    }
+  });
+  PAT.wood = tile(131, 97, (g) => {
+    for (let i = 0; i < 15; i++) {
+      const x = rnd() * 131, y = rnd() * 97, l = 18 + rnd() * 50;
+      g.beginPath(); g.moveTo(x, y); g.bezierCurveTo(x + j(4), y + l * 0.3, x + j(5), y + l * 0.7, x + j(3), y + l);
+      g.strokeStyle = `rgba(51,37,28,${(0.16 + rnd() * 0.1).toFixed(2)})`; g.lineWidth = 0.8 + rnd() * 1.1; g.stroke();
+    }
+  });
+}
+const P2 = (d) => (typeof d === "string" ? new Path2D(d) : d);
+function fillA(g, p, col, a) { g.save(); g.globalAlpha *= a; g.fillStyle = col; g.fill(p); g.restore(); }
+// 紙1枚: 影 → 芯 → 塗り → 紙の目 → 線
+function piece(g, d, fill, o = {}) {
+  const p = P2(d), sh = o.sh === undefined ? [3, 4] : o.sh;
+  if (sh) { g.save(); g.translate(sh[0], sh[1]); fillA(g, p, C.sumi, o.shOp ?? 0.45); g.restore(); }
+  if (o.edge) { g.save(); g.lineWidth = o.ew ?? 3.2; g.strokeStyle = o.edge; g.lineJoin = "round"; g.stroke(p); g.restore(); }
+  fillA(g, p, fill, o.op ?? 1);
+  if (o.tex) fillA(g, p, PAT[o.tex], o.texOp ?? 1);
+  if (o.tex2) fillA(g, p, PAT[o.tex2], 0.8);
+  if (o.line) { g.save(); g.lineWidth = o.lw ?? 2.4; g.strokeStyle = o.line; g.lineJoin = "round"; g.stroke(p); g.restore(); }
+}
+function marker(g, pts, w = 2.6, color = C.sumi, amp = 0.7, close = false, op = 1) {
+  const q = pts.map((p) => [p[0] + j(amp), p[1] + j(amp)]);
+  g.save(); g.globalAlpha *= op; g.lineWidth = w; g.strokeStyle = color; g.lineCap = "round"; g.lineJoin = "round"; g.stroke(new Path2D(smooth(q, close))); g.restore();
+}
+function oval(g, cx, cy, rx, ry, col, op = 1, rot = 0) { g.save(); g.globalAlpha *= op; g.fillStyle = col; g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2); g.fill(); g.restore(); }
+
+// ---- 白い軍手（自分の手と命の札だけ）。o.spread=指を開いた「待った」 o.danger=茶黒の太い二重の縁 o.fist=握った o.flip=失った札（点線） o.knit=毛糸の茶の手袋
+function gunte(g, x, y, s = 1, rot = 0, o = {}) {
+  g.save(); g.translate(x, y); g.rotate((rot * Math.PI) / 180); g.scale(s, s);
+  const palm = [[-15, -4], [16, -6], [18, 20], [-14, 22]];
+  let fingers = o.spread ? [[-13, -4, -27, -27], [-4, -6, -10, -38], [5, -6, 11, -37], [13, -5, 28, -22]] : [[-13, -4, -17, -30], [-4, -6, -5, -36], [5, -6, 6, -34], [13, -5, 17, -26]];
+  if (o.fist) fingers = fingers.map(([ax, ay, bx, by]) => [ax, ay, ax + (bx - ax) * 0.3, ay + (by - ay) * 0.3]);
+  const parts = [];
+  for (const [ax, ay, bx, by] of fingers) {
+    const w = 4.6 + j(0.5), dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy), nx = (-dy / L) * w, ny = (dx / L) * w;
+    parts.push(smooth([[ax - nx, ay - ny], [bx - nx * 0.9, by - ny * 0.9], [bx + (dx / L) * 3.5, by + (dy / L) * 3.5], [bx + nx * 0.9, by + ny * 0.9], [ax + nx, ay + ny]]));
+  }
+  parts.push(o.spread ? smooth([[-12, 12], [-28, 8], [-36, 0], [-31, -5], [-18, 2], [-10, 4]]) : o.fist ? smooth([[-12, 10], [-20, 4], [-18, -2], [-10, 2]]) : smooth([[-12, 12], [-26, 2], [-31, -6], [-25, -9], [-16, 0], [-10, 4]]));
+  parts.push(torn(palm, 1.1, 3));
+  const all = parts.map((d) => new Path2D(d));
+  g.lineJoin = "round";
+  if (o.danger) {
+    for (const [w, col] of [[15, C.sumi], [9.5, C.mochi], [4.5, C.sumi]]) { g.lineWidth = w; g.strokeStyle = col; for (const p of all) g.stroke(p); }
+  }
+  if (!o.flip) { g.save(); g.translate(2.5, 3.5); for (const p of all) fillA(g, p, C.sumi, 0.45); g.restore(); }
+  for (const p of all) {
+    if (o.flip) { g.save(); g.setLineDash([4, 3]); g.lineWidth = 2; g.strokeStyle = C.sumi; g.stroke(p); g.restore(); }
+    else { fillA(g, p, o.knit ? C.keyakiD : C.mochi, 1); if (o.knit) fillA(g, p, PAT.fib, 1); }
+  }
+  if (!o.flip && !o.knit) {
+    piece(g, cut([[-15, 17], [18, 15], [19, 25], [-14, 27]], 0.8), C.aoD, { sh: [1.2, 1.5] });
+    marker(g, [[-12, 21], [-2, 20.5], [8, 21], [16, 20]], 1.2, C.mochi, 0.4);
+    marker(g, [[-6, 6], [-3, 7]], 1.3, C.grain, 0.3);
+    marker(g, [[6, 2], [9, 3.5]], 1.3, C.grain, 0.3);
+  }
+  g.restore();
+}
+// 吹き出し・札（ちぎった白い紙）
+function paper(g, x, y, w, h, tail, o = {}) {
+  const pts = [[x, y], [x + w, y + j(2)], [x + w + j(2), y + h], ...(tail ? [[tail[0] + 14, y + h], tail, [tail[0] + 2, y + h]] : []), [x + j(2), y + h + j(1)]];
+  piece(g, torn(pts, o.amp ?? 1.4, 4), o.fill || C.mochi, { sh: [3, 4], line: o.line, lw: o.lw });
+}
+// 切り抜き文字（1字ずつ傾けて影を落とす）
+function kiri(g, ch, x, y, size, fill = C.mochi, rot = 0) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.font = `${size}px ${FH}`; g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+  const sw = size * 0.16;
+  g.save(); g.translate(size * 0.07, size * 0.08); g.globalAlpha = 0.45; g.fillStyle = C.sumi; g.strokeStyle = C.sumi; g.lineWidth = sw; g.strokeText(ch, 0, 0); g.fillText(ch, 0, 0); g.restore();
+  g.fillStyle = fill; g.strokeStyle = fill; g.lineWidth = sw; g.strokeText(ch, 0, 0); g.fillText(ch, 0, 0);
+  g.restore();
+}
+// ===== 画面（作り置きの絵を drawImage で置くだけ） =====
+const W = 390, H = 844;
+const USU = { x: 196, y: 440 };
+const BEST_KEY = "mochi_pound_best", CAL_KEY = "mochi_pound_calib";
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const $ = (id) => document.getElementById(id);
+let VW = 0, VH = 0, dpr = 1, scale = 1, ox = 0, oy = 0, hs = 1, K = 1, wide = false;
+let view = { x: 0, y: 0, w: W, h: H };
+const SP = {}; // 作り置きの絵
+let KNOTS = [];
+const SLOTS = [[70, 774], [150, 780], [228, 772], [82, 818], [162, 822], [238, 816]];
+
+function sprite(name, x, y, w, h, fn) {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.ceil(w * K)); c.height = Math.max(1, Math.ceil(h * K));
+  const g = c.getContext("2d"); g.setTransform(K, 0, 0, K, -x * K, -y * K); fn(g);
+  SP[name] = { c, x, y, w, h };
+  return SP[name];
+}
+function put(name, x, y, rot = 0, sx = 1, sy = sx, a = 1) {
+  const s = SP[name]; if (!s) return;
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+  if (a !== 1) ctx.globalAlpha *= a;
+  ctx.drawImage(s.c, s.x, s.y, s.w, s.h); ctx.restore();
+}
+
+// ---- 背景（塀・アスファルト・ブルーシート・見物人・太鼓・蒸籠・小物・臼の胴・縄・もろぶた） ----
+function eye(g, x, y, rx, ry) { piece(g, smooth(ell(x, y, rx, ry, 6, 0, Math.PI * 2, 0.12)), C.sumi, { sh: null }); }
+function ear(g, x, y, r) { piece(g, smooth(ell(x, y, r * 0.7, r, 6, 0, Math.PI * 2, 0.1)), C.usudai, { sh: [1.5, 2] }); }
+function boot(g, x, y, col, w = 15) { piece(g, cut([[x, y - 14], [x + w * 0.6, y - 14], [x + w * 0.65, y - 4], [x + w, y - 3], [x + w, y + 3], [x, y + 3]], 0.8), col, { sh: [2, 2.5] }); }
+function drawBg(g) {
+  setSeed(9);
+  g.fillStyle = C.asphalt; g.fillRect(-5, -5, W + 10, H + 10);
+  piece(g, cut([[-5, 140], [395, 140], [395, 850], [-5, 850]], 0), C.asphalt, { sh: null, tex: "fib" });
+  piece(g, torn([[-5, 690], [60, 684], [62, 694], [-5, 701]], 1.2, 4), C.mochi, { sh: [2, 3], op: 0.75 });
+  // ブロック塀（目地は所々だけ）
+  piece(g, torn([[-5, -5], [395, -5], [395, 166], [-5, 170]], 1, 8), C.block, { sh: [0, 4], tex: "fib" });
+  piece(g, torn([[-5, -5], [395, -5], [395, 16], [-5, 19]], 1.2, 6), C.blockD, { sh: [0, 4] });
+  marker(g, [[0, 62], [60, 61], [118, 63]], 1.6, C.blockD, 0.6);
+  marker(g, [[262, 66], [330, 68], [392, 65]], 1.6, C.blockD, 0.6);
+  marker(g, [[150, 19], [151, 60]], 1.6, C.blockD, 0.5);
+  marker(g, [[352, 68], [351, 108]], 1.6, C.blockD, 0.5);
+  // ブルーシート: 端が見える1枚。縫い代・ハトメ・たたみじわ2本
+  const SH = [[20, 238], [374, 230], [384, 664], [10, 680]];
+  piece(g, cut(SH, 1.5), C.ao, { sh: [3, 5] });
+  const fold = (a, b, w, col, op) => piece(g, cut([[a[0] - w, a[1]], [a[0] + w, a[1]], [b[0] + w, b[1]], [b[0] - w, b[1]]], 0.4), col, { sh: null, op });
+  const foldH = (a, b, w, col, op) => piece(g, cut([[a[0], a[1] - w], [b[0], b[1] - w], [b[0], b[1] + w], [a[0], a[1] + w]], 0.4), col, { sh: null, op });
+  piece(g, cut([[20, 238], [374, 230], [374.5, 237], [20.5, 245]], 0.3), C.aoD, { sh: null, op: 0.55 });
+  piece(g, cut([[10, 673], [384, 657], [384, 664], [10, 680]], 0.3), C.aoD, { sh: null, op: 0.55 });
+  piece(g, cut([[20, 238], [27, 238], [17, 680], [10, 680]], 0.3), C.aoD, { sh: null, op: 0.55 });
+  fold([128, 240], [118, 670], 1.1, C.aoD, 0.5); fold([131, 240], [121, 670], 0.8, C.aoL, 0.55);
+  foldH([24, 352], [378, 343], 1.1, C.aoD, 0.5); foldH([24, 355], [378, 346], 0.8, C.aoL, 0.55);
+  for (const [x, y] of [[30, 248], [366, 241], [24, 666]]) {
+    oval(g, x + 1.5, y + 2, 6, 4.4, C.sumi, 0.45); oval(g, x, y, 6, 4.4, C.blockL);
+    g.strokeStyle = C.blockD; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x, y, 6, 4.4, 0, 0, 7); g.stroke();
+    oval(g, x + 0.5, y + 0.3, 2.4, 1.6, C.asphalt);
+  }
+  piece(g, torn(ell(318, 622, 18, 6, 14, 0, Math.PI * 2, 0.2), 2, 3), C.mochi, { sh: [1.5, 2], op: 0.9 });
+  piece(g, torn(ell(236, 652, 10, 4, 12, 0, Math.PI * 2, 0.25), 2, 3), C.mochi, { sh: [1.5, 2], op: 0.9 });
+  // 見物人と太鼓（塀の前。命の札の分だけ下げる）
+  g.save(); g.translate(0, 12);
+  piece(g, cut([[18, 190], [92, 186], [94, 250], [16, 254]], 1), C.dai, { line: C.sumi, lw: 2 });
+  piece(g, cut([[36, 202], [72, 200], [72, 214], [36, 216]], 0.8), C.sumi, { sh: null, op: 0.75 });
+  marker(g, [[22, 230], [88, 227]], 1.6, C.sumi, 0.6, false, 0.55);
+  boot(g, 26, 262, C.keyakiD, 17); boot(g, 56, 263, C.keyakiD, 17);
+  piece(g, torn([[30, 112], [84, 108], [96, 192], [20, 196]], 1.4, 5), C.asphalt, { tex: "fib" });
+  piece(g, torn([[24, 150], [94, 146], [95, 156], [23, 160]], 1, 4), "#77716a", { sh: [1.5, 2] });
+  piece(g, cut([[36, 166], [52, 165], [52, 180], [36, 181]], 0.8), C.block, { sh: [1.5, 2] });
+  piece(g, torn([[38, 104], [76, 102], [74, 118], [40, 120]], 1, 3), C.block, { sh: [1.5, 2] });
+  ear(g, 34, 82, 7);
+  piece(g, smooth([[38, 70], [56, 62], [74, 70], [76, 92], [68, 106], [56, 110], [44, 104], [36, 90]]), C.usudai, { sh: [2.5, 3], tex2: "fib" });
+  eye(g, 48, 82, 2.6, 3.4); eye(g, 64, 80, 2.2, 3);
+  piece(g, smooth(ell(57, 97, 5, 3.5, 7)), C.sumi, { sh: null });
+  piece(g, torn([[34, 70], [40, 50], [58, 44], [76, 52], [80, 70], [62, 64], [46, 66]], 1.2, 4), C.keyakiL, { tex: "fib" });
+  piece(g, smooth([[96, 150], [104, 132], [150, 128], [158, 148], [152, 196], [104, 200], [96, 182]]), C.keyakiD, { tex: "wood", tex2: "fib" });
+  piece(g, smooth(ell(157, 165, 9, 34, 12)), C.blockL, { line: C.sumi, lw: 2 });
+  for (const [x, y] of [[106, 142], [118, 135], [134, 134], [147, 138], [108, 190], [125, 194], [143, 191]]) oval(g, x + j(1), y + j(1), 1.8, 1.8, C.keyakiL);
+  piece(g, cut([[110, 200], [146, 198], [150, 238], [106, 240]], 1), C.keyaki, { tex2: "fib" });
+  piece(g, cut([[84, 118], [130, 84], [134, 89], [88, 123]], 0.5), C.keyakiL, { sh: [2, 3] });
+  gunte(g, 86, 120, 0.5, 40, { knit: true });
+  boot(g, 176, 236, C.sumi, 16); boot(g, 204, 238, C.sumi, 16);
+  piece(g, torn([[176, 112], [222, 108], [232, 226], [168, 228]], 1.3, 5), C.sumi, { tex: "fib" });
+  piece(g, cut([[194, 160], [210, 159], [211, 174], [195, 175]], 0.8), "#4a3a2e", { sh: [1.5, 2] });
+  piece(g, torn([[180, 108], [218, 104], [222, 122], [176, 126]], 1.2, 4), C.aoD, { tex: "fib" });
+  piece(g, cut([[204, 120], [216, 118], [220, 152], [208, 154]], 0.8), C.aoD, { tex: "fib" });
+  piece(g, torn([[180, 76], [186, 56], [204, 52], [218, 62], [220, 90], [214, 76], [184, 84]], 1, 4), C.keyakiD);
+  piece(g, smooth([[184, 70], [200, 64], [216, 72], [214, 94], [200, 104], [186, 94]]), C.usudai, { sh: [2.5, 3] });
+  eye(g, 193, 78, 2, 2.6); eye(g, 207, 77.5, 2.3, 2.4);
+  piece(g, smooth([[184, 86], [200, 84], [216, 86], [212, 100], [200, 104], [188, 99]]), C.mochi, { sh: [1.5, 2] });
+  marker(g, [[184, 87], [178, 82]], 1.2); marker(g, [[216, 87], [221, 82]], 1.2);
+  boot(g, 242, 230, C.keyaki, 13); boot(g, 262, 231, C.keyaki, 13);
+  piece(g, torn([[240, 152], [276, 150], [282, 218], [236, 220]], 1.3, 4), C.aoD, { tex: "fib" });
+  piece(g, cut([[246, 186], [270, 185], [271, 196], [247, 197]], 0.8), C.ao, { sh: [1.5, 2] });
+  piece(g, smooth([[236, 128], [244, 104], [272, 102], [282, 126], [276, 148], [242, 150]]), C.aoD, { tex: "fib" });
+  piece(g, smooth([[248, 118], [258, 112], [270, 118], [272, 134], [260, 142], [246, 134]]), C.usudai, { sh: [2, 2.5] });
+  piece(g, smooth(ell(250, 132, 3.5, 2.5, 6)), C.hoho, { sh: null }); piece(g, smooth(ell(268, 131, 3.5, 2.5, 6)), C.hoho, { sh: null });
+  eye(g, 254, 124, 1.7, 2.2); eye(g, 264, 125, 1.9, 2.4);
+  marker(g, [[256, 134], [259, 136], [262, 134]], 1.4);
+  boot(g, 290, 232, C.sumi, 16); boot(g, 314, 233, C.sumi, 16);
+  piece(g, smooth([[290, 114], [308, 108], [326, 114], [336, 134], [334, 222], [282, 222], [280, 134]]), C.keyaki, { tex: "fib" });
+  piece(g, cut([[296, 112], [320, 112], [314, 128], [302, 128]], 0.6), C.keyakiD, { sh: [1.5, 2] });
+  piece(g, smooth([[284, 146], [312, 152], [332, 140], [334, 156], [310, 168], [282, 160]]), C.keyakiD, { sh: [2, 3], tex2: "fib" });
+  piece(g, smooth([[290, 140], [300, 136], [306, 142], [298, 148]]), C.usudai, { sh: [1, 1.5] });
+  piece(g, smooth([[318, 148], [326, 144], [330, 150], [322, 154]]), C.usudai, { sh: [1, 1.5] });
+  ear(g, 293, 92, 6); ear(g, 323, 92, 6);
+  piece(g, cut([[294, 76], [322, 75], [324, 102], [312, 110], [298, 108], [293, 100]], 0.8), C.usudai, { sh: [2.5, 3] });
+  eye(g, 303, 90, 1.6, 1.8); eye(g, 315, 89.5, 1.8, 1.7);
+  marker(g, [[297, 89], [303, 86], [309, 89]], 1.3); marker(g, [[310, 89], [316, 86], [322, 89]], 1.3);
+  marker(g, [[303, 101], [313, 101.5]], 1.6);
+  piece(g, cut([[288, 78], [300, 64], [322, 64], [330, 76], [338, 80], [290, 82]], 0.8), C.blockD, { tex: "fib" });
+  g.restore();
+  // 蒸籠（右。湯気は人物から離して別の絵）
+  piece(g, cut([[304, 250], [388, 248], [390, 312], [302, 314]], 0.8), C.keyakiL, { tex: "wood", tex2: "fib", line: C.sumi, lw: 2 });
+  piece(g, cut([[304, 276], [390, 274], [390, 284], [304, 286]], 0.6), C.keyaki, { sh: [1.5, 2] });
+  piece(g, cut([[310, 226], [382, 224], [388, 250], [304, 252]], 0.8), C.keyaki, { tex: "wood", tex2: "fib", line: C.sumi, lw: 2 });
+  piece(g, torn([[316, 222], [374, 218], [382, 238], [356, 234], [332, 242], [312, 236]], 1.3, 4), C.mochi);
+  // 布巾の山・脱いだ長靴・手水のボウル
+  piece(g, torn([[150, 636], [196, 632], [198, 650], [152, 654]], 1.4, 4), C.mochi, { tex: "fib" });
+  piece(g, torn([[156, 626], [192, 623], [194, 637], [154, 640]], 1.4, 4), C.mochi, { tex: "fib" });
+  marker(g, [[160, 634], [188, 631]], 1.2, C.grain, 0.4);
+  const boot2 = (x, y, rot) => {
+    g.save(); g.translate(x, y); g.rotate((rot * Math.PI) / 180);
+    piece(g, cut([[-9, -40], [9, -40], [10, -6], [26, -4], [28, 6], [-10, 6]], 0.8), C.sumi, { tex: "fib" });
+    piece(g, cut([[-10, 2], [28, 2], [28, 7], [-10, 7]], 0.5), C.keyakiD, { sh: [1, 1.5] });
+    piece(g, cut([[-10, -42], [10, -42], [10, -36], [-10, -36]], 0.5), "#5a4a3c", { sh: [1, 1.5] });
+    g.restore();
+  };
+  boot2(352, 654, 0); boot2(300, 668, -80);
+  piece(g, smooth(ell(62, 632, 48, 23, 16)), C.blockD, { sh: [3, 5] });
+  piece(g, smooth(ell(62, 628, 48, 21, 16)), C.blockL, { sh: [0, 2] });
+  piece(g, smooth(ell(63, 630, 40, 16, 16)), "#8fb3da", { sh: [1, -1.5] });
+  // 臼（低く・腰でくびれる・縁が厚い。側面は縁の短径の1.2倍まで）
+  drawUsu(g);
+  // 縄と8つの結び目（大きさ・向きは不揃い。撚りは結び目の間だけ）
+  drawNawa(g, 198, 566, 152, 40);
+  // もろぶた（縁の立った木の箱）
+  const X0 = 14, Y0 = 716, X1 = 376, Y1 = 850;
+  piece(g, cut([[X0, Y0], [X1, Y0 - 3], [X1 + 2, Y1], [X0 - 2, Y1]], 0.8), C.keyakiL, { tex: "wood", tex2: "fib", sh: [4, 6] });
+  piece(g, torn([[268, Y0 + 14], [X1 - 14, Y0 + 10], [X1 - 10, Y1], [252, Y1]], 1.6, 4), C.mochi, { tex: "fib", sh: [2, 3] });
+  marker(g, [[276, Y0 + 40], [310, Y0 + 44], [350, Y0 + 40]], 1.2, C.grain, 0.5);
+  piece(g, torn(ell(150, 796, 124, 38, 18, 0, Math.PI * 2, 0.22), 2.2, 3), C.mochi, { sh: null, op: 0.32 });
+  piece(g, cut([[X0 - 4, Y0 - 8], [X1 + 4, Y0 - 11], [X1 + 4, Y0 + 2], [X0 - 4, Y0 + 5]], 0.6), C.keyaki, { tex: "wood", tex2: "fib", sh: [0, 4] });
+  piece(g, cut([[X0 - 8, Y0 - 6], [X0 + 6, Y0 - 6], [X0 + 4, Y1], [X0 - 10, Y1]], 0.6), C.keyaki, { tex2: "fib", sh: [3, 2] });
+  piece(g, cut([[X1 - 6, Y0 - 9], [X1 + 8, Y0 - 9], [X1 + 10, Y1], [X1 - 4, Y1]], 0.6), C.keyakiD, { tex2: "fib", sh: [-3, 2] });
+}
+function drawUsu(g) {
+  g.save(); g.translate(USU.x, USU.y);
+  piece(g, torn(ell(10, 92, 134, 36, 30), 2, 6), C.aoD, { sh: null, op: 0.85 });
+  const front = ell(0, 62, 112, 36, 14, Math.PI, 0);
+  const bodyPts = [[-124, 0], [-121, 16], [-107, 36], [-111, 52], ...front.slice(1, -1), [111, 52], [107, 36], [121, 16], ...ell(0, 0, 124, 50, 10, 0, -Math.PI).slice(0, -1)];
+  const bodyD = smooth(bodyPts.map((p) => [p[0] + j(0.6), p[1] + j(0.6)]));
+  piece(g, bodyD, C.keyaki, { tex: "wood", tex2: "fib", sh: [4, 5] });
+  g.save(); g.clip(new Path2D(bodyD));
+  piece(g, smooth([[-92, -5], [-60, -5], [-58, 50], [-62, 120], [-96, 120], [-98, 50]]), "#9e6a42", { sh: [2, 1.5], tex2: "fib" });
+  piece(g, smooth([[84, -5], [140, -5], [140, 120], [80, 120], [88, 50]]), C.keyakiD, { sh: [-2, 1.5], shOp: 0.5, tex2: "fib" });
+  piece(g, smooth([[-130, 30], [0, 40], [130, 30], [130, 42], [0, 52], [-130, 42]]), C.keyakiD, { sh: null, op: 0.28 });
+  marker(g, [[-30, 54], [-24, 66], [-27, 74]], 1.6, C.keyakiD, 0.5);
+  marker(g, [[40, 74], [47, 84]], 1.6, C.keyakiD, 0.5);
+  g.restore();
+  piece(g, smooth(ell(1.5, -1, 125, 52, 20, 0, Math.PI * 2, 0.006)), C.keyakiL, { tex: "wood", tex2: "fib", sh: [0, 4] });
+  piece(g, smooth(ell(1, 3, 101, 40, 20, 0, Math.PI * 2, 0.006)), C.keyakiD, { sh: [1.5, -2], shOp: 0.5 });
+  marker(g, ell(0, 0, 125, 52, 14, 0.15 * Math.PI, 0.85 * Math.PI), 1.4, C.keyakiD, 0.5);
+  g.restore();
+}
+function drawNawa(g, cx, cy, rx, ry) {
+  const a0 = 0.14 * Math.PI, a1 = 0.86 * Math.PI;
+  const pts = ell(cx, cy, rx, ry, 30, a0, a1, 0.004);
+  const path = new Path2D(smooth(pts, false));
+  g.save(); g.lineCap = "round";
+  g.translate(2, 3); g.globalAlpha = 0.3; g.strokeStyle = C.sumi; g.lineWidth = 9; g.stroke(path);
+  g.restore();
+  g.save(); g.lineCap = "round"; g.strokeStyle = C.keyakiL; g.lineWidth = 7; g.stroke(path); g.restore();
+  KNOTS = [];
+  for (let i = 0; i < 8; i++) {
+    const u = (i + 0.5 + j(0.1)) / 8, ang = a1 - (a1 - a0) * u;
+    KNOTS.push([cx + Math.cos(ang) * rx, cy + Math.sin(ang) * ry, 6 + rnd() * 3.5, 4.5 + rnd() * 2.5, j(0.6)]);
+  }
+  // 撚りの印: 結び目の間にだけ、本数も向きもそろえない
+  for (let i = 0; i < 7; i++) {
+    const [x0, y0] = KNOTS[i], [x1, y1] = KNOTS[i + 1], n = 1 + Math.floor(rnd() * 3);
+    for (let k = 0; k < n; k++) {
+      const u = 0.3 + (0.4 * (k + rnd() * 0.6)) / n, x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u;
+      marker(g, [[x - 2 + j(1), y - 3], [x + 2 + j(1), y + 3]], 1.2, C.keyakiD, 0.3);
+    }
+  }
+  for (const [x, y, rx2, ry2, r] of KNOTS) {
+    g.save(); g.translate(x, y); g.rotate(r);
+    piece(g, smooth(ell(0, 0, rx2, ry2, 7, 0, Math.PI * 2, 0.18)), C.keyakiD, { sh: [1.5, 2] });
+    marker(g, [[-rx2 * 0.5, -1], [rx2 * 0.4, 1]], 1, C.keyakiL, 0.4);
+    g.restore();
+  }
+}
+
+// ---- 動く物の絵 ----
+let GR = []; // 米粒（位置は固定。縁ほど多い）
+function buildSprites() {
+  makePatterns(ctx, K);
+  sprite("bg", 0, 0, W, H, drawBg);
+  // 餅（臼の中心が原点）
+  const MB = [-108, -50, 216, 100];
+  sprite("mochi", ...MB, (g) => {
+    setSeed(31);
+    piece(g, smooth(ell(2, 9, 90, 31, 18, 0, Math.PI * 2, 0.01)), C.sumi, { sh: null, op: 0.45 });
+    piece(g, smooth(ell(0, 5, 92, 33, 18, 0, Math.PI * 2, 0.012)), C.mochi, { sh: null });
+  });
+  setSeed(77); GR = [];
+  for (let i = 0; i < 72; i++) {
+    const a = rnd() * Math.PI * 2, r = Math.sqrt(0.16 + rnd() * 0.84);
+    GR.push([Math.cos(a) * r * 83, 5 + Math.sin(a) * r * 27, 2 + rnd() * 2.6, rnd() * Math.PI, r]);
+  }
+  GR.sort((a, b) => b[4] - a[4]);
+  for (let l = 0; l <= 14; l++) sprite("gr" + l, ...MB, (g) => { for (const [x, y, r, a] of GR.slice(0, Math.round((GR.length * l) / 14))) oval(g, x, y, r, r * 0.55, C.grain, 1, a); });
+  sprite("dent", ...MB, (g) => { setSeed(5); piece(g, smooth([[18, -17], [52, -13], [66, 7], [50, 27], [16, 29], [30, 7]]), C.mochiS, { sh: null }); });
+  sprite("gloss", ...MB, (g) => { setSeed(6); piece(g, cut([[-62, -15], [-28, -27], [-20, -21], [-56, -9]], 0.6), "#ffffff", { sh: null }); piece(g, cut([[-14, -26], [-4, -28], [-3, -25], [-13, -23]], 0.4), "#ffffff", { sh: null }); });
+  for (let i = 0; i < 3; i++) sprite("crack" + i, ...MB, (g) => {
+    setSeed(40 + i * 7);
+    const sx = [-40, 30, -6][i], sy = [-6, 12, 18][i];
+    marker(g, [[sx, sy], [sx + 9 + j(3), sy + 4 + j(2)], [sx + 16, sy - 1 + j(2)], [sx + 26 + j(3), sy + 3]], 1.6, "#93a6be", 0.5);
+    marker(g, [[sx + 16, sy], [sx + 20, sy + 8 + j(2)]], 1.2, "#93a6be", 0.4);
+  });
+  // 丸めた餅（もろぶたの上）: 白い楕円・青みの白の三日月・白い紙のつや。出来が悪いほど米粒が残る
+  sprite("maru", -42, -28, 88, 60, (g) => {
+    setSeed(34);
+    piece(g, smooth(ell(0, 0, 36, 19, 14, 0, Math.PI * 2, 0.03)), C.mochi, { sh: [3, 5] });
+    piece(g, smooth([[-7, 10], [22, 4], [26, 10], [4, 16]]), C.mochiS, { sh: null });
+    piece(g, cut([[-22, -9], [-4, -15], [0, -12], [-18, -6]], 0.5), "#ffffff", { sh: null });
+  });
+  for (let l = 0; l <= 4; l++) sprite("maruG" + l, -40, -22, 80, 44, (g) => { setSeed(35); for (let i = 0; i < l * 6; i++) { const a = rnd() * 6.28, r = 0.55 + rnd() * 0.4; oval(g, Math.cos(a) * r * 32, Math.sin(a) * r * 15, 1.6 + rnd(), 0.9, C.grain, 1, rnd() * 3); } });
+  sprite("fold", -26, -14, 52, 28, (g) => { setSeed(8); piece(g, smooth(ell(0, 0, 20, 9, 10, Math.PI, Math.PI * 2).concat([[20, 2], [-20, 2]])), C.mochi, { sh: [1.5, 2.5] }); oval(g, 4, -2, 9, 2.5, C.mochiS, 0.8); });
+  for (let i = 0; i < 4; i++) sprite("frag" + i, -10, -9, 20, 18, (g) => { setSeed(60 + i * 3); const r = 4 + i * 1.2; piece(g, torn(ell(0, 0, r, r * 0.75, 8), 1, 3), C.mochi, { sh: [2, 3] }); });
+  // 横杵: 頭は横向き（長さ:直径 ≒ 1.6:1）、両端の木口と柄の差し込み
+  sprite("kineHead", -46, -32, 96, 66, (g) => {
+    setSeed(12);
+    const body = smooth([[-36, -22], [0, -23], [36, -22], [37, 0], [36, 22], [0, 23], [-36, 22], [-37, 0]]);
+    piece(g, body, C.keyakiD, { tex: "wood", tex2: "fib", sh: [4, 5] });
+    piece(g, smooth([[-34, -19], [0, -20], [34, -19], [34, -9], [0, -8], [-34, -9]]), C.keyaki, { sh: [1.5, 1.5], tex2: "fib" });
+    piece(g, smooth(ell(-36, 0, 8, 22, 12)), C.keyakiL, { sh: [1.5, 1.5], tex: "wood" });
+    piece(g, smooth(ell(37, 0, 8, 22, 12)), C.keyakiL, { sh: [-1.5, 1.5], tex: "wood" });
+    marker(g, ell(-36, 0, 8, 22, 8, -1.2, 1.2), 1.2, C.keyakiD, 0.3);
+    piece(g, smooth(ell(4, 6, 10, 8, 10)), C.sumi, { sh: null, op: 0.85 });
+  });
+  sprite("handle", -2, -10, 214, 22, (g) => { setSeed(13); piece(g, cut([[0, -7], [204, -6], [205, 7], [0, 8]], 0.8), C.keyakiL, { tex: "wood", tex2: "fib", sh: [3, 5], shOp: 0.4 }); });
+  sprite("grip", -40, -48, 80, 86, (g) => { setSeed(14); gunte(g, 0, 0, 0.95, 0); });
+  // 自分の左手（軍手）: ふつう・待った（二重の縁）・握った
+  sprite("glove", -48, -50, 92, 88, (g) => { setSeed(21); gunte(g, 0, 0, 1, 0); });
+  sprite("gloveD", -50, -54, 100, 92, (g) => { setSeed(21); gunte(g, 0, 0, 1, 0, { spread: true, danger: true }); });
+  sprite("gloveF", -40, -30, 76, 64, (g) => { setSeed(21); gunte(g, 0, 0, 1, 0, { fist: true }); });
+  sprite("matte", -6, -6, 80, 36, (g) => { setSeed(22); paper(g, 0, 0, 70, 28, null, { line: C.sumi, lw: 1.6 }); g.fillStyle = C.sumi; g.font = `20px ${FH}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("まって", 35, 15); });
+  sprite("sleeve", -104, -20, 112, 42, (g) => { setSeed(23); piece(g, torn([[-104, -15], [-4, -16], [-2, 14], [-104, 16]], 1.4, 5), C.sumi, { tex: "fib" }); piece(g, cut([[-14, -17], [2, -17], [3, 16], [-12, 17]], 0.6), C.aoD, { sh: [1.5, 2] }); });
+  sprite("uline", -2, -2, SLOT - 10, 12, (g) => { setSeed(19); piece(g, cut([[0, 0], [SLOT - 16, -0.5], [SLOT - 16, 5], [0, 5.5]], 0.4), C.dai, { sh: [1.5, 2] }); });
+  sprite("glint", 38, 616, 30, 12, (g) => { setSeed(18); piece(g, cut([[42, 621], [62, 619], [61, 623], [43, 625]], 0.5), "#ffffff", { sh: null }); });
+  sprite("beatTag", -13, -40, 30, 48, (g) => { setSeed(24); piece(g, cut([[-9, -34], [9, -35], [10, -6], [-8, -5]], 0.8), C.dai, { line: C.sumi, lw: 2 }); marker(g, [[-1, -5], [0, 1]], 1.6); });
+  // 湯気: ちぎった薄紙2枚（蒸籠の真上、人物から離す）
+  sprite("steam1", 344, 150, 44, 80, (g) => { setSeed(25); piece(g, torn([[354, 222], [360, 200], [356, 178], [366, 160], [378, 168], [376, 196], [372, 222]], 2, 5), C.mochi, { sh: null, op: 0.6 }); });
+  sprite("steam2", 350, 120, 40, 56, (g) => { setSeed(26); piece(g, torn([[362, 166], [368, 146], [380, 130], [384, 148], [374, 166]], 1.8, 4), C.mochi, { sh: null, op: 0.42 }); });
+  // 切り抜き文字
+  [..."ぺったん"].forEach((ch, i) => sprite("pt" + i, -24, -24, 50, 50, (g) => kiri(g, ch, 0, 0, 32)));
+  [..."ぴたっ"].forEach((ch, i) => sprite("pi" + i, -24, -24, 50, 50, (g) => kiri(g, ch, 0, 0, 32)));
+  sprite("pitaLines", -2, -4, 52, 12, (g) => { marker(g, [[0, 0], [16, 0.5]], 2.6); marker(g, [[30, 1], [46, 0]], 2.6); });
+  sprite("yoi", -6, -6, 132, 50, (g) => { setSeed(27); paper(g, 0, 0, 118, 34, [18, 46]); g.fillStyle = C.sumi; g.font = `20px ${FH}`; g.textBaseline = "middle"; g.fillText("よいしょー！", 10, 18); });
+  sprite("abu", -6, -6, 132, 50, (g) => { setSeed(28); paper(g, 0, 0, 112, 34, [24, 46]); g.fillStyle = C.sumi; g.font = `20px ${FH}`; g.textBaseline = "middle"; g.fillText("あぶない！", 12, 18); });
+  sprite("ue", -24, -24, 52, 52, (g) => { setSeed(29); piece(g, torn(ell(0, 0, 20, 19, 18), 1.2, 3), C.dai, { line: C.sumi, lw: 2 }); g.fillStyle = C.sumi; g.font = `26px ${FH}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("上", 0, 1); });
+  // 命の札（白い紙1枚の上に軍手3枚）
+  sprite("livesBg", -4, -4, 128, 58, (g) => { setSeed(30); paper(g, 0, 0, 116, 48, null); });
+  sprite("life", -24, -26, 48, 48, (g) => { setSeed(32); gunte(g, 0, 0, 0.5, -4); });
+  sprite("lifeOff", -24, -26, 48, 48, (g) => { setSeed(32); gunte(g, 0, 0, 0.5, -4, { flip: true }); });
+  for (const k in NOTE) delete NOTE[k];
+  balloonKey = ""; scoreKey = "";
+}
+const NOTE = {};
+function noteSprite(text) {
+  if (NOTE[text]) return NOTE[text];
+  ctx.font = `20px ${FB}`; const w = Math.ceil(ctx.measureText(text).width) + 22;
+  NOTE[text] = sprite("note:" + text, -w / 2 - 4, -18, w + 12, 42, (g) => { setSeed(text.length * 13); paper(g, -w / 2, -14, w, 30, null); g.fillStyle = C.sumi; g.font = `20px ${FB}`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, 0, 2); });
+  return NOTE[text];
+}
+
+// ---- 掛け声の吹き出し（小節が変わった時だけ描き直す） ----
+const BX = 12, BY = 236, BW = 366, BH = 76, SLOT = 84;
+let balloonKey = "", balloon = null, ulineX = [];
+function drawBalloon(rows, shake, key) {
+  if (key === balloonKey && balloon) return;
+  balloonKey = key;
+  const c = balloon && balloon.width === Math.ceil((BW + 20) * K) ? balloon : document.createElement("canvas");
+  c.width = Math.ceil((BW + 20) * K); c.height = Math.ceil((BH + 34) * K);
+  const g = c.getContext("2d"); g.setTransform(K, 0, 0, K, 6 * K, 26 * K);
+  setSeed(33);
+  // 太鼓の人へ向かう尻尾（上の辺）
+  const pts = [[0, 0], [40, -1], [30, -22], [62, 0], [BW, j(2)], [BW + j(2), BH], [j(2), BH + j(1)]];
+  piece(g, torn(pts, 1.4, 4), C.mochi, { sh: [3, 4] });
+  g.textAlign = "center"; g.textBaseline = "middle";
+  rows.forEach((row, r) => {
+    const y = 20 + r * 36;
+    row.forEach((tk, i) => {
+      if (!tk) return;
+      const x = 14 + SLOT / 2 + i * SLOT;
+      const rot = shake ? j(0.35) : 0;
+      g.save(); g.translate(x, y + (shake ? j(4) : 0)); g.rotate(rot);
+      g.font = `20px ${FH}`;
+      if (tk.s === "M") {
+        const w = g.measureText(tk.w).width + 14;
+        g.fillStyle = C.sumi; g.fillRect(-w / 2, -14, w, 28);
+        g.fillStyle = C.mochi; g.fillText(tk.w, 0, 1);
+      } else {
+        g.fillStyle = tk.s === "W" ? C.aoD : tk.s === "R" || tk.s === "C" ? C.keyaki : C.sumi;
+        g.globalAlpha = r === 1 ? 0.62 : 1;
+        g.fillText(tk.w, 0, 1);
+      }
+      g.restore();
+    });
+  });
+  balloon = c;
+}
+
+// ---- 状態 ----
+let state = "title", S = null, V = null, muted = false, calib = 0, best = 0;
+try { best = +localStorage.getItem(BEST_KEY) || 0; calib = +localStorage.getItem(CAL_KEY) || 0; } catch (e) {}
+let pauseAt = 0, pausedTotal = 0;
+const realNow = () => (performance.now() - pausedTotal) / 1000;
+function lat() { return (ac ? ac.outputLatency || ac.baseLatency || 0 : 0) + calib / 1000; }
+const simNow = () => realNow() - lat();
+function newV() { return { k: { t: -9, kind: "" }, hitT: -9, hitG: "", stopT: -9, fold: -9, dipT: -9, waterT: -9, notes: [], bubbles: [], lifeT: [-9, -9, -9], doneT: -9, doneSlot: 0, shakeUntil: -9, sched: new Set(), evI: 0, gx: 38, gy: 514, gr: 1.15, fistUntil: -9, over: 0 }; }
+
+// ---- 音（Web Audio。最初のタップで鳴らし始める） ----
+let ac = null, master = null, NB = null;
+function audioInit() {
+  try {
+    if (!ac) {
+      const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+      ac = new A(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.8; master.connect(ac.destination);
+      NB = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = NB.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ac.state !== "running") ac.resume();
+  } catch (e) { ac = null; }
+}
+function env(gn, t, a, d, v) { gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(v, t + a); gn.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function tone(type, f0, f1, t, dur, v) { const o = ac.createOscillator(), gn = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur); env(gn, t, 0.004, dur, v); o.connect(gn); gn.connect(master); o.start(t); o.stop(t + dur + 0.05); }
+function hiss(t, dur, v, type, f, q = 1) { const s = ac.createBufferSource(); s.buffer = NB; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gn = ac.createGain(); env(gn, t, 0.003, dur, v); s.connect(fl); fl.connect(gn); gn.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05); }
+const SFX = {
+  drum(t, acc) { tone("sine", acc ? 120 : 100, 52, t, 0.26, acc ? 0.75 : 0.42); hiss(t, 0.05, acc ? 0.22 : 0.12, "lowpass", 900); },
+  pettan(t, p) { hiss(t, 0.12, 0.55, "lowpass", 320); tone("sine", 95, 48, t, 0.2, 0.6); if (p) tone("triangle", 150, 128, t + 0.01, 0.32, 0.22); },
+  pechi(t) { hiss(t, 0.05, 0.3, "highpass", 1600); },
+  splash(t) { hiss(t, 0.2, 0.28, "bandpass", 900, 0.8); },
+  creak(t) { tone("sawtooth", 250, 190, t, 0.18, 0.08); hiss(t + 0.06, 0.4, 0.16, "bandpass", 2600, 2); },
+  cheer(t) { tone("triangle", 392, 0, t, 0.12, 0.14); tone("triangle", 494, 0, t + 0.1, 0.12, 0.14); tone("triangle", 587, 0, t + 0.2, 0.2, 0.14); },
+  purun(t) { tone("sine", 280, 620, t, 0.16, 0.25); tone("sine", 120, 60, t + 0.55, 0.2, 0.4); },
+  swing(t) { hiss(t, 0.08, 0.16, "bandpass", 500); tone("sine", 70, 50, t, 0.1, 0.2); },
+  dry(t) { hiss(t, 0.09, 0.2, "highpass", 3200); },
+};
+function sfx(name, ...a) { if (!ac || muted) return; try { SFX[name](ac.currentTime + 0.005, ...a); } catch (e) {} }
+
+// ---- 画面の割り付け ----
+function layout() {
+  VW = innerWidth; VH = innerHeight; dpr = Math.min(2, window.devicePixelRatio || 1);
+  wide = VW > VH * 1.1;
+  document.body.classList.toggle("wide", wide);
+  setView();
+  hs = wide ? Math.min(1.4, Math.max(1, VH / 390)) : scale;
+  K = Math.max(scale, hs, wide ? Math.min(VW / W, VH / 464) : 0) * dpr;
+  cv.width = Math.round(VW * dpr); cv.height = Math.round(VH * dpr);
+  buildSprites();
+  // 「音」「とめる」の札: 縦はもろぶたの布巾の上、横は右下
+  const mw = $("muteW"), pw = $("pauseW");
+  if (wide) { mw.style.left = pw.style.left = ""; mw.style.right = pw.style.right = "14px"; mw.style.top = pw.style.top = ""; mw.style.bottom = "62px"; pw.style.bottom = "14px"; }
+  else {
+    const sx = (x) => ox + x * scale, sy = (y) => oy + y * scale;
+    mw.style.right = pw.style.right = ""; mw.style.bottom = pw.style.bottom = "";
+    mw.style.left = pw.style.left = Math.round(Math.min(VW - 92, sx(286))) + "px";
+    mw.style.top = Math.round(Math.min(VH - 96, sy(740))) + "px"; pw.style.top = Math.round(Math.min(VH - 50, sy(788))) + "px";
+  }
+}
+// 横画面: 遊ぶ間は臼のまわり（吹き出し〜手水のボウル）を大きく、結果ではもろぶたまで
+function setView() {
+  view = !wide ? { x: 0, y: 0, w: W, h: H } : state === "result" ? { x: 0, y: 380, w: W, h: 464 } : { x: 0, y: 212, w: W, h: 500 };
+  scale = Math.min(VW / view.w, VH / view.h);
+  ox = (VW - view.w * scale) / 2; oy = wide ? (VH - view.h * scale) / 2 : Math.max(0, (VH - view.h * scale) / 2);
+  if (wide && state === "result") ox = Math.max(12, Math.min(ox, VW * 0.3 - (view.w * scale) / 2));
+}
+function tornClip(el, seedN) {
+  setSeed(seedN); const p = [];
+  for (let x = 0; x <= 100; x += 3) p.push(`${x}% ${f1(Math.abs(j(2.2)))}px`);
+  for (let y = 0; y <= 100; y += 4) p.push(`calc(100% - ${f1(Math.abs(j(2.2)))}px) ${y}%`);
+  for (let x = 100; x >= 0; x -= 3) p.push(`${x}% calc(100% - ${f1(Math.abs(j(2.2)))}px)`);
+  for (let y = 100; y >= 0; y -= 4) p.push(`${f1(Math.abs(j(2.2)))}px ${y}%`);
+  el.style.clipPath = `polygon(${p.join(",")})`;
+}
+
+// ---- 描く ----
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const KUP = { x: 270, y: 356, s: 1.2, r: -0.1 }, KHIT = { x: 236, y: 420, s: 1, r: 0.03 }, KSTOP = { x: 176, y: 356, s: 1.06, r: -0.05 };
+const GRIP = { x: 404, y: 494 };
+const HAND = { rest: { x: 38, y: 514, r: 1.15 }, usu: { x: 144, y: 446, r: 0.3 }, bowl: { x: 66, y: 606, r: 0.14 } };
+let lastFrame = 0, fpsLog = [];
+function frame(ts) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (ts - lastFrame) / 1000 || 0.016); lastFrame = ts;
+  fpsLog.push(ts); if (fpsLog.length > 240) fpsLog.shift();
+  if (state === "play") step();
+  const vt = state === "pause" ? (pauseAt - pausedTotal) / 1000 - lat() : S ? simNow() : performance.now() / 1000;
+  draw(vt, dt);
+}
+function step() {
+  const now = simNow();
+  SIM.update(S, now);
+  // 太鼓（拍の頭）を少し先まで予約する
+  if (ac && S.phase === "play") {
+    const rn = realNow();
+    for (const bt of S.beats) {
+      const key = S.u * 1000 + bt.i;
+      if (bt.t < rn - 0.03 || bt.t > rn + 0.25 || V.sched.has(key)) continue;
+      V.sched.add(key);
+      if (!muted) try { SFX.drum(ac.currentTime + Math.max(0, bt.t - rn), bt.i % 4 === 0); } catch (e) {}
+    }
+  }
+  for (; V.evI < S.ev.length; V.evI++) onEvent(S.ev[V.evI]);
+  if (S.phase === "over" && !V.over) V.over = now;
+  if (V.over && now - V.over > (S.over === "hand" ? 1.4 : 1.8)) showResult();
+}
+function addNote(text, x, y, t, dur = 1) { V.notes = V.notes.filter((n) => n.t + n.dur > t - 0.2).slice(-2); V.notes.push({ text, x, y, t, dur }); }
+function onEvent(e) {
+  const t = e.t;
+  switch (e.type) {
+    case "hit": V.k = { t, kind: "hit" }; V.hitT = t; V.hitG = e.g; sfx("pettan", e.g === "p"); break;
+    case "swing": V.k = { t, kind: "swing" }; sfx("swing"); if (!e.soft) addNote("からぶり", 300, 470, t, 0.7); break;
+    case "stop":
+      V.k = { t, kind: "stop" }; V.stopT = t; V.fistUntil = t + 0.45; V.shakeUntil = t + S.b * 1.2;
+      V.lifeT[e.lives] = t; V.bubbles.push({ s: "abu", x: wide ? 230 : 150, y: wide ? 596 : 168, t, r: -0.05 });
+      addNote("手が臼にあった", 112, 474, t, 1.3); sfx("creak"); break;
+    case "stopSoft": V.k = { t, kind: "stop" }; V.fistUntil = t + 0.3; break;
+    case "turn": V.fold = t; sfx("pechi"); break;
+    case "dip": V.dipT = t; sfx("splash"); break;
+    case "water": V.waterT = t; break;
+    case "dry": addNote("みずを忘れた", 96, 520, t, 1.1); sfx("dry"); break;
+    case "loose": addNote("みずのつけすぎ", 110, 520, t, 1.1); break;
+    case "wait": addNote("待てた", 96, 330, t, 0.55); break;
+    case "cheer": sfx("cheer"); for (const [x, y, r] of wide ? [[214, 596, -0.05], [110, 636, 0.04]] : [[150, 50, -0.06], [242, 76, 0.05], [196, 150, -0.02]]) V.bubbles.push({ s: "yoi", x, y, t: t + V.bubbles.length * 0.06, r }); break;
+    case "usuDone": V.doneT = t; V.doneSlot = S.mochi.length - 1; sfx("purun"); break;
+  }
+}
+function draw(vt, dt) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = C.asphalt; ctx.fillRect(0, 0, cv.width, cv.height);
+  const k = dpr * scale;
+  ctx.setTransform(k, 0, 0, k, dpr * (ox - view.x * scale), dpr * (oy - view.y * scale));
+  ctx.save(); ctx.beginPath(); ctx.rect(view.x, view.y, view.w, view.h); ctx.clip();
+  put("bg", 0, 0);
+  const wt = performance.now() / 1000;
+  put("steam1", 0, Math.sin(wt * 0.9) * 3, 0, 1, 1, 0.8 + 0.2 * Math.sin(wt * 0.5));
+  put("steam2", 0, Math.sin(wt * 0.7 + 1) * 3, 0, 1, 1, 0.8 + 0.2 * Math.sin(wt * 0.5 + 2));
+  const play = S && (state === "play" || state === "result" || state === "pause");
+  // もろぶたの餅
+  if (play) {
+    S.mochi.forEach((m, i) => {
+      if (i === V.doneSlot && vt - V.doneT < 0.8) return;
+      const [x, y] = SLOTS[i];
+      const land = vt - V.doneT - 0.8;
+      const b = i === V.doneSlot && land >= 0 && land < 0.25 ? 1 + 0.08 * Math.sin((land / 0.25) * Math.PI) : 1;
+      put("maru", x, y, 0, b, 2 - b);
+      put("maruG" + Math.min(4, Math.round((1 - m.q) * 6)), x, y);
+    });
+    if (state === "result" && S.mochi.length) {
+      let bi = 0; S.mochi.forEach((m, i) => { if (m.q > S.mochi[bi].q) bi = i; });
+      put("ue", SLOTS[bi][0] + 30, SLOTS[bi][1] - 18, -0.1);
+    }
+  }
+  // いまの拍: 縄の結び目に橙の札
+  let curBeat = null;
+  if (play && S.phase === "play") {
+    for (const bt of S.beats) if (bt.t - S.b * 0.5 <= vt) curBeat = bt;
+    if (curBeat) { const kn = KNOTS[(curBeat.bar % 2) * 4 + (curBeat.i - (curBeat.bar === 0 ? 0 : 4)) % 4]; if (kn) put("beatTag", kn[0], kn[1] - 4, -0.12 + ((curBeat.i * 37) % 7) * 0.03); }
+  }
+  // 臼の中の餅
+  let grains = play ? SIM.grains(S) : 1, q = 1 - grains, mochiA = 1, mx = USU.x, my = USU.y, ms = 1, msy = 1;
+  const dd = vt - V.doneT;
+  if (play && dd >= 0 && dd < 1.4) {
+    const m = S.mochi[V.doneSlot]; grains = 1 - m.q; q = m.q;
+    if (dd < 0.3) { const b = Math.sin((dd / 0.3) * Math.PI) * 0.08; ms = 1 + b; msy = 1 + b * 1.3; }
+    else if (dd < 0.8) {
+      const u = (dd - 0.3) / 0.5, e = u * u * (3 - 2 * u), [sx, sy] = SLOTS[V.doneSlot] || SLOTS[5];
+      mx = lerp(USU.x, sx, e); my = lerp(USU.y, sy, e) - Math.sin(u * Math.PI) * 60; ms = lerp(1, 0.36, e); msy = lerp(1, 0.42, e);
+    } else { grains = 1; q = 0; mochiA = clamp01((dd - 0.8) / 0.4); }
+  } else if (play && S.phase === "gap" && S.mochi.length && dd >= 1.4) { grains = 1; q = 0; }
+  if (dd >= 0.3 && dd < 0.8) { // 飛んでいる間、臼は空（新しい米が入る前）
+    put("mochi", mx, my, 0, ms, msy); put("gr" + Math.round(grains * 14), mx, my, 0, ms, msy); put("gloss", mx, my, 0, ms, msy, q);
+  } else {
+    const ht = vt - V.hitT, st = vt - V.stopT;
+    if (ht >= 0 && ht < 0.12) msy *= 1 - 0.06 * Math.sin((ht / 0.12) * Math.PI);
+    if (st >= 0 && st < 0.3) msy *= 1 + 0.05 * Math.sin((st / 0.3) * Math.PI * 2) * (1 - st / 0.3);
+    ctx.save(); ctx.translate(mx, my + 5); ctx.scale(ms, msy); ctx.translate(-mx, -my - 5);
+    put("mochi", mx, my, 0, 1, 1, mochiA);
+    put("gr" + Math.round(grains * 14), mx, my, 0, 1, 1, mochiA);
+    if (play) for (let i = 0; i < Math.min(3, S.cracks); i++) put("crack" + i, mx, my);
+    if (ht >= 0 && ht < 0.45) put("dent", mx, my, 0, 1, 1, 1 - ht / 0.45);
+    put("gloss", mx, my, 0, 1, 1, Math.min(1, q * 1.1) * mochiA);
+    ctx.restore();
+  }
+  // 返し: 餅の端が半回転する
+  const fd = vt - V.fold;
+  if (play && fd >= 0 && fd < 0.18) put("fold", 150, 432, 0.2, 1, Math.cos((fd / 0.18) * Math.PI));
+  drawHand(vt, dt);
+  drawKine(vt);
+  // 打った時の切れ端（片側に3つ）と「ぺったん」
+  const ht = vt - V.hitT;
+  if (play && ht >= 0 && ht < 0.4) {
+    const u = ht / 0.4;
+    [[34, -40], [52, -16], [24, -58]].forEach(([dx, dy], i) => put("frag" + i, KHIT.x + 28 + dx * u, KHIT.y - 6 + dy * u + 40 * u * u, i, 1, 1, 1 - u * 0.6));
+  }
+  if (play && V.hitG === "p" && ht >= 0 && ht < 0.7) {
+    for (let i = 0; i < 4; i++) {
+      const lt = ht - i * 0.04; if (lt < 0) continue;
+      const pop = lt < 0.08 ? 0.6 + (lt / 0.08) * 0.5 : 1.1 - Math.min(0.1, (lt - 0.08) * 0.5);
+      put("pt" + i, 292 + i * 24, 372 - (i % 2) * 6 - Math.min(lt, 0.12) * 40, [-0.12, 0.1, -0.05, 0.12][i], pop, pop, ht > 0.5 ? (0.7 - ht) / 0.2 : 1);
+    }
+  }
+  const st = vt - V.stopT;
+  if (play && st >= 0 && st < 1) {
+    const a = st > 0.8 ? (1 - st) / 0.2 : 1;
+    put("pitaLines", 152, 392, 0, 1, 1, a);
+    for (let i = 0; i < 3; i++) put("pi" + i, 52 + i * 26, 360 + (i % 2) * 5, [-0.1, 0.08, -0.04][i], 1, 1, a);
+  }
+  // 吹き出しと見物人の声
+  if (play && S.phase === "play" && curBeat) drawCall(vt, curBeat);
+  else if (play && S.phase === "gap" && state === "play") {
+    drawBalloon([[null, { s: "K", w: "つぎは" }, { s: "K", w: (S.u + 2) + "臼目" }, null], [null, { s: "R", w: "すこし" }, { s: "R", w: "はやく" }, null]], false, "gap" + S.u);
+    ctx.drawImage(balloon, BX - 6, BY - 26, BW + 20, BH + 34);
+  }
+  V.bubbles = V.bubbles.filter((b) => vt - b.t < 1.1);
+  for (const b of V.bubbles) { const u = vt - b.t; if (u >= 0) put(b.s, b.x, b.y - Math.min(u, 0.15) * 30, b.r, 1, 1, u > 0.9 ? (1.1 - u) / 0.2 : 1); }
+  for (const n of V.notes) { const u = vt - n.t; if (u >= 0 && u < n.dur) { const sp = noteSprite(n.text); ctx.save(); ctx.globalAlpha = u > n.dur - 0.2 ? (n.dur - u) / 0.2 : 1; ctx.drawImage(sp.c, n.x + sp.x, n.y - u * 10 + sp.y, sp.w, sp.h); ctx.restore(); } }
+  ctx.restore();
+  drawHud(vt);
+}
+function drawCall(vt, cur) {
+  const bars = [cur.bar, cur.bar + 1];
+  const rows = bars.map((bar) => { const r = S.beats.filter((b) => b.bar === bar); return r.length ? r : [null, null, null, null]; });
+  const shake = vt < V.shakeUntil;
+  drawBalloon(rows, shake, `${S.u}:${cur.bar}:${shake ? Math.floor(vt * 6) : ""}`);
+  ctx.drawImage(balloon, BX - 6, BY - 26, BW + 20, BH + 34);
+  // いまの拍の語の下に橙の帯（橙＝「いま」だけ）
+  const i = rows[0].indexOf(cur);
+  if (i >= 0) put("uline", BX + 14 + i * SLOT + 8, BY + 33);
+}
+function drawHand(vt, dt) {
+  const play = S && state !== "title";
+  const h = play ? S.hand : { where: "rest" };
+  let tgt = HAND[h.where] || HAND.rest, pose = "glove";
+  const inUsu = play && h.where === "usu" && vt >= h.from;
+  if (inUsu && (h.mBeat >= 0 || (h.holding && vt - h.down > 0.2))) pose = "gloveD";
+  if (!inUsu && h.where === "usu") tgt = HAND.rest;
+  if (vt < V.fistUntil) { pose = "gloveF"; tgt = HAND.rest; }
+  if (play && h.where === "bowl" && vt - V.dipT < 0.3) tgt = { x: HAND.bowl.x, y: HAND.bowl.y + Math.sin(((vt - V.dipT) / 0.3) * Math.PI) * 5, r: HAND.bowl.r };
+  const a = 1 - Math.exp(-dt * (pose === "gloveF" ? 26 : 34));
+  V.gx += (tgt.x - V.gx) * a; V.gy += (tgt.y - V.gy) * a; V.gr += (tgt.r - V.gr) * a;
+  // 手水: 水面の白い切れ端が1回ずれる
+  const wd = vt - V.dipT;
+  oneGlint(wd >= 0 && wd < 0.5 ? Math.sin((wd / 0.5) * Math.PI) * 10 : 0);
+  // 袖（左下の外から手首まで）
+  const c = Math.cos(V.gr), s = Math.sin(V.gr), wx = V.gx + (2 * c - 26 * s), wy = V.gy + (2 * s + 26 * c);
+  const shx = -40, shy = 640, ang = Math.atan2(wy - shy, wx - shx), len = Math.hypot(wx - shx, wy - shy);
+  put("sleeve", wx, wy, ang, len / 100, 0.85);
+  put(pose, V.gx, V.gy, V.gr);
+  if (pose === "gloveD") put("matte", V.gx - 96, V.gy - 64);
+}
+function oneGlint(dx) { put("glint", dx, 0); }
+function drawKine(vt) {
+  const kk = V.k, d = vt - kk.t;
+  let p = 0, tgt = kk.kind === "stop" ? KSTOP : KHIT;
+  const hold = kk.kind === "stop" ? 0.32 : 0.06;
+  if (d >= 0 && d < 0.08) p = d / 0.08; else if (d >= 0.08 && d < 0.08 + hold) p = 1; else if (d >= 0.08 + hold && d < 0.3 + hold) p = 1 - (d - 0.08 - hold) / 0.22;
+  const e = p * p * (3 - 2 * p);
+  const x = lerp(KUP.x, tgt.x, e), y = lerp(KUP.y, tgt.y, e), sc = lerp(KUP.s, tgt.s, e), r = lerp(KUP.r, tgt.r, e);
+  const squeeze = kk.kind === "stop" ? 0 : e;
+  put("kineHead", x, y, r, sc * (1 - 0.18 * squeeze), sc * (1 + 0.1 * squeeze));
+  // 柄は頭の差し込み（茶黒の楕円）から手前へ出る＝横杵のT字に見せる
+  const sx0 = x + 4 * sc, sy0 = y + 6 * sc;
+  const ang = Math.atan2(GRIP.y - sy0, GRIP.x - sx0), len = Math.hypot(GRIP.x - sx0, GRIP.y - sy0);
+  put("handle", sx0, sy0, ang, len / 204, sc * 0.9);
+  put("grip", GRIP.x - Math.cos(ang) * 30, GRIP.y - Math.sin(ang) * 30, ang + 1.3);
+}
+let scoreKey = "", scoreC = null;
+function drawHud(vt) {
+  if (!S || state === "title" || state === "result") return;
+  const k = dpr * (wide ? hs : scale);
+  // 命の札（左上・白い紙1枚の上）
+  if (wide) ctx.setTransform(k, 0, 0, k, 14 * dpr, 14 * dpr); else ctx.setTransform(k, 0, 0, k, dpr * (ox + 6 * scale), dpr * (oy + 4 * scale));
+  put("livesBg", 0, 0);
+  for (let i = 0; i < 3; i++) {
+    const lt = vt - V.lifeT[i], lost = i >= S.lives;
+    if (lost && lt >= 0 && lt < 0.4) { const f = Math.cos((lt / 0.4) * Math.PI); put(f > 0 ? "life" : "lifeOff", 22 + i * 36, 28, 0, Math.abs(f), 1); }
+    else put(lost ? "lifeOff" : "life", 22 + i * 36, 28);
+  }
+  // 点数の札（右上）
+  const key = S.score + ":" + S.u + ":" + K;
+  if (key !== scoreKey) {
+    scoreKey = key;
+    scoreC = scoreC || document.createElement("canvas"); scoreC.width = Math.ceil(146 * K); scoreC.height = Math.ceil(64 * K);
+    const g = scoreC.getContext("2d"); g.setTransform(K, 0, 0, K, 4 * K, 4 * K); g.clearRect(-4, -4, 146, 64);
+    setSeed(41); paper(g, 0, 0, 134, 52, null);
+    g.fillStyle = C.sumi; g.font = `16px ${FB}`; g.textBaseline = "middle"; g.fillText(Math.max(1, S.u + 1) + "臼目", 9, 16);
+    g.font = `30px ${FH}`; g.textAlign = "right"; g.fillText(S.score.toLocaleString("ja-JP"), 126, 34);
+  }
+  if (wide) ctx.setTransform(k, 0, 0, k, dpr * (VW - 14 - 140 * hs), 14 * dpr); else ctx.setTransform(k, 0, 0, k, dpr * (ox + 248 * scale), dpr * (oy + 8 * scale));
+  ctx.drawImage(scoreC, -4, -4, 146, 64);
+}
+
+// ---- 進行 ----
+function show(id) { for (const x of ["title", "result", "pause"]) $(x).classList.toggle("on", x === id); const tags = state === "play"; $("muteW").classList.toggle("on", tags); $("pauseW").classList.toggle("on", tags); }
+function start() {
+  audioInit(); state = "play"; setView();
+  S = SIM.create((Math.random() * 1e9) | 0, simNow() + 0.4); V = newV();
+  state = "play"; show(null);
+}
+function showResult() {
+  if (state !== "play") return;
+  state = "result"; setView();
+  const s = S.score, nb = s > best;
+  if (nb) { best = s; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {} }
+  const n = S.mochi.length;
+  $("resH").textContent = S.over === "done" ? "6臼 つき上がり" : `${n}臼 つき上がり`;
+  $("resWhy").textContent = S.over === "done" ? "最後の臼まで息が合った。" : "手形の札が3枚とも裏返った（手が臼にある拍に杵を下ろした）。";
+  $("resS").innerHTML = `${s.toLocaleString("ja-JP")}<small>てん</small>`;
+  $("resSt").textContent = `ぴったり ${S.st.perfect}回・待てた ${S.st.wait}回・${nb ? "ベスト更新" : "ベスト " + best.toLocaleString("ja-JP")}`;
+  show("result");
+  setTimeout(() => $("againB").focus({ preventScroll: true }), 50);
+}
+function pause() {
+  if (state !== "play") return;
+  state = "pause"; pauseAt = performance.now();
+  if (S && S.hand.holding) SIM.release(S, "H", simNow());
+  $("calib").textContent = (calib > 0 ? "+" : "") + calib + "ms";
+  show("pause");
+  if (ac) ac.suspend().catch(() => {});
+}
+function resume() {
+  if (state !== "pause") return;
+  pausedTotal += performance.now() - pauseAt;
+  state = "play"; show(null);
+  if (ac) ac.resume().catch(() => {});
+}
+function toTitle() { state = "title"; setView(); S = null; V = newV(); updateBest(); show("title"); }
+function updateBest() { $("bestT").textContent = best ? `ベスト ${best.toLocaleString("ja-JP")} てん` : ""; }
+function setMute(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.8; $("muteB").textContent = m ? "音 なし" : "音 あり"; }
+function setCalib(v) { calib = Math.max(-100, Math.min(200, v)); $("calib").textContent = (calib > 0 ? "+" : "") + calib + "ms"; try { localStorage.setItem(CAL_KEY, String(calib)); } catch (e) {} }
+
+// ---- 入力（時刻で判定。押した瞬間の timeStamp を拍の時計に直す） ----
+const evTime = (e) => simNow() - Math.max(0, Math.min(0.2, (performance.now() - (e.timeStamp || performance.now())) / 1000));
+const ptrHand = new Map();
+function onDown(e) {
+  if (e.target.closest && e.target.closest("button")) return;
+  if (state !== "play") return;
+  e.preventDefault();
+  audioInit();
+  const hand = e.clientX < VW / 2 ? "H" : "K";
+  ptrHand.set(e.pointerId, hand);
+  SIM.press(S, hand, evTime(e));
+}
+function onUp(e) {
+  const hand = ptrHand.get(e.pointerId); ptrHand.delete(e.pointerId);
+  if (hand === "H" && state === "play") SIM.release(S, "H", evTime(e));
+}
+addEventListener("pointerdown", onDown, { passive: false });
+addEventListener("pointerup", onUp); addEventListener("pointercancel", onUp);
+addEventListener("contextmenu", (e) => e.preventDefault());
+addEventListener("dblclick", (e) => e.preventDefault());
+addEventListener("touchstart", (e) => { if (!(e.target.closest && e.target.closest("button"))) e.preventDefault(); }, { passive: false });
+const KK = ["KeyJ", "ArrowRight", "KeyK"], KH = ["KeyF", "ArrowLeft", "KeyD"];
+addEventListener("keydown", (e) => {
+  const c = e.code;
+  if (c === "KeyM") { setMute(!muted); return; }
+  if (state === "title" && (c === "Enter" || c === "Space") && document.activeElement !== $("startB")) { e.preventDefault(); start(); return; }
+  if (state === "play") {
+    if (c === "KeyP" || c === "Escape") { pause(); return; }
+    if (e.repeat) { if (KK.includes(c) || KH.includes(c)) e.preventDefault(); return; }
+    if (KK.includes(c)) { e.preventDefault(); audioInit(); SIM.press(S, "K", evTime(e)); }
+    else if (KH.includes(c)) { e.preventDefault(); audioInit(); SIM.press(S, "H", evTime(e)); }
+  } else if (state === "pause" && (c === "KeyP" || c === "Escape")) resume();
+});
+addEventListener("keyup", (e) => { if (state === "play" && KH.includes(e.code) && !KH.some((k) => k !== e.code && heldKeys.has(k))) SIM.release(S, "H", evTime(e)); });
+const heldKeys = new Set();
+addEventListener("keydown", (e) => heldKeys.add(e.code), true); addEventListener("keyup", (e) => heldKeys.delete(e.code), true);
+document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+$("startB").addEventListener("click", start);
+$("againB").addEventListener("click", start);
+$("resumeB").addEventListener("click", resume);
+$("quitB").addEventListener("click", () => { pausedTotal += performance.now() - pauseAt; if (ac) ac.resume().catch(() => {}); toTitle(); });
+$("muteB").addEventListener("click", () => setMute(!muted));
+$("pauseB").addEventListener("click", pause);
+$("calM").addEventListener("click", () => setCalib(calib - 10));
+$("calP").addEventListener("click", () => setCalib(calib + 10));
+
+// ---- はじまり ----
+(function init() {
+  const logo = $("logo"); setSeed(17);
+  for (const ch of "ぺったん二人前") { const sp = document.createElement("span"); sp.textContent = ch; sp.style.transform = `rotate(${f1(j(6))}deg) translateY(${f1(j(3))}px)`; logo.appendChild(sp); }
+  document.querySelectorAll(".torn").forEach((el, i) => tornClip(el, 50 + i * 11));
+  V = newV(); updateBest(); setMute(false);
+  layout(); show("title");
+  let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => layout());
+  if (document.fonts) document.fonts.addEventListener && document.fonts.addEventListener("loadingdone", () => layout());
+  requestAnimationFrame(frame);
+  window.__game = { get S() { return S; }, get state() { return state; }, fps() { const n = fpsLog.length; return n > 10 ? ((n - 1) * 1000) / (fpsLog[n - 1] - fpsLog[0]) : 0; }, fpsLog, simNow, start };
+})();
+</script>
+</body>
+</html>
