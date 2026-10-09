@@ -1,0 +1,54 @@
+/* 舞台（一覧と遊ぶ画面で共通）: 厚い梁・打ち付けた看板・窓・畳める観音扉 */
+.beam{position:relative;padding:10px 12px 10px;color:var(--boru);box-shadow:inset 0 -4px 0 #0004,inset 0 3px 0 #ffffff1a;
+  clip-path:polygon(0 4px,6px 0,100% 0,100% 100%,0 100%)}
+.plank{position:relative;display:inline-block;padding:4px 22px 6px 20px;background-color:var(--kurikawa-hi);
+  background-image:var(--wood);background-size:300px 60px;box-shadow:inset 0 0 0 2px #0003,3px 3px 0 #0005;transform:rotate(-1deg);
+  clip-path:polygon(0 2px,100% 0,calc(100% - 2px) 100%,3px calc(100% - 1px))}
+.nail{position:absolute;left:7px;top:50%;width:5px;height:5px;margin-top:-3px;border-radius:50%;background:#2a221d;box-shadow:inset 1px 1px 0 #fff4}
+.nail.r{left:auto;right:8px;margin-top:-1px}
+/* 白ペンキの看板文字：字間を詰め、1字ずつ大きさと基線が揺れる */
+.sign{margin:0;font-family:var(--head);font-weight:400;font-size:40px;line-height:1;letter-spacing:-.04em;color:#e9e0c8;display:flex;align-items:flex-end}
+.sign span{display:inline-block}
+.sign span:nth-child(1){font-size:1.08em;transform:translateY(1px) rotate(-3deg)}
+.sign span:nth-child(2){font-size:.9em;transform:translateY(-3px) rotate(2deg)}
+.sign span:nth-child(3){font-size:1em;transform:translateY(2px) rotate(-1deg)}
+.sign span:nth-child(4){font-size:.96em;transform:translateY(-1px) rotate(4deg)}
+.sub{margin:8px 0 0;font-size:13px;line-height:1.4;color:#e6d9bd}
+/* 舞台の箱 */
+.stage{position:relative}
+.box{position:relative;padding:10px 22px 14px;box-shadow:inset 0 0 0 2px #0003}
+.window{position:relative;height:200px;background:var(--sumi);outline:3px solid var(--sumi);overflow:hidden}
+.behind{position:absolute;inset:0;background:var(--sumi)}
+.behind iframe{border:0;width:100%;height:100%;display:block;pointer-events:none}
+.card-out{position:absolute;inset:0;background:var(--gunjo);transition:transform .25s cubic-bezier(.5,0,.8,.4) .3s}
+.card-out img{width:100%;height:100%;object-fit:cover;object-position:50% 48%;display:block;filter:sepia(.12)}
+.daiji{position:absolute;left:14px;bottom:12px;margin:0;font-family:var(--head);font-weight:400;font-size:34px;line-height:1;color:var(--sumi);
+  background:var(--boru);padding:7px 12px 9px;border:2.5px solid var(--sumi);box-shadow:3px 3px 0 var(--sumi);transform:rotate(-1.8deg)}
+.new{position:absolute;top:10px;left:14px;font-family:var(--head);font-size:15px;color:var(--boru);background:var(--shu);
+  padding:4px 10px 5px;transform:rotate(-4deg);clip-path:polygon(0 1px,100% 0,98% 100%,2% 96%)}
+/* 観音扉: 一覧では窓に半分かかる（畳みかけ）。押すと開く */
+.door{position:absolute;top:10px;bottom:14px;width:64px;box-shadow:inset 0 0 0 2px #0004;transition:transform .35s cubic-bezier(.3,.7,.3,1)}
+.door::before{content:"";position:absolute;inset:9px 8px;border:2px solid #0003;clip-path:polygon(0 1px,100% 0,100% 100%,1px 100%)}
+.door i{position:absolute;width:7px;height:16px;background:#1e1814;box-shadow:inset 1px 0 0 #fff3}
+.door i:first-child{top:16%}.door i:last-child{bottom:16%}
+.door.l{left:6px;transform-origin:0 50%;transform:perspective(520px) rotateY(-58deg)}
+.door.l i{left:-3px}
+.door.r{right:6px;transform-origin:100% 50%;transform:perspective(520px) rotateY(58deg)}
+.door.r i{right:-3px}
+/* 開く途中のコマ */
+.opening .door.l{transform:perspective(520px) rotateY(-128deg)}
+.opening .door.r{transform:perspective(520px) rotateY(128deg)}
+.opening .card-out{transform:translateX(58%) rotate(1.5deg)}
+@media (prefers-reduced-motion:reduce){.door,.card-out{transition:none}}
+@media (min-width:900px){
+  .beam{padding:14px 18px 12px}
+  .sign{font-size:54px}
+  .box{padding:14px 30px 18px}
+  .window{height:310px}
+  .daiji{font-size:50px;left:22px;bottom:18px}
+  .door{width:104px;top:14px;bottom:18px}
+  .door.l{left:8px;transform:perspective(700px) rotateY(-112deg)}
+  .door.r{right:8px;transform:perspective(700px) rotateY(112deg)}
+  .opening .door.l{transform:perspective(700px) rotateY(-150deg)}
+  .opening .door.r{transform:perspective(700px) rotateY(150deg)}
+}

@@ -1,0 +1,25 @@
+{
+  "team_name": "AI社員チーム",
+  "media": "note",
+  "genre": "AI活用（Claude などで仕事・個人開発・ゲーム制作を効率化する方法）",
+  "audience": "AI を使い始めたばかりの個人・フリーランス・小さなチーム",
+  "tone": "です・ます調。親しみやすく、具体例と手順を多めに。誇張しない",
+  "article_chars": [
+    2500,
+    7000
+  ],
+  "min_sections": 3,
+  "min_sources": 3,
+  "min_figures": 2,
+  "promo_patterns": 3,
+  "promo_max_weight": 280,
+  "max_revisions": 2,
+  "banned_phrases": [
+    "いかがでしたか",
+    "必ず儲かる",
+    "誰でも簡単に稼げる",
+    "確実に稼げる",
+    "TODO",
+    "[[図:"
+  ]
+}

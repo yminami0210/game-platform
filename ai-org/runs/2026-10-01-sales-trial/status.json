@@ -1,0 +1,60 @@
+{
+  "run": "2026-10-01-sales-trial",
+  "department": "sales",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "research": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "課題仮説3つと質問"
+    },
+    "proposal": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "提案書下書き（価格は要承認）"
+    },
+    "audit": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "品質スコア90点"
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "research",
+      "state": "working",
+      "note": "顧客を調査中"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "research",
+      "state": "pass",
+      "note": "課題仮説3つと質問"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "proposal",
+      "state": "working",
+      "note": "提案書を作成中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "proposal",
+      "state": "pass",
+      "note": "提案書下書き（価格は要承認）"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア90点"
+    }
+  ]
+}

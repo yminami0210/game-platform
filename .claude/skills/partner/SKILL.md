@@ -20,6 +20,7 @@ CLAUDE.md の「AI相棒 運用ルール」に従う。ここでは実行手順�
 - **新セッションに委任**: 手順 3 へ進む。
 
 ### 3. 作業指示書を作って起動する
+プロダクト（ゲーム・サービス・発信など）を作る依頼なら、指示書に「`.claude/skills/product-layers/SKILL.md` に従い、`docs/product/<名前>/canvas.md` を Core から順に作ってから How に入る」「Core・Why の迷いは questions.md と親セッションへ」を必ず入れる。
 `docs/partner/brief-template.md` を埋めて、それを `prompt` として渡す。子セッションはこの会話を見られないので、指示書だけで作業が完結するように書く。
 
 `mcp__Claude_Code_Remote__create_session` のパラメータ:

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>霧笛の灯 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#ebe2ca}svg{display:block}text{font-variant-numeric:tabular-nums}</style>
+</head><body>
+<svg id="s" width="1200" height="960" viewBox="0 0 1200 960"></svg>
+<script src="print.js"></script>
+<script>
+const W = 1200, H = 960, s = document.getElementById("s");
+defs(s);
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.hosho }, s);
+el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#fiber)", opacity: 0.35 }, s);
+const T = (x, y, str, o = {}, g = s) => { const t = el("text", Object.assign({ x, y, fill: C.koge, "font-family": "'Zen Old Mincho', serif", "font-size": 15 }, o), g); t.textContent = str; return t; };
+const H2 = (x, y, str) => T(x, y, str, { "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 24 });
+
+T(48, 78, "霧笛の灯", { "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 54 });
+T(52, 110, "見本帳　新版画の夜の港を、奉書に六つの版で摺る", { "font-size": 16 });
+
+// 色の版
+H2(48, 172, "色の版");
+const sw = [
+  ["藍摺", "#2b4660", "一文字ぼかしと手前の海"],
+  ["霧鼠", "#8d9ea3", "霧。画面の中ほどの地"],
+  ["灯の黄土", "#e3b04b", "主役。光の帯と霧笛の目盛り"],
+  ["岩の焦茶", "#4b3a2e", "岬・岩礁・墨版・余白の文字"],
+  ["奉書白", "#ebe2ca", "紙の余白・月・帆・判の地"],
+  ["舷灯の朱", "#b9452f", "危険だけ。舷灯・目印・×・判"],
+];
+sw.forEach(([n, hex, role], i) => {
+  const x = 48 + (i % 3) * 186, y = 192 + Math.floor(i / 3) * 160;
+  el("path", { d: wobble([[x, y], [x + 166, y + j(2)], [x + 166 + j(2), y + 86], [x + j(2), y + 86]], 1.3), fill: hex, stroke: hex === C.hosho ? C.koge : "none", "stroke-width": 0.8 }, s);
+  T(x, y + 110, n, { "font-weight": 700, "font-size": 16 });
+  T(x + 166, y + 110, hex, { "text-anchor": "end", "font-size": 13 });
+  T(x, y + 131, role, { "font-size": 12.5 });
+});
+// 重ね摺りの中間色
+T(48, 532, "重ね摺りでできる中間色（版を重ねた結果。新しいインクは使わない）", { "font-size": 13 });
+[["藍＋霧", C.ai2], ["霧二度", C.ai3], ["影絵", C.kage], ["黄土＋霧", C.odo2], ["霧に溶ける黄土", C.odo3]].forEach(([n, c], i) => {
+  const x = 48 + i * 108;
+  el("path", { d: wobble([[x, 546], [x + 96, 546], [x + 96, 578], [x, 578]], 0.9), fill: c }, s);
+  T(x, 597, n, { "font-size": 12 });
+});
+// 面積の目安
+T(48, 636, "面積の目安（縦画面1枚）", { "font-weight": 700, "font-size": 14 });
+let ax = 48; [[C.hosho, 150], [C.kiri, 150], [C.ai, 125], [C.koge, 40], [C.odo, 25], [C.shu, 10]].forEach(([c, w]) => {
+  el("path", { d: wobble([[ax, 648], [ax + w, 648], [ax + w, 668], [ax, 668]], 0.8), fill: c, stroke: c === C.hosho ? C.koge : "none", "stroke-width": 0.8 }, s); ax += w + 3;
+});
+T(48, 688, "紙 30　霧 30　藍 25　焦茶 8　黄土 5　朱 2（%）", { "font-size": 12.5 });
+
+// 文字
+H2(48, 744, "文字");
+el("path", { d: wobble([[48, 762], [208, 762], [208, 824], [48, 824]], 0.8), fill: "none", stroke: C.koge, "stroke-width": 1.6 }, s);
+el("path", { d: wobble([[52, 766], [204, 766], [204, 820], [52, 820]], 0.6), fill: "none", stroke: C.koge, "stroke-width": 0.8 }, s);
+T(128, 807, "1,240", { "text-anchor": "middle", "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 38 });
+T(228, 782, "Kaisei Decol 700　題箋の得点・時間帯", { "font-size": 12.5 });
+T(228, 816, "宵　夜半　丑三つ　明け方", { "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 26 });
+T(48, 862, "Zen Old Mincho　説明と結果の文", { "font-size": 12.5 });
+T(48, 890, "灯台の周りを指でなでると、光がその向きへ回ります。", { "font-size": 17 });
+T(48, 916, "照らされた船は汽笛を鳴らして帰ります。三隻座礁で当番終わり。", { "font-size": 17 });
+
+// 形の版（摺り物の絵の中で見せる）
+H2(620, 172, "形の版");
+const PX = 620, PY = 190, PW = 360, PH = 720;
+const P = picture(s, PX, PY, PW, PH, "pic");
+// 光の帯と灯台
+for (let i = 0; i < 12; i++) rockBlob(P, 700 + Math.cos(i / 12 * 6.28) * 46, 380 + Math.sin(i / 12 * 6.28) * 34, 4 + rnd() * 3);
+beam(P, 700, 342, -0.62, 40 * Math.PI / 180, 260, "sh");
+rockBlob(P, 700, 382, 22);
+lighthouse(P, 700, 386, 0.9);
+ship(P, 860, 268, 1.1, "ho", true, null);
+// 和船3種: 影絵 → 刷り上がり
+[["gyo", 482], ["ho", 572], ["hashi", 652]].forEach(([k, y]) => {
+  ship(P, 692, y, 1.3, k, false, null);
+  ship(P, 852, y, 1.3, k, true, null);
+});
+el("path", { d: "M752,572 l40,0 m-8,-6 l8,6 l-8,6", stroke: C.koge, "stroke-width": 1.6, fill: "none" }, P);
+// 舷灯の3段階と縁の目印
+[["dim", 680], ["blink", 770], ["solid", 860]].forEach(([l, x]) => ship(P, x, 760, 0.95, "gyo", false, l));
+edgeMark(P, 948, 752, 0);
+// 判と×
+seal(P, 945, 560, "間一髪", 24, -4);
+for (let i = 0; i < 5; i++) rockBlob(P, 680 + i * 16, 852 + j(4), 6 + rnd() * 3);
+cross(P, 712, 848, 11, false);
+
+// 右の注記（紙の余白）
+const L = 1000;
+T(L, 300, "光の帯", { "font-weight": 700 });
+T(L, 322, "不透明の三段。縁は線で", { "font-size": 12.5 });
+T(L, 340, "なく、黄土の版のずれ", { "font-size": 12.5 });
+T(L, 440, "和船（影絵／刷り上がり）", { "font-weight": 700, "font-size": 14 });
+T(L, 488, "漁船　櫓を漕ぐ人と苫", { "font-size": 12.5 });
+T(L, 578, "弁才船　筵の四角い帆", { "font-size": 12.5 });
+T(L, 658, "はしけ　菰掛けの荷と竿", { "font-size": 12.5 });
+T(L, 700, "右上の短冊は「間一髪」", { "font-size": 12.5 });
+T(L, 756, "舷灯　遠い・近い・寸前", { "font-size": 12.5 });
+T(L, 776, "右端は縁の目印", { "font-size": 12.5 });
+T(L, 852, "座礁の×", { "font-size": 12.5 });
+T(L, 880, "霧笛の目盛り（余白）", { "font-weight": 700, "font-size": 13 });
+hornGauge(s, L + 14, 918, 3, 5, 30);
+paper(s, W, H, 0.4);
+</script></body></html>

@@ -1,0 +1,228 @@
+/* あそびば（player）— 街角の紙芝居。一覧は同じ大きさの絵札（絵＋札の裏の台本）を横に並べ、押すと舞台の扉が開いてゲームが始まる。
+   コンセプト: player/design.md（見本 player/design/）。色・形・動きは見本の tokens.css / stage.css をそのまま引き継ぐ。 */
+
+/* ── トークン ── */
+:root{
+  --fence:#aea596;      /* 雨ざらしの板塀（地） */
+  --fence-line:#9d9384;
+  --kurikawa:#5a3820;   /* 栗皮茶：舞台の木枠 */
+  --kurikawa-hi:#7a5333;
+  --boru:#d8cdb3;       /* ボール紙：札の紙 */
+  --boru-edge:#a8997a;
+  --boru-deep:#9a8c6e;
+  --rule:#6f5f418c;     /* 台本の罫（ざらつきより一段濃く） */
+  --gunjo:#284a9a;      /* 群青：泥絵具の絵・焦点 */
+  --shu:#d2402a;        /* 朱：主役（新作の貼り紙・遊ぶ） */
+  --sumi:#2a221d;       /* 墨：線と文字 */
+  --paint-white:#e9e0c8;
+  --head:"Potta One","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --body:"Kiwi Maru","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  --wood:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='120'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .16' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .05 0 0 0 0 .02 0 0 0 .9 -.25'/%3E%3C/filter%3E%3Crect width='600' height='120' filter='url(%23w)'/%3E%3C/svg%3E");
+  --kasure:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='54'%3E%3Cfilter id='k'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75 .4' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -5 0 0 0 3.55'/%3E%3C/filter%3E%3Crect width='96' height='54' filter='url(%23k)'/%3E%3C/svg%3E");
+  color-scheme:light dark;
+}
+/* 夕暮れの空き地：背景だけ暮れ、札は紙のまま少し沈める */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --fence:#35302d; --fence-line:#2c2826; --kurikawa:#43291a; --kurikawa-hi:#5e3e27;
+  --boru:#c4b89c; --boru-edge:#857a62; --boru-deep:#6f654f; --rule:#5d4f378c; --gunjo:#3557a8; --shu:#d94a32; --sumi:#241d19;}}
+:root[data-theme="dark"]{
+  --fence:#35302d; --fence-line:#2c2826; --kurikawa:#43291a; --kurikawa-hi:#5e3e27;
+  --boru:#c4b89c; --boru-edge:#857a62; --boru-deep:#6f654f; --rule:#5d4f378c; --gunjo:#3557a8; --shu:#d94a32; --sumi:#241d19;}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;font-family:var(--body);color:var(--sumi);background-color:var(--fence);
+  /* 板塀：幅のそろわない縦板 */
+  background-image:var(--grain),
+   repeating-linear-gradient(90deg,transparent 0 61px,var(--fence-line) 61px 63px,transparent 63px 118px,var(--fence-line) 118px 119px,transparent 119px 183px,var(--fence-line) 183px 185px);
+  overflow-x:hidden}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+
+.wood{background-color:var(--kurikawa);background-image:var(--wood),var(--wood);background-size:600px 120px,380px 90px;background-position:0 0,40px 30px}
+
+/* ── 梁と板看板（一覧の上・舞台の上で共通） ── */
+.beam{position:relative;padding:10px 12px 10px;color:var(--boru);box-shadow:inset 0 -4px 0 #0004,inset 0 3px 0 #ffffff1a;
+  clip-path:polygon(0 4px,6px 0,100% 0,100% 100%,0 100%)}
+.plank{position:relative;display:inline-block;padding:4px 22px 6px 20px;background-color:var(--kurikawa-hi);
+  background-image:var(--wood);background-size:300px 60px;box-shadow:inset 0 0 0 2px #0003,3px 3px 0 #0005;transform:rotate(-1deg);
+  clip-path:polygon(0 2px,100% 0,calc(100% - 2px) 100%,3px calc(100% - 1px))}
+.nail{position:absolute;left:7px;top:50%;width:5px;height:5px;margin-top:-3px;border-radius:50%;background:#2a221d;box-shadow:inset 1px 1px 0 #fff4}
+.nail.r{left:auto;right:8px;margin-top:-1px}
+/* 白ペンキの看板文字：字間を詰め、1字ずつ大きさと基線が揺れる */
+.sign{margin:0;font-family:var(--head);font-weight:400;font-size:40px;line-height:1;letter-spacing:-.04em;color:var(--paint-white);display:flex;align-items:flex-end}
+.sign span{display:inline-block}
+.sign span:nth-child(1){font-size:1.08em;transform:translateY(1px) rotate(-3deg)}
+.sign span:nth-child(2){font-size:.9em;transform:translateY(-3px) rotate(2deg)}
+.sign span:nth-child(3){font-size:1em;transform:translateY(2px) rotate(-1deg)}
+.sign span:nth-child(4){font-size:.96em;transform:translateY(-1px) rotate(4deg)}
+.sub{margin:8px 0 0;font-size:13px;line-height:1.4;color:#e6d9bd}
+
+/* ── 一覧 ── */
+.page{max-width:1180px;margin:0 auto;padding:14px 16px 48px}
+.marquee{padding:12px 14px 14px}
+
+/* 罫の入ったボール紙（札の裏の台本） */
+.ruled{background-color:var(--boru);background-image:var(--grain),repeating-linear-gradient(transparent 0 calc(var(--lh) - 1.5px),var(--rule) calc(var(--lh) - 1.5px) var(--lh));
+  background-position:0 0,0 var(--pad-top)}
+.notice{--lh:28px;--pad-top:14px;margin:18px 4px 0;padding:var(--pad-top) 16px 16px;
+  clip-path:polygon(0 4px,9px 0,calc(100% - 3px) 2px,100% 9px,calc(100% - 2px) calc(100% - 3px),calc(100% - 8px) 100%,5px calc(100% - 2px),0 calc(100% - 7px));transform:rotate(.4deg)}
+.notice p{margin:0;font-size:15px;line-height:var(--lh)}
+.notice code{font-family:inherit;background:#0000000f;padding:0 3px}
+.notice[hidden]{display:none}
+
+/* 絵札の格子: スマホ2枚、PC 3〜4枚。新しい順に並び、増えたら折り返す */
+.board{margin-top:22px}
+.cards{list-style:none;margin:0;padding:0 4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 14px;align-items:stretch}
+.fuda{position:relative;display:flex;transform:rotate(var(--tilt,0deg)) translate(var(--dx,0px),var(--dy,0px))}
+.fuda .layer{position:absolute;inset:0;background:var(--boru-edge)}
+.fuda .layer.a{transform:translate(4px,5px);clip-path:polygon(0 6px,7px 0,100% 3px,calc(100% - 2px) 100%,4px calc(100% - 1px))}
+.fuda .layer.b{transform:translate(-3px,9px) rotate(-1.2deg);background:var(--boru-deep);clip-path:polygon(2px 0,100% 5px,100% calc(100% - 6px),calc(100% - 8px) 100%,0 calc(100% - 2px))}
+.fuda .face{position:relative;flex:1;display:flex;flex-direction:column;background:var(--boru);background-image:var(--grain);padding:6px;color:var(--sumi);clip-path:var(--cut)}
+.fuda .pic{display:block;position:relative;aspect-ratio:4/3;background:var(--gunjo);outline:2px solid var(--sumi);outline-offset:-1px;cursor:pointer;color:var(--sumi);text-decoration:none}
+.fuda .pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:sepia(.18);clip-path:inset(1px)}
+.fuda .pic img[hidden]{display:none}
+.fuda .tag{position:absolute;left:-2px;bottom:-12px;max-width:calc(100% - 4px);font-family:var(--head);font-weight:400;font-size:15px;line-height:1.1;background:var(--boru);margin:0;
+  padding:5px 7px 6px;border:2px solid var(--sumi);box-shadow:2px 2px 0 var(--sumi);transform:rotate(-2deg)}
+.fuda .new{position:absolute;top:7px;left:7px;font-family:var(--head);font-size:13px;color:var(--boru);background:var(--shu);
+  padding:3px 8px 4px;transform:rotate(-4deg);clip-path:polygon(0 1px,100% 0,98% 100%,2% 96%)}
+.fuda .new[hidden]{display:none}
+/* 札の裏の台本: 全文を地の文で */
+.fuda .script{--lh:22px;--pad-top:6px;flex:1;display:flex;flex-direction:column;margin:18px -6px -6px;padding:var(--pad-top) 10px 10px}
+.fuda .script p{margin:0;font-size:13px;line-height:var(--lh)}
+.fuda .act{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto;padding-top:10px}
+.fuda:focus-within::after{content:"";position:absolute;inset:-7px;border:3px solid var(--gunjo);pointer-events:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fuda:focus-within::after{border-color:#9db4f0}}
+:root[data-theme="dark"] .fuda:focus-within::after{border-color:#9db4f0}
+
+/* 墨の判子（はじめて／点数）: 太い墨の枠＋内側の細い枠（二重枠）、かすれ、札ごとに違う傾き */
+.stamp{--st-rot:-6deg;display:inline-block;font-family:var(--head);font-weight:400;font-size:12px;line-height:1;letter-spacing:.04em;color:var(--sumi);
+  padding:5px 7px 4px;border:2.5px solid var(--sumi);border-radius:4px 7px 3px 6px / 6px 3px 7px 4px;
+  box-shadow:inset 0 0 0 1.5px var(--boru),inset 0 0 0 2.8px var(--sumi);
+  transform:translate(var(--st-x,0px),var(--st-y,0px)) rotate(var(--st-rot));opacity:.9;white-space:nowrap;
+  -webkit-mask-image:var(--kasure);mask-image:var(--kasure);-webkit-mask-size:96px 54px;mask-size:96px 54px}
+.stamp b{font-size:15px;margin-right:1px;font-variant-numeric:tabular-nums;font-weight:400}
+.stamp.bump{animation:bump .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes bump{0%{transform:translate(var(--st-x,0px),var(--st-y,0px)) rotate(var(--st-rot)) scale(1)}40%{transform:translate(var(--st-x,0px),var(--st-y,0px)) rotate(calc(var(--st-rot) - 3deg)) scale(1.3)}100%{transform:translate(var(--st-x,0px),var(--st-y,0px)) rotate(var(--st-rot)) scale(1)}}
+
+/* 遊ぶ: 朱に墨の縁、べたのずらし影。押すと影ごと沈む */
+.play{flex:none;font-family:var(--head);font-size:16px;line-height:1;color:var(--boru);background:var(--shu);border:0;cursor:pointer;
+  padding:9px 14px 10px;box-shadow:inset 0 0 0 2.5px var(--sumi),3px 3px 0 var(--sumi);
+  clip-path:polygon(0 3px,5px 0,100% 1px,100% calc(100% - 4px),calc(100% - 4px) 100%,2px 100%);margin-right:3px}
+.play:active{transform:translate(3px,3px);box-shadow:inset 0 0 0 2.5px var(--sumi)}
+.play:focus-visible{outline:none;box-shadow:inset 0 0 0 2.5px var(--sumi),inset 0 0 0 5px var(--paint-white),inset 0 0 0 7.5px var(--gunjo),3px 3px 0 var(--sumi)}
+
+/* 札が舞台の窓へ入る（動きの間だけ） */
+.flying{position:fixed;z-index:20;margin:0;pointer-events:none;background:var(--gunjo);outline:2px solid var(--sumi);
+  transform-origin:0 0;transition:transform .34s cubic-bezier(.3,.7,.3,1)}
+.flying img{width:100%;height:100%;object-fit:cover;display:block;filter:sepia(.15)}
+
+/* ── 舞台（札を押すと現れる。扉が開く → 札が抜かれる → 奥でゲーム） ── */
+.playroom{display:none;position:fixed;inset:0;z-index:5;background-color:var(--fence);
+  background-image:var(--grain),
+   repeating-linear-gradient(90deg,transparent 0 61px,var(--fence-line) 61px 63px,transparent 63px 118px,var(--fence-line) 118px 119px,transparent 119px 183px,var(--fence-line) 183px 185px)}
+body.staging{overflow:hidden}
+body.staging .playroom{display:block;animation:fade .16s ease-out}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.stage{position:absolute;inset:0;display:flex;flex-direction:column}
+.stage .beam{z-index:2;margin-top:40px;height:58px;display:flex;align-items:center;padding:0 12px}
+.box{position:relative;flex:1;display:flex;padding:8px 20px 12px;box-shadow:inset 0 0 0 2px #0003}
+.window{position:relative;flex:1;background:var(--sumi);outline:3px solid var(--sumi);overflow:hidden}
+.behind{position:absolute;inset:0;background:var(--sumi)}
+.behind iframe{border:0;width:100%;height:100%;display:block;background:var(--sumi)}
+/* 窓の絵札。抜くと横へ出る */
+.card-out{position:absolute;inset:0;background:var(--gunjo);transition:transform .25s cubic-bezier(.5,.2,.4,1) 0s}
+.card-out img{width:100%;height:100%;object-fit:cover;object-position:50% 48%;display:block;filter:sepia(.12)}
+.card-out img[hidden]{display:none}
+.daiji{position:absolute;left:14px;bottom:16px;margin:0;font-family:var(--head);font-weight:400;font-size:34px;line-height:1;color:var(--sumi);
+  background:var(--boru);padding:7px 12px 9px;border:2.5px solid var(--sumi);box-shadow:3px 3px 0 var(--sumi);transform:rotate(-1.8deg);
+  max-width:calc(100% - 28px);overflow-wrap:anywhere}
+.card-out .new{position:absolute;top:12px;left:14px;font-family:var(--head);font-size:15px;color:var(--boru);background:var(--shu);
+  padding:4px 10px 5px;transform:rotate(-4deg);clip-path:polygon(0 1px,100% 0,98% 100%,2% 96%)}
+.card-out .new[hidden]{display:none}
+body.landing .card-out{visibility:hidden}
+
+/* 観音扉: 現れたときは窓に半分かかる（畳みかけ）。開くと外へ。閉じるときは札が戻ってから扉 */
+.door{position:absolute;top:8px;bottom:12px;width:64px;box-shadow:inset 0 0 0 2px #0004;transition:transform .35s cubic-bezier(.3,.7,.3,1) .2s}
+.door::before{content:"";position:absolute;inset:9px 8px;border:2px solid #0003;clip-path:polygon(0 1px,100% 0,100% 100%,1px 100%)}
+.door i{position:absolute;width:7px;height:16px;background:#1e1814;box-shadow:inset 1px 0 0 #fff3}
+.door i:first-child{top:16%}.door i:last-child{bottom:16%}
+.door.l{left:6px;transform-origin:0 50%;transform:perspective(520px) rotateY(-58deg)}
+.door.l i{left:-3px}
+.door.r{right:6px;transform-origin:100% 50%;transform:perspective(520px) rotateY(58deg)}
+.door.r i{right:-3px}
+/* 開く: 扉 0.35秒、札の抜き 0.25秒を 0.3秒遅れで */
+.opening .door{transition-delay:0s}
+.opening .door.l{transform:perspective(520px) rotateY(-128deg)}
+.opening .door.r{transform:perspective(520px) rotateY(128deg)}
+.opening .card-out{transform:translateX(104%) rotate(1.5deg);transition-delay:.3s}
+.snap .door,.snap .card-out{transition:none!important}
+
+/* 戻る：梁に紐で掛けた、欠けた木札 */
+.back{position:relative;font-family:var(--body);font-weight:500;font-size:15px;line-height:1;color:#efe5cc;cursor:pointer;
+  border:0;padding:10px 14px 10px 12px;background-color:var(--kurikawa-hi);background-image:var(--wood);background-size:260px 50px;
+  box-shadow:inset 0 0 0 2px var(--sumi),3px 3px 0 var(--sumi);transform:rotate(-2deg);
+  clip-path:polygon(0 4px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 3px) 100%,0 100%,0 0)}
+.back::before{content:"‹";font-family:var(--head);font-size:18px;margin-right:6px;vertical-align:-1px}
+.back:active{transform:rotate(-2deg) translate(3px,3px);box-shadow:inset 0 0 0 2px var(--sumi)}
+.back:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--sumi),inset 0 0 0 5px #efe5cc,3px 3px 0 var(--sumi)}
+.back-wrap{position:relative;display:inline-block}
+.back-wrap::before{content:"";position:absolute;top:-12px;left:46%;width:2px;height:14px;background:#1e1814;transform:rotate(-4deg)}
+
+/* 抜いた札（遊んでいる間、窓の脇に見えたまま。スマホは梁の上端からのぞく） */
+.pulled{display:none;position:absolute;z-index:1;top:-78px;left:118px;width:230px;height:122px;background:var(--gunjo);
+  border:5px solid var(--boru);outline:2px solid var(--sumi);transform:rotate(3deg);box-shadow:4px 4px 0 #0004}
+.pulled img{width:100%;height:100%;object-fit:cover;object-position:50% 40%;display:block;filter:sepia(.12)}
+.pulled .daiji{font-size:18px;left:8px;bottom:12px;padding:4px 7px 5px;border-width:2px;box-shadow:2px 2px 0 var(--sumi);white-space:nowrap}
+
+/* ── 遊んでいる間 ── */
+body.playing .pulled{display:block}
+body.playing .card-out{visibility:hidden}
+/* 畳んだ扉（スマホ）：窓の左右に縁と蝶番だけ見える */
+body.playing .door{width:18px;top:8px;bottom:12px;transform:none;background-color:var(--kurikawa-hi);box-shadow:inset 0 0 0 2px var(--sumi),inset 4px 0 0 #ffffff14;transition:none}
+body.playing .door::before{inset:8px 4px}
+body.playing .door.l{left:0}
+body.playing .door.r{right:0}
+
+/* ── 広い画面 ── */
+@media (min-width:600px){
+  .cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:34px 28px}
+  .fuda .tag{font-size:18px;left:-4px;bottom:-14px;padding:6px 9px 7px;box-shadow:3px 3px 0 var(--sumi)}
+  .fuda .new{font-size:14px;top:9px;left:9px}
+  .fuda .face{padding:8px}
+  .fuda .script{--lh:25px;--pad-top:8px;margin:20px -8px -8px;padding:var(--pad-top) 14px 14px}
+  .fuda .script p{font-size:14px}
+  .stamp{font-size:13px;padding:6px 8px 5px}
+  .stamp b{font-size:17px}
+  .play{font-size:18px;padding:9px 18px 10px}
+}
+@media (min-width:900px){
+  .page{padding:26px 28px 56px}
+  .marquee{display:flex;align-items:flex-end;gap:24px;padding:16px 20px 16px}
+  .marquee .sub{margin:0 0 4px}
+  .sign{font-size:54px}
+  .board{margin-top:30px}
+
+  .stage{inset:20px auto 24px 50%;transform:translateX(-50%);width:var(--stage-w,820px)}
+  .stage .beam{margin-top:0;height:64px;padding:0 18px}
+  .box{padding:12px 30px 18px}
+  .daiji{font-size:50px;left:22px;bottom:22px}
+  .door{width:104px;top:12px;bottom:18px}
+  .door.l{left:8px;transform:perspective(700px) rotateY(-62deg)}
+  .door.r{right:8px;transform:perspective(700px) rotateY(62deg)}
+  .door::before{inset:14px 12px}
+  .opening .door.l,body.playing .door.l{transform:perspective(700px) rotateY(-150deg)}
+  .opening .door.r,body.playing .door.r{transform:perspective(700px) rotateY(150deg)}
+  body.playing .door{width:104px;top:12px;bottom:18px;background-color:var(--kurikawa);box-shadow:inset 0 0 0 2px #0004}
+  body.playing .door.l{left:8px}
+  body.playing .door.r{right:8px}
+  body.playing .door::before{inset:14px 12px}
+  /* 抜いた札：右の扉の前、扉の幅の中に立てかける（画面の右端で切れない） */
+  body.playing .pulled{top:auto;bottom:40px;left:auto;right:-104px;width:124px;height:92px;border-width:4px;transform:rotate(5deg);z-index:3}
+  body.playing .pulled .daiji{font-size:14px;left:5px;bottom:7px;padding:3px 6px 4px}
+}
+@media (prefers-reduced-motion:reduce){
+  .door,.card-out,.flying{transition:none!important}
+  .stamp.bump,body.staging .playroom{animation:none}
+}
