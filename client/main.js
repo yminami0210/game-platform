@@ -1,8 +1,9 @@
-// ナナシ県 3D クライアント: サーバーの状態を SSE で受け、町と CP を描く。
+// ナナシ県 3D クライアント: 接続先（サーバー or この端末）から状態を受け、町と CP を描く。スマホ対応。
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildTown, label } from '/town.js';
-import { PLACES } from '/shared/world.js';
+import { buildTown, label } from './town.js';
+import { PLACES } from './shared/world.js';
+import { createBackend } from './backend.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -11,13 +12,18 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 保存できなくても動く */ } },
 };
 
-const init = await (await fetch('/api/init')).json();
+const be = await createBackend();
+const init = be.init;
+const MOBILE = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+document.body.classList.toggle('mobile', MOBILE);
+document.body.dataset.mode = be.mode;
 const DEPTS = Object.fromEntries(init.departments.map((d) => [d.id, d]));
 
 // ---- 描画の土台 ----
 const canvas = $('#view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// スマホは解像度と影を控えめにして、電池と発熱を抑える
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !MOBILE || devicePixelRatio < 2 });
+renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
@@ -30,7 +36,7 @@ controls.minDistance = 8; controls.maxDistance = 650;
 const hemi = new THREE.HemisphereLight('#fff4dc', '#7a6a4a', 0.9);
 const sun = new THREE.DirectionalLight('#fff0d0', 1.6);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -300, right: 300, top: 300, bottom: -300, far: 900 });
 scene.add(hemi, sun, sun.target);
 
@@ -40,6 +46,7 @@ const town = buildTown(scene, init.seed);
 const CAMS = {
   all: [[0, 280, 340], [0, 0, 20]],
   office: [[30, 40, 18], [30, 0, -22]],
+  officeTall: [[30, 70, 40], [30, 0, -16]], // 縦長画面用
   koho: [[0, 14, 0], [0, 0, 0]],
   shotengai: [[0, 22, 150], [0, 0, 108]],
   station: [[70, 30, 250], [30, 0, 200]],
@@ -57,7 +64,7 @@ function setCam(name) {
   const [p, t] = CAMS[name];
   camera.position.set(...p); controls.target.set(...t); controls.update();
 }
-setCam('office');
+setCam(MOBILE ? 'officeTall' : 'office');
 $('#cams').addEventListener('click', (e) => e.target.dataset.cam && setCam(e.target.dataset.cam));
 
 // ---- CP（インスタンス描画） ----
@@ -167,7 +174,7 @@ init.logs.forEach(addLog);
 
 function addSns(p) {
   const li = document.createElement('li');
-  li.innerHTML = `<span class="via">${esc(p.via)}</span><div class="who">${esc(p.author)}</div><time>${esc(p.time)}</time><div>${esc(p.text)}</div>${p.photo ? `<img src="/data/photos/${esc(p.photo)}.jpg" alt="広報課撮影" onerror="this.remove()">` : ''}`;
+  li.innerHTML = `<span class="via">${esc(p.via)}</span><div class="who">${esc(p.author)}</div><time>${esc(p.time)}</time><div>${esc(p.text)}</div>${p.photo ? `<img data-photo="${esc(p.photo)}" src="${esc(be.photoUrl(p.photo))}" alt="広報課撮影" onerror="this.remove()">` : ''}`;
   $('#sns').prepend(li);
 }
 init.sns.forEach(addSns);
@@ -198,9 +205,8 @@ function toast(msg) {
 
 // ---- CP 情報カード ----
 async function showCp(id, fly = false) {
-  const r = await fetch(`/api/cp/${id}`);
-  if (!r.ok) return;
-  const d = await r.json();
+  const d = await be.cp(id);
+  if (!d) return;
   const roleName = { staff: `${d.deptName} ${d.title || ''}`, worker: `${d.workName || ''} 勤務`, student: '児童', resident: '住民', human: '人間アバター' }[d.role];
   $('#card').hidden = false;
   $('#card').innerHTML = `<b>${esc(d.name)}</b>（${d.age}歳）<span class="muted"> ${esc(roleName)}</span><br>いま: ${esc(d.place)} ／ ${esc(d.activity)}${d.skills?.length ? `<br><span class="muted">スキル: ${esc(d.skills.join(', '))}</span>` : ''}`;
@@ -230,7 +236,7 @@ function takePhoto(req) {
   g.font = 'bold 22px monospace'; g.fillStyle = '#ff9a2a';
   g.fillText(`'${String(lastClock?.day ?? 1).padStart(2, '0')} ${lastClock?.time ?? ''}`, W - 170, H - 22);
   renderer.setSize(size.x, size.y, false);
-  fetch(`/api/photos/${req.photoId}`, { method: 'POST', body: out.toDataURL('image/jpeg', 0.75) }).catch(() => {});
+  be.photo(req.photoId, out.toDataURL('image/jpeg', 0.75));
 }
 
 // ---- 住民課窓口 ----
@@ -238,7 +244,7 @@ $('#workSel').innerHTML = PLACES.filter((p) => !['kencho', 'office', 'park', 'ta
 $('#formResident').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = Object.fromEntries(new FormData(e.target));
-  await fetch('/api/residents', { method: 'POST', body: JSON.stringify(f) });
+  await be.residents(f);
   toast('転入届を住民課に提出しました。職員が手続きします');
   e.target.reset();
 });
@@ -255,7 +261,7 @@ renderAvatar();
 $('#formAvatar').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = Object.fromEntries(new FormData(e.target));
-  const r = await (await fetch('/api/avatars', { method: 'POST', body: JSON.stringify(f) })).json();
+  const r = await be.avatars(f);
   if (r.error) return toast(r.error);
   avatar = { token: r.token, taskId: r.task.id };
   store.set('nanashi.avatar', avatar);
@@ -269,12 +275,12 @@ const ndc = new THREE.Vector2();
 let downAt = null;
 canvas.addEventListener('pointerdown', (e) => (downAt = [e.clientX, e.clientY]));
 canvas.addEventListener('pointerup', (e) => {
-  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return; // ドラッグは無視
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > (e.pointerType === 'touch' ? 12 : 5)) return; // ドラッグは無視（指は少し甘く）
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
   if ($('#walkMode').checked && myAvatar()) {
     const hit = ray.intersectObject(town.ground)[0];
-    if (hit) fetch(`/api/avatars/${avatar.cpId}/goto`, { method: 'POST', body: JSON.stringify({ token: avatar.token, x: hit.point.x, z: hit.point.z }) });
+    if (hit) be.goto(avatar.cpId, { token: avatar.token, x: hit.point.x, z: hit.point.z });
     return;
   }
   const hit = ray.intersectObject(bodyMesh)[0];
@@ -298,21 +304,20 @@ function renderClock(c) {
 }
 renderClock(init.clock);
 
-const es = new EventSource('/events');
-es.addEventListener('frame', (e) => applyFrame(JSON.parse(e.data)));
-es.addEventListener('clock', (e) => { const c = JSON.parse(e.data); renderClock(c); if (c.tasks) { tasks = c.tasks; renderTasks(); } });
-es.addEventListener('log', (e) => addLog(JSON.parse(e.data)));
-es.addEventListener('sns', (e) => { const p = JSON.parse(e.data); addSns(p); toast(`ナナシッター: ${p.author} が投稿しました`); });
-es.addEventListener('news', (e) => { $('#news').innerHTML = md(JSON.parse(e.data).markdown); toast('ナナシ県民新聞が発行されました'); });
-es.addEventListener('roster', (e) => addRoster(JSON.parse(e.data)));
-es.addEventListener('photo_request', (e) => takePhoto(JSON.parse(e.data)));
-es.addEventListener('photo', (e) => {
-  const { photoId, url } = JSON.parse(e.data);
-  document.querySelectorAll(`#sns img[src="${url}"]`).forEach((img) => (img.src = url + '?t=' + Date.now()));
+be.on('frame', (e) => applyFrame(e));
+be.on('clock', (e) => { const c = e; renderClock(c); if (c.tasks) { tasks = c.tasks; renderTasks(); } });
+be.on('log', (e) => addLog(e));
+be.on('sns', (e) => { const p = e; addSns(p); toast(`ナナシッター: ${p.author} が投稿しました`); });
+be.on('news', (e) => { $('#news').innerHTML = md(e.markdown); toast('ナナシ県民新聞が発行されました'); });
+be.on('roster', (e) => addRoster(e));
+be.on('photo_request', (e) => takePhoto(e));
+be.on('photo', (e) => {
+  const { photoId, url } = e;
+  document.querySelectorAll(`#sns img[data-photo="${photoId}"]`).forEach((img) => (img.src = be.mode === 'server' ? url + '?t=' + Date.now() : url));
   toast(`広報課が写真を撮りました（${photoId}）`);
 });
-es.addEventListener('registered', (e) => {
-  const r = JSON.parse(e.data);
+be.on('registered', (e) => {
+  const r = e;
   if (avatar && r.human && r.token === avatar.token) {
     avatar.cpId = r.cpId; store.set('nanashi.avatar', avatar);
     setTimeout(renderAvatar, 600);
@@ -323,7 +328,9 @@ es.addEventListener('registered', (e) => {
 // ---- ループ ----
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  camera.aspect = innerWidth / innerHeight;
+  camera.fov = camera.aspect < 1 ? 64 : 50; // 縦長のスマホでは広角にして左右が切れないように
+  camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
 resize();
@@ -335,4 +342,26 @@ renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
 });
-window.__nanashi = { cps, scene, setCam }; // デバッグ用
+// ---- スマホ: 下のタブで「町だけ」と各シートを切り替える ----
+function openSheet(name) {
+  document.body.dataset.sheet = name;
+  document.querySelectorAll('#mtabs button').forEach((b) => b.classList.toggle('on', b.dataset.sheet === name));
+  if (name && name !== 'kencho') document.querySelector(`.tabs button[data-tab="${name}"]`)?.click();
+  $('#card').hidden = true;
+}
+$('#mtabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (b) openSheet(document.body.dataset.sheet === b.dataset.sheet ? '' : b.dataset.sheet);
+});
+openSheet('');
+
+if (be.mode === 'local') {
+  $('#localBox').hidden = false;
+  $('#resetLocal').addEventListener('click', () => confirm('この端末の町を消して、はじめからにしますか？') && be.reset());
+}
+$('#loading').remove();
+
+// ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
+if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('./sw.js').catch(() => {});
+
+window.__nanashi = { cps, scene, setCam, openSheet, mode: be.mode }; // デバッグ用

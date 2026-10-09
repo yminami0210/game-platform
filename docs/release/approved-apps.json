@@ -1,0 +1,4 @@
+{
+  "note": "公開（GitHub Pages）をオーナーが承認したアプリ。ここに id を入れると tools/build_site.py が <サイト>/<id>/ に載せる。追加はオーナーの承認後に AI相棒が行う。",
+  "approved": []
+}

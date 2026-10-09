@@ -19,6 +19,17 @@ npm start          # http://localhost:8787
 - 早回し: `NANASHI_SPEED=6 npm start`
 - 状態は `data/` に保存され、再起動しても住民は残る（`data/` はコミットしない）。
 
+## スマホで使う
+
+| 方法 | 手順 | 特徴 |
+|---|---|---|
+| **A. この端末だけで動かす**（おすすめ） | 公開サイトの `/nanashi/` を開く（GitHub Pages。公開はオーナーの承認後）。「共有 → ホーム画面に追加」でアプリのように使える | サーバー不要・通信なし・LLM 不使用（トークン 0）。町の状態はその端末に保存される。閉じている間は時間が止まる |
+| B. PC のサーバーに同じ Wi-Fi からつなぐ | PC で `npm start` → 表示される「スマホから: http://192.168.x.x:8787」を開く | PC と同じ町を見る。Claude Code スキルの「作業中」もスマホに出る |
+
+- 手元で A を試すとき: `npm start` して `http://localhost:8787/?mode=local`（`&speed=6` で早回し、`&pop=100` で人口を変える）
+- スマホ向けの画面: 下のタブ（町／県庁／ログ／SNS／新聞／窓口）で切り替える。指 1 本で回す・2 本で拡大と移動・タップで CP を表示する。解像度と影は控えめにしてある
+- 公開用のビルド: `npm ci && python3 tools/build_site.py _site`（`docs/release/approved-apps.json` に `nanashi` があるときだけ載る）
+
 ## 画面
 
 | 場所 | 内容 |
@@ -85,8 +96,9 @@ Claude Code 自体を OmniRoute 経由で使うには `scripts/claude-omniroute.
 ## 構成
 
 ```
-server/  index.js（HTTP+SSE）sim.js（CP・県庁・タスク）executor.js（LLM・予算）chronicle.js（記録）world.js（地図）lore.js（世界観）
-client/  index.html main.js（描画・UI・撮影）town.js（町並み）style.css
+server/  index.js（HTTP+SSE）api.js（API の中身）sim.js（CP・県庁・タスク）executor.js（LLM・予算）templates.js（文章テンプレート）
+         chronicle.js / chronicle-core.js（記録）world.js（地図）lore.js（世界観）  ※ api/sim/templates/chronicle-core/world/lore はブラウザでも動く
+client/  index.html main.js（描画・UI・撮影）backend.js（サーバー／この端末の切り替え）town.js（町並み）style.css sw.js manifest.webmanifest icons/
 docs/nanashi/  team.md（SM・PM の判断記録）world-bible.md（世界設定）
 ```
 

@@ -2,11 +2,19 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#b8392f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ナナシ県">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <title>ナナシ県</title>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="./style.css">
   <script type="importmap">
-    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+    { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
   </script>
 </head>
 <body>
@@ -62,14 +70,28 @@
         <label>服の色<input name="color" type="color" value="#e8b730"></label>
         <button>登録を申し込む</button>
         <p class="muted" id="avatarStatus"></p>
-        <label class="check" id="walkWrap" hidden><input type="checkbox" id="walkMode"> 地面をクリックして歩く</label>
+        <label class="check" id="walkWrap" hidden><input type="checkbox" id="walkMode"> 地面をタップ（クリック）して歩く</label>
       </form>
+      <div class="form" id="localBox" hidden>
+        <h3>この端末の町</h3>
+        <p class="muted">サーバーなしで、この端末の中だけで町が動いています（LLM 不使用・通信なし）。閉じている間は時間が止まります。</p>
+        <button type="button" id="resetLocal">町をはじめからにする</button>
+      </div>
     </section>
   </aside>
 
   <div id="card" class="panel" hidden></div>
+  <nav id="mtabs" aria-label="画面の切り替え">
+    <button data-sheet="" class="on">町</button>
+    <button data-sheet="kencho">県庁</button>
+    <button data-sheet="log">ログ</button>
+    <button data-sheet="sns">SNS</button>
+    <button data-sheet="news">新聞</button>
+    <button data-sheet="jumin">窓口</button>
+  </nav>
+  <div id="loading">ナナシ県へ向かっています…</div>
   <div id="toast"></div>
 
-  <script type="module" src="/main.js"></script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>

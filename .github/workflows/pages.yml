@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install three.js (ナナシ県)
+        run: npm ci --omit=dev
       - name: Build site
         run: python3 tools/build_site.py _site
       - uses: actions/configure-pages@v5

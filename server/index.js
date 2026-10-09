@@ -2,13 +2,12 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+import os from 'node:os';
 import { loadConfig, ROOT, DATA } from './config.js';
 import { Chronicle } from './chronicle.js';
 import { Executor } from './executor.js';
 import { Simulation } from './sim.js';
-import { DEPARTMENTS } from './lore.js';
-import { PLACES } from './world.js';
+import { createApi } from './api.js';
 
 const cfg = loadConfig();
 const chronicle = new Chronicle();
@@ -37,7 +36,7 @@ setInterval(() => {
 setInterval(() => {
   if (!clients.size) return;
   broadcast('frame', sim.frame());
-  broadcast('clock', { ...sim.clock(), llm: executor.status(), tasks: sim.tasks.map((t) => sim.taskView(t)) });
+  broadcast('clock', api.clock());
 }, 500);
 function save() {
   fs.writeFileSync(STATE_FILE, JSON.stringify(sim.serialize()));
@@ -46,7 +45,7 @@ setInterval(save, 60000);
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { save(); process.exit(0); });
 
 // ---- HTTP ----
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
+const MIME = { '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
 
 function serveFile(res, file) {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return json(res, 404, { error: 'not found' });
@@ -79,38 +78,18 @@ function safeJoin(base, rel) {
   return p.startsWith(base + path.sep) ? p : null;
 }
 
-const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 20);
-const SPAWNABLE_ROLES = new Set(['resident', 'worker', 'student']);
+// ブラウザでもそのまま動くモジュール（client/ から ./shared/ として読み込む）
+const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js'];
 
+const api = createApi({ sim, chronicle, executor, seed: cfg.seed });
 const routes = {
-  'GET /api/init': () => ({
-    places: PLACES, departments: DEPARTMENTS, seed: cfg.seed, roster: sim.roster(), clock: sim.clock(),
-    tasks: sim.tasks.map((t) => sim.taskView(t)), sns: chronicle.sns, logs: chronicle.recent, news: chronicle.latestNews(), llm: executor.status(),
-  }),
-  'GET /api/digest': () => sim.digestNow(),
-  'GET /api/tasks': () => sim.tasks.map((t) => sim.taskView(t)),
-  'GET /api/news/latest': () => chronicle.latestNews(),
-  // 住民課: 新規 CP の追加（人事機能）
-  'POST /api/residents': (b) => {
-    const role = SPAWNABLE_ROLES.has(b.role) ? b.role : 'resident';
-    const t = sim.requestTask('resident_register', { name: cleanName(b.name) || undefined, role, work: role === 'worker' ? b.work : role === 'student' ? 'school' : undefined });
-    return sim.taskView(t);
-  },
-  // 住民課: 人間アバターの登録。token を持つブラウザだけがそのアバターを動かせる
-  'POST /api/avatars': (b) => {
-    const name = cleanName(b.name);
-    if (!name) throw Object.assign(new Error('名前が必要です'), { code: 400 });
-    const color = /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : '#ffcc00';
-    const token = crypto.randomBytes(16).toString('hex');
-    const t = sim.requestTask('resident_register', { human: true, name, color, token });
-    return { task: sim.taskView(t), token };
-  },
-  // Claude Code スキル用: 外部実行タスクの作成と完了報告（作業中の CP が 3D に表示される）
-  'POST /api/tasks': (b) => {
-    if (!['sns_post', 'newspaper'].includes(b.type)) throw Object.assign(new Error('type は sns_post か newspaper'), { code: 400 });
-    const event = b.topic ? { text: String(b.topic).slice(0, 120), placeName: '県内' } : undefined;
-    return sim.taskView(sim.requestTask(b.type, { external: !!b.external, event }));
-  },
+  'GET /api/init': () => api.init(),
+  'GET /api/digest': () => api.digest(),
+  'GET /api/tasks': () => api.tasks(),
+  'GET /api/news/latest': () => api.latestNews(),
+  'POST /api/residents': (b) => api.residents(b),
+  'POST /api/avatars': (b) => api.avatars(b),
+  'POST /api/tasks': (b) => api.createTask(b),
 };
 
 const server = http.createServer(async (req, res) => {
@@ -131,28 +110,22 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, routes[key](body));
     }
     let m;
+    const json1 = async () => JSON.parse((await readBody(req)) || '{}');
     if (req.method === 'GET' && (m = p.match(/^\/api\/cp\/(\d+)$/))) {
-      const d = sim.cpDetail(Number(m[1]));
+      const d = api.cp(m[1]);
       return d ? json(res, 200, d) : json(res, 404, { error: 'not found' });
     }
     if (req.method === 'POST' && (m = p.match(/^\/api\/tasks\/(\d+)\/complete$/))) {
-      const b = JSON.parse((await readBody(req)) || '{}');
-      return json(res, sim.completeExternal(Number(m[1]), b.text || '') ? 200 : 404, { ok: true });
+      const r = api.complete(m[1], await json1());
+      return json(res, r.ok ? 200 : 404, r);
     }
     if (req.method === 'POST' && (m = p.match(/^\/api\/avatars\/(\d+)\/goto$/))) {
-      const b = JSON.parse((await readBody(req)) || '{}');
-      const ok = sim.moveHuman(Number(m[1]), String(b.token || ''), Number(b.x) || 0, Number(b.z) || 0);
-      return json(res, ok ? 200 : 403, { ok });
+      const r = api.goto(m[1], await json1());
+      return json(res, r.ok ? 200 : 403, r);
     }
-    // 3D クライアントからの断面キャプチャ（写真）
     if (req.method === 'POST' && (m = p.match(/^\/api\/photos\/([\w-]+)$/))) {
-      const photoId = m[1];
-      const dataUrl = await readBody(req, 3 * 1024 * 1024);
-      const b64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
-      if (!sim.photoSaved(photoId)) return json(res, 409, { error: 'already taken or unknown' });
-      chronicle.savePhoto(photoId, Buffer.from(b64, 'base64'));
-      broadcast('photo', { photoId, url: `/data/photos/${photoId}.jpg` });
-      return json(res, 200, { ok: true });
+      const r = api.photo(m[1], await readBody(req, 3 * 1024 * 1024));
+      return json(res, r.ok ? 200 : 409, r);
     }
     if (req.method === 'GET' && p.startsWith('/data/photos/')) {
       const f = safeJoin(path.join(DATA, 'photos'), p.slice('/data/photos/'.length));
@@ -164,7 +137,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && p.startsWith('/shared/')) {
       const name = p.slice('/shared/'.length);
-      if (!['world.js', 'lore.js'].includes(name)) return json(res, 404, { error: 'not found' });
+      if (!SHARED.includes(name)) return json(res, 404, { error: 'not found' });
       return serveFile(res, path.join(ROOT, 'server', name));
     }
     if (req.method === 'GET') {
@@ -179,4 +152,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(cfg.port, () => {
   console.log(`ナナシ県 開庁: http://localhost:${cfg.port}  (LLM モード: ${cfg.llm.mode}, 人口 ${sim.cps.length})`);
+  // 同じ Wi-Fi のスマホから開くための URL
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const a of list || []) if (a.family === 'IPv4' && !a.internal) console.log(`  スマホから: http://${a.address}:${cfg.port}`);
+  }
 });

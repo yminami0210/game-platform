@@ -1,7 +1,7 @@
 // ナナシ県の町並み（少し昭和）。すべて手続き的に生成し、外部アセットは使わない。
 import * as THREE from 'three';
-import { PLACES, ROAD_STEP, HALF, buildHouses, buildDesks, mulberry32 } from '/shared/world.js';
-import { DEPARTMENTS } from '/shared/lore.js';
+import { PLACES, ROAD_STEP, HALF, buildHouses, buildDesks, mulberry32 } from './shared/world.js';
+import { DEPARTMENTS } from './shared/lore.js';
 
 const mat = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
 

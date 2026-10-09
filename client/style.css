@@ -72,10 +72,41 @@ button:hover { background: #e0cfa8; }
   padding: 6px 14px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 7; }
 #toast.on { opacity: .92; }
 
-@media (max-width: 760px) {
-  #kencho { display: none; }
-  #side { left: 16px; right: 16px; width: auto; top: auto; bottom: 8px; height: 42%; }
-  #bar { gap: 10px; font-size: 12px; padding: 6px 16px; }
-  #bar .brand small, #llm { display: none; }
-  #cams { top: 46px; }
-}
+
+/* ---- 読み込み中 ---- */
+#loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--paper); font-size: 16px; letter-spacing: .1em; z-index: 20; }
+
+/* ---- スマホ（縦長・指で操作） ---- */
+#mtabs { display: none; }
+#view { touch-action: none; }
+html, body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+button, .tabs button, #mtabs button { touch-action: manipulation; }
+
+body.mobile #bar { padding: calc(6px + env(safe-area-inset-top)) 12px 6px; gap: 10px; font-size: 12px; flex-wrap: nowrap; }
+body.mobile #bar .brand { font-size: 17px; flex: none; }
+body.mobile #bar .brand small, body.mobile #llm { display: none; }
+body.mobile #clock { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+body.mobile #pop { margin-left: auto; white-space: nowrap; }
+body.mobile #cams { top: calc(40px + env(safe-area-inset-top)); left: 0; right: 0; transform: none; flex-wrap: nowrap; justify-content: flex-start;
+  overflow-x: auto; padding: 0 12px 4px; scrollbar-width: none; }
+body.mobile #cams::-webkit-scrollbar { display: none; }
+body.mobile #cams button { flex: none; padding: 7px 12px; font-size: 13px; }
+
+body.mobile #mtabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: rgba(243, 234, 215, .97);
+  border-top: 2px solid var(--red); padding-bottom: env(safe-area-inset-bottom); }
+body.mobile #mtabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 12px 0; font-size: 14px; min-height: 48px; }
+body.mobile #mtabs button.on { background: var(--paper-2); color: var(--red); font-weight: bold; }
+
+/* シート: 下のタブの上に、画面の半分強で出す */
+body.mobile #kencho, body.mobile #side { display: none; left: 8px; right: 8px; width: auto; top: auto; max-height: none;
+  bottom: calc(52px + env(safe-area-inset-bottom)); height: 56vh; height: 56dvh; border-radius: 10px 10px 4px 4px; }
+body.mobile[data-sheet="kencho"] #kencho { display: block; overflow: auto; }
+body.mobile[data-sheet="log"] #side, body.mobile[data-sheet="sns"] #side,
+body.mobile[data-sheet="news"] #side, body.mobile[data-sheet="jumin"] #side { display: flex; }
+body.mobile #side .tabs { display: none; }
+body.mobile #side section { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); font-size: 14px; }
+body.mobile .form input, body.mobile .form select, body.mobile .form button { font-size: 16px; padding: 8px; } /* iOS の自動ズームを防ぐ */
+body.mobile #log li { padding: 7px 0; }
+body.mobile #card { bottom: calc(60px + env(safe-area-inset-bottom)); left: 12px; right: 12px; transform: none; min-width: 0; }
+body.mobile #toast { top: calc(84px + env(safe-area-inset-top)); max-width: calc(100vw - 32px); }
+.form input[type="color"] { width: 72px; height: 40px; padding: 2px; }

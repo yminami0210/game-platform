@@ -12,6 +12,7 @@
   player/                    遊び場（設計資料・スクショ・テスト・ツールは除く）
   arcade/catalog.json        承認済み かつ ready/published のゲームだけ
   arcade/games/<id>/         index.html と qa/play.png（絵札の絵）
+  nanashi/                   ナナシ県（スマホ・ブラウザ単体モード）。docs/release/approved-apps.json で承認されたときだけ
   .nojekyll
 """
 import json
@@ -63,8 +64,35 @@ def main(out: Path) -> None:
         if (src / "qa/play.png").exists():
             shutil.copy(src / "qa/play.png", dst / "qa/play.png")
 
+    apps = build_apps(out)
+
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
-    print(f"{out}: ゲーム {len(games)} 本（{', '.join(g['id'] for g in games)}）、合計 {size / 1e6:.1f}MB")
+    print(f"{out}: ゲーム {len(games)} 本（{', '.join(g['id'] for g in games)}）、アプリ {apps or 'なし'}、合計 {size / 1e6:.1f}MB")
+
+
+# ナナシ県: サーバーなしで動く形（client/ + ブラウザで動く server/ のモジュール + three.js）
+NANASHI_SHARED = ["world.js", "lore.js", "sim.js", "templates.js", "chronicle-core.js", "api.js"]
+NANASHI_THREE = ["build/three.module.js", "examples/jsm/controls/OrbitControls.js"]
+
+
+def build_apps(out: Path) -> list:
+    path = REPO / "docs/release/approved-apps.json"
+    approved = {a["id"] for a in json.loads(path.read_text(encoding="utf-8"))["approved"]} if path.exists() else set()
+    built = []
+    if "nanashi" in approved:
+        dst = out / "nanashi"
+        shutil.copytree(REPO / "client", dst)
+        (dst / "shared").mkdir()
+        for f in NANASHI_SHARED:
+            shutil.copy(REPO / "server" / f, dst / "shared" / f)
+        three = REPO / "node_modules/three"
+        if not three.exists():
+            sys.exit("node_modules/three がありません。先に npm ci を実行してください")
+        for f in NANASHI_THREE:
+            (dst / "vendor/three" / f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(three / f, dst / "vendor/three" / f)
+        built.append("nanashi")
+    return built
 
 
 if __name__ == "__main__":
