@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=1200,initial-scale=1">
+<title>ぺったん二人前 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Stick&family=Zen+Kurenaido&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#2b6cb5}svg{display:block}</style>
+</head><body>
+<svg id="s" width="1200" height="900" viewBox="0 0 1200 900"></svg>
+<script src="paper.js"></script>
+<script>
+// 見本帳: 色・文字・形・「手を打たない」見せ方。地は場面と同じく、上がブロック塀、下がブルーシート
+const s = document.getElementById("s");
+defs(s);
+setSeed(12);
+const T = (g, x, y, str, o = {}) => {
+  const t = el("text", { x, y, "font-family": o.stick ? "Stick, sans-serif" : "'Zen Kurenaido', sans-serif", "font-size": o.size || 16, fill: o.fill || C.sumi, "text-anchor": o.anchor || "start" }, g);
+  if (o.num) t.setAttribute("style", "font-variant-numeric:tabular-nums");
+  t.textContent = str; return t;
+};
+const label = (g, x, y, w, h, rot = 0) => {
+  const t = el("g", { transform: `rotate(${rot} ${x} ${y})` }, g);
+  piece(t, torn([[x, y], [x + w, y + j(2)], [x + w + j(2), y + h], [x, y + h + j(2)]], 1.2, 4), C.mochi, { sh: [2.5, 3] });
+  return t;
+};
+// 地
+piece(s, cut([[-5, -5], [1205, -5], [1205, 352], [-5, 360]], 0), C.block, { sh: null, tex: "fib" });
+piece(s, torn([[-5, 340], [1205, 330], [1205, 905], [-5, 905]], 1.4, 7), C.ao, { sh: [0, -3], shOp: 0.3 });
+piece(s, torn([[-5, 520], [210, 470], [150, 560], [-5, 610]], 1.2, 6), C.aoL, { sh: null, op: 0.6 });
+piece(s, torn([[980, 905], [1205, 760], [1205, 905]], 1.2, 6), C.aoD, { sh: null, op: 0.6 });
+
+// ===== 色 =====
+T(s, 28, 38, "色　6枚の色画用紙（同じ紙の濃淡は重ね色）", { size: 20 });
+const SW = [
+  ["ブルーシートの青", C.ao, "地・床（約35%）"],
+  ["ブロック塀のセメント", C.block, "奥の塀（約15%）"],
+  ["欅の臼", C.keyaki, "臼・杵・台（約20%）"],
+  ["餅の白", C.mochi, "主役（8%→15%）"],
+  ["ビールケースの橙", C.dai, "差し色（3%以下）"],
+  ["焦げ蒸籠の茶黒", C.sumi, "墨・文字（約5%）"],
+];
+SW.forEach(([name, col, role], i) => {
+  const x = 28 + (i % 3) * 182, y = 58 + Math.floor(i / 3) * 122, r = j(2);
+  const g = el("g", { transform: `rotate(${f1(r)} ${x + 80} ${y + 50})` }, s);
+  piece(g, torn([[x, y], [x + 166, y + j(2)], [x + 168, y + 58], [x + j(2), y + 60]], 1.6, 4), col, { tex: i === 1 ? null : "fib", edge: i === 3 ? null : "#ffffff", ew: 2.2 });
+  const lb = label(g, x + 4, y + 64, 160, 40, 0);
+  T(lb, x + 12, y + 82, name, { size: 15 });
+  T(lb, x + 12, y + 99, `${col}　${role}`, { size: 12.5 });
+});
+// 重ね色の小片
+const ext = [["明るい青", C.aoL], ["濃い青", C.aoD], ["木口", C.keyakiL], ["臼の内", C.keyakiD], ["くぼみ", C.mochiS], ["顔の紙", C.usudai]];
+ext.forEach(([n, c], i) => {
+  const x = 30 + i * 94, y = 330;
+  piece(s, torn([[x, y - 22], [x + 30, y - 23], [x + 31, y - 2], [x, y - 1]], 1, 3), c, { sh: [2, 2] });
+  T(s, x + 36, y - 6, n, { size: 13 });
+});
+
+// ===== 文字 =====
+T(s, 610, 38, "文字　見出し・掛け声・点数は Stick、説明は Zen Kurenaido", { size: 20 });
+setSeed(5);
+kiriMoji(s, "ぺったん", 612, 118, 64, { tilt: 5, bob: 3 });
+kiriMoji(s, "二人前", 900, 118, 64, { tilt: 5, bob: 3 });
+setSeed(18);
+const calls = [["よいしょ", "杵・返し"], ["ぺったんぺったん", "杵・杵・返し"], ["水！", "左を長押し"], ["ひと休み", "押さない"]];
+let cx = 612;
+calls.forEach(([c, m], i) => {
+  const w = c.length * 22 + 30;
+  fukidashi(s, cx, 150 + (i % 2) * 6, w, 40, null);
+  T(s, cx + 15, 178 + (i % 2) * 6, c, { stick: true, size: 22 });
+  T(s, cx + 6, 214 + (i % 2) * 6, m, { size: 13, fill: C.sumi });
+  cx += w + 18;
+});
+const nb = label(s, 612, 236, 270, 64, -1);
+T(nb, 626, 280, "12,480", { stick: true, size: 44, num: true });
+T(nb, 800, 282, "てん", { size: 16 });
+const bd = label(s, 900, 232, 272, 84, 1.2);
+T(bd, 912, 258, "右をたたくと杵、左で手返し。", { size: 16 });
+T(bd, 912, 280, "手が臼にあるうちは、", { size: 16 });
+T(bd, 912, 302, "杵を下ろさない。", { size: 16 });
+
+// ===== 形 =====
+T(s, 28, 388, "形　はさみの曲線と、ちぎった辺", { size: 20, fill: C.mochi });
+// 餅の3段階: つく前（米粒が多い）→ なかば → つき上がり（つやが2枚）
+[[0.95, 0], [0.45, 0.5], [0, 1]].forEach(([gr, gk], i) => {
+  setSeed(40 + i);
+  usu(s, 110 + i * 190, 470, 0.62, { grains: gr, glossK: gk, puni: i === 2 ? 0.6 : 0 });
+});
+T(s, 60, 560, "つく前", { size: 15, fill: C.mochi }); T(s, 246, 560, "なかば", { size: 15, fill: C.mochi }); T(s, 430, 560, "つき上がり（ぷるん）", { size: 15, fill: C.mochi });
+// 杵（振り上げ）
+setSeed(51);
+kine(s, 90, 720, 0.75, 28, { len: 150 });
+T(s, 40, 760, "横杵", { size: 15, fill: C.mochi });
+// 軍手（命の札）
+setSeed(52);
+gunte(s, 260, 640, 1.1, -6); gunte(s, 310, 642, 1.1, 8); gunte(s, 360, 640, 1.1, -2, { flip: true });
+T(s, 226, 690, "手形の札＝軍手（失うと点線）", { size: 14, fill: C.mochi });
+// 縄の結び目と拍の札
+setSeed(53);
+nawa(s, 330, 700, 120, 34, 4);
+T(s, 216, 772, "拍＝縄の結び目8つ、いまの拍に橙の札", { size: 14, fill: C.mochi });
+// ビールケースと手水のボウル
+setSeed(54);
+piece(s, cut([[470, 616], [560, 612], [562, 690], [468, 694]], 1), C.dai, { line: C.sumi, lw: 2 });
+piece(s, cut([[492, 630], [538, 628], [538, 646], [492, 648]], 0.8), C.sumi, { sh: null, op: 0.75 });
+piece(s, cut([[548, 613], [560, 612], [562, 690], [550, 691]], 0.6), C.sumi, { sh: null, op: 0.25 });
+marker(s, [[472, 662], [520, 660], [548, 663]], 1.6, C.sumi, 0.6).setAttribute("opacity", 0.5);
+marker(s, [[500, 650], [501, 690]], 1.6, C.sumi, 0.5).setAttribute("opacity", 0.4);
+marker(s, [[528, 650], [527, 690]], 1.6, C.sumi, 0.5).setAttribute("opacity", 0.4);
+T(s, 470, 712, "ビールケース", { size: 14, fill: C.mochi });
+piece(s, smooth(ell(510, 790, 50, 24, 16)), C.blockD, { sh: [3, 5] });
+piece(s, smooth(ell(510, 786, 50, 22, 16)), C.blockL);
+piece(s, smooth(ell(510, 787, 42, 17, 16)), C.aoL, { sh: null, op: 0.8 });
+T(s, 470, 838, "手水のボウル", { size: 14, fill: C.mochi });
+// 紙1枚の重ね方（等倍で見える大きさ）
+const pz = el("g", {}, s);
+setSeed(55);
+piece(pz, torn([[40, 812], [170, 806], [172, 872], [42, 876]], 1.8, 4), C.aoD, { sh: [4, 5], shOp: 0.35, edge: "#ffffff", ew: 2.6 });
+piece(pz, cut([[120, 820], [210, 826], [206, 884], [116, 880]], 1), C.keyakiL, { sh: [4, 5], shOp: 0.35, tex: "wood" });
+T(s, 222, 846, "影は墨を3〜4pxずらすだけ", { size: 14, fill: C.mochi });
+T(s, 222, 866, "ちぎった辺は白い芯が1.5px出る", { size: 14, fill: C.mochi });
+
+// ===== 手を打たない見せ方（失敗） =====
+T(s, 610, 388, "失敗の見せ方　痛そうにしない。杵がぴたっと止まる", { size: 20, fill: C.mochi });
+const fr = (i) => {
+  const x = 612 + i * 196, y = 410;
+  const g = el("g", {}, s);
+  piece(g, torn([[x, y], [x + 182, y + j(2)], [x + 184, y + 250], [x + j(2), y + 252]], 1.4, 5), C.aoL, { sh: [3, 4], shOp: 0.3, op: 0.45 });
+  return [g, x, y];
+};
+// 1: 返しの直後。手が臼の上に残っていて、手が橙で縁取られる
+{
+  const [g, x, y] = fr(0); setSeed(61);
+  usu(g, x + 92, y + 150, 0.62, { grains: 0.3, glossK: 0.4 });
+  gunte(g, x + 72, y + 140, 1.05, 20, { danger: true });
+  T(g, x + 10, y + 30, "① 手が臼の上", { size: 15, fill: C.mochi });
+  T(g, x + 10, y + 238, "この拍は杵を待つ", { size: 13, fill: C.mochi });
+}
+// 2: それでも杵を下ろすと、杵が手の上でぴたっと止まる。餅がぷにっとはねる
+{
+  const [g, x, y] = fr(1); setSeed(62);
+  usu(g, x + 92, y + 168, 0.62, { grains: 0.3, glossK: 0.4, puni: 1 });
+  gunte(g, x + 72, y + 152, 1.05, 20, { danger: true });
+  kine(g, x + 98, y + 108, 0.6, 24, { len: 130 });
+  marker(g, [[x + 66, y + 116], [x + 84, y + 116]], 3); marker(g, [[x + 112, y + 116], [x + 130, y + 116]], 3);
+  kiriMoji(g, "ぴたっ", x + 108, y + 44, 30, { fill: C.dai, tilt: 4 });
+  T(g, x + 10, y + 30, "②", { size: 15, fill: C.mochi });
+  T(g, x + 10, y + 238, "杵が止まり、餅がぷにっ", { size: 13, fill: C.mochi });
+}
+// 3: 見物人が息をのむ。手形の札（軍手）が1枚裏返って点線に
+{
+  const [g, x, y] = fr(2); setSeed(63);
+  fukidashi(g, x + 18, y + 54, 150, 44, [x + 30, y + 112]);
+  T(g, x + 34, y + 84, "あぶない！", { stick: true, size: 24 });
+  gunte(g, x + 50, y + 170, 1.15, -6); gunte(g, x + 98, y + 172, 1.15, 6); gunte(g, x + 146, y + 170, 1.15, -2, { flip: true });
+  T(g, x + 10, y + 30, "③", { size: 15, fill: C.mochi });
+  T(g, x + 10, y + 238, "札が1枚へる（3枚で終わり）", { size: 13, fill: C.mochi });
+}
+// 結果: のし台に並んだ餅と「上」の札（いちばん出来のよい餅）
+{
+  setSeed(70);
+  const x = 612, y = 690;
+  piece(s, torn([[x, y], [x + 570, y - 6], [x + 572, y + 190], [x, y + 196]], 1.2, 6), C.keyakiL, { tex: "wood", sh: [4, 5], shOp: 0.35 });
+  piece(s, torn(ell(x + 280, y + 110, 250, 60, 22, 0, Math.PI * 2, 0.2), 2.2, 3), C.mochi, { sh: null, op: 0.45 });
+  const M = [[x + 80, y + 104, 50, 28, 0.2], [x + 200, y + 118, 54, 30, 0.6], [x + 330, y + 100, 58, 32, 1], [x + 460, y + 120, 52, 28, 0.5]];
+  M.forEach(([mx, my, rx, ry, k], i) => {
+    piece(s, smooth(ell(mx, my, rx, ry, 14, 0, Math.PI * 2, 0.03)), C.mochi, { sh: [3, 5] });
+    if (k < 0.5) for (let q = 0; q < 9; q++) { const a = rnd() * 6.28, r = 0.4 + rnd() * 0.5; el("ellipse", { cx: f1(mx + Math.cos(a) * rx * r), cy: f1(my + Math.sin(a) * ry * r), rx: 3, ry: 1.7, fill: C.grain, transform: `rotate(${f1(rnd() * 180)} ${f1(mx + Math.cos(a) * rx * r)} ${f1(my + Math.sin(a) * ry * r)})` }, s); }
+    if (k >= 0.5) piece(s, cut([[mx - rx * 0.6, my - ry * 0.45], [mx - rx * 0.1, my - ry * 0.75], [mx, my - ry * 0.65], [mx - rx * 0.5, my - ry * 0.3]], 0.5), "#ffffff", { sh: null });
+    piece(s, smooth([[mx - rx * 0.2, my + ry * 0.55], [mx + rx * 0.6, my + ry * 0.2], [mx + rx * 0.7, my + ry * 0.55], [mx + rx * 0.1, my + ry * 0.85]]), C.mochiS, { sh: null });
+  });
+  // 「上」: 橙の画用紙を丸く切った札に、墨のマジック
+  const ug = el("g", { transform: `rotate(-8 ${x + 380} ${y + 60})` }, s);
+  piece(ug, smooth(ell(x + 382, y + 58, 24, 22, 9, 0, Math.PI * 2, 0.04)), C.dai, { line: C.sumi, lw: 2 });
+  T(ug, x + 382, y + 68, "上", { stick: true, size: 28, anchor: "middle" });
+  T(s, x + 14, y + 30, "結果　のし台の餅と「上」の札", { size: 15, fill: C.sumi });
+}
+</script>
+</body></html>

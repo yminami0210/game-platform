@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=390,initial-scale=1">
+<title>ぺったん二人前 代表場面</title>
+<link href="https://fonts.googleapis.com/css2?family=Stick&family=Zen+Kurenaido&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#2b6cb5}svg{display:block}</style>
+</head><body>
+<svg id="s" width="390" height="844" viewBox="0 0 390 844"></svg>
+<script src="paper.js"></script>
+<script>
+// 代表場面: 2臼目のなかば。「ぺったんぺったん（杵・杵・返し）」の型の、2打目の杵がぴったり入った瞬間。
+// 左手（軍手）は臼の外に引いていて安全。見物人の「よいしょー」はまだ（コンボ5）。
+const s = document.getElementById("s");
+defs(s);
+const W = 390, H = 844;
+setSeed(9);
+// --- 奥: ブロック塀（笠木＋目地は所々だけ。人に隠れる） ---
+piece(s, cut([[-5, -5], [395, -5], [395, 168], [-5, 172]], 0), C.block, { sh: null, tex: "fib" });
+piece(s, torn([[-5, -5], [395, -5], [395, 16], [-5, 19]], 1.2, 6), C.blockD, { sh: [0, 3], shOp: 0.25 });
+marker(s, [[0, 62], [60, 61], [118, 63]], 1.6, C.blockD, 0.6);
+marker(s, [[262, 57], [330, 59], [392, 56]], 1.6, C.blockD, 0.6);
+marker(s, [[83, 19], [84, 61]], 1.6, C.blockD, 0.5);
+marker(s, [[352, 59], [351, 108]], 1.6, C.blockD, 0.5);
+marker(s, [[300, 110], [392, 108]], 1.6, C.blockD, 0.6);
+// 駐車場の地面（塀の足もと）
+piece(s, torn([[-5, 160], [395, 152], [395, 240], [-5, 246]], 1.6, 6), C.blockD, { sh: [0, -3], shOp: 0.22, tex: "fib" });
+// --- ブルーシート（床）。面を折り目で割る ---
+const sheet = torn([[-6, 226], [396, 218], [396, 850], [-6, 850]], 1.4, 7);
+piece(s, sheet, C.ao, { sh: [0, -3], shOp: 0.3 });
+// 折り目: 光の面と谷の面（形も幅もそろえない。縞にしない）
+piece(s, torn([[-6, 330], [120, 312], [70, 380], [-6, 402]], 1.2, 6), C.aoL, { sh: null, op: 0.75 });
+piece(s, torn([[300, 228], [396, 225], [396, 300], [350, 282]], 1.2, 6), C.aoL, { sh: null, op: 0.55 });
+piece(s, torn([[-6, 402], [70, 380], [40, 430], [-6, 452]], 1.2, 6), C.aoD, { sh: null, op: 0.7 });
+piece(s, torn([[300, 610], [396, 560], [396, 640], [340, 668]], 1.2, 6), C.aoD, { sh: null, op: 0.6 });
+// ハトメ（間隔不揃い・2つだけ）
+for (const [x, y] of [[22, 238], [205, 230]]) {
+  el("ellipse", { cx: x, cy: y, rx: 6.5, ry: 4.2, fill: C.blockL, stroke: C.sumi, "stroke-width": 1.6 }, s);
+  el("ellipse", { cx: x + 0.6, cy: y + 0.4, rx: 2.6, ry: 1.6, fill: C.aoD }, s);
+}
+// 取り粉の粉だまり（ちぎった白、薄く）
+piece(s, torn(ell(318, 656, 30, 9, 14, 0, Math.PI * 2, 0.2), 2, 3), C.mochi, { sh: null, op: 0.55 });
+piece(s, torn(ell(150, 668, 16, 6, 12, 0, Math.PI * 2, 0.25), 2, 3), C.mochi, { sh: null, op: 0.45 });
+
+// --- 見物人と太鼓（それぞれ形を変える。同じ顔を繰り返さない） ---
+function face(g, x, y, rx, ry, eyes) {
+  piece(g, smooth(ell(x, y, rx, ry, 9, 0, Math.PI * 2, 0.05)), C.usudai, { sh: [2, 2.5] });
+  for (const e of eyes) marker(g, e, 2.2);
+}
+// 太鼓の人（左）: 橙のビールケースに座り、長胴太鼓を横から
+const tg = el("g", {}, s);
+piece(tg, cut([[18, 186], [92, 182], [94, 246], [16, 250]], 1), C.dai, { line: C.sumi, lw: 2 }); // ビールケース
+piece(tg, cut([[36, 198], [72, 196], [72, 210], [36, 212]], 0.8), C.sumi, { sh: null, op: 0.75 }); // 手かけの穴
+marker(tg, [[22, 226], [88, 223]], 1.6, C.sumi, 0.6).setAttribute("opacity", 0.55);
+piece(tg, torn([[28, 112], [84, 106], [96, 190], [20, 194]], 1.4, 5), C.aoD, { tex: "fib" }); // ダウン
+marker(tg, [[30, 146], [58, 143], [90, 147]], 1.4, C.ao, 0.6);
+face(tg, 56, 88, 21, 23, [[[47, 86], [48, 89]], [[63, 85], [64, 88]], [[50, 100], [57, 102], [62, 99]]]);
+piece(tg, torn([[34, 80], [42, 60], [70, 58], [79, 78], [66, 72], [46, 73]], 1.2, 4), C.block, { tex: "fib" }); // 毛糸の帽子
+// 太鼓
+piece(tg, smooth([[96, 150], [104, 132], [150, 128], [158, 148], [152, 196], [104, 200], [96, 182]]), C.keyakiD, { tex: "wood" });
+piece(tg, smooth(ell(156, 165, 9, 34, 12)), C.blockL, { line: C.sumi, lw: 2 });
+for (const [x, y] of [[106, 142], [118, 135], [134, 134], [147, 138], [108, 190], [125, 194], [143, 191]]) el("circle", { cx: x + j(1), cy: y + j(1), r: 1.8, fill: C.keyakiL }, tg);
+piece(tg, cut([[110, 200], [146, 198], [150, 238], [106, 240]], 1), C.keyaki, { sh: [2, 3] }); // 台
+// 撥（振り上げた方）
+piece(tg, cut([[84, 116], [130, 82], [134, 87], [88, 121]], 0.5), C.keyakiL, { sh: [2, 2] });
+gunte(tg, 84, 118, 0.5, 40);
+// 見物人A: 長いコートと橙のマフラー、口を開けて合いの手
+const pa = el("g", {}, s);
+piece(pa, torn([[176, 112], [222, 108], [232, 214], [168, 218]], 1.3, 5), C.sumi, { tex: "fib" });
+piece(pa, torn([[180, 108], [218, 104], [222, 122], [176, 126]], 1.2, 4), C.dai);
+piece(pa, cut([[204, 120], [216, 118], [220, 152], [208, 154]], 0.8), C.dai);
+face(pa, 198, 84, 18, 21, [[[190, 80], [191, 83]], [[205, 79], [206, 82]]]);
+piece(pa, smooth(ell(199, 95, 5, 4, 6)), C.sumi, { sh: null });
+piece(pa, torn([[180, 76], [186, 60], [210, 58], [218, 74], [214, 66], [184, 70]], 1, 4), C.keyakiD); // 髪
+marker(pa, [[176, 218], [178, 236]], 4); marker(pa, [[222, 216], [224, 236]], 4);
+// 見物人B: 子ども（フードをかぶる、背が低い）
+const pb = el("g", {}, s);
+piece(pb, torn([[240, 152], [276, 150], [282, 214], [236, 216]], 1.3, 4), C.aoL, { tex: "fib" });
+piece(pb, smooth([[236, 128], [244, 104], [272, 102], [282, 126], [276, 146], [242, 148]]), C.aoL, { tex: "fib" });
+face(pb, 259, 128, 13, 14, [[[254, 126], [254, 129]], [[264, 125], [264, 128]], [[255, 135], [259, 137], [263, 135]]]);
+marker(pb, [[244, 216], [244, 232]], 4.5); marker(pb, [[272, 214], [273, 230]], 4.5);
+// 見物人C: ハンチングのおじいさん（腕組み）
+const pc = el("g", {}, s);
+piece(pc, smooth([[290, 114], [308, 108], [326, 114], [336, 134], [334, 206], [282, 206], [280, 134]]), C.keyaki, { tex: "fib" });
+piece(pc, smooth([[284, 146], [312, 152], [332, 140], [334, 156], [310, 168], [282, 160]]), C.keyakiD, { sh: [2, 2.5] });
+piece(pc, smooth([[290, 140], [300, 136], [306, 142], [298, 148]]), C.usudai, { sh: null });
+piece(pc, smooth([[318, 148], [326, 144], [330, 150], [322, 154]]), C.usudai, { sh: null });
+marker(pc, [[296, 206], [296, 232]], 4.5); marker(pc, [[320, 206], [321, 232]], 4.5);
+face(pc, 308, 90, 17, 20, [[[300, 90], [305, 89]], [[312, 89], [317, 90]], [[303, 101], [313, 101]]]);
+piece(pc, cut([[288, 78], [300, 64], [322, 64], [330, 76], [338, 80], [290, 82]], 0.8), C.blockD, { tex: "fib" });
+
+// --- 蒸籠（右）: 白木の角蒸籠2段と晒しの布巾、湯気 ---
+const sg = el("g", {}, s);
+piece(sg, cut([[300, 238], [386, 236], [388, 300], [298, 302]], 0.8), C.keyakiL, { tex: "wood", line: C.sumi, lw: 2 });
+marker(sg, [[300, 268], [340, 267], [388, 269]], 2);
+piece(sg, cut([[306, 214], [380, 212], [386, 238], [300, 240]], 0.8), C.keyaki, { tex: "wood", line: C.sumi, lw: 2 });
+piece(sg, torn([[312, 210], [372, 206], [380, 226], [354, 222], [330, 230], [308, 224]], 1.3, 4), C.mochi);
+// 湯気: ちぎった薄紙（波線や渦にしない）
+piece(sg, torn([[324, 206], [344, 194], [348, 176], [340, 160], [354, 146], [368, 160], [364, 186], [352, 206]], 2, 5), C.mochi, { sh: null, op: 0.6 });
+piece(sg, torn([[356, 150], [366, 132], [382, 124], [380, 142], [368, 154]], 1.8, 4), C.mochi, { sh: null, op: 0.42 });
+
+// --- 手水のボウル（左下） ---
+const bg = el("g", {}, s);
+piece(bg, smooth(ell(62, 640, 50, 24, 16)), C.blockD, { sh: [3, 5] });
+piece(bg, smooth(ell(62, 636, 50, 22, 16)), C.blockL);
+piece(bg, smooth(ell(62, 637, 42, 17, 16)), C.aoL, { sh: null, op: 0.8 });
+piece(bg, cut([[38, 631], [62, 628], [60, 632], [40, 635]], 0.5), "#ffffff", { sh: null, op: 0.85 });
+
+// --- 臼・縄・杵・手 ---
+usu(s, 196, 440, 1.06, { grains: 0.42, dent: true, glossK: 0.65 });
+const K = nawa(s, 198, 580, 156, 44, 3);
+// 返しの手（左。臼の外に引いている＝安全）
+piece(s, torn([[-8, 540], [32, 526], [40, 560], [-8, 578]], 1.4, 5), C.sumi, { tex: "fib" }); // 袖
+gunte(s, 52, 548, 1.05, 66);
+// 杵（右から）
+kine(s, 238, 446, 1.04, 22, { len: 200, grip: true });
+// 打った瞬間: 餅の切れ端が片側に3つ（全周の放射にしない）
+for (const [x, y, r] of [[302, 384, 7], [318, 404, 5], [296, 360, 4]]) piece(s, torn(ell(x, y, r, r * 0.75, 8), 1, 3), C.mochi, { sh: [2, 2.5] });
+marker(s, [[214, 312], [218, 328]], 2.4); marker(s, [[234, 308], [236, 324]], 2.4);
+kiriMoji(s, "ぺったん", 262, 336, 30, { tilt: 7, bob: 4 });
+
+// --- 掛け声の吹き出し（太鼓の人から） ---
+setSeed(31);
+const kg = el("text", { x: 86, y: 285, "font-family": "Stick, sans-serif", "font-size": 22, fill: C.sumi }, s);
+kg.textContent = "ぺったん ぺったん はいっ";
+const kb = kg.getBBox();
+const bal = el("g", {}, null); s.insertBefore(bal, kg);
+fukidashi(bal, kb.x - 16, 254, kb.width + 32, 46, [64, 314]);
+// 型の目印: いまの打（2打目の杵）に橙の下線。文字の幅に合わせる
+const q = kg.getSubStringLength(0, 5), q2 = kg.getSubStringLength(5, 4);
+piece(s, cut([[kb.x + q, 291], [kb.x + q + q2, 290], [kb.x + q + q2, 295], [kb.x + q, 296]], 0.5), C.dai, { sh: null });
+
+// --- 上の札: 手形（軍手3枚・1枚は失って点線）と点数 ---
+gunte(s, 22, 36, 0.62, -8);
+gunte(s, 50, 37, 0.62, 6);
+gunte(s, 78, 36, 0.62, -3, { flip: true });
+const sc = el("g", {}, s);
+piece(sc, torn([[250, 16], [380, 12], [382, 58], [252, 62]], 1.3, 4), C.mochi, { edge: null });
+el("text", { x: 372, y: 53, "text-anchor": "end", "font-family": "Stick, sans-serif", "font-size": 30, fill: C.sumi, style: "font-variant-numeric:tabular-nums" }, sc).textContent = "4,280";
+el("text", { x: 260, y: 34, "font-family": "'Zen Kurenaido', sans-serif", "font-size": 14, fill: C.sumi }, sc).textContent = "2臼目";
+
+// --- のし台（下）: 前の臼でつき上がった餅がのる ---
+const ng = el("g", {}, s);
+piece(ng, torn([[-6, 688], [396, 680], [396, 850], [-6, 850]], 1.2, 6), C.keyakiL, { tex: "wood", sh: [0, -4], shOp: 0.35 });
+piece(ng, torn([[-6, 688], [396, 680], [396, 692], [-6, 700]], 0.8, 6), C.keyaki, { sh: null, op: 0.8 });
+piece(ng, torn(ell(150, 760, 120, 34, 18, 0, Math.PI * 2, 0.22), 2.2, 3), C.mochi, { sh: null, op: 0.5 }); // 取り粉
+for (const [x, y, rx, ry] of [[70, 752, 42, 24], [168, 770, 46, 25]]) {
+  piece(ng, smooth(ell(x, y, rx, ry, 14, 0, Math.PI * 2, 0.03)), C.mochi, { sh: [3, 5] });
+  piece(ng, cut([[x - rx * 0.6, y - ry * 0.45], [x - rx * 0.1, y - ry * 0.75], [x, y - ry * 0.65], [x - rx * 0.5, y - ry * 0.3]], 0.5), "#ffffff", { sh: null });
+  piece(ng, smooth([[x - rx * 0.2, y + ry * 0.55], [x + rx * 0.6, y + ry * 0.2], [x + rx * 0.7, y + ry * 0.55], [x + rx * 0.1, y + ry * 0.85]]), C.mochiS, { sh: null });
+}
+</script>
+</body></html>
