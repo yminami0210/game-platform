@@ -162,7 +162,7 @@ const SIM = (() => {
     return best ? best.i : -1;
   }
   function pun(S, t) { const i = beatAt(S, t) + 1000 * S.u; if (S.lastPun === i) return false; S.lastPun = i; return true; }
-  function handIn(S, t) { const h = S.hand; return h.where === "usu" && t >= h.from && (t < h.out || h.holding); }
+  function handIn(S, t) { const h = S.hand; return h.where === "usu" && t >= h.from && t < h.out; } // 押さえ続けても、手が臼にあるのは返す動作の時間だけ
   function grade(S, d, dryK) {
     const W = win(S); const k = dryK ? 0.6 : 1;
     if (Math.abs(d) <= W.p * k) return "p";
@@ -252,7 +252,7 @@ const SIM = (() => {
     if (h.where === "bowl") {
       if (h.wBeat >= 0) waterResult(S, t, t - h.down >= HOLD_W);
       h.where = "rest"; h.out = t;
-    } else if (h.where === "usu") h.out = Math.max(h.out, t + 0.12);
+    }
   }
   function waterResult(S, t, ok) {
     const bt = S.beats[S.hand.wBeat]; S.hand.wBeat = -1;
@@ -813,7 +813,7 @@ function layout() {
 }
 // 横画面: 遊ぶ間は臼のまわり（吹き出し〜手水のボウル）を大きく、結果ではもろぶたまで
 function setView() {
-  view = !wide ? { x: 0, y: 0, w: W, h: H } : state === "result" ? { x: 0, y: 380, w: W, h: 464 } : { x: 0, y: 212, w: W, h: 500 };
+  view = !wide ? { x: 0, y: 0, w: W, h: H } : state === "result" ? { x: 0, y: 380, w: W, h: 464 } : { x: 0, y: 242, w: W, h: 470 };
   scale = Math.min(VW / view.w, VH / view.h);
   ox = (VW - view.w * scale) / 2; oy = wide ? (VH - view.h * scale) / 2 : Math.max(0, (VH - view.h * scale) / 2);
   if (wide && state === "result") ox = Math.max(12, Math.min(ox, VW * 0.3 - (view.w * scale) / 2));
@@ -987,8 +987,8 @@ function drawHand(vt, dt) {
   const play = S && state !== "title";
   const h = play ? S.hand : { where: "rest" };
   let tgt = HAND[h.where] || HAND.rest, pose = "glove";
-  const inUsu = play && h.where === "usu" && vt >= h.from;
-  if (inUsu && (h.mBeat >= 0 || (h.holding && vt - h.down > 0.2))) pose = "gloveD";
+  const inUsu = play && SIM.handIn(S, vt);
+  if (inUsu && h.mBeat >= 0) pose = "gloveD";
   if (!inUsu && h.where === "usu") tgt = HAND.rest;
   if (vt < V.fistUntil) { pose = "gloveF"; tgt = HAND.rest; }
   if (play && h.where === "bowl" && vt - V.dipT < 0.3) tgt = { x: HAND.bowl.x, y: HAND.bowl.y + Math.sin(((vt - V.dipT) / 0.3) * Math.PI) * 5, r: HAND.bowl.r };
