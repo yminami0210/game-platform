@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ナナシ県</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="vignette"></div>
+
+  <header id="bar">
+    <div class="brand">ナナシ県<small>ないのに、ありそう。</small></div>
+    <div id="clock">--</div>
+    <div id="pop">人口 --</div>
+    <div id="llm" title="LLM モードと本日のトークン使用量">--</div>
+  </header>
+
+  <nav id="cams">
+    <button data-cam="all">全景</button>
+    <button data-cam="office">県庁 執務フロア</button>
+    <button data-cam="koho">広報課</button>
+    <button data-cam="shotengai">商店街</button>
+    <button data-cam="station">ナナシ駅</button>
+    <button data-cam="avatar" id="camAvatar" hidden>自分のアバター</button>
+  </nav>
+
+  <aside id="kencho" class="panel">
+    <h2>県庁 業務ボード</h2>
+    <ul id="depts"></ul>
+    <h3>進行中のタスク</h3>
+    <ul id="tasks"><li class="muted">なし</li></ul>
+  </aside>
+
+  <aside id="side" class="panel">
+    <div class="tabs">
+      <button data-tab="log" class="on">町のログ</button>
+      <button data-tab="sns">ナナシッター</button>
+      <button data-tab="news">県民新聞</button>
+      <button data-tab="jumin">住民課窓口</button>
+    </div>
+    <section data-pane="log" class="on"><ul id="log"></ul></section>
+    <section data-pane="sns"><ul id="sns"></ul></section>
+    <section data-pane="news"><article id="news" class="paper"><p class="muted">まだ発行されていません（毎朝、前日分が発行されます）</p></article></section>
+    <section data-pane="jumin">
+      <form id="formResident" class="form">
+        <h3>転入届（CP の追加）</h3>
+        <label>氏名（空欄なら自動）<input name="name" maxlength="20"></label>
+        <label>区分
+          <select name="role"><option value="resident">一般住民</option><option value="worker">勤め人</option><option value="student">児童</option></select>
+        </label>
+        <label>勤め先（勤め人のみ）<select name="work" id="workSel"></select></label>
+        <button>住民課に提出</button>
+      </form>
+      <form id="formAvatar" class="form">
+        <h3>アバター登録（あなたが町に入る）</h3>
+        <label>なまえ<input name="name" maxlength="20" required></label>
+        <label>服の色<input name="color" type="color" value="#e8b730"></label>
+        <button>登録を申し込む</button>
+        <p class="muted" id="avatarStatus"></p>
+        <label class="check" id="walkWrap" hidden><input type="checkbox" id="walkMode"> 地面をクリックして歩く</label>
+      </form>
+    </section>
+  </aside>
+
+  <div id="card" class="panel" hidden></div>
+  <div id="toast"></div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

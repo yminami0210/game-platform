@@ -1,0 +1,17 @@
+{
+  "name": "nanashi-ken",
+  "version": "0.1.0",
+  "description": "存在しない「ナナシ県」を3DCGで運営するシミュレーション",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}

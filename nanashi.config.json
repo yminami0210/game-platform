@@ -1,0 +1,22 @@
+{
+  "port": 8787,
+  "population": 300,
+  "gameMinutesPerRealSecond": 1,
+  "seed": 7,
+  "llm": {
+    "mode": "template",
+    "omniroute": {
+      "baseUrl": "http://localhost:20128/v1",
+      "model": "auto",
+      "maxTokens": 220,
+      "temperature": 0.8
+    },
+    "claudeCode": {
+      "baseUrl": "http://localhost:20128",
+      "model": "haiku",
+      "tasks": ["newspaper"]
+    },
+    "dailyTokenBudget": 15000,
+    "maxCallsPerGameDay": { "sns_post": 4, "newspaper": 1, "photo": 0, "resident_register": 0 }
+  }
+}
