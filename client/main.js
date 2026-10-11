@@ -115,6 +115,8 @@ function updateCps(dt) {
   for (const c of cps.values()) {
     c.x += (c.tx - c.x) * k; c.z += (c.tz - c.z) * k;
     c.moving = Math.abs(c.tx - c.x) + Math.abs(c.tz - c.z) > 0.05;
+    if (c.moving) c.heading = Math.atan2(c.tz - c.z, c.tx - c.x); // 歩いている向き（止まるとその向きのまま）
+    else if (c.heading == null) c.heading = (c.info.id * 2.399) % (Math.PI * 2); // 最初は人ごとにばらばら
   }
 }
 
@@ -434,13 +436,32 @@ setInterval(() => activeTab === 'daicho' && renderDaicho(), 20000);
 // ---- サーバーとの接続 ----
 let lastClock = init.clock;
 // 電車をなめらかに走らせるための「いまのゲーム内の分」（時計の更新のあいだを補う）
-let clockSample = { at: performance.now(), m: init.clock.minutes, rate: 1 };
+// 届いた時刻（小数の分）から進む速さを測り、画面の時刻は戻さずになめらかに進める。
+// 以前は「分」の切り捨てで受け取っていたため、推定が行き過ぎては戻り、電車が行ったり来たりしていた
+const clk = { shown: init.clock.exact ?? init.clock.minutes, target: init.clock.exact ?? init.clock.minutes, at: performance.now(), rate: 1 / 60, ref: null };
+function clockSampleIn(m) {
+  const now = performance.now();
+  if (!clk.ref) clk.ref = { t: now, m };
+  const span = (now - clk.ref.t) / 1000;
+  if (span >= 2) {
+    const r = (m - clk.ref.m) / span;
+    if (r >= 0 && r < 200) clk.rate = clk.rate * 0.5 + r * 0.5;
+    clk.ref = { t: now, m };
+  }
+  clk.target = m; clk.at = now;
+}
+function clockStep(dt) {
+  const expected = clk.target + ((performance.now() - clk.at) / 1000) * clk.rate;
+  const err = expected - clk.shown;
+  if (Math.abs(err) > 5) { clk.shown = expected; return; } // 大きくずれたとき（開き直し・早回し）は合わせる
+  clk.shown += Math.max(0, clk.rate * dt + err * Math.min(1, dt * 0.8)); // 決して戻らない
+}
 let nightLevel = 0;
-const gameMinuteNow = () => clockSample.m + Math.min(2, ((performance.now() - clockSample.at) / 1000) * clockSample.rate);
+const gameMinuteNow = () => clk.shown;
 // 見本づくり用: ?hour=21 で空と灯りだけその時刻にする
 const PREVIEW_HOUR = new URLSearchParams(location.search).has('hour') ? Number(new URLSearchParams(location.search).get('hour')) : null;
 function renderClock(c) {
-  clockSample = { at: performance.now(), m: c.minutes, rate: lastClock && c.minutes > lastClock.minutes ? (c.minutes - lastClock.minutes) / Math.max(0.05, (performance.now() - (clockSample?.at || performance.now())) / 1000) : clockSample?.rate || 1 };
+  clockSampleIn(c.exact ?? c.minutes);
   lastClock = c;
   $('#clock').textContent = `${c.date} ${c.time}`;
   if (c.llm) $('#llm').textContent = `LLM: ${c.llm.mode}｜本日 ${c.llm.tokens}/${c.llm.budget} tok（${c.llm.calls}回）`;
@@ -485,6 +506,7 @@ function loop() {
   const dt = Math.min(0.5, (now - t0) / 1000); t0 = now;
   try {
     updateCps(dt);
+    clockStep(dt);
     const minute = gameMinuteNow() % 1440;
     if (!$('#fp').hidden) { fpv.setNight(nightLevel); fpv.draw(dt, minute); }
     else if (!$('#inside').hidden) interior.draw(dt);
@@ -530,4 +552,4 @@ if (viewNote) toast(viewNote);
 // ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
 if ('serviceWorker' in navigator && isSecureContext && !window.NANASHI_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-window.__nanashi = { cps, setCam, openSheet, showCp, showPlace, showHouse, openInside, openFirstPerson, useShop, get layout() { return layout; }, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用
+window.__nanashi = { minute: () => gameMinuteNow(), cps, setCam, openSheet, showCp, showPlace, showHouse, openInside, openFirstPerson, useShop, get layout() { return layout; }, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用

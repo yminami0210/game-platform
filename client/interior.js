@@ -1,7 +1,7 @@
 // 建物の中の全景（ドールハウスのように手前の壁を外して見せる）。WebGL を使わず Canvas 2D で描くので、どの端末でも見られる。
 // 中にいる人は台帳の見た目どおりに描く。働く人はカウンターの内側、お客は席に座る。県庁は部署ごとの机の島。
 import { DEPARTMENTS } from './shared/lore.js';
-import { drawFigure } from './portrait.js';
+import { drawFigure, facingFromScreen, personStyle } from './portrait.js';
 
 const INK = '#22324f';
 const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif';
@@ -66,14 +66,16 @@ export function createInterior(canvas) {
         g.fillStyle = goods[(i + r * 3) % goods.length]; g.fillRect(x0 + 3 * s + i * 9 * s, y - 64 * s + r * 22 * s, 6 * s, 14 * s);
       }
     } });
-    const seat = (u, v, seated = true) => seats.push({ u, v, seated });
-    const staff = (u, v, seated = false) => { const o = { u, v, seated }; staffSlots.push(o); return o; };
+    // 席。to は見ている先（テーブルやカウンター）。そこから向き（正面・背中・横）を決める
+    const faceTo = (u, v, to) => (to ? facingFromScreen(to[0] - u, to[1] - v) : null);
+    const seat = (u, v, seated = true, to = null) => seats.push({ u, v, seated, facing: faceTo(u, v, to) });
+    const staff = (u, v, seated = false, facing = 'front') => { const o = { u, v, seated, facing }; staffSlots.push(o); return o; };
     const k = kind;
     if (k === 'kissa' || k === 'shokudo') {
       counter(0.08, 0.5, 0.18, k === 'kissa' ? '#5a2f1f' : '#7b4b3a');
       staff(0.18, 0.06); staff(0.38, 0.06);
-      for (let i = 0; i < 4; i++) seat(0.12 + i * 0.11, 0.26);
-      for (const [u, v] of [[0.66, 0.35], [0.86, 0.35], [0.66, 0.72], [0.86, 0.72], [0.3, 0.72]]) { table(u, v); seat(u - 0.07, v - 0.02); seat(u + 0.07, v - 0.02); }
+      for (let i = 0; i < 4; i++) seat(0.12 + i * 0.11, 0.26, true, [0.12 + i * 0.11, 0.1]);
+      for (const [u, v] of [[0.66, 0.35], [0.86, 0.35], [0.66, 0.72], [0.86, 0.72], [0.3, 0.72]]) { table(u, v); seat(u - 0.07, v - 0.02, true, [u, v]); seat(u + 0.07, v - 0.02, true, [u, v]); seat(u, v - 0.09, true, [u, v + 0.2]); seat(u, v + 0.09, true, [u, v - 0.2]); }
     } else if (k === 'sento') {
       items.push({ v: 0.02, draw() { // 富士山の壁絵（銭湯の定番）
         const [x0] = P(0.05, 0), [x1, y] = P(0.95, 0);
@@ -88,8 +90,8 @@ export function createInterior(canvas) {
       items.push({ v: 0.5, draw() { const [x, y] = P(0.5, 0.5), s = S(0.5); box(x - 3 * s, y - 110 * s, 6 * s, 110 * s, '#b58a5c'); } });
       items.push({ v: 0.95, draw() { const [x, y] = P(0.5, 0.95); label('男湯 ｜ 女湯', x, y - 14, 13, '#3f6a78'); } });
       staff(0.5, 0.88, true);
-      for (let i = 0; i < 4; i++) { seat(0.12 + i * 0.08, 0.25, true); seat(0.6 + i * 0.08, 0.25, true); }
-      for (let i = 0; i < 5; i++) { seat(0.1 + i * 0.07, 0.65, true); seat(0.6 + i * 0.07, 0.65, true); }
+      for (let i = 0; i < 4; i++) { seat(0.12 + i * 0.08, 0.25, true, [0.12 + i * 0.08, 0.6]); seat(0.6 + i * 0.08, 0.25, true, [0.6 + i * 0.08, 0.6]); }
+      for (let i = 0; i < 5; i++) { seat(0.1 + i * 0.07, 0.65, true, [0.1 + i * 0.07, 0.3]); seat(0.6 + i * 0.07, 0.65, true, [0.6 + i * 0.07, 0.3]); }
     } else if (['super', 'conbini', 'shop', 'mall'].includes(k)) {
       const goods = ['#c8463a', '#e3a62b', '#4a8a5a', '#3a6aa0', '#efe6d0', '#f2b8c6'];
       shelf(0.05, 0.95, 0.02, goods);
@@ -100,32 +102,33 @@ export function createInterior(canvas) {
     } else if (k === 'clinic' || k === 'post' || k === 'koban' || k === 'station') {
       counter(0.1, 0.9, 0.2, k === 'post' ? '#c8463a' : k === 'clinic' ? '#9fc0c9' : '#8a7a6a');
       staff(0.3, 0.08, true); staff(0.7, 0.08, true); staff(0.5, 0.08, true);
-      for (const v of [0.55, 0.8]) { items.push({ v, draw() { const [x0, y] = P(0.15, v), [x1] = P(0.85, v), s = S(v); box(x0, y - 18 * s, x1 - x0, 6 * s, '#7a5236'); } }); for (let i = 0; i < 6; i++) seat(0.2 + i * 0.12, v - 0.02); }
-      for (let i = 0; i < 4; i++) seat(0.25 + i * 0.16, 0.32, false);
+      for (const v of [0.55, 0.8]) { items.push({ v, draw() { const [x0, y] = P(0.15, v), [x1] = P(0.85, v), s = S(v); box(x0, y - 18 * s, x1 - x0, 6 * s, '#7a5236'); } }); for (let i = 0; i < 6; i++) seat(0.2 + i * 0.12, v - 0.02, true, [0.2 + i * 0.12, 0.1]); }
+      for (let i = 0; i < 4; i++) seat(0.25 + i * 0.16, 0.32, false, [0.25 + i * 0.16, 0.1]);
     } else if (k === 'school') {
       items.push({ v: 0.01, draw() { const [x0, y] = P(0.25, 0), [x1] = P(0.75, 0); box(x0, y - H * 0.2, x1 - x0, H * 0.14, '#2f5a46'); } });
       staff(0.5, 0.08);
-      for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) { table(0.14 + c * 0.145, 0.3 + r * 0.17, 0.06, '#c9a46a'); seat(0.14 + c * 0.145, 0.33 + r * 0.17); }
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) { table(0.14 + c * 0.145, 0.3 + r * 0.17, 0.06, '#c9a46a'); seat(0.14 + c * 0.145, 0.33 + r * 0.17, true, [0.14 + c * 0.145, 0]); }
     } else if (k === 'office') {
       DEPARTMENTS.forEach((d, i) => {
         const u = 0.14 + (i % 4) * 0.24, v = 0.2 + Math.floor(i / 4) * 0.46;
         items.push({ v: v + 0.25, draw() { const [x, y] = P(u, v - 0.12); label(d.name, x, y - 40 * S(v), Math.max(10, 13 * S(v)), d.color); if (busy.get(d.id)) { g.fillStyle = '#ffb43a'; g.beginPath(); g.arc(x + 46 * S(v), y - 40 * S(v), 6 * S(v), 0, 7); g.fill(); g.stroke(); } } });
-        table(u, v, 0.15, '#9a7a5a'); table(u, v + 0.2, 0.15, '#9a7a5a');
-        for (let s = 0; s < d.staff; s++) staff(u + (s % 2 ? 0.05 : -0.05), v - 0.02 + Math.floor(s / 2) * 0.2, true).dept = d.id;
+        // 机の島: 向かい合わせに座る（奥の列はこちら向き、手前の列は背中）
+        table(u, v + 0.1, 0.17, '#9a7a5a');
+        for (let s = 0; s < d.staff; s++) { const row = s % 2, col = Math.floor(s / 2); staff(u + (col - 1) * 0.06, row ? v + 0.19 : v + 0.04, true, row ? 'back' : 'front').dept = d.id; }
       });
       // 窓口の来客
-      for (let i = 0; i < 6; i++) seat(0.2 + i * 0.12, 0.97, false);
+      for (let i = 0; i < 6; i++) seat(0.2 + i * 0.12, 0.97, false, [0.2 + i * 0.12, 0.5]);
     } else if (k === 'house') {
       items.push({ v: 0.02, draw() { const [x0, y] = P(0.06, 0), s = S(0); box(x0, y - 60 * s, 46 * s, 50 * s, '#6b5a4c'); box(x0 + 5 * s, y - 55 * s, 36 * s, 26 * s, '#9fb8c0'); } }); // テレビ
       items.push({ v: 0.03, draw() { const [x0, y] = P(0.7, 0), s = S(0); box(x0, y - 80 * s, 60 * s, 70 * s, '#9a6a48'); } }); // たんす
       items.push({ v: 0.5, draw() { const [x, y] = P(0.5, 0.5), s = S(0.5); g.fillStyle = '#7a5236'; g.beginPath(); g.ellipse(x, y - 14 * s, 70 * s, 18 * s, 0, 0, 7); g.fill(); g.stroke(); } }); // ちゃぶ台
-      for (const [u, v] of [[0.3, 0.42], [0.7, 0.42], [0.3, 0.66], [0.7, 0.66], [0.5, 0.78], [0.5, 0.3], [0.15, 0.85], [0.85, 0.85]]) seat(u, v, true);
+      for (const [u, v] of [[0.3, 0.5], [0.7, 0.5], [0.5, 0.36], [0.5, 0.68], [0.36, 0.62], [0.64, 0.4], [0.15, 0.85], [0.85, 0.85]]) seat(u, v, true, v > 0.8 ? [u, 0] : [0.5, 0.5]);
     } else if (k === 'park') {
       items.push({ v: 0.4, draw() { const [x, y] = P(0.25, 0.4), s = S(0.4); g.fillStyle = '#e9dcb0'; g.beginPath(); g.ellipse(x, y, 70 * s, 20 * s, 0, 0, 7); g.fill(); } }); // 砂場
       items.push({ v: 0.3, draw() { const [x, y] = P(0.72, 0.3), s = S(0.3); g.strokeStyle = '#c8463a'; g.lineWidth = 4 * s; g.beginPath(); g.moveTo(x - 40 * s, y); g.lineTo(x - 30 * s, y - 70 * s); g.lineTo(x + 30 * s, y - 70 * s); g.lineTo(x + 40 * s, y); g.stroke(); } }); // ぶらんこ
       for (const [u, v] of [[0.25, 0.38], [0.33, 0.45], [0.18, 0.46], [0.7, 0.33], [0.76, 0.33], [0.5, 0.6], [0.6, 0.75], [0.35, 0.82], [0.8, 0.7], [0.15, 0.7]]) seat(u, v, false);
     } else {
-      for (const [u, v] of [[0.3, 0.4], [0.7, 0.4], [0.3, 0.75], [0.7, 0.75]]) { table(u, v); seat(u - 0.07, v - 0.02); seat(u + 0.07, v - 0.02); }
+      for (const [u, v] of [[0.3, 0.4], [0.7, 0.4], [0.3, 0.75], [0.7, 0.75]]) { table(u, v); seat(u - 0.07, v - 0.02, true, [u, v]); seat(u + 0.07, v - 0.02, true, [u, v]); }
       staff(0.5, 0.1);
     }
     return { items, staffSlots, seats };
@@ -191,7 +194,8 @@ export function createInterior(canvas) {
       const [x, y] = P(slot.u, slot.v), s = S(slot.v);
       const h = (p.age < 13 ? 62 : 84) * s;
       const sway = slot.seated ? 0 : Math.sin(t * 2 + p.id) * 1.5 * s;
-      drawFigure(g, p.look, x + sway, y, h, { seated: slot.seated });
+      const facing = slot.facing || ['front', 'left', 'right', 'back', 'front'][p.id % 5]; // 立っている人は人ごとにばらばらの向き
+      drawFigure(g, p.look, x + sway, y, h, { seated: slot.seated, facing, ...personStyle(p) });
       hits.push({ id: p.id, x0: x - h * 0.3, x1: x + h * 0.3, y0: y - h * 1.1, y1: y });
       const task = p.taskId && busy.get(`task${p.taskId}`);
       if (task) label(task, x, y - h * 1.25, Math.max(10, 12 * s), '#2f5ba0');

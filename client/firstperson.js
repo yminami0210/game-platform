@@ -1,7 +1,7 @@
 // 人の目線（1人称）。その人の目の高さから、歩いている向きの町を描く。
 // WebGL を使わず Canvas 2D の簡単な透視投影で描く（iPhone のアプリ内表示でも動く）。指で左右になぞると見回せる。
 import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, footprint, mulberry32, trainsAt } from './shared/world.js';
-import { drawFigure } from './portrait.js';
+import { drawFigure, facingFromScreen, personStyle } from './portrait.js';
 
 const INK = '#22324f';
 const FONT = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif';
@@ -131,7 +131,10 @@ export function createFirstPerson({ canvas, seed = 7 }) {
     const [sx, sy] = scr(p);
     const tall = (c.info.age < 13 ? 1.15 : 1.6) * F / p[2];
     if (tall < 2) return;
-    drawFigure(g, c.look, sx, sy, tall, { seated: c.state === 2 || c.state === 3, outline: tall > 14 });
+    // こちらから見たその人の向き（近づいてくる人は正面、離れていく人は背中、横切る人は横顔）
+    const hd = c.heading ?? 0, hx = Math.cos(hd), hz = Math.sin(hd);
+    const facing = facingFromScreen(hx * rx + hz * rz, -(hx * fx + hz * fz));
+    drawFigure(g, c.look, sx, sy, tall, { seated: c.state === 2 || c.state === 3, outline: tall > 14, facing, walk: c.moving ? performance.now() / 110 + c.idx : null, ...personStyle(c.info) });
     hits.push({ id: c.info.id, x0: sx - tall * 0.3, x1: sx + tall * 0.3, y0: sy - tall * 1.1, y1: sy, d });
     if (c.badgeText2d && tall > 30) {
       const fs = 12; g.font = `700 ${fs}px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -215,7 +218,7 @@ export function createFirstPerson({ canvas, seed = 7 }) {
     for (const c of people) {
       if (c === who || c.gone || c.state === 4 || c.state === 6 || !near(c.x, c.z, 120)) continue;
       const dd = dist(c.x, c.z);
-      if (dd < 0.6) continue;
+      if (dd < 1.6) continue; // 目の前すぎる人は描かない（画面をふさぐので）
       list.push({ d: Math.hypot(c.x - cam.x, c.z - cam.z), draw: () => drawPerson(c, dd) });
     }
     list.sort((p, q) => q.d - p.d).forEach((o) => o.draw());

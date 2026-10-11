@@ -794,7 +794,7 @@ export class Simulation {
     const isOffice = p.kind === 'kencho' || p.kind === 'office';
     const open = isOffice ? !this.weekend && this.hf >= info.open && this.hf < info.close : this.hf >= info.open && this.hf < info.close;
     const brief = (c) => ({
-      id: c.id, name: c.name, age: c.age, look: c.look, color: c.color, activity: c.activity, role: ROLE_LABEL[c.role] || c.role, state: c.state,
+      id: c.id, name: c.name, age: c.age, sex: c.sex, look: c.look, color: c.color, activity: c.activity, role: ROLE_LABEL[c.role] || c.role, state: c.state,
       worker: c.work === p.id || (p.id === 'office' && c.role === 'staff'), dept: c.dept, seat: c.seat, taskId: c.taskId,
     });
     const staff = this.cps.filter((c) => (p.id === 'office' ? c.role === 'staff' : c.work === p.id));
@@ -826,7 +826,7 @@ export class Simulation {
     const households = hhs.map((hh) => ({
       id: hh.id, surname: hh.surname, unit: h.units > 1 ? `${hh.unit + 1}号室` : '',
       members: hh.members.map((m) => this.cpById(m)).filter(Boolean).map((c) => ({
-        id: c.id, name: c.name, age: c.age, look: c.look, color: c.color, role: ROLE_LABEL[c.role] || c.role,
+        id: c.id, name: c.name, age: c.age, sex: c.sex, look: c.look, color: c.color, role: ROLE_LABEL[c.role] || c.role,
         where: c.away ? cityName(c.city) : c.place === 'home' && c.state !== STATE.walk ? '家にいる' : this.#placeName(c.place), activity: c.activity,
       })),
     }));
@@ -947,7 +947,7 @@ export class Simulation {
 
   clock() {
     return {
-      minutes: Math.floor(this.minutes), day: this.day, time: this.timeLabel(), date: dateLabel(this.day),
+      minutes: Math.floor(this.minutes), exact: Math.round(this.minutes * 1000) / 1000, day: this.day, time: this.timeLabel(), date: dateLabel(this.day),
       population: this.residentCount(), inTown: this.cps.filter((c) => !c.away).length, away: this.cps.filter((c) => c.resident && c.away).length,
     };
   }
