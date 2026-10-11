@@ -35,18 +35,21 @@ controls.minDistance = 8; controls.maxDistance = 700;
 const hemi = new THREE.HemisphereLight('#e6f4f8', '#a9c25a', 1.1);
 const sun = new THREE.DirectionalLight('#fff6e0', 1.9);
 sun.castShadow = true;
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.4; // 壁の縞（シャドウアクネ）を消す
 sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
-Object.assign(sun.shadow.camera, { left: -300, right: 300, top: 300, bottom: -300, far: 900 });
+// 影は見ている所の周りだけ細かく描く（カメラの注視点に合わせて動かす）
+Object.assign(sun.shadow.camera, { left: -160, right: 160, top: 160, bottom: -160, far: 900 });
 scene.add(hemi, sun, sun.target);
+const sunDir = new THREE.Vector3(200, 300, 120);
 
 const town = buildTown(scene, init.seed);
 
 // ---- カメラ ----
 const CAMS = {
-  all: [[90, 150, 470], [0, 0, 30]], // 海の上から、町と山を見上げる（観光案内図の構図）
+  all: [[70, 150, 445], [0, 0, 30]], // 海の上から、町と山を見上げる（観光案内図の構図）
   office: [[30, 40, 18], [30, 0, -22]],
   officeTall: [[30, 70, 40], [30, 0, -16]], // 縦長画面用
-  allTall: [[40, 170, 500], [10, 0, 60]],
+  allTall: [[30, 175, 410], [10, 0, 40]],
   koho: [[0, 14, 0], [0, 0, 0]],
   shotengai: [[-4, 16, 136], [0, 3, 108]],
   station: [[70, 30, 250], [30, 0, 200]],
@@ -58,7 +61,7 @@ function setCam(name) {
     // 広報課の机まわりに寄る
     const d = town.office.desks.filter((x) => x.dept === 'koho');
     const cx = d.reduce((s, x) => s + x.x, 0) / d.length, cz = d.reduce((s, x) => s + x.z, 0) / d.length;
-    CAMS.koho = [[cx + 8, 24, cz + 16], [cx + 2, 0, cz + 1]];
+    CAMS.koho = [[cx + 6, 20, cz + 13], [cx + 1, 0, cz - 1]];
   }
   if (name === 'avatar') { follow = myAvatar(); return; }
   const [p, t] = CAMS[name];
@@ -310,13 +313,13 @@ function renderClock(c) {
   const day = Math.min(1, Math.max(0, Math.sin(((h - 5.5) / 13) * Math.PI) * 1.6));
   const dusk = Math.max(0, 1 - Math.abs(h - 17.6) / 1.4);
   scene.fog.color.copy(town.setDaylight(day, dusk));
-  sun.intensity = 0.25 + day * 1.7; hemi.intensity = 0.55 + day * 0.6;
+  sun.intensity = 0.25 + day * 1.7; hemi.intensity = 0.95 + day * 0.2; // 夜も人の色が分かる明るさを残す
   sun.color.set(dusk > 0.2 ? '#ffd2a0' : '#fff6e0');
   hemi.color.set(day < 0.3 ? '#8aa0d8' : '#e6f4f8');
   hemi.groundColor.set(day < 0.3 ? '#2e3f66' : '#a9c25a');
   if (day < 0.3) sun.color.set('#a9bde8'); // 月明かり
   const a = ((h - 6) / 12) * Math.PI;
-  sun.position.set(Math.cos(a) * 300, Math.max(30, Math.sin(a) * 300), 120);
+  sunDir.set(Math.cos(a) * 300, Math.max(30, Math.sin(a) * 300), 120);
 }
 renderClock(init.clock);
 
@@ -357,6 +360,8 @@ renderer.setAnimationLoop(() => {
   town.tick(dt);
   if (follow) { controls.target.set(follow.x, 0, follow.z); camera.position.set(follow.x + 10, 12, follow.z + 14); }
   controls.update();
+  sun.target.position.copy(controls.target);
+  sun.position.copy(controls.target).add(sunDir);
   renderer.render(scene, camera);
 });
 // ---- スマホ: 下のタブで「町だけ」と各シートを切り替える ----

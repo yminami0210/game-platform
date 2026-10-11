@@ -185,6 +185,7 @@ export function buildTown(scene, seed) {
   // 道（案内図のように白っぽく）と白線
   const roadMat = toon('#c9c6bb');
   const walkMat = toon('#e9e6dc');
+  const gutterMat = toon('#a9a597');
   const lineMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   for (let k = -HALF; k <= HALF; k += ROAD_STEP) {
     for (const along of ['x', 'z']) {
@@ -194,9 +195,9 @@ export function buildTown(scene, seed) {
         m.rotation.x = -Math.PI / 2; m.position.set(along === 'x' ? 0 : k, y, along === 'x' ? k : 0); m.receiveShadow = true;
         world.add(m);
       };
-      mk(11, walkMat, 0.05); mk(7, roadMat, 0.07);
+      mk(11, walkMat, 0.05); mk(7.8, gutterMat, 0.06); mk(7, roadMat, 0.07); // 歩道・側溝・車道
       for (let t = -HALF; t < HALF; t += 9) {
-        const dash = new THREE.Mesh(new THREE.PlaneGeometry(along === 'x' ? 3.5 : 0.3, along === 'x' ? 0.3 : 3.5), lineMat);
+        const dash = new THREE.Mesh(new THREE.PlaneGeometry(along === 'x' ? 2.4 : 0.18, along === 'x' ? 0.18 : 2.4), lineMat);
         dash.rotation.x = -Math.PI / 2; dash.position.set(along === 'x' ? t : k, 0.09, along === 'x' ? k : t);
         world.add(dash);
       }
@@ -213,7 +214,7 @@ export function buildTown(scene, seed) {
       mountains.push({ x: Math.cos(a) * r, y: 0, z: Math.sin(a) * r, sx: s * 1.9, sy: s, sz: s * 1.6, rot: rnd() * 3, color: jitter(color, rnd, 0.08) });
     }
   };
-  const hill = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const hill = new THREE.SphereGeometry(1, 16, 10); // 閉じた球の上半分だけ地上に出す（輪郭線が切れない）
   // 奥ほど空の色に近く、手前の稜線だけ墨の線（刷り物の山）
   ridge(1050, 11, 200, '#9fc0c9');
   world.add(instanced(hill, toon('#ffffff'), mountains.splice(0), { outline: 0, shadow: false }));
@@ -226,17 +227,20 @@ export function buildTown(scene, seed) {
   sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.03, 262 + 700);
   const beach = new THREE.Mesh(new THREE.PlaneGeometry(3000, 22), toon('#efe3c4'));
   beach.rotation.x = -Math.PI / 2; beach.position.set(0, 0.04, 262);
-  const shallows = new THREE.Mesh(new THREE.PlaneGeometry(3000, 16), toon('#5f8fc4'));
-  shallows.rotation.x = -Math.PI / 2; shallows.position.set(0, 0.05, 280);
+  const shallows = new THREE.Mesh(new THREE.PlaneGeometry(3000, 34), toon('#5f9ccc'));
+  shallows.rotation.x = -Math.PI / 2; shallows.position.set(0, 0.05, 289);
   world.add(sea, beach, shallows);
   // 海の点景: 波の線、防波堤と灯台、漁港の船、海水浴場のパラソル
   const waves = [];
-  for (let i = 0; i < 320; i++) waves.push({ x: (rnd() - 0.5) * 1500, y: 0.09, z: 292 + Math.pow(rnd(), 1.6) * 520, sx: 2 + rnd() * 4, sy: 1, sz: 1, rot: (rnd() - 0.5) * 0.15 });
+  for (let i = 0; i < 520; i++) waves.push({ x: (rnd() - 0.5) * 1500, y: 0.09, z: 290 + Math.pow(rnd(), 2) * 480, sx: 3 + rnd() * 6, sy: 1, sz: 1.4, rot: (rnd() - 0.5) * 0.15 });
+  // 波打ち際の白い線
+  const surf = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1.6), new THREE.MeshBasicMaterial({ color: '#f4f8fb' }));
+  surf.rotation.x = -Math.PI / 2; surf.position.set(0, 0.07, 272.5); world.add(surf);
   world.add(instanced(new THREE.BoxGeometry(1, 0.05, 0.35), new THREE.MeshBasicMaterial({ color: '#d6e6f3' }), waves, { outline: 0, shadow: false }));
-  world.add(box(5, 2.2, 90, toon('#d9d6cc'), 228, 1.1, 318));           // 防波堤（漁港を囲む）
-  world.add(box(3.2, 13, 3.2, toon('#fbfaf4'), 228, 6.5, 366));          // 灯台
-  world.add(box(4.2, 2.2, 4.2, toon('#d8402f'), 228, 14, 366));
-  world.add(box(120, 1.2, 14, toon('#d9d6cc'), 160, 0.6, 270));         // 漁港の岸壁
+  world.add(box(5, 2.2, 60, toon('#d9d6cc'), 186, 1.1, 300));           // 防波堤（漁港を囲む）
+  world.add(box(3.2, 13, 3.2, toon('#fbfaf4'), 186, 6.5, 332));          // 灯台
+  world.add(box(4.2, 2.2, 4.2, toon('#d8402f'), 186, 14, 332));
+  world.add(box(120, 1.2, 14, toon('#d9d6cc'), 120, 0.6, 270));         // 漁港の岸壁
   const boat = (x, z, rot, color) => {
     const b = new THREE.Group();
     b.add(box(9, 1.6, 3, toon('#fbfaf4'), 0, 0.8, 0));
@@ -245,7 +249,7 @@ export function buildTown(scene, seed) {
     b.position.set(x, 0, z); b.rotation.y = rot;
     world.add(b);
   };
-  [[118, 284, 0.1, '#c8463a'], [138, 285, -0.05, PALETTE.gunjo], [160, 284, 0.08, '#e3a62b'], [182, 286, 0, '#4a8a5a']].forEach((a) => boat(...a));
+  [[74, 284, 0.1, '#c8463a'], [96, 285, -0.05, PALETTE.gunjo], [118, 284, 0.08, '#e3a62b'], [140, 286, 0, '#4a8a5a'], [60, 300, 0.4, '#fbfaf4']].forEach((a) => boat(...a));
   boat(-180, 420, 0.6, '#c8463a'); boat(260, 520, -0.4, PALETTE.gunjo);
   const parasols = [];
   for (let i = 0; i < 12; i++) parasols.push({ x: -250 + i * 17 + rnd() * 6, y: 2.6, z: 258 + rnd() * 8, sx: 2.2, sy: 0.9, sz: 2.2, color: new THREE.Color(['#d8503e', '#fbfaf4', '#3a6aa0', '#e3a62b'][i % 4]) });
@@ -329,7 +333,7 @@ export function buildTown(scene, seed) {
   // 桜並木: 県庁の前の通り（z=0）の両側
   for (let x = -HALF + 10; x < HALF; x += 9) {
     if (nearRoad(x)) continue;
-    for (const side of [-7.5, 7.5]) trees.push({ x: x + (rnd() - 0.5) * 2, z: side, s: 1.05 + rnd() * 0.25, kind: 'sakura' });
+    for (const side of [-7.5, 7.5]) trees.push({ x: x + (rnd() - 0.5) * 2, z: side, s: 1.45 + rnd() * 0.3, kind: 'sakura' });
   }
   const trunks = [], crowns = [], tops = [];
   for (const t of trees) {
@@ -529,6 +533,12 @@ function buildOffice(world) {
   const desks = buildDesks();
   const items = desks.map((d) => ({ x: d.x, y: 0.5, z: d.z + 0.9, sx: 2.2, sy: 0.8, sz: 1.2 }));
   world.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#9a7a5a'), items, { outline: 0.08 }));
+  const props = [];
+  desks.forEach((d, i) => {
+    props.push({ x: d.x - 0.5, y: 0.97, z: d.z + 0.9, sx: 0.7, sy: 0.14, sz: 0.5, color: new THREE.Color('#fbfaf4') }); // 書類
+    if (i % 2 === 0) props.push({ x: d.x + 0.6, y: 1.0, z: d.z + 1.1, sx: 0.35, sy: 0.2, sz: 0.3, color: new THREE.Color(i % 4 ? '#22324f' : '#c8463a') }); // 黒電話・赤電話
+  });
+  world.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#ffffff'), props, { outline: 0.03 }));
   const lamps = {};
   for (const dept of DEPARTMENTS) {
     const mine = desks.filter((d) => d.dept === dept.id);
