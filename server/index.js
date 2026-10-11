@@ -9,13 +9,16 @@ import { Chronicle } from './chronicle.js';
 import { Executor } from './executor.js';
 import { Simulation } from './sim.js';
 import { createApi } from './api.js';
+import { realMinutes } from './world.js';
 
 const cfg = loadConfig();
 const chronicle = new Chronicle();
 const executor = new Executor(cfg);
 const STATE_FILE = path.join(DATA, 'state.json');
 const saved = fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : null;
-const sim = new Simulation({ seed: cfg.seed, population: cfg.population, commuteShare: cfg.commuteShare, chronicle, executor, saved });
+// 時計: 既定は現実の日時と同じ。NANASHI_SPEED を付けたときだけ早回し（確認用）
+const REALTIME = !process.env.NANASHI_SPEED;
+const sim = new Simulation({ seed: cfg.seed, population: cfg.population, commuteShare: cfg.commuteShare, chronicle, executor, saved, startMinutes: REALTIME ? realMinutes() : 9 * 60 + 30 });
 
 // ---- SSE ----
 const clients = new Set();
@@ -31,7 +34,9 @@ chronicle.listeners.add((type, payload) => broadcast(type, payload));
 let last = Date.now();
 setInterval(() => {
   const now = Date.now();
-  sim.tick(Math.min(0.5, (now - last) / 1000), cfg.gameMinutesPerRealSecond);
+  const dt = Math.min(0.5, (now - last) / 1000);
+  if (REALTIME) sim.advanceTo(realMinutes(now), dt);
+  else sim.tick(dt, cfg.gameMinutesPerRealSecond);
   last = now;
 }, 100);
 setInterval(() => {

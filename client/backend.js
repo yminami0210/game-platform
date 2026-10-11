@@ -45,8 +45,8 @@ function serverBackend(init) {
 const KEY = { state: 'nanashi.local.state', sns: 'nanashi.local.sns', news: 'nanashi.local.news', photos: 'nanashi.local.photos' };
 
 async function localBackend(q) {
-  const [{ Simulation }, { ChronicleCore }, { createApi }, { templates }] = await Promise.all([
-    import('./shared/sim.js'), import('./shared/chronicle-core.js'), import('./shared/api.js'), import('./shared/templates.js'),
+  const [{ Simulation }, { ChronicleCore }, { createApi }, { templates }, { realMinutes }] = await Promise.all([
+    import('./shared/sim.js'), import('./shared/chronicle-core.js'), import('./shared/api.js'), import('./shared/templates.js'), import('./shared/world.js'),
   ]);
 
   // 保存先は localStorage。容量が小さいので、残すのは住民名簿・SNS 50 件・最新の新聞・写真 6 枚だけ
@@ -73,9 +73,11 @@ async function localBackend(q) {
   };
   const small = matchMedia('(max-width: 760px)').matches;
   const seed = 7;
-  const sim = new Simulation({ seed, population: Number(q.get('pop')) || (small ? 300 : 420), chronicle, executor, saved: ls.get(KEY.state) });
+  // 時計は現実の日時と同じ。?speed=6 のときだけ早回し（確認用）
+  const speed = Number(q.get('speed')) || 0;
+  const sim = new Simulation({ seed, population: Number(q.get('pop')) || (small ? 300 : 420), chronicle, executor, saved: ls.get(KEY.state), startMinutes: speed ? 9 * 60 + 30 : realMinutes() });
+  if (!speed) sim.advanceTo(realMinutes(), 0.1); // 閉じていたあいだの時間を飛ばす
   const api = createApi({ sim, chronicle, executor, seed });
-  const speed = Number(q.get('speed')) || 1;
 
   const handlers = new Map();
   const dispatch = (type, payload) => (handlers.get(type) || []).forEach((fn) => fn(payload));
@@ -84,7 +86,9 @@ async function localBackend(q) {
   let last = performance.now();
   setInterval(() => {
     const now = performance.now();
-    sim.tick(Math.min(0.5, (now - last) / 1000), speed);
+    const dt = Math.min(0.5, (now - last) / 1000);
+    if (speed) sim.tick(dt, speed);
+    else sim.advanceTo(realMinutes(), dt);
     last = now;
   }, 100);
   setInterval(() => { dispatch('frame', sim.frame()); dispatch('clock', api.clock()); }, 300);

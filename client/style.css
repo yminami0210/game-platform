@@ -140,3 +140,7 @@ body.admin #kencho { display: none; }
 body.mobile #admin { left: 8px; right: 8px; width: auto; bottom: calc(52px + env(safe-area-inset-bottom)); max-height: 46vh; }
 body.mobile[data-sheet="daicho"] #side { display: flex; }
 body.mobile #mtabs button { font-size: 13px; }
+
+/* 3D が出せないときの知らせ */
+#fatal { left: 16px; right: 16px; top: 40%; padding: 14px 16px; z-index: 30; font-size: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border: 2px solid var(--red); }
+#fatal p { margin: 0; }

@@ -14,6 +14,19 @@ const store = {
 
 const be = await createBackend();
 const init = be.init;
+function isLite() { try { return localStorage.getItem('nanashi.lite') === '1'; } catch { return false; } }
+function toggleLite() { try { localStorage.setItem('nanashi.lite', isLite() ? '0' : '1'); } catch { /* 無視 */ } location.reload(); }
+// 3D が出せないときに、理由と「かるい表示」ボタンを画面に出す（スクリーンショットで原因がわかるように）
+function showFatal(msg, err) {
+  const box = document.getElementById('fatal');
+  if (!box || !box.hidden) return;
+  box.hidden = false;
+  box.querySelector('p').textContent = msg + (err ? `（${String(err.message || err).slice(0, 160)}）` : '');
+  box.querySelector('button').onclick = toggleLite;
+  box.querySelector('button').textContent = isLite() ? 'ふつうの表示に戻す' : 'かるい表示で開き直す';
+}
+addEventListener('error', (e) => showFatal('エラーが起きました', e.error || e.message));
+addEventListener('unhandledrejection', (e) => showFatal('エラーが起きました', e.reason));
 const MOBILE = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
 document.body.classList.toggle('mobile', MOBILE);
 document.body.dataset.mode = be.mode;
@@ -22,9 +35,19 @@ const DEPTS = Object.fromEntries(init.departments.map((d) => [d.id, d]));
 // ---- 描画の土台 ----
 const canvas = $('#view');
 // スマホは解像度と影を控えめにして、電池と発熱を抑える
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: !MOBILE || devicePixelRatio < 2 });
-renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2));
-renderer.shadowMap.enabled = true;
+// 「かるい表示」: 影なし・解像度1倍（表示されない端末向け。画面のボタンで切り替える）
+const LITE = isLite() || new URLSearchParams(location.search).has('lite');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: !LITE && (!MOBILE || devicePixelRatio < 2), powerPreference: 'default' });
+} catch (err) {
+  showFatal('この端末では 3D を表示できませんでした（WebGL が使えません）', err);
+  throw err;
+}
+renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, MOBILE ? 1.5 : 2));
+renderer.setClearColor('#8fc8d8');
+renderer.shadowMap.enabled = !LITE;
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); showFatal('3D の表示が止まりました（端末のメモリ不足など）'); });
 renderer.shadowMap.type = THREE.PCFShadowMap; // 影はぼかさない（刷り物の段の陰）
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog('#eef6f4', 900, 3200); // 空はドーム（town.js）。霧は地平の色に合わせる
@@ -388,24 +411,39 @@ be.on('registered', (e) => {
 });
 
 // ---- ループ ----
+// 大きさは canvas 自身から測る（アプリ内ブラウザでは読み込み直後の innerWidth/innerHeight が 0 のことがある）
 function resize() {
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight;
+  const w = canvas.clientWidth || innerWidth || document.documentElement.clientWidth;
+  const h = canvas.clientHeight || innerHeight || document.documentElement.clientHeight;
+  if (!w || !h) return false;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
   camera.fov = camera.aspect < 1 ? 64 : 50; // 縦長のスマホでは広角にして左右が切れないように
   camera.updateProjectionMatrix();
+  return true;
 }
 addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 resize();
+const drawSize = new THREE.Vector2();
+let failed = 0;
 renderer.setAnimationLoop(() => {
   const now = performance.now();
   const dt = (now - t0) / 1000; t0 = now;
-  updateCps(dt);
-  town.tick(dt, gameMinuteNow() % 1440, nightLevel);
-  if (follow) { controls.target.set(follow.x, 0, follow.z); camera.position.set(follow.x + 10, 12, follow.z + 14); }
-  controls.update();
-  sun.target.position.copy(controls.target);
-  sun.position.copy(controls.target).add(sunDir);
-  renderer.render(scene, camera);
+  renderer.getSize(drawSize);
+  if (drawSize.x !== canvas.clientWidth || drawSize.y !== canvas.clientHeight) resize();
+  try {
+    updateCps(dt);
+    town.tick(dt, gameMinuteNow() % 1440, nightLevel);
+    if (follow) { controls.target.set(follow.x, 0, follow.z); camera.position.set(follow.x + 10, 12, follow.z + 14); }
+    controls.update();
+    sun.target.position.copy(controls.target);
+    sun.position.copy(controls.target).add(sunDir);
+    renderer.render(scene, camera);
+    failed = 0;
+  } catch (err) {
+    if (++failed === 3) showFatal('3D の描画でエラーが起きました', err);
+  }
 });
 // ---- スマホ: 下のタブで「町だけ」と各シートを切り替える ----
 function openSheet(name) {
@@ -431,6 +469,8 @@ if (be.mode === 'local') {
   });
 }
 $('#loading').remove();
+$('#liteBtn').textContent = LITE ? 'ふつうの表示に戻す' : '町が表示されないとき: かるい表示に切り替える';
+$('#liteBtn').addEventListener('click', toggleLite);
 
 // ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
 if ('serviceWorker' in navigator && isSecureContext && !window.NANASHI_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => {});

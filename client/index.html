@@ -82,8 +82,12 @@
       </form>
       <div class="form" id="localBox" hidden>
         <h3>この端末の町</h3>
-        <p class="muted">サーバーなしで、この端末の中だけで町が動いています（LLM 不使用・通信なし）。閉じている間は時間が止まります。</p>
+        <p class="muted">サーバーなしで、この端末の中だけで町が動いています（LLM 不使用・通信なし）。時刻は現実と同じです。閉じていたあいだは、次に開いたときに今の時刻に合わせます。</p>
         <button type="button" id="resetLocal">町をはじめからにする</button>
+      </div>
+      <div class="form">
+        <h3>表示</h3>
+        <button type="button" id="liteBtn">町が表示されないとき: かるい表示に切り替える</button>
       </div>
     </section>
   </aside>
@@ -116,6 +120,7 @@
     <button data-sheet="jumin">窓口</button>
   </nav>
   <div id="loading">ナナシ県へ向かっています…</div>
+  <div id="fatal" class="panel" hidden role="alert"><p></p><button type="button">かるい表示で開き直す</button></div>
   <div id="toast"></div>
 
   <script type="module" src="./main.js"></script>

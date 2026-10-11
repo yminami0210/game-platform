@@ -187,6 +187,13 @@ export function platformSpot(station, rnd) {
   return [station.x + (rnd() - 0.5) * 36, RAIL_Z - 4.5 + (rnd() - 0.5) * 2];
 }
 
+// ---- 時計（現実の日時と同じにする） ----------------------------------------
+// ゲーム内の「分」は 2026-03-30（月）0:00 からの経過分。端末（サーバー）の地域の時刻で数える
+export const EPOCH_UTC = Date.UTC(2026, 2, 30);
+export function realMinutes(now = Date.now()) {
+  return (now - new Date(now).getTimezoneOffset() * 60000 - EPOCH_UTC) / 60000;
+}
+
 // ---- 電車の時刻表 -------------------------------------------------------------
 // 1日の何分に駅に着くか。朝夕は10分おき、昼は20分おき、5:40〜23:40
 export function trainTimes() {

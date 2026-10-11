@@ -4,7 +4,7 @@
 import { DEPARTMENTS, DEPT_ROUTINES, GIVEN_F, GIVEN_M, PLACE_ACTIONS, SURNAMES, TOWN_EVENTS, TRIP_WORDS } from './lore.js';
 import {
   CATALOG, CITIES, HOUSE_TYPES, KIND_INFO, buildDesks, defaultLayout, makeHouse, mulberry32,
-  placementError, platformSpot, routeBetween, spotIn, TRAIN_TIMES,
+  placementError, platformSpot, routeBetween, spotIn, TRAIN_TIMES, EPOCH_UTC,
 } from './world.js';
 
 export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, away: 6 };
@@ -17,12 +17,10 @@ export const ROLE_LABEL = {
   retired: '隠居', homemaker: '家事', visitor: '来訪者', human: '人間アバター',
 };
 
+// 日付は現実の暦と同じ（年だけナナシ暦。2026年 = 1年）
 export function dateLabel(day) {
-  const d0 = day - 1;
-  const year = Math.floor(d0 / 360) + 1;
-  const month = ((Math.floor(d0 / 30) + 3) % 12) + 1; // 4月始まり、1か月30日
-  const date = (d0 % 30) + 1;
-  return `ナナシ暦${year}年 ${month}月${date}日（${WEEK[d0 % 7]}）`;
+  const d = new Date(EPOCH_UTC + (day - 1) * 86400000);
+  return `ナナシ暦${d.getUTCFullYear() - 2025}年 ${d.getUTCMonth() + 1}月${d.getUTCDate()}日（${WEEK[(d.getUTCDay() + 6) % 7]}）`;
 }
 
 // 住所（区画から町名を付ける）
@@ -34,7 +32,7 @@ export function addressOf(h) {
 const cityName = (id) => CITIES.find((c) => c.id === id)?.name || '県外';
 
 export class Simulation {
-  constructor({ seed = 7, population = 420, commuteShare = 0.85, chronicle, executor, saved = null }) {
+  constructor({ seed = 7, population = 420, commuteShare = 0.85, chronicle, executor, saved = null, startMinutes = 9 * 60 + 30 }) {
     this.rnd = mulberry32(seed);
     this.seed = seed;
     this.commuteShare = commuteShare;
@@ -46,7 +44,7 @@ export class Simulation {
     this.nextId = 1;
     this.nextHh = 1;
     this.nextTaskId = 1;
-    this.minutes = 9 * 60 + 30; // 1日目 9:30 から（最初に見る町は晴れた昼）
+    this.minutes = startMinutes; // 現実の時刻（world.js の realMinutes）から始める。テストでは 1日目 9:30
     this.stats = { arrivals: 0, departures: 0, posts: 0, photos: 0, commutersOut: 0, visitors: 0 };
     this.postedEvents = new Set();
     this.pendingPhotos = new Map();
@@ -279,7 +277,7 @@ export class Simulation {
   }
 
   #step(cp, dm) {
-    let budget = (cp.age < 13 ? 14 : cp.age >= 70 ? 10 : 12) * dm; // 歩く速さ（m/ゲーム内の分）
+    let budget = (cp.age < 13 ? 75 : cp.age >= 70 ? 55 : 70) * dm; // 歩く速さ（m/分。人が歩くくらい）
     while (budget > 0 && cp.path.length) {
       const [tx, tz] = cp.path[0];
       const dx = tx - cp.x, dz = tz - cp.z;
@@ -813,6 +811,30 @@ export class Simulation {
     this.#goTo(cp, x, z, null);
     cp.next = { state: STATE.idle, dwell: 9999, activity: '散歩中' };
     return true;
+  }
+
+  // 現実の時刻に合わせて進める。少しの遅れはなめらかに、30分以上離れていたら一気に飛ぶ
+  advanceTo(target, dtReal) {
+    const delta = target - this.minutes;
+    if (delta <= 0) return;
+    if (delta > 30) return this.jumpTo(target);
+    this.tick(dtReal, delta / Math.max(dtReal, 0.001));
+  }
+
+  // アプリを閉じていたあいだを飛ばす: 時刻を合わせ、全員をその時刻にいるはずの場所へ置き直す
+  jumpTo(target) {
+    const prevDay = this.day;
+    this.minutes = target;
+    if (this.day !== prevDay) { this.lastDay = this.day; this.#daily(this.day - 1); }
+    this.lastHour = this.hour;
+    this.nextEventAt = this.minutes + 20;
+    for (const t of this.tasks) if (t.status !== 'done') { t.status = 'done'; t.doneAt = this.minutes; }
+    for (const c of [...this.cps]) {
+      if (c.role === 'visitor') { this.#removeCp(c, '帰った'); continue; }
+      Object.assign(c, { path: [], next: null, taskId: null, away: false, returnAt: null, trip: null, state: STATE.idle, until: this.minutes });
+      if (c.role === 'human') continue;
+      this.#placeAtStart(c);
+    }
   }
 
   tick(dtReal, gameMinutesPerSecond = 1) {
