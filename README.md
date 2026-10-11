@@ -8,6 +8,12 @@
 |---|---|
 | ![](docs/nanashi/screenshot-koho.png) | ![](docs/nanashi/screenshot-sns.png) |
 
+## 48個目の都道府県（SNS の ARG）
+
+構想書: `docs/product/nanashi/business-plan.md`。SNS の4つのアカウント（県庁観光課・住人A・住人B・大衆食堂ふじや）は、この町の実在の住人・店に結びついて投稿する（テンプレート・トークン 0。町のナナシッターに出る下書きで、外には出さない）。
+- 設定集: `docs/nanashi/world-bible.md`／アカウントとプロンプト: `docs/nanashi/personas/README.md`／リスク: `docs/nanashi/arg-risks.md`
+- 過去ログを作る: `node tools/nanashi_pastlog.mjs --days 21 --check` → `data/arg/pastlog/`（見本 `docs/nanashi/personas/sample-week/`）
+
 ## 動かし方
 
 ```bash

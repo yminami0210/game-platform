@@ -7,6 +7,7 @@ import {
   placementError, platformSpot, routeBetween, spotIn, TRAIN_TIMES, EPOCH_UTC,
 } from './world.js';
 import { cleanLook, describeLook, randomLook } from './looks.js';
+import { PersonaHub } from './personas.js';
 
 export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, away: 6 };
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
@@ -61,6 +62,7 @@ export class Simulation {
     this.lastDay = this.day;
     this.lastTrainCheck = this.minutes;
     this.nextEventAt = this.minutes + 20;
+    this.personas = new PersonaHub(this); // SNS のアカウント（観光課・住人A・住人B・ふじや）
   }
 
   // ---- 時刻 ----
@@ -908,6 +910,7 @@ export class Simulation {
     this.minutes += dtReal * gameMinutesPerSecond;
     if (this.day !== this.lastDay) { const prev = this.lastDay; this.lastDay = this.day; this.#daily(prev); }
     if (this.hour !== this.lastHour) { this.lastHour = this.hour; this.#hourly(); }
+    this.personas.tick(before, this.minutes);
     // 電車の到着（時刻表どおり）
     for (const t of TRAIN_TIMES) {
       for (const dayOff of [0, 1440]) {

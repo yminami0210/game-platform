@@ -160,7 +160,7 @@ init.logs.forEach(addLog);
 
 function addSns(p) {
   const li = document.createElement('li');
-  li.innerHTML = `<span class="via">${esc(p.via)}</span><div class="who">${esc(p.author)}</div><time>${esc(p.time)}</time><div>${esc(p.text)}</div>${p.photo ? `<img data-photo="${esc(p.photo)}" src="${esc(be.photoUrl(p.photo))}" alt="広報課撮影" onerror="this.remove()">` : ''}`;
+  li.innerHTML = `<span class="via">${esc(p.via)}</span><div class="who">${esc(p.author)}${p.handle ? ` <span class="muted">${esc(p.handle)}</span>` : ''}</div><time>${esc(p.time)}</time><div>${esc(p.text)}</div>${p.photo ? `<img data-photo="${esc(p.photo)}" src="${esc(be.photoUrl(p.photo))}" alt="広報課撮影" onerror="this.remove()">` : ''}`;
   $('#sns').prepend(li);
 }
 init.sns.forEach(addSns);

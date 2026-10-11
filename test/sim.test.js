@@ -222,3 +222,26 @@ test('見た目は部品の組み合わせで台帳に残り、店・家の詳�
   const av = sim.cpById(sim.tasks.find((t) => t.id === task.id).result.cpId);
   assert.equal(av.look.hair, 'bun'); assert.equal(av.look.body, 'tall'); assert.notEqual(av.look.extra, 'bogus');
 });
+
+test('SNS アカウント（観光課・住人A・住人B・ふじや）が町の暮らしに合わせて投稿する（トークン 0）', async () => {
+  const { menuOf } = await import('../server/personas.js');
+  const { cfg, chronicle } = setup();
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), startMinutes: 0 });
+  const posts = [];
+  chronicle.listeners.add((type, p) => type === 'sns' && p.persona && posts.push(p));
+  run(sim, 1440 * 3, 0.25, 8);
+  const by = (id) => posts.filter((p) => p.persona === id);
+  for (const id of ['kanko', 'a', 'b', 'fujiya']) assert.ok(by(id).length >= 1, `${id} が投稿していない`);
+  // ふじやの本日のおすすめは、その日のメニュー
+  for (const p of by('fujiya').filter((p) => p.text.startsWith('【本日のおすすめ】'))) assert.ok(p.text.includes(menuOf(p.day)[0]));
+  // 住人A はナナミ市の高校に通う女の子、住人B とは別の人
+  const a = sim.personas.bound.a;
+  assert.ok(a.school && a.sex === 'f');
+  assert.notEqual(sim.personas.bound.b.given, a.given);
+  // 一気に時間を飛ばしたときは投稿しない
+  const n = posts.length;
+  sim.jumpTo(sim.minutes + 600);
+  run(sim, 5, 0.25, 4);
+  assert.ok(posts.length - n <= 1);
+  assert.ok(posts.every((p) => p.via === 'template' && p.handle.startsWith('@')));
+});

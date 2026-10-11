@@ -85,7 +85,7 @@ function safeJoin(base, rel) {
 }
 
 // ブラウザでもそのまま動くモジュール（client/ から ./shared/ として読み込む）
-const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js', 'looks.js'];
+const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js', 'looks.js', 'personas.js'];
 
 const api = createApi({ sim, chronicle, executor, seed: cfg.seed });
 const routes = {
