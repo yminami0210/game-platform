@@ -91,6 +91,14 @@ AI社員の成果物はすべて下書き。送信・支払い・契約・採否
 
 オーナーの利用上限を守るため、トークンはほとんど使わないことを前提にする。
 - **委任は最小限**: 子セッションは文脈を一から読み直すので高くつく。§3 の表より優先し、本当に並列が必要なときだけ起動する。役割（SM・PM など）は、1 セッション内の「視点」として扱う。
-- **アプリ内の LLM は OmniRoute 経由**、既定は `template`（0 トークン）。上限・予算・キャッシュ・失敗時のテンプレートへの切り替えを必ず残す（ナナシ県: `server/executor.js`）。
-- **Claude Code を OmniRoute に向ける**: `scripts/claude-omniroute.sh`（`ANTHROPIC_BASE_URL` を OmniRoute に向ける）。
+- **書く作業は OmniRoute に回す**（§10）。Claude は依頼文・判断・最終チェックに使う。
+- **アプリ内の LLM も OmniRoute 経由**、既定は `template`（0 トークン）。上限・予算・キャッシュ・失敗時のテンプレートへの切り替えを必ず残す（ナナシ県: `server/executor.js`。モデルは `role:writer` で §10 の役割表を使う）。
+- 予備の方法として、Claude Code 自体を OmniRoute に向ける `scripts/claude-omniroute.sh` もある。
 - 読むのは必要な範囲だけ。ログ全体ではなく `/api/digest` のような要約を使う。報告は短く。
+
+## 10. ルーティン業務の分担（OmniRoute）
+- 考えるのはClaude、実行するのはOmniRoute、最終チェックはClaude。設定の正本は Artifact「OmniRoute 運用設定」（https://claude.ai/artifact/9xmFA9SxMfJgCnP96bVVoL）
+- 呼び出しは `python3 tools/omni_task.py <役割> <依頼ファイル> <出力ファイル>`。役割ごとのモデルは `tools/omni_models.json`
+- 実行するAIはプロジェクトのファイルを読めないので、依頼文に必要な資料を全部そのまま貼る。秘密情報は入れない
+- OmniRouteが失敗したら自動でGemini（gemini_draft.py）に切り替わる。両方だめならClaudeが代筆し、そのことを残す
+- 新しいルーティンを作るときも、この分担に合わせてスキルを書く
