@@ -1,7 +1,7 @@
 // オフライン用のサービスワーカー。画面とライブラリはキャッシュし、サーバーの API・SSE は素通しにする。
-const CACHE = 'nanashi-v3';
-const SHELL = ['./', './index.html', './style.css', './main.js', './town.js', './backend.js', './admin.js', './view3d.js', './map2d.js', './manifest.webmanifest',
-  './shared/world.js', './shared/lore.js', './shared/sim.js', './shared/templates.js', './shared/chronicle-core.js', './shared/api.js',
+const CACHE = 'nanashi-v4';
+const SHELL = ['./', './index.html', './style.css', './main.js', './town.js', './backend.js', './admin.js', './view3d.js', './map2d.js', './portrait.js', './interior.js', './firstperson.js', './minigames.js', './manifest.webmanifest',
+  './shared/world.js', './shared/lore.js', './shared/sim.js', './shared/templates.js', './shared/chronicle-core.js', './shared/api.js', './shared/looks.js',
   './vendor/three/build/three.module.js', './vendor/three/examples/jsm/controls/OrbitControls.js', './icons/icon-192.png'];
 
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));

@@ -183,9 +183,10 @@ export function createView3D({ canvas, init, layout, mobile, lite }) {
         const bob = c.moving ? Math.abs(Math.sin(time * 9 + c.idx)) * 0.12 : 0;
         const s = hidden ? 0 : c.info.role === 'student' ? 0.75 : c.info.role === 'human' ? 1.15 : 1;
         const y = (seated ? 0.6 : 0.8) * s + bob;
-        tmp.position.set(c.x, y, c.z); tmp.scale.set(s, seated ? s * 0.8 : s, s); tmp.updateMatrix();
+        const bw = c.bw || 1, bh = c.bh || 1; // 体型（台帳の見た目）
+        tmp.position.set(c.x, y, c.z); tmp.scale.set(s * bw, (seated ? s * 0.8 : s) * bh, s * bw); tmp.updateMatrix();
         bodyMesh.setMatrixAt(c.idx, tmp.matrix);
-        tmp.position.y = y + (seated ? 0.95 : 1.15) * s; tmp.updateMatrix();
+        tmp.position.y = y + (seated ? 0.95 : 1.15) * s * bh; tmp.updateMatrix();
         headMesh.setMatrixAt(c.idx, tmp.matrix);
         tmp.position.y += 0.08 * s; tmp.updateMatrix();
         hairMesh.setMatrixAt(c.idx, tmp.matrix);

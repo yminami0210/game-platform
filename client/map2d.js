@@ -2,6 +2,7 @@
 // 昭和の観光鳥瞰図のように斜め上から見下ろした絵を Canvas 2D で描く。view3d.js と同じ形で使える。
 import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, buildDesks, footprint, mulberry32, trainsAt } from './shared/world.js';
 import { DEPARTMENTS } from './shared/lore.js';
+import { drawFigure } from './portrait.js';
 
 const C = {
   sky: '#8fc8d8', skyLow: '#eef6f4', moegi: '#a9c25a', lot: '#b9cf72', paved: '#dcd9cc', road: '#c9c6bb', walk: '#e9e6dc',
@@ -187,6 +188,7 @@ export function createMap2D({ canvas, init, layout, mobile }) {
       const px = X(c.x), py = Y(c.z);
       if (px < -20 || px > w + 20 || py < -20 || py > h + 20) continue;
       const s = c.info.role === 'student' ? 0.8 : c.info.role === 'human' ? 1.3 : 1;
+      if (r > 2.6) { drawFigure(g, c.look, px, py, r * 4 * s, { seated: c.state === 2 || c.state === 3, outline: r > 4 }); continue; } // 近づくと台帳の見た目で描く
       g.fillStyle = c.color; g.fillRect(px - r * 0.7 * s, py - r * 2.2 * s, r * 1.4 * s, r * 1.6 * s);
       g.fillStyle = c.skin; g.beginPath(); g.arc(px, py - r * 2.8 * s, r * 0.85 * s, 0, 7); g.fill();
       g.fillStyle = c.hair; g.beginPath(); g.arc(px, py - r * 3.0 * s, r * 0.85 * s, Math.PI, 0); g.fill();

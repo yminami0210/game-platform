@@ -144,3 +144,45 @@ body.mobile #mtabs button { font-size: 13px; }
 /* 3D が出せないときの知らせ */
 #fatal { left: 16px; right: 16px; top: 40%; padding: 14px 16px; z-index: 30; font-size: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border: 2px solid var(--red); }
 #fatal p { margin: 0; }
+
+/* ---- 詳細カード・建物の中・目線・ミニゲーム ---- */
+#card { max-height: 60vh; overflow: auto; }
+#card .who { display: flex; gap: 10px; align-items: center; }
+#card .who img, .face { border-radius: 50%; background: var(--paper-2); flex: none; }
+#card .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+#card .acts button { font-size: 13px; }
+#card .faces { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+#card .faces img { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; background: var(--paper-2); }
+#card .tag { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 12px; background: var(--paper-2); }
+#card .tag.open { background: #3fae5a; color: #fff; } #card .tag.closed { background: #9a9a9a; color: #fff; }
+#card ul.ev { margin: 4px 0 0; padding-left: 16px; font-size: 12px; }
+#card .x { position: sticky; top: 0; float: right; border: 0; background: transparent; font-size: 18px; line-height: 1; padding: 2px 6px; }
+.overlay { position: fixed; inset: 0; z-index: 7; background: var(--paper, #fbfaf4); display: flex; flex-direction: column; }
+.overlay[hidden] { display: none !important; }
+.overlay canvas { flex: 1; width: 100%; min-height: 0; touch-action: none; display: block; }
+.ovHead { display: flex; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 2px solid var(--red, #2f5ba0); background: rgba(251,250,244,.97); }
+.ovHead b { font-family: "Kaisei Decol", serif; font-size: 17px; }
+.ovHead .sp { flex: 1; }
+.ovHead img { border-radius: 50%; }
+.ovHint { position: absolute; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); margin: 0; padding: 4px 10px; font-size: 12px; background: rgba(251,250,244,.9); border-radius: 12px; pointer-events: none; white-space: nowrap; }
+.mg { z-index: 9; }
+.mg .mgHead { display: flex; gap: 8px; align-items: center; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 2px solid var(--red, #2f5ba0); }
+.mg .mgHead button { margin-left: auto; }
+.mg iframe { flex: 1; border: 0; width: 100%; }
+.mg .mgSoon { margin: auto; text-align: center; padding: 24px; max-width: 420px; }
+.mg .big { font-family: "Kaisei Decol", serif; font-size: 26px; margin: 0 0 8px; }
+.lookEdit { display: flex; gap: 10px; align-items: flex-start; }
+.lookEdit img { border-radius: 50%; background: var(--paper-2); flex: none; }
+#lookParts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; flex: 1; }
+#lookParts label { font-size: 12px; margin: 0; }
+#lookParts select { width: 100%; }
+button.small { font-size: 12px; padding: 4px 8px; }
+#daicho .m img { width: 24px; height: 24px; vertical-align: middle; margin-right: 4px; border-radius: 50%; background: var(--paper-2); }
+#daicho .look { display: block; font-size: 11px; color: var(--muted, #6b6f75); margin-left: 28px; }
+#card { z-index: 9; }
+.mg { z-index: 10; }
+body.mobile .overlay:not(.mg) { bottom: calc(48px + env(safe-area-inset-bottom)); }
+body.mobile .ovHead { flex-wrap: wrap; row-gap: 2px; }
+body.mobile .ovHead b { font-size: 16px; }
+body.mobile .ovHead .muted { order: 9; flex-basis: 100%; font-size: 12px; }
+body.mobile .ovHead button { padding: 6px 10px; font-size: 13px; }

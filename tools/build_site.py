@@ -71,7 +71,7 @@ def main(out: Path) -> None:
 
 
 # ナナシ県: サーバーなしで動く形（client/ + ブラウザで動く server/ のモジュール + three.js）
-NANASHI_SHARED = ["world.js", "lore.js", "sim.js", "templates.js", "chronicle-core.js", "api.js"]
+NANASHI_SHARED = ["world.js", "lore.js", "sim.js", "templates.js", "chronicle-core.js", "api.js", "looks.js"]
 NANASHI_THREE = ["build/three.module.js", "examples/jsm/controls/OrbitControls.js"]
 
 

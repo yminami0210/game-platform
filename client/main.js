@@ -3,6 +3,11 @@
 import { setupAdmin } from './admin.js';
 import { createBackend } from './backend.js';
 import { createMap2D } from './map2d.js';
+import { createInterior } from './interior.js';
+import { createFirstPerson } from './firstperson.js';
+import { gameFor, openMinigame } from './minigames.js';
+import { drawPortrait, portraitUrl } from './portrait.js';
+import { BODY_SHAPE, randomLook } from './shared/looks.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,27 +61,31 @@ if (viewPref !== '2d' && webgl2Available()) {
 } else if (viewPref !== '2d') viewNote = 'この端末では 3D が使えないため、地図で表示しています';
 if (!view) view = createMap2D({ canvas, init, layout, mobile: MOBILE });
 document.body.dataset.view = view.mode;
+const interior = createInterior($('#insideView'));
+let insideOpen = null; // 開いている建物の中 { kind: 'place'|'house', id, d }
+const fpv = createFirstPerson({ canvas: $('#fpView'), seed: init.seed });
+fpv.setLayout(layout);
 
-function setCam(name) { view.setCam(name, name === 'avatar' ? myAvatar() : null); }
+// 見え方は2つ: 全景（つまんで拡大・建物をタップで中の全景）と、人の目線
+function setCam(name) { closeOverlays(); view.setCam(name, null); }
 setCam('all');
 $('#cams').addEventListener('click', (e) => e.target.dataset.cam && setCam(e.target.dataset.cam));
+$('#camAvatar').addEventListener('click', () => myAvatar() && openFirstPerson(myAvatar().info.id));
 const admin = setupAdmin({ view, canvas, be, getLayout: () => layout, toast });
 
-// ---- 人（CP） ----
-const ROLE_COLOR = { resident: ['#e8a33a', '#6a9ac8', '#c86a5a', '#7aa86a', '#efe6d0', '#8a7ab8'], worker: ['#3a6aa0', '#4a7a6a'], student: ['#f2c94a', '#ffffff'] };
-const SKIN = ['#f3d2b4', '#e8c09c', '#f7dcc4'];
-const HAIR = ['#2b2420', '#3d2f26', '#5a4636', '#9a9a9a', '#1f1b18'];
-const cps = new Map(); // id -> { idx, info, x, z, tx, tz, state, color, skin, hair }
+// ---- 人（CP）。見た目は住民台帳の部品の組み合わせ（server/looks.js） ----
+const cps = new Map(); // id -> { idx, info, look, x, z, tx, tz, state, color, skin, hair, bw, bh }
 const order = [];
 function addRoster(list) {
   const added = [];
   for (const info of list) {
     if (cps.has(info.id)) continue;
-    const palette = ROLE_COLOR[info.role] || ['#888888'];
+    const look = info.look || {};
+    const [bw, bh] = BODY_SHAPE[look.body] || [1, 1];
     const c = {
-      idx: order.length, info, x: 0, z: 0, tx: 0, tz: 0, state: 1, fresh: true,
-      color: info.role === 'human' ? info.color || '#e8b730' : info.dept ? DEPTS[info.dept].color : palette[info.id % palette.length],
-      skin: SKIN[info.id % 3], hair: info.age > 64 ? '#d8d4cc' : HAIR[info.id % HAIR.length],
+      idx: order.length, info, look, x: 0, z: 0, tx: 0, tz: 0, state: 1, fresh: true, bw, bh,
+      color: info.role === 'human' && !info.look ? info.color || '#e8b730' : look.top || '#3a6aa0',
+      skin: look.skin || '#f3d2b4', hair: look.hair === 'bald' ? look.skin || '#f3d2b4' : look.hairColor || '#1f1b18',
     };
     order.push(info.id);
     cps.set(info.id, c);
@@ -123,6 +132,7 @@ function renderTasks() {
     return `<li class="${busy.has(d.id) ? 'busy' : ''}"><span class="dot" style="background:${d.color}"></span>${esc(d.name)}${d.skills.length ? ' <span class="muted">◆</span>' : ''}<span class="n">在席 ${atDesk}/${staff.length}</span></li>`;
   }).join('');
   view.setBusyDepts(busy);
+  interior.setBusy(new Map([...[...busy].map((d) => [d, true]), ...active.filter((t) => t.assignee).map((t) => [`task${t.id}`, `${t.status === 'working' ? '作業中' : '移動中'}：${t.title}`])]));
   // CP の頭上に作業バッジ
   const want = new Map(active.filter((t) => t.assignee && t.status !== 'queued').map((t) => [t.assignee, t]));
   for (const c of cps.values()) {
@@ -166,6 +176,9 @@ function md(src) {
 if (init.news) $('#news').innerHTML = md(init.news.markdown);
 
 let activeTab = 'log';
+function openTab(name) {
+  if (MOBILE) openSheet(name); else document.querySelector(`.tabs button[data-tab="${name}"]`)?.click();
+}
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button, #side section').forEach((x) => x.classList.remove('on'));
   b.classList.add('on');
@@ -180,18 +193,143 @@ function toast(msg) {
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 3500);
 }
 
-// ---- CP 情報カード ----
+// ---- 詳細カード（人・店・家をタップしたとき） ----
+const face = (look, size = 56) => `<img class="face" src="${portraitUrl(look, size * 2)}" width="${size}" height="${size}" alt="">`;
+const faces = (list) => `<div class="faces">${list.map((p) => `<img src="${portraitUrl(p.look, 64)}" data-cp="${p.id}" title="${esc(p.name)}（${esc(p.activity || '')}）" alt="${esc(p.name)}">`).join('')}</div>`;
+function openCard(html) {
+  $('#card').hidden = false;
+  $('#card').innerHTML = `<button type="button" class="x" data-act="close" aria-label="閉じる">×</button>${html}`;
+}
+$('#card').addEventListener('click', (e) => {
+  const cpId = Number(e.target.dataset.cp);
+  if (cpId) return showCp(cpId);
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const { act, id } = b.dataset;
+  if (act === 'close') $('#card').hidden = true;
+  if (act === 'fp') openFirstPerson(Number(id));
+  if (act === 'daicho') { openTab('daicho'); $('#daichoSearch').value = b.dataset.q || ''; renderDaicho(); }
+  if (act === 'inside') openInside(b.dataset.kind, id);
+  if (act === 'place') showPlace(id);
+  if (act === 'house') showHouse(id);
+  if (act === 'use') useShop(id);
+});
+
 async function showCp(id, fly = false) {
   const d = await be.cp(id);
   if (!d) return;
-  $('#card').hidden = false;
-  $('#card').innerHTML = `<b>${esc(d.name)}</b>（${d.age}歳）<span class="muted"> ${esc(d.roleLabel)}</span>`
-    + `<br>${d.household ? `${esc(d.household)}・` : ''}${esc(d.address)}`
+  const insideId = d.placeId && !d.walking ? (d.placeId === 'home' ? d.homeId : d.placeId) : null;
+  const insideKind = d.placeId === 'home' ? 'house' : 'place';
+  openCard(`<div class="who">${face(d.look)}<div><b>${esc(d.name)}</b>（${d.age}歳）<span class="muted"> ${esc(d.roleLabel)}</span>`
+    + `<br><span class="muted">${esc(d.lookText)}</span></div></div>`
+    + `${d.household ? `${esc(d.household)}・` : ''}${esc(d.address)}`
     + (d.workLabel ? `<br>勤め先・学校: ${esc(d.workLabel)}` : '')
     + `<br><span class="muted">きょうの予定: ${esc(d.today)}</span>`
-    + `<br>いま: ${esc(d.place)} ／ ${esc(d.activity)}${d.skills?.length ? `<br><span class="muted">スキル: ${esc(d.skills.join(', '))}</span>` : ''}`;
+    + `<br>いま: ${esc(d.place)} ／ ${esc(d.activity)}${d.skills?.length ? `<br><span class="muted">スキル: ${esc(d.skills.join(', '))}</span>` : ''}`
+    + `<div class="acts">${d.state !== 6 ? `<button type="button" data-act="fp" data-id="${d.id}">目線で見る</button>` : ''}`
+    + (insideId ? `<button type="button" data-act="inside" data-kind="${insideKind}" data-id="${esc(insideId)}">いる建物の中を見る</button>` : '')
+    + (d.homeId ? `<button type="button" data-act="house" data-id="${esc(d.homeId)}">住まい</button>` : '')
+    + `<button type="button" data-act="daicho" data-q="${esc(d.name)}">台帳で見る</button></div>`);
   const c = cps.get(id);
-  if (fly && c) view.flyTo(c.x, c.z);
+  if (fly && c && c.state !== 6) view.flyTo(c.x, c.z);
+}
+
+async function showPlace(id) {
+  const d = await be.place(id);
+  if (!d) return;
+  const game = gameFor(d.kind);
+  openCard(`<b>${esc(d.name)}</b> <span class="muted">${esc(d.kindLabel)}・${esc(d.address)}</span>`
+    + `<br>営業 ${esc(d.hours)} <span class="tag ${d.open ? 'open' : 'closed'}">${d.open ? '営業中' : '営業時間外'}</span>`
+    + `<br>いま中に <b>${d.hereCount}</b>人${d.coming ? `（向かっている人 ${d.coming}人）` : ''}・きょうのお客 ${d.visitsToday}人`
+    + (d.here.length ? faces(d.here.slice(0, 16)) : '')
+    + (d.staffCount ? `<br><span class="muted">働く人 ${d.staffCount}人: ${d.staff.slice(0, 4).map((p) => esc(p.name)).join('、')}${d.staffCount > 4 ? ' ほか' : ''}</span>` : '')
+    + (d.recent.length ? `<ul class="ev">${d.recent.slice(0, 3).map((e) => `<li>${esc(e.time)} ${esc(e.text)}</li>`).join('')}</ul>` : '')
+    + `<div class="acts"><button type="button" data-act="inside" data-kind="place" data-id="${esc(d.id)}">中を見る</button>`
+    + (game ? `<button type="button" class="primary" data-act="use" data-id="${esc(d.id)}">利用する（${esc(game.title)}）</button>` : '') + '</div>');
+}
+
+async function showHouse(id) {
+  const d = await be.house(id);
+  if (!d) return;
+  const people = d.households.flatMap((hh) => hh.members);
+  openCard(`<b>${esc(d.typeLabel)}</b> <span class="muted">${esc(d.address)}</span>`
+    + (d.households.length ? d.households.map((hh) => `<br>${hh.unit ? `${esc(hh.unit)} ` : ''}<b>${esc(hh.surname)}家</b> ${hh.members.map((m) => `${esc(m.name.split(' ')[1] || m.name)}（${m.age}）— ${esc(m.where)}`).join('、')}`).join('') : '<br>空き家')
+    + (d.units > 1 ? `<br><span class="muted">${d.units}部屋（空き ${d.vacant}）</span>` : '')
+    + (people.length ? faces(people) : '')
+    + `<div class="acts"><button type="button" data-act="inside" data-kind="house" data-id="${esc(d.id)}">中を見る</button></div>`);
+}
+
+// ---- 建物の中の全景 ----
+async function openInside(kind, id) {
+  $('#card').hidden = true;
+  closeFp();
+  insideOpen = { kind, id };
+  $('#inside').hidden = false;
+  await refreshInside();
+}
+async function refreshInside() {
+  if (!insideOpen) return;
+  const { kind, id } = insideOpen;
+  const d = kind === 'house' ? await be.house(id) : await be.place(id);
+  if (!d || !insideOpen || insideOpen.id !== id) return;
+  insideOpen.d = d;
+  if (kind === 'house') {
+    const home = d.households.flatMap((hh) => hh.members).filter((m) => m.where === '家にいる');
+    interior.show({ people: home }, 'house');
+    $('#insideTitle').textContent = d.households.length ? `${d.households.map((hh) => hh.surname + '家').join('・')}` : '空き家';
+    $('#insideSub').textContent = `${d.address}・いま家に ${home.length}人`;
+    $('#insideUse').hidden = true;
+  } else {
+    interior.show({ people: d.here, open: d.open }, d.kind === 'kencho' ? 'office' : d.kind);
+    $('#insideTitle').textContent = d.name;
+    $('#insideSub').textContent = `${d.open ? '営業中' : '営業時間外'}・いま ${d.hereCount}人・きょうのお客 ${d.visitsToday}人`;
+    $('#insideUse').hidden = !gameFor(d.kind);
+    $('#insideUse').textContent = gameFor(d.kind) && !MOBILE ? `利用する（${gameFor(d.kind).title}）` : '利用する';
+  }
+}
+setInterval(refreshInside, 3000);
+$('#insideClose').addEventListener('click', () => closeOverlays());
+$('#insideUse').addEventListener('click', () => insideOpen?.d && useShop(insideOpen.d.id));
+$('#insideView').addEventListener('click', (e) => { const id = interior.pick(e); if (id) showCp(id); });
+$('#officeInside').addEventListener('click', () => { openSheet(''); openInside('place', 'office'); });
+
+// ---- 人の目線 ----
+function openFirstPerson(id) {
+  const c = cps.get(id);
+  if (!c || c.state === 6 || c.gone) return toast('いまは県外にいるので、目線では見られません');
+  $('#card').hidden = true;
+  closeInside();
+  fpv.setPeople([...cps.values()]);
+  fpv.follow(c);
+  $('#fp').hidden = false;
+  $('#fpFace').src = portraitUrl(c.look, 72);
+  $('#fpTitle').textContent = `${c.info.name}の目線`;
+  $('#fpSub').textContent = '';
+}
+let fpDownAt = null;
+$('#fpView').addEventListener('pointerdown', (e) => (fpDownAt = [e.clientX, e.clientY]));
+$('#fpView').addEventListener('pointerup', (e) => {
+  if (!fpDownAt || Math.hypot(e.clientX - fpDownAt[0], e.clientY - fpDownAt[1]) > 10) return;
+  const id = fpv.pick(e);
+  if (id) showCp(id);
+});
+$('#fpClose').addEventListener('click', () => closeOverlays());
+function closeFp() { $('#fp').hidden = true; fpv.follow(null); }
+function closeInside() { $('#inside').hidden = true; insideOpen = null; }
+function closeOverlays() { closeFp(); closeInside(); }
+
+// ---- 店を利用する（ミニゲーム） ----
+async function useShop(id) {
+  const d = insideOpen?.d?.id === id ? insideOpen.d : await be.place(id);
+  if (!d) return;
+  const me = myAvatar()?.info.name || '';
+  openMinigame($('#mg'), { place: d, player: me }, async (r) => {
+    const game = gameFor(d.kind);
+    const text = r.score != null || r.text !== game.verb ? `「${game.title}」で遊んだ` : game.verb;
+    await be.useShop(d.id, { player: me, text, score: r.score });
+    toast(`${d.name}を利用しました${r.score != null ? `（${r.score}点）` : ''}`);
+    refreshInside();
+  });
 }
 
 // ---- 断面キャプチャ（広報課の写真撮影） ----
@@ -230,9 +368,19 @@ function renderAvatar() {
   $('#walkWrap').hidden = false; $('#camAvatar').hidden = false;
 }
 renderAvatar();
+// アバターの見た目（顔・髪・体型・服…を部品から選ぶ）
+const PART_LABEL = { face: '顔の形', eyes: '目', brows: 'まゆ', mouth: '口', hair: '髪型', hairColor: '髪の色', skin: '肌', body: '体型', top: '上着', bottom: 'ズボン・スカート', extra: '小物' };
+let myLook = randomLook(Math.random, { sex: 'f', age: 30 });
+function renderLookParts() {
+  $('#lookParts').innerHTML = Object.entries(init.lookParts || {}).map(([k, list]) => `<label>${PART_LABEL[k] || k}<select data-part="${k}">${list.map(([id, name]) => `<option value="${esc(id)}"${myLook[k] === id ? ' selected' : ''}>${esc(name)}</option>`).join('')}</select></label>`).join('');
+  $('#lookPreview').src = portraitUrl(myLook, 192);
+}
+renderLookParts();
+$('#lookParts').addEventListener('change', (e) => { const k = e.target.dataset.part; if (k) { myLook[k] = e.target.value; $('#lookPreview').src = portraitUrl(myLook, 192); } });
+$('#lookRandom').addEventListener('click', () => { myLook = randomLook(Math.random, { sex: Math.random() < 0.5 ? 'm' : 'f', age: 20 + Math.random() * 50 }); renderLookParts(); });
 $('#formAvatar').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const f = Object.fromEntries(new FormData(e.target));
+  const f = { ...Object.fromEntries(new FormData(e.target)), look: myLook, color: myLook.top };
   const r = await be.avatars(f);
   if (r.error) return toast(r.error);
   avatar = { token: r.token, taskId: r.task.id };
@@ -253,7 +401,12 @@ canvas.addEventListener('pointerup', (e) => {
     return;
   }
   const c = view.pickCp(e);
-  if (c) showCp(c.info.id); else $('#card').hidden = true;
+  if (c) return showCp(c.info.id);
+  // 建物: 店・施設は詳細カード、家は住む世帯
+  const bid = view.pickBuilding?.(e);
+  if (bid && layout.places.some((p) => p.id === bid)) return showPlace(bid);
+  if (bid && layout.houses.some((h) => h.id === bid)) return showHouse(bid);
+  $('#card').hidden = true;
 });
 
 // ---- 住民台帳（世帯・住まい・勤め先で一人ずつ） ----
@@ -269,9 +422,9 @@ async function renderDaicho() {
 function drawDaicho() {
   if (!daicho) return;
   const q = $('#daichoSearch').value.trim();
-  const list = daicho.households.filter((hh) => !q || hh.address.includes(q) || hh.surname.includes(q) || hh.members.some((m) => m.name.includes(q) || m.work.includes(q)));
+  const list = daicho.households.filter((hh) => !q || hh.address.includes(q) || hh.surname.includes(q) || hh.members.some((m) => m.name.includes(q) || m.work.includes(q) || m.lookText?.includes(q)));
   $('#daicho').innerHTML = list.slice(0, 200).map((hh) => `<li><b>${esc(hh.surname)}家</b><span class="addr">${esc(hh.address)}${hh.houseType ? `・${esc(hh.houseType)}` : ''}</span>`
-    + hh.members.map((m) => `<span class="m${m.away ? ' away' : ''}" data-id="${m.id}">${esc(m.name)}（${m.age}）${esc(m.role)}${m.work ? `・${esc(m.work)}` : ''}${m.away ? ' — 県外' : ''}</span>`).join('') + '</li>').join('')
+    + hh.members.map((m) => `<span class="m${m.away ? ' away' : ''}" data-id="${m.id}"><img src="${portraitUrl(m.look, 48)}" alt="">${esc(m.name)}（${m.age}）${esc(m.role)}${m.work ? `・${esc(m.work)}` : ''}${m.away ? ' — 県外' : ''}<span class="look">${esc(m.lookText)}</span></span>`).join('') + '</li>').join('')
     || '<li class="muted">見つかりません</li>';
 }
 $('#daichoSearch').addEventListener('input', drawDaicho);
@@ -307,9 +460,9 @@ be.on('clock', (e) => { const c = e; renderClock(c); if (c.tasks) { tasks = c.ta
 be.on('log', (e) => addLog(e));
 be.on('sns', (e) => { const p = e; addSns(p); toast(`ナナシッター: ${p.author} が投稿しました`); });
 be.on('news', (e) => { $('#news').innerHTML = md(e.markdown); toast('ナナシ県民新聞が発行されました'); });
-be.on('roster', (e) => addRoster(e));
+be.on('roster', (e) => { addRoster(e); if (!$('#fp').hidden) fpv.setPeople([...cps.values()]); });
 be.on('roster_remove', (e) => { const c = cps.get(e.id); if (c) { c.gone = true; view.setBadge(c, null); } });
-be.on('layout', (l) => { layout = l; view.rebuild(l); renderWorkSel(); admin.layoutChanged(); if (activeTab === 'daicho') renderDaicho(); });
+be.on('layout', (l) => { layout = l; view.rebuild(l); fpv.setLayout(l); renderWorkSel(); admin.layoutChanged(); if (activeTab === 'daicho') renderDaicho(); });
 be.on('photo_request', (e) => takePhoto(e));
 be.on('photo', (e) => {
   const { photoId, url } = e;
@@ -332,7 +485,10 @@ function loop() {
   const dt = Math.min(0.5, (now - t0) / 1000); t0 = now;
   try {
     updateCps(dt);
-    view.draw(dt, gameMinuteNow() % 1440);
+    const minute = gameMinuteNow() % 1440;
+    if (!$('#fp').hidden) { fpv.setNight(nightLevel); fpv.draw(dt, minute); }
+    else if (!$('#inside').hidden) interior.draw(dt);
+    else view.draw(dt, minute);
     failed = 0;
   } catch (err) {
     if (++failed === 3) showFatal('描画でエラーが起きました', err);
@@ -342,6 +498,7 @@ function loop() {
 requestAnimationFrame(loop);
 // ---- スマホ: 下のタブで「町だけ」と各シートを切り替える ----
 function openSheet(name) {
+  if (name) closeOverlays();
   document.body.dataset.sheet = name;
   document.querySelectorAll('#mtabs button').forEach((b) => b.classList.toggle('on', b.dataset.sheet === name));
   if (name && name !== 'kencho') document.querySelector(`.tabs button[data-tab="${name}"]`)?.click();
@@ -373,4 +530,4 @@ if (viewNote) toast(viewNote);
 // ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
 if ('serviceWorker' in navigator && isSecureContext && !window.NANASHI_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-window.__nanashi = { cps, setCam, openSheet, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用
+window.__nanashi = { cps, setCam, openSheet, showCp, showPlace, showHouse, openInside, openFirstPerson, useShop, get layout() { return layout; }, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用

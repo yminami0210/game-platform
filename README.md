@@ -38,7 +38,7 @@ claude.ai の Artifact にしてあります（非公開。開けるのはオー
 
 ## 住人のしくみ
 
-住人は世帯・住まい・勤め先・毎日の予定で一人ずつ管理しています（住民台帳）。駅を町の真ん中に置いたベッドタウンで、平日の昼は住民の半数以上が電車で県外にいます。くわしくは `docs/nanashi/residents.md`。
+住人は世帯・住まい・勤め先・毎日の予定・見た目（顔・髪・体型・服などの部品の組み合わせ）で一人ずつ管理しています（住民台帳）。アバター登録でも部品を選べます。駅を町の真ん中に置いたベッドタウンで、平日の昼は住民の半数以上が電車で県外にいます。くわしくは `docs/nanashi/residents.md`。
 
 ## スマホで使う
 
@@ -58,8 +58,10 @@ claude.ai の Artifact にしてあります（非公開。開けるのはオー
 | 上部 | 日付・時刻・人口・LLM モードと本日のトークン使用量 |
 | 左「県庁 業務ボード」 | 部署ごとの在席数。進行中のタスク（担当 CP・移動中／作業中・進み具合） |
 | 右タブ | 町のログ ／ SNS（ナナシッター、写真つき投稿）／ 県民新聞 ／ 台帳（住民台帳）／ 窓口（転入届・アバター登録） |
-| カメラ | 全景・県庁 執務フロア・広報課・商店街・ナナシ駅・自分のアバター |
-| CP をクリック | 名前・年齢・所属・いまの行動を表示 |
+| 見え方 | **全景**（つまんで拡大・指で動かす）と **人の目線**（カードの「目線で見る」。左右になぞると見回す）の2つ |
+| 人をタップ | 似顔絵・見た目・世帯・住所・勤め先・今日の予定・いまの行動。「目線で見る」「台帳で見る」 |
+| 店・施設をタップ | 営業時間・営業中か・いる人・働く人・今日のお客・最近の出来事。「中を見る」で建物の中の全景、「利用する」でミニゲーム（`docs/nanashi/minigames.md`） |
+| 家をタップ | 住所・住む世帯・いま家にいる人。「中を見る」 |
 
 **連動**: 広報課がタスクを受けると、担当の CP が席（写真なら現場）まで歩く。着くと「作業中：SNS投稿 45%」の札が頭上に出て、部署の作業中ランプが赤く点く。
 写真撮影では、開いているブラウザがその場所を 3D から撮影する（断面キャプチャ）。撮った写真は、フィルム風の日付を入れて投稿に添付される。
@@ -106,7 +108,9 @@ NANASHI_LLM_MODE=omniroute npm start
 |---|---|---|
 | GET | `/api/digest` | 今日の重要な出来事の要約（LLM に渡す素材） |
 | POST | `/api/residents` | 転入届（CP 追加）`{name?, role, work?}` |
-| POST | `/api/avatars` | アバター登録 `{name, color}` → `token` |
+| POST | `/api/avatars` | アバター登録 `{name, look}` → `token` |
+| GET | `/api/place/:id`・`/api/house/:id` | 店・家の詳細 |
+| POST | `/api/place/:id/use` | 店の利用（ミニゲームの結果）`{player, text, score}` |
 | POST | `/api/tasks` | 外部実行タスク `{type: sns_post\|newspaper, external: true}` |
 | POST | `/api/tasks/:id/complete` | 外部実行の結果 `{text}` |
 | GET | `/events` | SSE（frame / clock / log / sns / news / photo_request …） |
@@ -122,7 +126,7 @@ NANASHI_LLM_MODE=omniroute npm start
 ```
 server/  index.js（HTTP+SSE）api.js（API の中身）sim.js（CP・県庁・タスク）executor.js（LLM・予算）templates.js（文章テンプレート）
          chronicle.js / chronicle-core.js（記録）world.js（地図）lore.js（世界観）  ※ api/sim/templates/chronicle-core/world/lore はブラウザでも動く
-client/  index.html main.js（描画・UI・撮影）backend.js（サーバー／この端末の切り替え）town.js（町並み）style.css sw.js manifest.webmanifest icons/
+client/  index.html main.js（UI・撮影）portrait.js（似顔絵）interior.js（建物の中）firstperson.js（目線）minigames.js（店のミニゲーム）backend.js（サーバー／この端末の切り替え）town.js（町並み）style.css sw.js manifest.webmanifest icons/
 docs/nanashi/  team.md（SM・PM の判断記録）world-bible.md（世界設定）
 ```
 

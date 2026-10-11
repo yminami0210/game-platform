@@ -85,7 +85,7 @@ function safeJoin(base, rel) {
 }
 
 // ブラウザでもそのまま動くモジュール（client/ から ./shared/ として読み込む）
-const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js'];
+const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js', 'looks.js'];
 
 const api = createApi({ sim, chronicle, executor, seed: cfg.seed });
 const routes = {
@@ -129,6 +129,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (m = p.match(/^\/api\/cp\/(\d+)$/))) {
       const d = api.cp(m[1]);
       return d ? json(res, 200, d) : json(res, 404, { error: 'not found' });
+    }
+    if (req.method === 'GET' && (m = p.match(/^\/api\/(place|house)\/([\w-]+)$/))) {
+      const d = api[m[1]](m[2]);
+      return d ? json(res, 200, d) : json(res, 404, { error: 'not found' });
+    }
+    if (req.method === 'POST' && (m = p.match(/^\/api\/place\/([\w-]+)\/use$/))) {
+      const r = api.useShop(m[1], await json1());
+      return json(res, r.ok ? 200 : 404, r);
     }
     if (req.method === 'POST' && (m = p.match(/^\/api\/tasks\/(\d+)\/complete$/))) {
       const r = api.complete(m[1], await json1());

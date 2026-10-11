@@ -1,6 +1,7 @@
 // API の中身（HTTP に依存しない）。サーバー（index.js）とブラウザ単体モード（client/backend.js）が共有する。
 import { DEPARTMENTS } from './lore.js';
 import { CATALOG, CITIES } from './world.js';
+import { LOOK_PARTS, cleanLook } from './looks.js';
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 20);
 const SPAWNABLE_ROLES = new Set(['resident', 'worker', 'student']);
@@ -16,7 +17,7 @@ export function createApi({ sim, chronicle, executor, seed }) {
   const tasks = () => sim.tasks.map((t) => sim.taskView(t));
   return {
     init: () => ({
-      layout: sim.layout, catalog: CATALOG, cities: CITIES, departments: DEPARTMENTS, seed, roster: sim.roster(), clock: sim.clock(),
+      layout: sim.layout, catalog: CATALOG, cities: CITIES, departments: DEPARTMENTS, seed, roster: sim.roster(), lookParts: LOOK_PARTS, clock: sim.clock(),
       tasks: tasks(), sns: chronicle.sns, logs: chronicle.recent, news: chronicle.latestNews(), llm: executor.status(),
     }),
     digest: () => sim.digestNow(),
@@ -33,6 +34,13 @@ export function createApi({ sim, chronicle, executor, seed }) {
     latestNews: () => chronicle.latestNews(),
     clock: () => ({ ...sim.clock(), llm: executor.status(), tasks: tasks() }),
     cp: (id) => sim.cpDetail(Number(id)),
+    place: (id) => sim.placeDetail(String(id)),
+    house: (id) => sim.houseDetail(String(id)),
+    // 店の利用（ミニゲームの結果）。LLM は使わない
+    useShop: (id, b = {}) => {
+      const score = Number.isFinite(Number(b.score)) && b.score !== null && b.score !== '' ? Math.round(Number(b.score)) : null;
+      return sim.recordShopUse(String(id), { who: cleanName(b.player) || '旅のお客', text: cleanName(b.text) || '店を利用した', score });
+    },
     // 住民課: 新規 CP の追加（人事機能）
     residents(b = {}) {
       const role = SPAWNABLE_ROLES.has(b.role) ? b.role : 'resident';
@@ -45,7 +53,8 @@ export function createApi({ sim, chronicle, executor, seed }) {
       if (!name) throw badRequest('名前が必要です');
       const color = /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : '#ffcc00';
       const token = randomToken();
-      const t = sim.requestTask('resident_register', { human: true, name, color, token });
+      const look = b.look && typeof b.look === 'object' ? cleanLook(b.look, {}) : undefined;
+      const t = sim.requestTask('resident_register', { human: true, name, color, token, look });
       return { task: sim.taskView(t), token };
     },
     goto: (id, b = {}) => ({ ok: sim.moveHuman(Number(id), String(b.token || ''), Number(b.x) || 0, Number(b.z) || 0) }),

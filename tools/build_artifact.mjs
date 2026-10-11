@@ -8,8 +8,8 @@ import path from 'node:path';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'dist/artifact'));
 const THREE_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).dependencies.three;
-const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js'];
-const CLIENT = ['main.js', 'town.js', 'backend.js', 'admin.js', 'view3d.js', 'map2d.js', 'style.css'];
+const SHARED = ['world.js', 'lore.js', 'sim.js', 'templates.js', 'chronicle-core.js', 'api.js', 'looks.js'];
+const CLIENT = ['main.js', 'town.js', 'backend.js', 'admin.js', 'view3d.js', 'map2d.js', 'portrait.js', 'interior.js', 'firstperson.js', 'minigames.js', 'style.css'];
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'shared'), { recursive: true });

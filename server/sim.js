@@ -6,11 +6,13 @@ import {
   CATALOG, CITIES, HOUSE_TYPES, KIND_INFO, buildDesks, defaultLayout, makeHouse, mulberry32,
   placementError, platformSpot, routeBetween, spotIn, TRAIN_TIMES, EPOCH_UTC,
 } from './world.js';
+import { cleanLook, describeLook, randomLook } from './looks.js';
 
 export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, away: 6 };
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
 const DEPT_BY_ID = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d]));
 const SAVE_VERSION = 2;
+const KIND_LABEL = { kencho: '県庁', office: '県庁', station: '駅', mall: 'ショッピングセンター', car: '自動車販売店', school: '小学校', bokujo: '牧場', tanbo: '田んぼ' };
 
 export const ROLE_LABEL = {
   staff: '県庁職員', worker: '町で勤務', commuter: '県外へ通勤', incommuter: '県外から通勤', student: '児童',
@@ -26,7 +28,7 @@ export function dateLabel(day) {
 // 住所（区画から町名を付ける）
 export function addressOf(h) {
   const zone = Math.abs(h.x) <= 60 && Math.abs(h.z) <= 60 ? '駅前' : h.z > 120 ? '浜町' : h.z < -120 ? '山手' : h.x < 0 ? '西町' : '東町';
-  return `${zone}${String(h.id).replace(/\D/g, '')}番地`;
+  return `${zone}${String(h.id).replace(/\D/g, '') || 1}番地`;
 }
 
 const cityName = (id) => CITIES.find((c) => c.id === id)?.name || '県外';
@@ -48,6 +50,7 @@ export class Simulation {
     this.stats = { arrivals: 0, departures: 0, posts: 0, photos: 0, commutersOut: 0, visitors: 0 };
     this.postedEvents = new Set();
     this.pendingPhotos = new Map();
+    this.visits = {}; // 今日、施設ごとに来た人の数（お客）
     if (saved && saved.version === SAVE_VERSION) this.#restore(saved);
     else {
       this.layout = defaultLayout(seed);
@@ -111,7 +114,13 @@ export class Simulation {
       away: false, returnAt: null, trip: null,
     };
     cp.name = `${surname} ${cp.given}`;
+    cp.look = this.#lookFor(cp);
     return cp;
+  }
+
+  // 見た目は人ごとの乱数で決める（町全体の乱数の並びを変えない）
+  #lookFor(cp) {
+    return randomLook(mulberry32(this.seed * 7919 + cp.id * 104729), { sex: cp.sex, age: cp.age });
   }
 
   // 世帯をひとつ作る（家の種類で家族構成を変える）
@@ -229,6 +238,7 @@ export class Simulation {
     const cp = this.cpById(hh.members[0]);
     if (spec.name) { cp.name = spec.name; cp.given = spec.name.split(/\s+/)[1] || ''; }
     if (spec.age) cp.age = spec.age;
+    if (spec.look) cp.look = cleanLook(spec.look, cp.look);
     cp.role = spec.role === 'human' ? 'human' : spec.role === 'student' ? 'student' : spec.role === 'worker' && this.placeById[spec.work] ? 'worker' : 'commuter';
     if (cp.role === 'worker') cp.work = spec.work;
     if (cp.role === 'commuter') cp.city = 'nanami';
@@ -242,7 +252,7 @@ export class Simulation {
 
   // ---- 保存と復元 ----
   serialize() {
-    const keep = ['id', 'name', 'surname', 'given', 'sex', 'age', 'hh', 'home', 'resident', 'incoming', 'school', 'role', 'dept', 'seat', 'desk', 'title', 'work', 'city', 'color', 'ownerToken', 'p', 'away', 'returnAt', 'trip', 'visitPlan'];
+    const keep = ['id', 'name', 'surname', 'given', 'sex', 'age', 'hh', 'home', 'resident', 'incoming', 'school', 'role', 'dept', 'seat', 'desk', 'title', 'work', 'city', 'color', 'ownerToken', 'p', 'away', 'returnAt', 'trip', 'visitPlan', 'look'];
     return {
       version: SAVE_VERSION, minutes: this.minutes, nextId: this.nextId, nextHh: this.nextHh, stats: this.stats, layout: this.layout,
       households: [...this.households.values()],
@@ -258,13 +268,14 @@ export class Simulation {
       const cp = { ...c, x: 0, z: 0, path: [], state: c.away ? STATE.away : STATE.idle, activity: c.away ? `${cityName(c.city)}にいる` : '在宅', until: this.minutes, place: c.away ? 'out' : 'home', taskId: null, next: null };
       const home = this.houseById[cp.home];
       if (home) { cp.x = home.x; cp.z = home.z; } else { [cp.x, cp.z] = platformSpot(this.station, this.rnd); }
+      if (!cp.look) cp.look = this.#lookFor(cp);
       this.cps.push(cp);
     }
   }
 
   roster(list = this.cps) {
     return list.map((c) => ({
-      id: c.id, name: c.name, role: c.role, dept: c.dept, title: c.title, work: c.work, sex: c.sex, age: c.age, color: c.color,
+      id: c.id, name: c.name, role: c.role, dept: c.dept, title: c.title, work: c.work, sex: c.sex, age: c.age, color: c.color, look: c.look,
       skills: c.dept ? DEPT_BY_ID[c.dept].skills : [], resident: c.resident, hh: c.hh,
     }));
   }
@@ -314,6 +325,7 @@ export class Simulation {
     cp.state = n.state;
     cp.until = this.minutes + n.dwell;
     cp.activity = n.activity;
+    if (this.placeById[cp.place] && n.state !== STATE.desk) this.visits[cp.place] = (this.visits[cp.place] || 0) + 1;
     if (n.state !== STATE.sleep && n.state !== STATE.wait) {
       const place = this.#placeName(cp.place);
       this.chronicle.log({ day: this.day, time: this.timeLabel(), who: cp.name, cpId: cp.id, place: cp.place, placeName: place, text: `${cp.name}が${place}で${n.activity}`, importance: this.rnd() < 0.03 ? 1 : 0 });
@@ -617,7 +629,7 @@ export class Simulation {
         return;
       }
       const spec = t.input.human
-        ? { role: 'human', name: t.input.name, color: t.input.color, age: t.input.age }
+        ? { role: 'human', name: t.input.name, color: t.input.color, age: t.input.age, look: t.input.look }
         : { role: t.input.role || 'commuter', name: t.input.name, work: t.input.work, age: t.input.age };
       const nc = this.addCp(spec);
       if (t.input.token) nc.ownerToken = t.input.token;
@@ -726,7 +738,7 @@ export class Simulation {
       const h = this.houseById[hh.house];
       return {
         id: hh.id, surname: hh.surname, address: h ? addressOf(h) + (h.units > 1 ? ` ${hh.unit + 1}号室` : '') : '仮住まい', houseType: h ? HOUSE_TYPES[h.type].label : null,
-        members: hh.members.map((id) => this.cpById(id)).filter(Boolean).map((c) => ({ id: c.id, name: c.name, age: c.age, role: ROLE_LABEL[c.role] || c.role, work: this.#workLabel(c), away: c.away })),
+        members: hh.members.map((id) => this.cpById(id)).filter(Boolean).map((c) => ({ id: c.id, name: c.name, age: c.age, role: ROLE_LABEL[c.role] || c.role, work: this.#workLabel(c), away: c.away, look: c.look, lookText: describeLook(c.look) })),
       };
     });
     const residents = this.cps.filter((c) => c.resident);
@@ -764,10 +776,63 @@ export class Simulation {
     else if (c.role === 'visitor') today = `${cityName(c.city)}から日帰りで来ている`;
     else today = `${t(c.p.wake)}に起きて、町で過ごす`;
     return {
-      ...this.roster([c])[0], activity: c.activity, place: c.away ? cityName(c.city) : this.#placeName(c.place), state: c.state, taskId: c.taskId,
+      ...this.roster([c])[0], activity: c.state === STATE.walk && c.place ? `${this.#placeName(c.place)}へ向かっている` : c.activity, place: c.away ? cityName(c.city) : this.#placeName(c.place), state: c.state, taskId: c.taskId,
       roleLabel: ROLE_LABEL[c.role] || c.role, household: hh ? `${hh.surname}家（${hh.members.length}人）` : null,
       address: h ? addressOf(h) + (h.units > 1 && hh ? ` ${hh.unit + 1}号室` : '') : c.resident ? '仮住まい' : `${cityName(c.city)}在住`,
-      workLabel: this.#workLabel(c), today, deptName: c.dept ? DEPT_BY_ID[c.dept].name : null,
+      workLabel: this.#workLabel(c), today, deptName: c.dept ? DEPT_BY_ID[c.dept].name : null, lookText: describeLook(c.look),
+      placeId: c.away ? null : c.place, homeId: c.home, walking: c.state === STATE.walk,
+    };
+  }
+
+  // 店・施設をタップしたときの詳細（営業時間・働く人・いまいる人・今日のお客・最近の出来事）
+  placeDetail(id) {
+    if (id === 'kencho') id = 'office'; // 県庁の建物をタップしたら執務フロアを見せる
+    const p = this.placeById[id];
+    if (!p) return null;
+    const info = KIND_INFO[p.kind] || { open: 9, close: 18 };
+    const t = (x) => `${Math.floor(x)}:${String(Math.round((x % 1) * 60)).padStart(2, '0')}`;
+    const isOffice = p.kind === 'kencho' || p.kind === 'office';
+    const open = isOffice ? !this.weekend && this.hf >= info.open && this.hf < info.close : this.hf >= info.open && this.hf < info.close;
+    const brief = (c) => ({
+      id: c.id, name: c.name, age: c.age, look: c.look, color: c.color, activity: c.activity, role: ROLE_LABEL[c.role] || c.role, state: c.state,
+      worker: c.work === p.id || (p.id === 'office' && c.role === 'staff'), dept: c.dept, seat: c.seat, taskId: c.taskId,
+    });
+    const staff = this.cps.filter((c) => (p.id === 'office' ? c.role === 'staff' : c.work === p.id));
+    const here = this.cps.filter((c) => !c.away && c.place === p.id && c.state !== STATE.walk && c.state !== STATE.sleep);
+    const coming = this.cps.filter((c) => !c.away && c.place === p.id && c.state === STATE.walk).length;
+    const recent = this.chronicle.recent.filter((e) => e.place === p.id).slice(-5).reverse().map((e) => ({ time: e.time, text: e.text }));
+    return {
+      id: p.id, name: p.name, kind: p.kind, kindLabel: CATALOG[p.kind]?.label || KIND_LABEL[p.kind] || '施設',
+      address: addressOf(p), hours: p.kind === 'koban' ? '24時間' : `${t(info.open)}〜${t(info.close)}${isOffice ? '（土日休み）' : ''}`, open,
+      staffCount: staff.length, staff: staff.slice(0, 8).map(brief), hereCount: here.length, here: here.slice(0, p.id === 'office' ? 80 : 30).map(brief), coming,
+      visitsToday: this.visits[p.id] || 0, recent, x: p.x, z: p.z, w: p.w, d: p.d, rot: p.rot || 0,
+    };
+  }
+
+  // 店を利用した（ミニゲームの結果など）。町のログに残し、今日のお客に数える
+  recordShopUse(id, { who = '旅のお客', text = '店を利用した', score = null } = {}) {
+    const p = this.placeById[id];
+    if (!p) return { ok: false };
+    this.visits[p.id] = (this.visits[p.id] || 0) + 1;
+    this.chronicle.log({ day: this.day, time: this.timeLabel(), who, place: p.id, placeName: p.name, text: `${who}さんが${p.name}で${text}${score != null ? `（${score}点）` : ''}`, importance: 1, kind: 'minigame' });
+    return { ok: true };
+  }
+
+  // 家をタップしたときの詳細（住所・住む世帯・いま家にいる人）
+  houseDetail(id) {
+    const h = this.houseById[id];
+    if (!h) return null;
+    const hhs = [...this.households.values()].filter((hh) => hh.house === h.id).sort((a, b) => a.unit - b.unit);
+    const households = hhs.map((hh) => ({
+      id: hh.id, surname: hh.surname, unit: h.units > 1 ? `${hh.unit + 1}号室` : '',
+      members: hh.members.map((m) => this.cpById(m)).filter(Boolean).map((c) => ({
+        id: c.id, name: c.name, age: c.age, look: c.look, color: c.color, role: ROLE_LABEL[c.role] || c.role,
+        where: c.away ? cityName(c.city) : c.place === 'home' && c.state !== STATE.walk ? '家にいる' : this.#placeName(c.place), activity: c.activity,
+      })),
+    }));
+    return {
+      id: h.id, type: h.type, typeLabel: HOUSE_TYPES[h.type].label, address: addressOf(h), units: h.units,
+      vacant: h.units - hhs.length, households, x: h.x, z: h.z, w: h.w, d: h.d, rot: h.rot || 0,
     };
   }
 
@@ -795,6 +860,7 @@ export class Simulation {
     this.pendingNews = { day: prevDay, dateLabel: dateLabel(prevDay), digest: this.chronicle.digest(), stats: { population: this.residentCount(), ...this.stats } };
     this.chronicle.resetDay();
     this.postedEvents.clear();
+    this.visits = {};
     this.stats = { arrivals: 0, departures: 0, posts: 0, photos: 0, commutersOut: 0, visitors: 0 };
   }
 

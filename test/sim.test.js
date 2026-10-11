@@ -181,3 +181,44 @@ test('omniroute モード: 失敗時はテンプレートに落ちる', async ()
   assert.match(r.error, /503/);
   delete process.env.OMNIROUTE_API_KEY;
 });
+
+test('見た目は部品の組み合わせで台帳に残り、店・家の詳細と店の利用が記録される', async () => {
+  const { LOOK_PARTS, cleanLook } = await import('../server/looks.js');
+  const { createApi } = await import('../server/api.js');
+  const { cfg, chronicle } = setup();
+  const executor = new Executor(cfg, { dataDir: chronicle.dir });
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor });
+  for (const c of sim.cps) for (const k of Object.keys(LOOK_PARTS)) assert.ok(LOOK_PARTS[k].some(([id]) => id === c.look[k]), `${c.name} の ${k}`);
+  assert.ok(new Set(sim.cps.map((c) => JSON.stringify(c.look))).size > sim.cps.length * 0.9, '見た目はほぼ全員ちがう');
+  // 保存して戻しても同じ見た目
+  const back = new Simulation({ seed: 7, chronicle, executor, saved: JSON.parse(JSON.stringify(sim.serialize())) });
+  assert.deepEqual(back.cps[5].look, sim.cps[5].look);
+  // 台帳と人の詳細に見た目の説明
+  const m = sim.registry().households[0].members[0];
+  assert.ok(m.look && m.lookText.length > 4);
+  assert.ok(sim.cpDetail(sim.cps[0].id).lookText);
+  // 使えない部品は捨てる
+  assert.deepEqual(cleanLook({ hair: 'mohawk', body: 'round' }, { hair: 'short', body: 'slim' }), { hair: 'short', body: 'round' });
+  run(sim, 120);
+  const api = createApi({ sim, chronicle, executor, seed: 7 });
+  const kissa = sim.places(['kissa'])[0];
+  const d = api.place(kissa.id);
+  assert.equal(d.name, kissa.name);
+  assert.ok(d.hours && typeof d.open === 'boolean' && d.staffCount >= 1);
+  assert.equal(d.hereCount, sim.cps.filter((c) => !c.away && c.place === kissa.id && c.state !== STATE.walk && c.state !== STATE.sleep).length);
+  assert.ok(api.place('kencho').staffCount >= 30, '県庁は執務フロアの職員');
+  const house = sim.layout.houses.find((h) => [...sim.households.values()].some((hh) => hh.house === h.id));
+  const hd = api.house(house.id);
+  assert.ok(hd.address && hd.households[0].members.length >= 1);
+  // 店の利用（ミニゲームの結果）
+  const before = d.visitsToday;
+  assert.equal(api.useShop(kissa.id, { player: 'テスト<script>', text: '「ナポリタンを運べ」で遊んだ', score: 120 }).ok, true);
+  assert.equal(api.place(kissa.id).visitsToday, before + 1);
+  assert.match(chronicle.recent.at(-1).text, /テストscript.*ナポリタン.*120点/);
+  assert.equal(api.useShop('nope', {}).ok, false);
+  // アバターは選んだ見た目で登録される
+  const { task } = api.avatars({ name: '旅人', look: { hair: 'bun', body: 'tall', top: '#c8463a', extra: 'bogus' } });
+  for (let i = 0; i < 200 && !sim.tasks.find((t) => t.id === task.id)?.result; i++) run(sim, 10);
+  const av = sim.cpById(sim.tasks.find((t) => t.id === task.id).result.cpId);
+  assert.equal(av.look.hair, 'bun'); assert.equal(av.look.body, 'tall'); assert.notEqual(av.look.extra, 'bogus');
+});

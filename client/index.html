@@ -31,16 +31,13 @@
 
   <nav id="cams">
     <button data-cam="all">全景</button>
-    <button data-cam="office">県庁 執務フロア</button>
-    <button data-cam="koho">広報課</button>
-    <button data-cam="shotengai">商店街</button>
-    <button data-cam="station">ナナシ駅</button>
-    <button data-cam="avatar" id="camAvatar" hidden>自分のアバター</button>
+    <button type="button" id="camAvatar" hidden>自分の目線</button>
     <button type="button" id="adminBtn" title="建物を動かす・建てる・壊す">管理</button>
   </nav>
 
   <aside id="kencho" class="panel">
     <h2>県庁 業務ボード</h2>
+    <button type="button" id="officeInside" class="small">執務フロアを見る</button>
     <ul id="depts"></ul>
     <h3>進行中のタスク</h3>
     <ul id="tasks"><li class="muted">なし</li></ul>
@@ -75,7 +72,8 @@
       <form id="formAvatar" class="form">
         <h3>アバター登録（あなたが町に入る）</h3>
         <label>なまえ<input name="name" maxlength="20" required></label>
-        <label>服の色<input name="color" type="color" value="#e8b730"></label>
+        <div class="lookEdit"><img id="lookPreview" alt="似顔絵" width="96" height="96"><div id="lookParts"></div></div>
+        <button type="button" id="lookRandom" class="small">おまかせで選ぶ</button>
         <button>登録を申し込む</button>
         <p class="muted" id="avatarStatus"></p>
         <label class="check" id="walkWrap" hidden><input type="checkbox" id="walkMode"> 地面をタップ（クリック）して歩く</label>
@@ -120,6 +118,16 @@
     <button data-sheet="daicho">台帳</button>
     <button data-sheet="jumin">窓口</button>
   </nav>
+  <section id="inside" class="overlay" hidden aria-label="建物の中">
+    <div class="ovHead"><b id="insideTitle"></b><span id="insideSub" class="muted"></span><span class="sp"></span><button type="button" id="insideUse" class="primary" hidden>利用する</button><button type="button" id="insideClose">戻る</button></div>
+    <canvas id="insideView"></canvas>
+  </section>
+  <section id="fp" class="overlay" hidden aria-label="目線">
+    <div class="ovHead"><img id="fpFace" alt="" width="36" height="36"><b id="fpTitle"></b><span id="fpSub" class="muted"></span><span class="sp"></span><button type="button" id="fpClose">戻る</button></div>
+    <canvas id="fpView"></canvas>
+    <p class="ovHint">左右になぞると見回せます。人をタップすると詳しく見られます</p>
+  </section>
+  <div id="mg" class="overlay mg" hidden></div>
   <div id="loading">ナナシ県へ向かっています…</div>
   <div id="fatal" class="panel" hidden role="alert"><p></p><button type="button">地図の表示で開き直す</button></div>
   <div id="toast"></div>
