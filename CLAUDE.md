@@ -86,3 +86,13 @@ AI社員の成果物はすべて下書き。送信・支払い・契約・採否
 各チームの PM（大型タイトル・ミニゲーム工場・note 発信・各部署）は、**プロダクトの4階層（Core → Why → What → How）と、階層の間の Fit & Refine** で考える（`.claude/skills/product-layers/SKILL.md`）。
 - **How から始めない。** Core から順に落とす。キャンバスは `docs/product/<プロダクト>/canvas.md`、会社の Core は `docs/product/company-core.md`。
 - Core はオーナーが決める。Why は PM 案をオーナーが確認する。迷い・矛盾・上の階層を直したいときは `docs/product/questions.md` に足し、AI相棒がまとめてオーナーに相談する。
+
+## 9. ルーティン業務の分担（OmniRoute）
+
+ルーティン業務は **考えるのは Claude、実行するのは OmniRoute、最終チェックは Claude** で回す（2026-10-11 オーナー決定。Claude の使用量を減らすため）。設定の正本は Artifact「OmniRoute 運用設定」（https://claude.ai/artifact/9xmFA9SxMfJgCnP96bVVoL）。
+- 呼び出しは `python3 tools/omni_task.py <役割> <依頼ファイル> <出力ファイル>`。役割（writer / critic / clerk）ごとのモデルは `tools/omni_models.json`。作業の最初に `python3 tools/omni_task.py --check` で使えるか確かめる。
+- 実行する AI はプロジェクトのファイルを読めないので、依頼文に必要な資料を全部そのまま貼る（要約しない）。**秘密情報（API キー、パスワード、個人情報）は依頼文に入れない。**
+- OmniRoute が失敗したら自動で Gemini（`tools/gemini_draft.py`）に切り替わる。両方だめなら Claude が代筆し、成果物の最後に「Claude代筆（理由）」と書いて、報告に件数を入れる。
+- OmniRoute はオーナーの Mac の中（127.0.0.1）だけで動く。**クラウドのセッションからは届かない**ので、ルーティンは Mac の Claude Code で動かす（手順 `docs/omniroute.md`）。クラウドで動いたときは `--check` が失敗するので、その回は全部 Claude が行い、報告に「OmniRoute 不在」と書く。
+- OmniRoute に回さないもの: ブラウザ操作やスクショの確認が要る作業、承認済みツールが決まっている画像生成、正本の書き換え、オーナーへの承認シート・判断メモ。
+- 新しいルーティンを作るときも、この分担に合わせてスキルを書く（`docs/omniroute.md` の「新しいルーティンに当てはめる手順」）。
