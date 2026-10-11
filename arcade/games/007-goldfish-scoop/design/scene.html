@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ポイ一枚 代表場面</title>
+<link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=M+PLUS+Rounded+1c:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#4a3a30}
+  svg{display:block}
+  .mg{font-family:"Yusei Magic","Hiragino Maru Gothic ProN",sans-serif}
+  .rd{font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN",sans-serif}
+  .num{font-variant-numeric:tabular-nums}
+</style></head>
+<body>
+<svg id="s" width="390" height="844" viewBox="0 0 390 844"></svg>
+<script src="print.js"></script>
+<script>
+const svg = document.getElementById("s");
+defs(svg);
+const W = 390, H = 844;
+// 屋台の台の板（縁の外。画面の上下の細い帯だけ）
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.ita }, svg);
+el("rect", { x: 0, y: 0, width: W, height: H, fill: "#000", filter: "url(#wood)", opacity: 0.9 }, svg);
+setSeed(3);
+[[0, 58], [0, 812]].forEach(([x0, y0]) => el("path", { d: path([[0, y0], [W, y0 + j(2)]], 0.6, false), stroke: "#2c221c", "stroke-width": 2, opacity: 0.7 }, svg));
+[[34, 30], [356, 26], [58, 830], [300, 834]].forEach(([x, y]) => { el("circle", { cx: x, cy: y, r: 2.4, fill: "#2b231e" }, svg); el("circle", { cx: x - 0.6, cy: y - 0.6, r: 1, fill: C.sabi, opacity: 0.8 }, svg); });
+
+// ---- 水槽 ----
+const TX = 8, TY = 70, TW = 374, TH = 734;
+const tank = el("g", {}, svg);
+const tankPts = [[TX + 12, TY], [TX + TW - 10, TY + 1], [TX + TW, TY + 12], [TX + TW + 1, TY + TH - 14], [TX + TW - 13, TY + TH], [TX + 10, TY + TH - 1], [TX, TY + TH - 12], [TX - 1, TY + 14]];
+// 縁（トタンの折り返し。水色のペンキ、外側は台に影を落とす）
+el("path", { d: path(tankPts.map(([x, y]) => [x + 4, y + 6]), 1), fill: "#1e1814", opacity: 0.6, filter: "url(#soft6)" }, tank);
+el("path", { d: path(tankPts, 0.8), fill: "#9fcbcf" }, tank);
+const inner = [[TX + 18, TY + 11], [TX + TW - 16, TY + 12], [TX + TW - 11, TY + 20], [TX + TW - 10, TY + TH - 20], [TX + TW - 18, TY + TH - 11], [TX + 16, TY + TH - 12], [TX + 10, TY + TH - 19], [TX + 11, TY + 21]];
+const cp = el("clipPath", { id: "water" }, svg); el("path", { d: path(inner, 0) }, cp);
+const water = el("g", { "clip-path": "url(#water)" }, tank);
+// 底のペンキ: 地の水浅葱。上は電球の光、右下は庇の影で、面を3つに割る
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.tutan }, water);
+setSeed(41);
+el("path", { d: smooth([[150, 470], [260, 420], [420, 380], [420, 900], [-20, 900], [-20, 700], [60, 600]]), fill: C.kage, opacity: 0.85, filter: "url(#soft14)" }, water);
+el("path", { d: smooth([[300, 640], [420, 600], [420, 900], [180, 900], [230, 760]]), fill: C.fukami, opacity: 0.75, filter: "url(#soft14)" }, water);
+el("path", { d: blob(60, 200, 230, 190, 12, 0.18, 0.4), fill: C.terasu, opacity: 0.7, filter: "url(#soft30)" }, water);
+el("path", { d: blob(70, 150, 190, 140, 12, 0.18, 0.4), fill: C.terasu, opacity: 1, filter: "url(#soft30)" }, water);
+// 刷毛のむら（向きの違う2回塗り）
+el("rect", { x: 0, y: 0, width: W, height: 470, fill: "#000", filter: "url(#hake)", opacity: 0.55 }, water);
+el("rect", { x: 0, y: 380, width: W, height: 480, fill: "#000", filter: "url(#hake2)", opacity: 0.35, transform: "rotate(-8 195 600)" }, water);
+// トタンの継ぎ目（板金の重なりの段。ハンダは2か所だけ）
+seamBand(water, 0, 400, 532, 77);
+// 底のペンキの剥げ: 水槽の壁ぎわに沿った細長いめくれだけ（底の真ん中に小片を散らさない）
+peel(water, 22, 250, 24, 318, 6, 5, 1); peel(water, 368, 600, 367, 650, 5, 6, -1); peel(water, 150, 793, 205, 792, 5, 7, -1);
+// （前の客が落としたポイの枠は、飾りを1つ取るとして外した）
+
+// 主: 底をゆく影
+nushi(water, 140, 592, Math.PI + 0.22, 160, 4, 0.45, 0.35);
+
+// 金魚: 種類・大きさ・曲がり・向きをすべて変える（同じ形を並べない）
+fish(water, { x: 92, y: 238, ang: -0.55, len: 40, bend: 1.0, kind: "koaka", s: 101, depth: 0.2 });
+fish(water, { x: 300, y: 170, ang: 2.5, len: 36, bend: -0.15, kind: "koaka", s: 102, nosePatch: true, depth: 0.7, tailOpen: 0.7 });
+fish(water, { x: 158, y: 362, ang: 0.25, len: 31, bend: -0.7, kind: "koaka", s: 103, depth: 0.45 });
+fish(water, { x: 66, y: 470, ang: -1.9, len: 46, bend: -0.35, kind: "sarasa", s: 104, depth: 0.55 });
+fish(water, { x: 246, y: 718, ang: 2.0, len: 40, bend: 0.6, kind: "sarasa", s: 105, tailOpen: 0.8, depth: 0.3 });
+fish(water, { x: 128, y: 728, ang: -0.95, len: 52, bend: -0.3, kind: "demekin", s: 106, depth: 0.8 });
+fish(water, { x: 340, y: 432, ang: 1.3, len: 34, bend: 0.8, kind: "kin", s: 107, depth: 0.25 });
+
+// 裸電球の映り込み（ゆらぐ1種類だけの動き）: さざ波で割れた細長い光の筋。グローなし
+reflect(water, 104, 176, 90, 1);
+
+// ---- ポイ（沈めている所。紙はだいぶ透けている） ----
+const P = { x: 214, y: 420, r: 47 };
+// 水面のへこみ: 枠の外にゆがんだ縁を1本だけ（同心の輪にしない）
+setSeed(150);
+el("path", { d: smooth(blobPts(P.x + 2, P.y + 1, P.r + 9, P.r + 7, 13, 0.08)), fill: "none", stroke: "#e9f4ee", "stroke-width": 2.2, opacity: 0.55, "stroke-dasharray": "60 14 34 22 80 30" }, water);
+poi(water, { x: P.x, y: P.y, r: P.r, ang: 0.62, wet: 0.62, s: 33 });
+// 紙の上（水の中）を泳ぐ更紗
+fish(water, { x: 226, y: 402, ang: 2.75, len: 38, bend: -0.4, kind: "sarasa", s: 108, shadow: false });
+
+
+// 縁: 塗装の剥げ・錆・手の擦れ（不揃い）
+const rimG = el("g", {}, tank);
+el("path", { d: path(tankPts, 0.8) + path(inner.slice().reverse(), 0), fill: "#000", "fill-rule": "evenodd", filter: "url(#grain)", opacity: 0.45 }, rimG);
+el("path", { d: path(inner, 0.4), fill: "none", stroke: C.sumi, "stroke-width": 1.4, opacity: 0.5 }, rimG);
+// 縁: 縁の線に沿った細長い剥げ（長さ 20〜60px・幅 3〜8px）と、そこから滲む錆
+peel(rimG, 40, 76, 98, 75, 6, 21, 1); peel(rimG, 230, 75, 256, 76, 4, 22, 1); peel(rimG, 377, 140, 378, 196, 5, 23, -1);
+peel(rimG, 13, 470, 12, 512, 6, 24, 1); peel(rimG, 120, 799, 178, 800, 7, 25, -1); peel(rimG, 378, 690, 377, 722, 4, 26, -1);
+
+// ---- お椀（下の縁に浮かぶ） ----
+bowl(svg, 312, 738, 50, [
+  { x: 318, y: 728, ang: 2.2, len: 22, bend: 0.9, kind: "koaka", s: 201 },
+  { x: 300, y: 752, ang: -0.5, len: 21, bend: -0.7, kind: "koaka", s: 202 },
+  { x: 328, y: 758, ang: -2.4, len: 26, bend: 0.5, kind: "sarasa", s: 203 },
+]);
+
+// ---- 得点の札（ボール紙にマジック）。テープで縁に貼ってある ----
+const b1 = board(svg, 16, 10, 150, 64, -2.5, 301);
+const t1 = el("text", { x: 30, y: 60, class: "mg num", "font-size": 44, fill: C.hi, stroke: C.sumi, "stroke-width": 3.2, "paint-order": "stroke", "stroke-linejoin": "round" }, b1);
+t1.innerHTML = '135<tspan font-size="24" fill="#233038" stroke="none" dx="4">点</tspan>';
+tape(svg, 70, 2, 46, 3);
+// 値札（屋台の手書き）
+const b2 = board(svg, 214, 18, 100, 40, 3.5, 302);
+const t2 = el("text", { x: 224, y: 46, class: "mg", "font-size": 19, fill: C.sumi }, b2); t2.textContent = "1回 50円";
+el("path", { d: path([[219, 23], [309, 24], [308, 54], [220, 53]], 0.8), fill: "none", stroke: C.sabi, "stroke-width": 1.6, opacity: 0.9 }, b2);
+tape(svg, 284, 12, 30, 40);
+// 一時停止（親指で押せる大きさ。ボール紙の切れ端）
+const b3 = board(svg, 330, 14, 46, 46, -4, 303);
+el("path", { d: path([[346, 27], [346, 48]], 0.5, false), stroke: C.sumi, "stroke-width": 5, "stroke-linecap": "round" }, b3);
+el("path", { d: path([[360, 27], [360, 48]], 0.5, false), stroke: C.sumi, "stroke-width": 5, "stroke-linecap": "round" }, b3);
+
+// 操作の手引き（最初の1回だけ。下の台の上）
+const t4 = el("text", { x: 18, y: 833, class: "rd", "font-size": 13, "font-weight": 700, fill: "#efe6d6" }, svg);
+t4.textContent = "押さえると沈む　離すとすくう";
+</script>
+</body></html>
