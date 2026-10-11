@@ -29,7 +29,7 @@ export class Simulation {
     this.tasks = [];
     this.nextId = 1;
     this.nextTaskId = 1;
-    this.minutes = 6 * 60 + 30; // 1日目 6:30 から
+    this.minutes = 9 * 60 + 30; // 1日目 9:30 から（最初に見る町は晴れた昼）
     this.stats = { arrivals: 0, posts: 0, photos: 0 };
     this.postedEvents = new Set();
     this.lastHour = -1;

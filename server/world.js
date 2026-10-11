@@ -6,7 +6,7 @@ export const HALF = 240;     // 町の範囲は -240..240
 
 // kind: 建物の種類（クライアントの見た目と CP の行き先選択に使う）
 export const PLACES = [
-  { id: 'kencho', name: 'ナナシ県庁', kind: 'kencho', x: 30, z: -46, w: 44, d: 14, h: 22, color: '#c9c3b6', sign: 'ナナシ県庁' },
+  { id: 'kencho', name: 'ナナシ県庁', kind: 'kencho', x: 30, z: -46, w: 44, d: 14, h: 28, color: '#c9c3b6', sign: 'ナナシ県庁' },
   { id: 'office', name: '県庁 執務フロア', kind: 'office', x: 30, z: -20, w: 48, d: 26, h: 3, color: '#b9b2a2', sign: '' },
   { id: 'super', name: 'スーパーまるなな', kind: 'super', x: 90, z: -30, w: 30, d: 22, h: 8, color: '#e8e1d0', sign: 'スーパーまるなな' },
   { id: 'conbini1', name: 'ナナシマート駅前店', kind: 'conbini', x: -30, z: 150, w: 14, d: 10, h: 5, color: '#f2f2f2', sign: 'ナナシマート' },
@@ -59,30 +59,42 @@ function overlapsPlace(x, z, pad = 6) {
   return PLACES.some((p) => Math.abs(x - p.x) < p.w / 2 + pad && Math.abs(z - p.z) < p.d / 2 + pad);
 }
 
-export function buildHouses(seed = 7, count = 140) {
+// 家の種類（案内図のように形で見分けられるように）
+export const HOUSE_TYPES = {
+  hira: { w: [9, 11], d: [7, 8], h: 3.2, roofH: 2.4 },   // 平屋（縁側のある横長の家）
+  niko: { w: [7, 8], d: [7, 8], h: 6, roofH: 2.6 },      // 二階建て
+  apart: { w: [15, 17], d: [6, 7], h: 6, roofH: 1.2 },   // 木造アパート（外階段・低い屋根）
+  mise: { w: [7, 8], d: [8, 9], h: 6, roofH: 2.2 },      // 店舗つき住宅（一階が店）
+};
+const TYPE_ROLL = [['hira', 0.34], ['niko', 0.4], ['apart', 0.12], ['mise', 0.14]];
+
+export function buildHouses(seed = 7, count = 300) {
   const rnd = mulberry32(seed * 9973);
   const houses = [];
+  const mod = (v) => ((v % ROAD_STEP) + ROAD_STEP) % ROAD_STEP;
   let tries = 0;
-  while (houses.length < count && tries++ < 5000) {
+  while (houses.length < count && tries++ < 14000) {
     // 道路沿い（道路から 8〜12m）に建てる
     const alongX = rnd() < 0.5;
     const road = (Math.floor(rnd() * 9) - 4) * ROAD_STEP;
     const side = rnd() < 0.5 ? -1 : 1;
-    const off = road + side * (8 + rnd() * 4);
+    let r = rnd(), type = 'niko';
+    for (const [k, p] of TYPE_ROLL) { if ((r -= p) <= 0) { type = k; break; } }
+    const T = HOUSE_TYPES[type];
+    const w = T.w[0] + Math.round(rnd() * (T.w[1] - T.w[0]));
+    const d = T.d[0] + Math.round(rnd() * (T.d[1] - T.d[0]));
+    const off = road + side * (6.5 + d / 2 + rnd() * 2);
     const t = -HALF + 10 + rnd() * (HALF * 2 - 20);
     const x = alongX ? t : off;
     const z = alongX ? off : t;
-    if (Math.abs(x % ROAD_STEP) < 7 || Math.abs(z % ROAD_STEP) < 7) {
-      // 交差点付近は避ける
-      if (Math.abs(((x % ROAD_STEP) + ROAD_STEP) % ROAD_STEP) < 7 && Math.abs(((z % ROAD_STEP) + ROAD_STEP) % ROAD_STEP) < 7) continue;
-    }
+    const along = alongX ? x : z;
+    if (mod(along) < w / 2 + 6 || mod(along) > ROAD_STEP - w / 2 - 6) continue; // 交差する道にかからない
     if (overlapsPlace(x, z)) continue;
-    if (houses.some((h) => Math.abs(h.x - x) < 9 && Math.abs(h.z - z) < 9)) continue;
-    const roofs = ['#6b3a2a', '#3d4f6b', '#5a5a5a', '#7a4a2a', '#2f5a4a'];
+    const ex = alongX ? w : d, ez = alongX ? d : w;
+    if (houses.some((h) => Math.abs(h.x - x) < (h.ex + ex) / 2 + 1.5 && Math.abs(h.z - z) < (h.ez + ez) / 2 + 1.5)) continue;
     houses.push({
-      id: `house${houses.length}`, x: Math.round(x), z: Math.round(z),
-      w: 7 + Math.round(rnd() * 2), d: 7 + Math.round(rnd() * 2), h: rnd() < 0.3 ? 6 : 3.5,
-      roof: roofs[Math.floor(rnd() * roofs.length)], rot: alongX ? 0 : Math.PI / 2,
+      id: `house${houses.length}`, type, x: Math.round(x), z: Math.round(z), w, d, h: T.h, roofH: T.roofH, ex, ez,
+      rot: alongX ? (side > 0 ? Math.PI : 0) : (side > 0 ? -Math.PI / 2 : Math.PI / 2), // 玄関を道に向ける
     });
   }
   return houses;

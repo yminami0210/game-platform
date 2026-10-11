@@ -1,33 +1,33 @@
 :root {
-  --paper: #f3ead7;
-  --paper-2: #e9dcc0;
-  --ink: #3b2f22;
-  --muted: #8a7a63;
-  --red: #b8392f;
-  --line: #cdbb98;
-  --shadow: 0 4px 14px rgba(40, 25, 10, .25);
+  /* docs/nanashi/design-concept.md の色。胡粉の地に群青の文字と枠 */
+  --paper: #fbfaf4;
+  --paper-2: #e6eef3;
+  --ink: #22324f;
+  --muted: #5e6f86;
+  --red: #2f5ba0;      /* 主役の差し色（群青）。名前は互換のため残す */
+  --line: #c8d3de;
+  --shadow: 3px 3px 0 rgba(34, 50, 79, .16); /* 刷り物のような、ぼかさない影 */
+  --head: "Kaisei Decol", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #c9b996; color: var(--ink);
-  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
-#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
-  filter: sepia(.18) saturate(.88) contrast(1.04); }
-#vignette { position: fixed; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(60, 35, 10, .35) 100%); }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc8d8; color: var(--ink); font-family: var(--body); }
+h2, h3, #bar .brand, .paper h1, .paper h2 { font-family: var(--head); }
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
 .panel { position: fixed; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
 button { font: inherit; color: var(--ink); background: var(--paper-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
-button:hover { background: #e0cfa8; }
+button:hover { background: #dbe6ee; }
 .muted { color: var(--muted); }
 
 #bar { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 18px; align-items: center; padding: 8px 16px;
-  background: rgba(243, 234, 215, .94); border-bottom: 2px solid var(--red); font-size: 14px; z-index: 5; }
+  background: rgba(251, 250, 244, .95); border-bottom: 3px double var(--red); font-size: 14px; z-index: 5; }
 #bar .brand { font-weight: bold; font-size: 20px; letter-spacing: .1em; }
 #bar .brand small { font-size: 11px; font-weight: normal; margin-left: 10px; color: var(--muted); letter-spacing: .05em; }
 #llm { margin-left: auto; font-size: 12px; color: var(--muted); }
 
 #cams { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 4; flex-wrap: wrap; justify-content: center; }
-#cams button { background: rgba(243, 234, 215, .92); font-size: 13px; }
+#cams button { background: rgba(251, 250, 244, .94); font-size: 13px; }
 
 #kencho { top: 52px; left: 12px; width: 250px; max-height: calc(100% - 70px); overflow: auto; padding: 10px 12px; font-size: 13px; }
 #kencho h2 { margin: 0 0 6px; font-size: 15px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
@@ -92,7 +92,7 @@ body.mobile #cams { top: calc(40px + env(safe-area-inset-top)); left: 0; right: 
 body.mobile #cams::-webkit-scrollbar { display: none; }
 body.mobile #cams button { flex: none; padding: 7px 12px; font-size: 13px; }
 
-body.mobile #mtabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: rgba(243, 234, 215, .97);
+body.mobile #mtabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: rgba(251, 250, 244, .97);
   border-top: 2px solid var(--red); padding-bottom: env(safe-area-inset-bottom); }
 body.mobile #mtabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 12px 0; font-size: 14px; min-height: 48px; }
 body.mobile #mtabs button.on { background: var(--paper-2); color: var(--red); font-weight: bold; }
