@@ -25,6 +25,7 @@ npm start          # http://localhost:8787
 claude.ai の Artifact にしてあります（非公開。開けるのはオーナーと、オーナーが共有した人だけ）: https://claude.ai/artifact/4U955MjyAWtdXp26xiAvgS
 
 - サーバーなしで、見ている端末の中で町が動く（LLM 不使用・トークン 0）。町の状態はその端末のブラウザに保存される
+- 表示は 3D と地図（2D）の2種類。WebGL が使えない端末（iPhone の Claude アプリなど）では自動で地図になる。「窓口」タブで切り替えられる（`?view=2d` / `?view=3d` でも指定できる）
 - 作り直すとき: `node tools/build_artifact.mjs` で `dist/artifact/` に組み立てて、同じ Artifact に載せ直す
 
 ## 管理者モード（町づくり）

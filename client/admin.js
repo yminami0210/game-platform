@@ -1,34 +1,19 @@
 // 管理者モード（シムシティのように建物を選んで、動かす・回す・壊す・建てる）。
 // 置けるかどうかはサーバーと同じきまり（world.js の placementError）でその場で判定し、緑／赤の影で見せる。
-import * as THREE from 'three';
-import { CATALOG, footprint, makeHouse, placementError } from './shared/world.js';
+import { CATALOG, makeHouse, placementError } from './shared/world.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function setupAdmin({ scene, camera, canvas, town, be, getLayout, toast }) {
+export function setupAdmin({ view, canvas, be, getLayout, toast }) {
   const state = { active: false, mode: 'select', item: null, selected: null, ghost: null, rot: 0, token: '' };
   try { state.token = sessionStorage.getItem('nanashi.adminToken') || ''; } catch { /* 保存できなくても動く */ }
 
   // 建設メニュー
   $('#adminCatalog').innerHTML = Object.entries(CATALOG).map(([k, c]) => `<button type="button" data-item="${k}">${esc(c.label)}</button>`).join('');
 
-  // 置く場所の影（緑=置ける、赤=置けない）と、選んだ建物の枠
-  const ghostMat = new THREE.MeshBasicMaterial({ color: '#3fae5a', transparent: true, opacity: 0.45, depthWrite: false });
-  const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), ghostMat);
-  ghost.visible = false; ghost.renderOrder = 5;
-  scene.add(ghost);
-  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: '#f2c230' }));
-  frame.visible = false;
-  scene.add(frame);
-
-  const ray = new THREE.Raycaster();
-  const ndc = new THREE.Vector2();
-  const groundAt = (e) => {
-    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
-    return ray.intersectObject(town.ground)[0]?.point || null;
-  };
+  // 影（緑=置ける、赤=置けない）と選んだ建物の枠は、表示（3D／地図）の側が描く
+  const groundAt = (e) => view.groundAt(e);
 
   const findBuilding = (id) => getLayout().places.find((p) => p.id === id) || getLayout().houses.find((h) => h.id === id);
   const labelOf = (b) => b.name || `${{ hira: '平屋', niko: '二階建て', apart: '木造アパート', mise: '店舗つき住宅' }[b.type]}（${b.id}）`;
@@ -48,26 +33,16 @@ export function setupAdmin({ scene, camera, canvas, town, be, getLayout, toast }
 
   function showGhost(x, z) {
     const b = candidate(x, z);
-    if (!b) { ghost.visible = false; return null; }
-    const f = footprint(b);
+    if (!b) { view.setGhost(null); return null; }
     const err = placementError(getLayout(), b, state.mode === 'move' ? state.selected : null);
-    ghost.scale.set(f.hx * 2, Math.max(2, b.h || 3), f.hz * 2);
-    ghost.position.set(f.x, Math.max(2, b.h || 3) / 2, f.z);
-    ghostMat.color.set(err ? '#d8503e' : '#3fae5a');
-    ghost.visible = true;
+    view.setGhost(b, !err);
     state.ghost = { x: b.x, z: b.z, err };
     $('#adminHint').textContent = err ? `置けません: ${err}` : '「ここに決める」で確定します';
     $('#adminConfirm').disabled = !!err;
     return state.ghost;
   }
 
-  function showFrame(b) {
-    if (!b) { frame.visible = false; return; }
-    const f = footprint(b);
-    frame.scale.set(f.hx * 2 + 1, (b.h || 3) + 1, f.hz * 2 + 1);
-    frame.position.set(f.x, ((b.h || 3) + 1) / 2, f.z);
-    frame.visible = true;
-  }
+  const showFrame = (b) => view.setFrame(b || null);
 
   function render() {
     const b = state.selected && findBuilding(state.selected);
@@ -89,7 +64,7 @@ export function setupAdmin({ scene, camera, canvas, town, be, getLayout, toast }
 
   function reset() {
     Object.assign(state, { mode: 'select', item: null, selected: null, ghost: null, rot: 0 });
-    ghost.visible = false;
+    view.setGhost(null);
     $('#adminHint').textContent = '';
     render();
   }
@@ -109,7 +84,7 @@ export function setupAdmin({ scene, camera, canvas, town, be, getLayout, toast }
     document.body.classList.remove('admin');
     $('#admin').hidden = true;
     $('#adminBtn').classList.remove('on');
-    ghost.visible = false; frame.visible = false;
+    view.setGhost(null); view.setFrame(null);
   }
 
   $('#adminBtn').addEventListener('click', () => (state.active ? close() : open()));
@@ -185,14 +160,7 @@ export function setupAdmin({ scene, camera, canvas, town, be, getLayout, toast }
       if (p) showGhost(p.x, p.z);
       return;
     }
-    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-    ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(town.pickables(), true)[0];
-    let id = null;
-    if (hit) {
-      if (hit.object.userData.houseIds) id = hit.object.userData.houseIds[hit.instanceId];
-      else for (let o = hit.object; o && !id; o = o.parent) id = o.userData?.bid || null;
-    }
+    const id = view.pickBuilding(e);
     state.selected = id;
     state.rot = findBuilding(id)?.rot || 0;
     render();
