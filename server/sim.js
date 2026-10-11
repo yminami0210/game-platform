@@ -773,7 +773,7 @@ export class Simulation {
     let today = '';
     if (c.role === 'commuter') today = `${t(c.p.leave)}ごろ駅へ → ${cityName(c.city)}で${c.school ? '授業' : '仕事'} → ${t(c.p.back)}ごろの電車で帰る`;
     else if (c.incoming) today = `${cityName(c.city)}から朝の電車で来て、夕方に帰る`;
-    else if (c.role === 'staff' || c.role === 'worker') today = `${t(this.#workInfo(c).open)}から仕事（休み: ${WEEK[c.p.offDay]}曜${c.role === 'staff' ? '・土日' : ''}）`;
+    else if (c.role === 'staff' || c.role === 'worker') today = `${t(this.#workInfo(c).open)}から仕事（休み: ${c.role === 'staff' ? '土日' : `${WEEK[c.p.offDay]}曜`}）`;
     else if (c.role === 'student') today = '8:00〜15:00 学校、そのあと公園か家';
     else if (c.role === 'visitor') today = `${cityName(c.city)}から日帰りで来ている`;
     else today = `${t(c.p.wake)}に起きて、町で過ごす`;

@@ -31,6 +31,15 @@ const executor = { run: async (type, input) => ({ text: templates[type](input, r
 const today = Math.floor(realMinutes() / 1440);
 const start = (today - DAYS) * 1440;
 const sim = new Simulation({ seed: SEED, chronicle, executor, startMinutes: start });
+if (process.argv.includes('--cast')) { // 4人の配役（町の台帳の上での住所・家族・勤め先）を表示して終わる
+  for (const [id, c] of Object.entries(sim.personas.bound)) {
+    if (!c) { console.log(`${id}: 該当する住人がいない`); continue; }
+    const d = sim.cpDetail(c.id);
+    const fam = (sim.households.get(c.hh)?.members || []).map((m) => sim.cpById(m)).filter((m) => m && m !== c).map((m) => `${m.name}（${m.age}）`);
+    console.log(`${PERSONAS[id].label}: ${d.name}（${d.age}）／${d.address}／${d.household}${fam.length ? `：${fam.join('、')}` : ''}／${d.workLabel}／${d.today}／見た目: ${d.lookText}`);
+  }
+  process.exit(0);
+}
 const t0 = Date.now();
 while (sim.minutes < today * 1440) sim.tick(0.25, 8); // 1 回で 2 分ずつ進める
 await new Promise((r) => setTimeout(r, 10)); // 非同期のタスクを流しきる

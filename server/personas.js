@@ -36,24 +36,81 @@ const BOARD = ['「傘、戻りました」', '「七瀬さんへ　またね」
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
 const hm = (m) => `${Math.floor((m % 1440) / 60)}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
 
+// 4人の正式な設定（くわしくは docs/nanashi/personas/characters.md）。町の中の住人をこの人に「配役」する。
+// 見た目の部品は server/looks.js の LOOK_PARTS から選ぶ。
+export const CAST = {
+  a: {
+    surname: '菜種', given: '澪', yomi: 'なたね みお', sns: 'みお（高2）', age: 16, sex: 'f',
+    look: { face: 'egg', eyes: 'dot', brows: 'thin', mouth: 'smile', hair: 'bob', hairColor: '#1f1b18', skin: '#f7dcc4', body: 'slim', top: '#efe6d0', bottom: '#2b3a55', extra: 'none' },
+    p: { wake: 6.2, sleep: 23.2, leave: 6.95, back: 17.3, fav: { shop: 'yaoya' } }, // 6:57 に家を出て、7:07 の鐘をホームで聞く
+    family: [{ sex: 'm', adult: true, given: '和夫' }, { sex: 'f', adult: true, given: '洋子' }, { sex: 'm', adult: false, given: '健太' }],
+  },
+  b: {
+    surname: '梨木', given: 'さくら', yomi: 'なしき さくら', sns: 'さくら', age: 27, sex: 'f',
+    look: { face: 'oval', eyes: 'droop', brows: 'thin', mouth: 'open', hair: 'long', hairColor: '#3d2f26', skin: '#f3d2b4', body: 'normal', top: '#f2b8c6', bottom: '#4a4036', extra: 'none' },
+    p: { wake: 6.6, sleep: 23.6, leave: 7.6, back: 18.8, fav: { eat: 'shokudo', kissa: 'kissa', bath: 'sento', shop: 'super' } }, // 行きつけ
+    family: [],
+  },
+  fujiya: {
+    surname: '藤谷', given: '修', yomi: 'ふじたに おさむ', sns: '大衆食堂ふじや', age: 52, sex: 'm', title: '店主（二代目）',
+    look: { face: 'square', eyes: 'sharp', brows: 'thick', mouth: 'flat', hair: 'crop', hairColor: '#3d2f26', skin: '#e8c09c', body: 'stout', top: '#efe6d0', bottom: '#2b3a55', extra: 'scarf' },
+    p: { wake: 5.3, sleep: 22.2, offDay: 2 }, // 定休日は水曜
+    family: [{ sex: 'f', adult: true, given: '康子' }, { sex: 'f', adult: false, given: '千夏' }, { sex: 'm', adult: false, given: '大地' }], // 先代の源蔵はオトギ町で隠居
+  },
+  kanko: {
+    surname: '七瀬', given: '光太郎', yomi: 'ななせ こうたろう', sns: 'ナナシ県庁 観光課', age: 34, sex: 'm', title: '主事',
+    look: { face: 'round', eyes: 'smile', brows: 'thin', mouth: 'smile', hair: 'parted', hairColor: '#1f1b18', skin: '#f3d2b4', body: 'normal', top: '#3a6aa0', bottom: '#6b6f75', extra: 'glasses' },
+    p: { wake: 6.4, sleep: 23, fav: { eat: 'shokudo' } }, // お昼はたいていふじや
+    family: [],
+  },
+};
+
 export class PersonaHub {
   constructor(sim) {
     this.sim = sim;
     this.done = new Set(); // その日に投稿済みの枠
     this.recent = {};      // アカウントごとの最近使った文
+    this.ids = this.#cast();
   }
 
-  // 町の住人に結びつける（毎回同じ人になるように、条件に合う一番古い住人）
-  get bound() {
+  // 町の住人の中から条件に合う人を選び（毎回同じ人になるよう一番古い住人）、正式な名前・年齢・見た目・暮らしにする。
+  // 家族の名字もそろえる。保存した町を開き直しても同じ人が同じ設定になる
+  #cast() {
     const s = this.sim;
-    const first = (f) => s.cps.filter((c) => c.resident && f(c)).sort((x, y) => x.id - y.id)[0] || null;
-    const a = first((c) => c.school && c.sex === 'f' && c.age >= 16 && c.age <= 17) || first((c) => c.school && c.sex === 'f');
-    return {
-      kanko: first((c) => c.role === 'staff' && c.dept === 'kanko'),
-      a,
-      b: first((c) => c.role === 'commuter' && !c.school && c.sex === 'f' && c.age >= 23 && c.age <= 32 && c.given !== a?.given && c.hh !== a?.hh), // 住人A と名前・家族がかぶらない人
-      fujiya: s.cps.filter((c) => c.work === 'shokudo').sort((x, y) => x.id - y.id)[0] || null,
-    };
+    const pick = (f) => s.cps.filter((c) => c.resident && f(c)).sort((x, y) => x.id - y.id)[0] || null;
+    const members = (c) => (s.households.get(c.hh)?.members || []).map((id) => s.cpById(id)).filter(Boolean);
+    const a = pick((c) => c.school && c.sex === 'f' && c.age >= 16 && c.age <= 17 && members(c).length >= 3) || pick((c) => c.school && c.sex === 'f');
+    const b = pick((c) => c.role === 'commuter' && !c.school && c.sex === 'f' && c.age >= 23 && c.age <= 32 && members(c).length === 1 && c.hh !== a?.hh)
+      || pick((c) => c.role === 'commuter' && !c.school && c.sex === 'f' && c.age >= 23 && c.age <= 32 && c.hh !== a?.hh);
+    // ふじやの店主は町に住む人（県外から通う店員ではなく）。いなければ、家族のいる働きざかりの男性に店を継がせる
+    const fujiya = pick((c) => c.work === 'shokudo' && c.hh !== a?.hh && c.hh !== b?.hh)
+      || pick((c) => c.sex === 'm' && c.age >= 40 && c.age <= 65 && ['worker', 'commuter'].includes(c.role) && members(c).length >= 2 && c.hh !== a?.hh && c.hh !== b?.hh);
+    if (fujiya && fujiya.work !== 'shokudo') Object.assign(fujiya, { role: 'worker', work: 'shokudo', city: null, school: false });
+    const kanko = pick((c) => c.role === 'staff' && c.dept === 'kanko' && c.seat === 1) || pick((c) => c.role === 'staff' && c.dept === 'kanko');
+    const chosen = { a, b, fujiya, kanko };
+    for (const [id, c] of Object.entries(chosen)) {
+      if (!c) continue;
+      const k = CAST[id];
+      const hh = s.households.get(c.hh);
+      // 家族: 名字をそろえ、決めてある続柄の人には決めてある名前をつける
+      const fam = members(c).filter((m) => m !== c);
+      for (const m of fam) { m.surname = k.surname; m.name = `${k.surname} ${m.given}`; }
+      const used = new Set();
+      for (const f of k.family) {
+        const m = fam.find((x) => !used.has(x) && x.sex === f.sex && (x.age >= 20) === f.adult);
+        if (m) { used.add(m); m.given = f.given; m.name = `${k.surname} ${f.given}`; }
+      }
+      if (hh) hh.surname = k.surname;
+      Object.assign(c, { surname: k.surname, given: k.given, name: `${k.surname} ${k.given}`, age: k.age, sex: k.sex, look: { ...k.look }, p: { ...c.p, ...k.p } });
+      if (k.title) c.title = k.title;
+      c.persona = id;
+    }
+    return Object.fromEntries(Object.entries(chosen).map(([id, c]) => [id, c?.id ?? null]));
+  }
+
+  // 結びついている住人（町を出入りしても同じ人）
+  get bound() {
+    return Object.fromEntries(Object.entries(this.ids).map(([id, cpId]) => [id, cpId == null ? null : this.sim.cpById(cpId)]));
   }
 
   // 時刻 before → after のあいだに来た投稿の枠を処理する（町が進むたびに呼ぶ）
@@ -66,6 +123,7 @@ export class PersonaHub {
     // 毎日同じ分に投稿すると機械っぽいので、枠ごとに日によって少しずらす（決まった時刻の鐘などはずらさない）
     const J = (n, spread = 24) => Math.floor(this.#rnd(day, 100 + n)() * spread) - Math.floor(spread / 3);
     const b = this.bound;
+    const fujiyaClosed = b.fujiya && wd === b.fujiya.p.offDay; // ふじやの定休日（水曜）は、誰もふじやの話をしない
     const once = (key, fn) => { const k = `${day}:${key}`; if (this.done.has(k)) return; this.done.add(k); fn(this.#rnd(day, [...key].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7) % 9973)); }; // 枠ごとに別の乱数
     if (this.done.size > 400) this.done = new Set([...this.done].filter((k) => k.startsWith(`${day}:`)));
 
@@ -77,7 +135,7 @@ export class PersonaHub {
         const [menu, price] = menuOf(day);
         const r = this.#rnd(day, 1);
         if (closed) return this.#post('fujiya', '本日は定休日です。また明日、お待ちしています。');
-        const extra = [`小鉢は名無大根の煮物です。`, `ごはん大盛り無料です。`, `魚辰さんから、いい魚が入りました。`, ``, ``][Math.floor(r() * 5)];
+        const extra = [`小鉢は名無大根の煮物です。`, `ごはん大盛り無料です。`, `魚辰さんから、いい魚が入りました。`, `先代のおすすめ帳を見ながら書いています。`, ``, ``][Math.floor(r() * 6)];
         const nanori = dom === 7 ? '\n本日は名乗らずの日のため、お呼び出しは番号でいたします。' : '';
         this.#post('fujiya', `【本日のおすすめ】${menu}　${price}円\n11時からです。${extra}${nanori}`);
       });
@@ -116,7 +174,7 @@ export class PersonaHub {
         if (r() > 0.7) return;
         const today = s.chronicle.day;
         const daikon = today.some((e) => e.place === 'yaoya' && /大根/.test(e.text));
-        const lines = ['七星堂で立ち読み。今月号はまだって言われた', `おつかいでマルヤ。大根の葉っぱに「${this.#pick(LEAF_NAMES, r)}」って書いてあった。消してから帰る`, 'ポプラの前とおったらナポリタンのにおい。お腹すいた', `駅の伝言板、${this.#pick(BOARD, r)}って増えてた`, '名無湯の前で猫が寝てた。三毛', `帰りにふじやの貼り紙みた。今日は${menuOf(day)[0]}だったらしい`];
+        const lines = ['七星堂で立ち読み。今月号はまだって言われた', `おつかいでマルヤ。大根の葉っぱに「${this.#pick(LEAF_NAMES, r)}」って書いてあった。消してから帰る`, 'ポプラの前とおったらナポリタンのにおい。お腹すいた', `駅の伝言板、${this.#pick(BOARD, r)}って増えてた`, '名無湯の前で猫が寝てた。三毛', '図書委員の当番で遅くなった。七星堂に寄る時間なかった', ...(fujiyaClosed ? [] : [`帰りにふじやの貼り紙みた。今日は${menuOf(day)[0]}だったらしい`])];
         if (daikon) lines.push('マルヤの大根50円だった。2本かった。重い');
         this.#post('a', this.#pickFor('a', lines, r));
       });
@@ -132,7 +190,7 @@ export class PersonaHub {
     const bb = b.b;
     if (bb) {
       const back = Math.round(bb.p.back * 60);
-      if (!weekend && at(12 * 60 + 15 + J(11, 40))) once('b-lunch', (r) => { if (r() < 0.55) this.#post('b', this.#pickFor('b', [`ナナミ市の駅ビルでランチ。おいしいけど、ふじやの${menuOf(day)[0]}のほうが気になる`, 'お昼はコンビニ。早く帰ってポプラ行きたい', '同僚に「ナナシ県ってどこ？」って聞かれた。どこって、ここだけど', 'お昼休み。デスクで七つ割り煎餅。今日も8こ', 'ナナミ市のお昼は高い。ポプラのナポリタンなら380円なのに', '会社の地図にナナシ県が載ってなかった。まあいいか'], r)); });
+      if (!weekend && at(12 * 60 + 15 + J(11, 40))) once('b-lunch', (r) => { if (r() < 0.55) this.#post('b', this.#pickFor('b', [fujiyaClosed ? 'ナナミ市の駅ビルでランチ。今日はふじやも休みだし' : `ナナミ市の駅ビルでランチ。おいしいけど、ふじやの${menuOf(day)[0]}のほうが気になる`, 'お昼はコンビニ。早く帰ってポプラ行きたい', '同僚に「ナナシ県ってどこ？」って聞かれた。どこって、ここだけど', 'お昼休み。デスクで七つ割り煎餅。今日も8こ', 'ナナミ市のお昼は高い。ポプラのナポリタンなら380円なのに', '会社の地図にナナシ県が載ってなかった。まあいいか'], r)); });
       if (!weekend && at(back + 50 + J(12, 40))) once('b-eve', (r) => {
         if (r() > 0.8) return;
         // 町の中で本当にいる場所の話をする（ふじやにいるなら、ふじやのおすすめ）
@@ -144,7 +202,7 @@ export class PersonaHub {
           sento: [`名無湯。富士山の絵がきれいになってた。湯上がりはななし牛乳（ふたに「${(day % 9) + 1}日目」）`],
           super: ['まるななのタイムセールに間に合った。鐘が鳴ると、みんな少しだけ走る'],
         };
-        const lines = byPlace[where] || [`${hm(back)}ごろの電車で帰宅。トンネルを抜けると空気が変わる`, '帰りの電車。伝言板の「おかえりなさい」、まだ消えてなかった', '帰りの電車で数え柑の房を数えたら11だった。いつもは10', 'ナナシ駅の改札で、駅員さんに「おかえりなさい」って言われる。毎日', '今日の晩ごはんは名無大根の煮物。母のレシピ', '駅を出たら名無湯のけむり。今日は寄らずに帰る', '帰りにマルヤに寄ったら、もう閉まってた', `ふじやの前を通ったら「${menu}　売り切れ」の貼り紙`];
+        const lines = (fujiyaClosed && where === 'shokudo' ? null : byPlace[where]) || [`${hm(back)}ごろの電車で帰宅。トンネルを抜けると空気が変わる`, '帰りの電車。伝言板の「おかえりなさい」、まだ消えてなかった', '帰りの電車で数え柑の房を数えたら11だった。いつもは10', 'ナナシ駅の改札で、駅員さんに「おかえりなさい」って言われる。毎日', '今日の晩ごはんは名無大根の煮物。母のレシピ', '駅を出たら名無湯のけむり。今日は寄らずに帰る', '帰りにマルヤに寄ったら、もう閉まってた', 'アパートの隣の部屋の人、県庁の観光課の人らしい。廊下でななっしーの顔の話をしてた', ...(fujiyaClosed ? ['ふじや、今日は定休日だった。水曜なの忘れてた'] : [`ふじやの前を通ったら「${menu}　売り切れ」の貼り紙`])];
         this.#post('b', this.#pickFor('b', lines, r));
       });
       if (weekend && at(12 * 60 + 15 + J(13, 60))) once('b-we', (r) => { if (r() < 0.5) { const [menu, price] = menuOf(day); this.#post('b', r() < 0.6 ? `休日のお昼はふじや。${menu}、${price}円。` : `マルヤで名無大根。葉っぱの名前は「${this.#pick(LEAF_NAMES, r)}」でした`); } });
@@ -167,7 +225,7 @@ export class PersonaHub {
     const s = this.sim;
     const p = PERSONAS[id];
     const cp = this.bound[id];
-    const name = id === 'kanko' ? 'ナナシ県庁 観光課' : id === 'fujiya' ? '大衆食堂ふじや' : `${cp?.given || p.label}${id === 'a' ? '（高2）' : ''}`;
+    const name = CAST[id].sns;
     s.chronicle.postSns({ id: `${id}-${s.day}-${Math.floor(s.minutes % 1440)}`, day: s.day, time: s.timeLabel(), author: name, handle: p.handle, persona: id, cpId: cp?.id ?? null, text, via: 'template' });
   }
 }
@@ -183,4 +241,5 @@ const KANKO_NOTES = [
   '【観光課より】ナナシ線は朝夕10分おきに走っています。トンネルを抜けるとナナミ市です。#ナナシ県',
   '【観光課より】純喫茶ポプラのナポリタンは380円です。先月から30円上がりました。#ナナシ県',
   '【観光課より】ななっしーの顔は、まだ決まっていません。ご意見は観光課まで。#ナナシ県',
+  '【観光課より】ななっしーの顔を決める会議は、今年で7年目になりました。#ナナシ県',
 ];
