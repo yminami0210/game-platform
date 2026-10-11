@@ -1,6 +1,6 @@
 // API の中身（HTTP に依存しない）。サーバー（index.js）とブラウザ単体モード（client/backend.js）が共有する。
 import { DEPARTMENTS } from './lore.js';
-import { PLACES } from './world.js';
+import { CATALOG, CITIES } from './world.js';
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 20);
 const SPAWNABLE_ROLES = new Set(['resident', 'worker', 'student']);
@@ -16,10 +16,19 @@ export function createApi({ sim, chronicle, executor, seed }) {
   const tasks = () => sim.tasks.map((t) => sim.taskView(t));
   return {
     init: () => ({
-      places: PLACES, departments: DEPARTMENTS, seed, roster: sim.roster(), clock: sim.clock(),
+      layout: sim.layout, catalog: CATALOG, cities: CITIES, departments: DEPARTMENTS, seed, roster: sim.roster(), clock: sim.clock(),
       tasks: tasks(), sns: chronicle.sns, logs: chronicle.recent, news: chronicle.latestNews(), llm: executor.status(),
     }),
     digest: () => sim.digestNow(),
+    registry: () => sim.registry(),
+    // 管理者: 建物の追加・移動・撤去（呼ぶ側で権限を確かめる）
+    admin(op, b = {}) {
+      const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : undefined);
+      if (op === 'add') return sim.adminAdd({ item: String(b.item || ''), x: num(b.x) ?? 0, z: num(b.z) ?? 0, rot: num(b.rot) ?? 0 });
+      if (op === 'move') return sim.adminMove({ id: String(b.id || ''), x: num(b.x), z: num(b.z), rot: num(b.rot) });
+      if (op === 'remove') return sim.adminRemove({ id: String(b.id || '') });
+      throw badRequest('op は add / move / remove');
+    },
     tasks,
     latestNews: () => chronicle.latestNews(),
     clock: () => ({ ...sim.clock(), llm: executor.status(), tasks: tasks() }),

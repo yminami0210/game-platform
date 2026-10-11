@@ -1,7 +1,7 @@
 // ナナシ県の町並み。見た目の方針は docs/nanashi/design-concept.md（昭和の観光鳥瞰図・絵葉書）。
 // 輪郭線（裏返しの殻）＋段の陰（トゥーン）＋手塗りの色ばらつき。外部アセットは使わない。
 import * as THREE from 'three';
-import { PLACES, ROAD_STEP, HALF, buildHouses, buildDesks, mulberry32 } from './shared/world.js';
+import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, buildDesks, mulberry32, trainsAt } from './shared/world.js';
 import { DEPARTMENTS } from './shared/lore.js';
 
 export const PALETTE = {
@@ -152,7 +152,7 @@ function instanced(geo, material, items, { outline = 0.08, shadow = true } = {})
 }
 
 // ---- 町 -----------------------------------------------------------------------
-export function buildTown(scene, seed) {
+export function buildTown(scene, seed, initialLayout) {
   const rnd = mulberry32(seed * 31);
   const world = new THREE.Group();
   scene.add(world);
@@ -172,15 +172,6 @@ export function buildTown(scene, seed) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), toon(PALETTE.moegi));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; ground.name = 'ground';
   world.add(ground);
-
-  // 街区ごとに地面の色を少し変える（住宅地は芝、商業地は舗装）
-  const lots = [];
-  for (let bx = -HALF; bx < HALF; bx += ROAD_STEP) for (let bz = -HALF; bz < HALF; bz += ROAD_STEP) {
-    const cx = bx + ROAD_STEP / 2, cz = bz + ROAD_STEP / 2;
-    const paved = PLACES.some((p) => Math.abs(p.x - cx) < 30 && Math.abs(p.z - cz) < 30 && !['park', 'bokujo', 'tanbo'].includes(p.kind));
-    lots.push({ x: cx, y: 0.02, z: cz, sx: ROAD_STEP - 11, sy: 1, sz: ROAD_STEP - 11, color: jitter(paved ? '#dcd9cc' : '#b9cf72', rnd, 0.1) });
-  }
-  world.add(instanced(new THREE.BoxGeometry(1, 0.04, 1), toon('#ffffff'), lots, { outline: 0, shadow: false }));
 
   // 道（案内図のように白っぽく）と白線
   const roadMat = toon('#c9c6bb');
@@ -277,11 +268,38 @@ export function buildTown(scene, seed) {
   poles.forEach((p, i) => { if (i % 2 === 0) lamps.push({ x: p.x, y: 7.4, z: p.z - 0.9 }); });
   world.add(instanced(new THREE.SphereGeometry(0.45, 8, 6), lampMat, lamps, { outline: 0, shadow: false }));
 
+  // ---- 建物の層（レイアウトが変わったら作り直す） ----
+  const ball = new THREE.IcosahedronGeometry(1, 1);
+  let layer = null;
+  let layerNight = [];
+  let pickPlaces = [];
+  let pickHouses = null;
+  const office = { desks: [], lamps: {} };
+  function rebuild(layout) {
+    if (layer) {
+      scene.remove(layer);
+      layer.traverse((o) => { if (o.isMesh && o.material?.map && o.material.isMeshBasicMaterial) o.material.map.dispose(); });
+    }
+    const rnd = mulberry32(seed * 31 + (layout.version || 1));
+    const world = new THREE.Group();
+    layerNight = [];
+    pickPlaces = [];
+  // 街区ごとに地面の色を少し変える（住宅地は芝、商業地は舗装）
+  const lots = [];
+  for (let bx = -HALF; bx < HALF; bx += ROAD_STEP) for (let bz = -HALF; bz < HALF; bz += ROAD_STEP) {
+    const cx = bx + ROAD_STEP / 2, cz = bz + ROAD_STEP / 2;
+    const paved = layout.places.some((p) => Math.abs(p.x - cx) < 30 && Math.abs(p.z - cz) < 30 && !['park', 'bokujo', 'tanbo'].includes(p.kind));
+    lots.push({ x: cx, y: 0.02, z: cz, sx: ROAD_STEP - 11, sy: 1, sz: ROAD_STEP - 11, color: jitter(paved ? '#dcd9cc' : '#b9cf72', rnd, 0.1) });
+  }
+  world.add(instanced(new THREE.BoxGeometry(1, 0.04, 1), toon('#ffffff'), lots, { outline: 0, shadow: false }));
+
+
   // 住宅（壁＋切妻の瓦屋根＋窓）
-  const houses = buildHouses(seed);
+  const houses = layout.houses;
+  const PLACES = layout.places;
   const wallTex = windowTextures(3, 2, { door: true, lit: 0.6 }, rnd);
   const wallMat = toon('#ffffff', { map: wallTex.map, emissive: new THREE.Color('#ffc46b'), emissiveMap: wallTex.emissiveMap, emissiveIntensity: 0 });
-  nightMats.push({ emissive: wallMat, max: 1.3 });
+  layerNight.push({ emissive: wallMat, max: 1.3 });
   const WALLS = ['#f4efe2', '#ece3cf', '#e2e6e2', '#f1e6d8', '#dfe5ea', '#efe9da'];
   const ROOFS = [PALETTE.aonibi, '#4e5d6e', '#6c5a4c', '#3f6a78', '#7b4b3a', '#5d6e7e'];
   const walls = [], roofs = [], parts = [];
@@ -310,12 +328,15 @@ export function buildTown(scene, seed) {
       at(h.d / 2 + 0.06, 0, 4.4, h.w * 0.8, 1.0, 0.12, jitter('#fbfaf4', rnd));  // 看板
     }
   }
-  world.add(instanced(new THREE.BoxGeometry(1, 1, 1), wallMat, walls, { outline: 0.1 }));
+  const wallGroup = instanced(new THREE.BoxGeometry(1, 1, 1), wallMat, walls, { outline: 0.1 });
+  wallGroup.children[0].userData.houseIds = houses.map((h) => h.id);
+  pickHouses = wallGroup.children[0];
+  world.add(wallGroup);
   world.add(instanced(GABLE, toon('#ffffff'), roofs, { outline: 0.12 }));
   world.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#ffffff'), parts, { outline: 0.06 }));
 
   // 施設
-  for (const p of PLACES) world.add(buildPlace(p, rnd, nightMats));
+  for (const p of PLACES) { const pg = buildPlace(p, rnd, layerNight); pg.userData.bid = p.id; pickPlaces.push(pg); world.add(pg); }
 
   // 木（丸い玉の2段）と、県庁通りの桜並木
   const trees = [];
@@ -326,10 +347,11 @@ export function buildTown(scene, seed) {
     const x = (rnd() - 0.5) * (HALF * 2 + 160), z = -HALF - 80 + rnd() * (HALF * 2 + 110);
     if ((nearRoad(x) || nearRoad(z)) && Math.abs(x) <= HALF + 5 && Math.abs(z) <= HALF + 5) continue;
     if (blocked(x, z)) continue;
+    if (Math.abs(z - RAIL_Z) < 7 && Math.abs(x) < PORTAL_X) continue; // 線路の上には植えない
     trees.push({ x, z, s: 0.8 + rnd() * 0.7, kind: 'tree' });
   }
-  const park = PLACES.find((p) => p.id === 'park');
-  for (let i = 0; i < 14; i++) trees.push({ x: park.x + (rnd() - 0.5) * park.w * 0.9, z: park.z + (rnd() - 0.5) * park.d * 0.9, s: 1 + rnd() * 0.5, kind: rnd() < 0.5 ? 'sakura' : 'tree' });
+  const park = PLACES.find((p) => p.kind === 'park');
+  if (park) for (let i = 0; i < 14; i++) trees.push({ x: park.x + (rnd() - 0.5) * park.w * 0.9, z: park.z + (rnd() - 0.5) * park.d * 0.9, s: 1 + rnd() * 0.5, kind: rnd() < 0.5 ? 'sakura' : 'tree' });
   // 桜並木: 県庁の前の通り（z=0）の両側
   for (let x = -HALF + 10; x < HALF; x += 9) {
     if (nearRoad(x)) continue;
@@ -343,9 +365,15 @@ export function buildTown(scene, seed) {
     tops.push({ x: t.x + 0.4 * t.s, y: 5.4 * t.s, z: t.z - 0.3 * t.s, sx: 1.7 * t.s, sy: 1.5 * t.s, sz: 1.7 * t.s, color: leaf.clone().offsetHSL(0, 0, 0.06) });
   }
   world.add(instanced(new THREE.CylinderGeometry(0.28, 0.38, 3, 6).translate(0, 1.5, 0), toon('#7a5a40'), trunks, { outline: 0.05 }));
-  const ball = new THREE.IcosahedronGeometry(1, 1);
   world.add(instanced(ball, toon('#ffffff'), crowns, { outline: 0.12 }));
   world.add(instanced(ball, toon('#ffffff'), tops, { outline: 0.1 }));
+
+
+    Object.assign(office, buildOffice(world, layout.places.find((p) => p.id === 'office')));
+    layer = world;
+    scene.add(world);
+    if (lastDaylight) applyDaylight(...lastDaylight);
+  }
 
   // 雲（唯一の、何もしなくても動く飾り）
   const clouds = new THREE.Group();
@@ -363,25 +391,90 @@ export function buildTown(scene, seed) {
   }
   scene.add(clouds);
 
-  const office = buildOffice(world);
+  // ---- 線路・踏切・トンネル・駅のホーム（町の真ん中を東西に通る） ----
+  const rail = new THREE.Group();
+  rail.add(box(PORTAL_X * 2, 0.35, 5, toon('#a59d90'), 0, 0.17, RAIL_Z, { outline: 0 }));
+  for (const dz of [-0.75, 0.75]) rail.add(box(PORTAL_X * 2, 0.16, 0.16, toon('#c9ccd0'), 0, 0.45, RAIL_Z + dz, { outline: 0 }));
+  const sleepers = [];
+  for (let x = -PORTAL_X; x < PORTAL_X; x += 1.6) sleepers.push({ x, y: 0.36, z: RAIL_Z, sx: 0.35, sy: 0.08, sz: 2.4 });
+  rail.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#6b5a48'), sleepers, { outline: 0, shadow: false }));
+  // 踏切（黒と黄色の遮断機の柱）
+  const posts = [], stripes = [];
+  for (let k = -HALF; k <= HALF; k += ROAD_STEP) for (const side of [-1, 1]) {
+    posts.push({ x: k + side * 4.6, y: 1.4, z: RAIL_Z + side * 3.4, sx: 0.3, sy: 2.8, sz: 0.3 });
+    stripes.push({ x: k + side * 2.2, y: 1.1, z: RAIL_Z + side * 3.4, sx: 4.8, sy: 0.18, sz: 0.18 });
+  }
+  rail.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#2b2b2b'), posts, { outline: 0.04 }));
+  rail.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#f2c230'), stripes, { outline: 0.04 }));
+  // トンネル（ここで隣の町とつながる）
+  for (const side of [-1, 1]) {
+    rail.add(box(14, 10, 8, toon('#bdb6a8'), side * (PORTAL_X + 4), 5, RAIL_Z));
+    rail.add(box(7, 6, 8.2, toon('#1f2633'), side * (PORTAL_X + 1), 3, RAIL_Z, { outline: 0 }));
+    const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), toon('#5e9a62'));
+    hill.scale.set(60, 26, 40); hill.position.set(side * (PORTAL_X + 40), 0, RAIL_Z);
+    rail.add(hill);
+  }
+  // 駅のホームと屋根
+  const st = initialLayout.places.find((p) => p.id === 'station');
+  if (st) {
+    rail.add(box(46, 1, 4, toon('#e9e6dc'), st.x, 0.5, RAIL_Z - 4.4));
+    rail.add(box(30, 0.3, 4.6, toon('#3f6a78'), st.x, 4.6, RAIL_Z - 4.4));
+    for (let i = -2; i <= 2; i++) rail.add(box(0.25, 3.6, 0.25, toon('#8d9aa6'), st.x + i * 7, 2.8, RAIL_Z - 5.6, { outline: 0.03 }));
+    rail.add(signBoard('ななし', st.x + 14, 2.2, RAIL_Z - 2.3, 4, 1.2, { bg: '#ffffff', border: PALETTE.gunjo }));
+  }
+  scene.add(rail);
+
+  // 電車（クリームに朱の帯、3両）。時刻表どおりに走らせる
+  const trains = [0, 1, 2].map(() => {
+    const g = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      g.add(box(17, 3.2, 3, toon('#f2e6c8', { emissive: new THREE.Color('#ffd27a'), emissiveIntensity: 0 }), (i - 1) * 17.6, 2.3, 0));
+      g.add(box(17.05, 1.0, 3.05, toon('#d8503e'), (i - 1) * 17.6, 1.2, 0, { outline: 0 }));
+      g.add(box(16, 0.4, 2.6, toon('#7b8590'), (i - 1) * 17.6, 4.1, 0, { outline: 0 }));
+    }
+    g.position.set(0, 0, RAIL_Z);
+    g.visible = false;
+    scene.add(g);
+    return g;
+  });
+
+  let lastDaylight = null;
+  function applyDaylight(day, dusk) {
+    const night = 1 - day;
+    for (const n of [...nightMats, ...layerNight]) {
+      if (n.emissive) n.emissive.emissiveIntensity = Math.max(0, night - 0.25) * (n.max || 1) * 1.4;
+      if (n.basic) n.basic.color.set(night > 0.45 ? n.night : n.day);
+    }
+    const top = new THREE.Color('#203a6b').lerp(new THREE.Color(PALETTE.asagi), day);
+    const bottom = new THREE.Color('#4a5f8f').lerp(new THREE.Color('#eef6f4'), day).lerp(new THREE.Color('#f6c99a'), dusk * 0.7);
+    skyMat.uniforms.top.value.copy(top);
+    skyMat.uniforms.bottom.value.copy(bottom);
+    return bottom;
+  }
+
+  rebuild(initialLayout);
 
   return {
-    world, ground, office,
+    world, ground, office, rebuild,
+    pickables: () => [...pickPlaces, ...(pickHouses ? [pickHouses] : [])],
     // 時刻の反映: day 0（夜）〜1（昼）、dusk 0〜1（夕方らしさ）
     setDaylight(day, dusk) {
-      const night = 1 - day;
-      for (const n of nightMats) {
-        if (n.emissive) n.emissive.emissiveIntensity = Math.max(0, night - 0.25) * (n.max || 1) * 1.4;
-        if (n.basic) n.basic.color.set(night > 0.45 ? n.night : n.day);
-      }
-      const top = new THREE.Color('#203a6b').lerp(new THREE.Color(PALETTE.asagi), day);
-      const bottom = new THREE.Color('#4a5f8f').lerp(new THREE.Color('#eef6f4'), day).lerp(new THREE.Color('#f6c99a'), dusk * 0.7);
-      skyMat.uniforms.top.value.copy(top);
-      skyMat.uniforms.bottom.value.copy(bottom);
-      return bottom;
+      lastDaylight = [day, dusk];
+      return applyDaylight(day, dusk);
     },
-    tick(dt) {
+    // minuteOfDay は小数（なめらかに走らせる）
+    tick(dt, minuteOfDay, night = 0) {
       for (const c of clouds.children) { c.position.x += dt * 3; if (c.position.x > 700) c.position.x = -700; }
+      if (minuteOfDay == null) return;
+      const list = trainsAt(minuteOfDay, st?.x ?? 30);
+      trains.forEach((g, i) => {
+        const t = list[i];
+        g.visible = !!t && Math.abs(t.x) < PORTAL_X - 4;
+        if (!t) return;
+        g.position.x = t.x;
+        g.position.z = RAIL_Z + (t.dir > 0 ? -0.0 : 0);
+        g.children.forEach((m) => { const mat = m.children?.[0]?.material; if (mat?.emissive) mat.emissiveIntensity = night * 0.9; });
+      });
     },
   };
 }
@@ -389,7 +482,8 @@ export function buildTown(scene, seed) {
 // ---- 施設 -----------------------------------------------------------------------
 function buildPlace(p, rnd, nightMats) {
   const g = new THREE.Group();
-  const front = p.z + p.d / 2 + 0.05; // 南（+z）側が正面
+  const face = p.face || 1; // 1 = 南（+z）が正面、-1 = 北が正面（駅は桜通りの側を向く）
+  const front = p.z + face * (p.d / 2 + 0.05);
   const wallColor = jitter(p.color, rnd, 0.04);
   const lit = (cols, rows, opts) => {
     const t = windowTextures(cols, rows, opts, rnd);
@@ -400,7 +494,7 @@ function buildPlace(p, rnd, nightMats) {
   const plain = toon(wallColor);
   const roofGray = toon('#8c939a');
   const facade = (w, h, d, x, y, z, mat) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [plain, plain, roofGray, plain, mat, plain]);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [plain, plain, roofGray, plain, mat, face < 0 ? mat : plain]);
     m.position.set(x, y, z); m.castShadow = m.receiveShadow = true;
     const o = new THREE.Mesh(m.geometry, INK); o.scale.set(1 + 0.12 / w, 1 + 0.12 / h, 1 + 0.12 / d); o.position.copy(m.position);
     g.add(m, o);
@@ -488,7 +582,7 @@ function buildPlace(p, rnd, nightMats) {
         station: { bg: '#ffffff', fg: PALETTE.sumi, border: PALETTE.sumi }, school: { bg: PALETTE.gofun, fg: PALETTE.sumi },
       }[p.kind] || { bg: PALETTE.gofun, fg: PALETTE.sumi, border: '#8a6a4a' };
       const sw = Math.min(p.w * 0.9, p.sign.length * 2.2 + 2);
-      g.add(signBoard(p.sign, p.x, Math.min(p.h - 1.2, 4.6), front + 0.07, sw, Math.min(2.2, sw / 3.5), signStyle));
+      g.add(signBoard(p.sign, p.x, Math.min(p.h - 1.2, 4.6), front + face * 0.07, sw, Math.min(2.2, sw / 3.5), signStyle, face < 0 ? Math.PI : 0));
       if (p.kind === 'shop' || p.kind === 'kissa' || p.kind === 'shokudo') {
         const awning = box(p.w, 0.15, 2.4, toon(['#d8503e', '#3a6aa0', '#e3a62b', '#4a8a5a'][Math.floor(rnd() * 4)]), p.x, 2.9, front + 1.1);
         awning.rotation.x = 0.35; g.add(awning);
@@ -512,16 +606,6 @@ function buildPlace(p, rnd, nightMats) {
           cg.rotation.y = Math.PI / 2; g.add(cg);
         }
       }
-      if (p.kind === 'station') {
-        g.add(box(170, 0.4, 3, toon('#9a8f80'), p.x, 0.2, p.z + 14, { outline: 0 }));
-        for (const dz of [13.3, 14.7]) g.add(box(170, 0.15, 0.15, toon('#c0c0c0'), p.x, 0.45, p.z + dz, { outline: 0 }));
-        g.add(box(44, 1, 5, toon('#e9e6dc'), p.x, 0.5, p.z + 9)); // ホーム
-        // 2 両の電車（クリームと朱の昭和の配色）
-        for (let i = 0; i < 2; i++) {
-          g.add(box(18, 3.4, 3, toon('#f2e6c8'), p.x - 10 + i * 19, 2.3, p.z + 14));
-          g.add(box(18.1, 1.1, 3.05, toon('#d8503e'), p.x - 10 + i * 19, 1.3, p.z + 14, { outline: 0 }));
-        }
-      }
       if (p.kind === 'mall') g.add(signBoard('屋上遊園地', p.x, p.h + 2, p.z, 14, 2.4, { bg: '#e3a62b', fg: '#ffffff' }));
     }
   }
@@ -529,8 +613,8 @@ function buildPlace(p, rnd, nightMats) {
 }
 
 // 執務フロアの机と部署札
-function buildOffice(world) {
-  const desks = buildDesks();
+function buildOffice(world, officePlace) {
+  const desks = buildDesks(officePlace);
   const items = desks.map((d) => ({ x: d.x, y: 0.5, z: d.z + 0.9, sx: 2.2, sy: 0.8, sz: 1.2 }));
   world.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#9a7a5a'), items, { outline: 0.08 }));
   const props = [];

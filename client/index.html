@@ -36,6 +36,7 @@
     <button data-cam="shotengai">商店街</button>
     <button data-cam="station">ナナシ駅</button>
     <button data-cam="avatar" id="camAvatar" hidden>自分のアバター</button>
+    <button type="button" id="adminBtn" title="建物を動かす・建てる・壊す">管理</button>
   </nav>
 
   <aside id="kencho" class="panel">
@@ -48,13 +49,19 @@
   <aside id="side" class="panel">
     <div class="tabs">
       <button data-tab="log" class="on">町のログ</button>
-      <button data-tab="sns">ナナシッター</button>
+      <button data-tab="sns">SNS</button>
       <button data-tab="news">県民新聞</button>
-      <button data-tab="jumin">住民課窓口</button>
+      <button data-tab="daicho">台帳</button>
+      <button data-tab="jumin">窓口</button>
     </div>
     <section data-pane="log" class="on"><ul id="log"></ul></section>
     <section data-pane="sns"><ul id="sns"></ul></section>
     <section data-pane="news"><article id="news" class="paper"><p class="muted">まだ発行されていません（毎朝、前日分が発行されます）</p></article></section>
+    <section data-pane="daicho">
+      <div id="daichoSummary" class="muted">読み込み中…</div>
+      <input id="daichoSearch" type="search" placeholder="名前・住所・勤め先でさがす" class="search">
+      <ul id="daicho"></ul>
+    </section>
     <section data-pane="jumin">
       <form id="formResident" class="form">
         <h3>転入届（CP の追加）</h3>
@@ -82,12 +89,30 @@
   </aside>
 
   <div id="card" class="panel" hidden></div>
+  <aside id="admin" class="panel" hidden aria-label="管理者">
+    <div class="adminHead"><h2>管理者：町づくり</h2><button type="button" id="adminClose" aria-label="管理者モードを閉じる">閉じる</button></div>
+    <div id="adminTokenRow" class="row" hidden><input id="adminToken" type="password" placeholder="合言葉"><button type="button" id="adminTokenSave">使う</button></div>
+    <div id="adminSel"></div>
+    <div class="row">
+      <button type="button" id="adminMove">移す</button>
+      <button type="button" id="adminRotate">向きを変える</button>
+      <button type="button" id="adminRemove">取り壊す</button>
+    </div>
+    <h3>建てる</h3>
+    <div id="adminCatalog" class="catalog"></div>
+    <p id="adminHint" class="muted"></p>
+    <div class="row">
+      <button type="button" id="adminConfirm" class="primary" hidden>ここに決める</button>
+      <button type="button" id="adminCancel" hidden>やめる</button>
+    </div>
+  </aside>
   <nav id="mtabs" aria-label="画面の切り替え">
     <button data-sheet="" class="on">町</button>
     <button data-sheet="kencho">県庁</button>
     <button data-sheet="log">ログ</button>
     <button data-sheet="sns">SNS</button>
     <button data-sheet="news">新聞</button>
+    <button data-sheet="daicho">台帳</button>
     <button data-sheet="jumin">窓口</button>
   </nav>
   <div id="loading">ナナシ県へ向かっています…</div>

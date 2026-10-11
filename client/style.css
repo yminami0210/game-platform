@@ -11,6 +11,7 @@
   --body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #8fc8d8; color: var(--ink); font-family: var(--body); }
 h2, h3, #bar .brand, .paper h1, .paper h2 { font-family: var(--head); }
 #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
@@ -110,3 +111,32 @@ body.mobile #log li { padding: 7px 0; }
 body.mobile #card { bottom: calc(60px + env(safe-area-inset-bottom)); left: 12px; right: 12px; transform: none; min-width: 0; }
 body.mobile #toast { top: calc(84px + env(safe-area-inset-top)); max-width: calc(100vw - 32px); }
 .form input[type="color"] { width: 72px; height: 40px; padding: 2px; }
+
+/* ---- 住民台帳 ---- */
+.search { width: 100%; font: inherit; padding: 6px 8px; margin: 8px 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+#daicho { list-style: none; margin: 0; padding: 0; }
+#daicho > li { padding: 8px 0; border-bottom: 1px dotted var(--line); }
+#daicho .addr { color: var(--muted); font-size: 12px; margin-left: 6px; }
+#daicho .m { display: block; padding: 2px 0 2px 12px; cursor: pointer; }
+#daicho .m:hover { color: var(--red); }
+#daicho .away { color: var(--muted); }
+#daichoSummary b { color: var(--ink); }
+
+/* ---- 管理者モード ---- */
+#adminBtn.on { background: var(--red); color: #fff; border-color: var(--red); }
+#admin { left: 12px; bottom: 16px; width: 300px; max-height: calc(100% - 90px); overflow: auto; padding: 10px 12px; font-size: 13px; z-index: 6; border: 2px solid var(--red); }
+body.admin #kencho { display: none; }
+#admin .adminHead { display: flex; align-items: center; justify-content: space-between; }
+#admin h2 { margin: 0; font-size: 15px; }
+#admin h3 { margin: 10px 0 4px; font-size: 13px; }
+#admin .row { display: flex; gap: 6px; margin: 6px 0; flex-wrap: wrap; }
+#admin .row input { flex: 1; min-width: 0; font: inherit; padding: 4px; border: 1px solid var(--line); border-radius: 4px; }
+#admin .catalog { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+#admin .catalog button { padding: 6px 2px; font-size: 12px; }
+#admin .catalog button.on { background: var(--red); color: #fff; }
+#admin button.primary { background: var(--red); color: #fff; border-color: var(--red); }
+#admin button:disabled { opacity: .45; cursor: default; }
+#adminSel { margin: 6px 0; min-height: 2.6em; }
+body.mobile #admin { left: 8px; right: 8px; width: auto; bottom: calc(52px + env(safe-area-inset-bottom)); max-height: 46vh; }
+body.mobile[data-sheet="daicho"] #side { display: flex; }
+body.mobile #mtabs button { font-size: 13px; }

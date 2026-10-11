@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { buildTown, label, toon } from './town.js';
-import { PLACES } from './shared/world.js';
+import { setupAdmin } from './admin.js';
 import { createBackend } from './backend.js';
 
 const $ = (s) => document.querySelector(s);
@@ -42,7 +42,8 @@ Object.assign(sun.shadow.camera, { left: -160, right: 160, top: 160, bottom: -16
 scene.add(hemi, sun, sun.target);
 const sunDir = new THREE.Vector3(200, 300, 120);
 
-const town = buildTown(scene, init.seed);
+let layout = init.layout;
+const town = buildTown(scene, init.seed, layout);
 
 // ---- カメラ ----
 const CAMS = {
@@ -52,7 +53,7 @@ const CAMS = {
   allTall: [[30, 175, 410], [10, 0, 40]],
   koho: [[0, 14, 0], [0, 0, 0]],
   shotengai: [[-4, 16, 136], [0, 3, 108]],
-  station: [[70, 30, 250], [30, 0, 200]],
+  station: [[70, 34, 90], [30, 0, 18]], // 町の真ん中の駅
 };
 let follow = null;
 function setCam(name) {
@@ -69,6 +70,7 @@ function setCam(name) {
 }
 setCam(MOBILE ? 'allTall' : 'all');
 $('#cams').addEventListener('click', (e) => e.target.dataset.cam && setCam(e.target.dataset.cam));
+const admin = setupAdmin({ scene, camera, canvas, town, be, getLayout: () => layout, toast });
 
 // ---- CP（インスタンス描画） ----
 const MAX = 1200;
@@ -107,12 +109,14 @@ function addRoster(list) {
   }
   bodyMesh.count = headMesh.count = hairMesh.count = order.length;
   bodyMesh.instanceColor.needsUpdate = headMesh.instanceColor.needsUpdate = hairMesh.instanceColor.needsUpdate = true;
-  $('#pop').textContent = `人口 ${order.length}人`;
 }
 addRoster(init.roster);
 
 function applyFrame(f) {
   const p = f.p;
+  const seen = new Set();
+  for (let i = 0; i < p.length; i += 4) seen.add(p[i]);
+  for (const c of cps.values()) if (!seen.has(c.info.id)) { c.state = 6; c.fresh = true; } // 県外にいる人は描かない
   for (let i = 0; i < p.length; i += 4) {
     const c = cps.get(p[i]);
     if (!c) continue;
@@ -129,7 +133,7 @@ function updateCps(dt) {
   for (const c of cps.values()) {
     c.x += (c.tx - c.x) * k; c.z += (c.tz - c.z) * k;
     const moving = Math.abs(c.tx - c.x) + Math.abs(c.tz - c.z) > 0.05;
-    const hidden = c.state === 4; // 就寝中は家の中
+    const hidden = c.state === 4 || c.state === 6 || c.gone; // 就寝中は家の中、6 は県外
     const seated = c.state === 2 || c.state === 3;
     const bob = moving ? Math.abs(Math.sin(time * 9 + c.idx)) * 0.12 : 0;
     const s = hidden ? 0 : c.info.role === 'student' ? 0.75 : c.info.role === 'human' ? 1.15 : 1;
@@ -203,9 +207,12 @@ function md(src) {
 }
 if (init.news) $('#news').innerHTML = md(init.news.markdown);
 
+let activeTab = 'log';
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button, #side section').forEach((x) => x.classList.remove('on'));
   b.classList.add('on');
+  activeTab = b.dataset.tab;
+  if (activeTab === 'daicho') renderDaicho();
   $(`#side section[data-pane="${b.dataset.tab}"]`).classList.add('on');
 }));
 
@@ -219,9 +226,12 @@ function toast(msg) {
 async function showCp(id, fly = false) {
   const d = await be.cp(id);
   if (!d) return;
-  const roleName = { staff: `${d.deptName} ${d.title || ''}`, worker: `${d.workName || ''} 勤務`, student: '児童', resident: '住民', human: '人間アバター' }[d.role];
   $('#card').hidden = false;
-  $('#card').innerHTML = `<b>${esc(d.name)}</b>（${d.age}歳）<span class="muted"> ${esc(roleName)}</span><br>いま: ${esc(d.place)} ／ ${esc(d.activity)}${d.skills?.length ? `<br><span class="muted">スキル: ${esc(d.skills.join(', '))}</span>` : ''}`;
+  $('#card').innerHTML = `<b>${esc(d.name)}</b>（${d.age}歳）<span class="muted"> ${esc(d.roleLabel)}</span>`
+    + `<br>${d.household ? `${esc(d.household)}・` : ''}${esc(d.address)}`
+    + (d.workLabel ? `<br>勤め先・学校: ${esc(d.workLabel)}` : '')
+    + `<br><span class="muted">きょうの予定: ${esc(d.today)}</span>`
+    + `<br>いま: ${esc(d.place)} ／ ${esc(d.activity)}${d.skills?.length ? `<br><span class="muted">スキル: ${esc(d.skills.join(', '))}</span>` : ''}`;
   const c = cps.get(id);
   if (fly && c) { controls.target.set(c.x, 0, c.z); camera.position.set(c.x + 12, 14, c.z + 16); controls.update(); }
 }
@@ -252,7 +262,8 @@ function takePhoto(req) {
 }
 
 // ---- 住民課窓口 ----
-$('#workSel').innerHTML = PLACES.filter((p) => !['kencho', 'office', 'park', 'tanbo'].includes(p.kind)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+const renderWorkSel = () => ($('#workSel').innerHTML = layout.places.filter((p) => !['kencho', 'office', 'park', 'tanbo'].includes(p.kind)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join(''));
+renderWorkSel();
 $('#formResident').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = Object.fromEntries(new FormData(e.target));
@@ -287,6 +298,7 @@ const ndc = new THREE.Vector2();
 let downAt = null;
 canvas.addEventListener('pointerdown', (e) => (downAt = [e.clientX, e.clientY]));
 canvas.addEventListener('pointerup', (e) => {
+  if (admin.active) return;
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > (e.pointerType === 'touch' ? 12 : 5)) return; // ドラッグは無視（指は少し甘く）
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
@@ -299,11 +311,38 @@ canvas.addEventListener('pointerup', (e) => {
   if (hit) showCp(order[hit.instanceId]); else $('#card').hidden = true;
 });
 
+// ---- 住民台帳（世帯・住まい・勤め先で一人ずつ） ----
+let daicho = null;
+async function renderDaicho() {
+  daicho = await be.registry();
+  const s = daicho.summary;
+  $('#daichoSummary').innerHTML = `住民 <b>${s.residents}</b>人・<b>${s.households}</b>世帯（空き部屋 ${s.vacancies}）<br>`
+    + `働く人 ${s.workers}人のうち県外へ通う人 <b>${s.commuters}</b>人／県外から通ってくる人 ${s.incommuters}人／来訪者 ${s.visitors}人<br>`
+    + `いま県外にいる住民 <b>${s.awayNow}</b>人（${Math.round((100 * s.awayNow) / Math.max(1, s.residents))}%）`;
+  drawDaicho();
+}
+function drawDaicho() {
+  if (!daicho) return;
+  const q = $('#daichoSearch').value.trim();
+  const list = daicho.households.filter((hh) => !q || hh.address.includes(q) || hh.surname.includes(q) || hh.members.some((m) => m.name.includes(q) || m.work.includes(q)));
+  $('#daicho').innerHTML = list.slice(0, 200).map((hh) => `<li><b>${esc(hh.surname)}家</b><span class="addr">${esc(hh.address)}${hh.houseType ? `・${esc(hh.houseType)}` : ''}</span>`
+    + hh.members.map((m) => `<span class="m${m.away ? ' away' : ''}" data-id="${m.id}">${esc(m.name)}（${m.age}）${esc(m.role)}${m.work ? `・${esc(m.work)}` : ''}${m.away ? ' — 県外' : ''}</span>`).join('') + '</li>').join('')
+    || '<li class="muted">見つかりません</li>';
+}
+$('#daichoSearch').addEventListener('input', drawDaicho);
+$('#daicho').addEventListener('click', (e) => { const id = Number(e.target.closest('.m')?.dataset.id); if (id) showCp(id, true); });
+setInterval(() => activeTab === 'daicho' && renderDaicho(), 20000);
+
 // ---- サーバーとの接続 ----
 let lastClock = init.clock;
+// 電車をなめらかに走らせるための「いまのゲーム内の分」（時計の更新のあいだを補う）
+let clockSample = { at: performance.now(), m: init.clock.minutes, rate: 1 };
+let nightLevel = 0;
+const gameMinuteNow = () => clockSample.m + Math.min(2, ((performance.now() - clockSample.at) / 1000) * clockSample.rate);
 // 見本づくり用: ?hour=21 で空と灯りだけその時刻にする
 const PREVIEW_HOUR = new URLSearchParams(location.search).has('hour') ? Number(new URLSearchParams(location.search).get('hour')) : null;
 function renderClock(c) {
+  clockSample = { at: performance.now(), m: c.minutes, rate: lastClock && c.minutes > lastClock.minutes ? (c.minutes - lastClock.minutes) / Math.max(0.05, (performance.now() - (clockSample?.at || performance.now())) / 1000) : clockSample?.rate || 1 };
   lastClock = c;
   $('#clock').textContent = `${c.date} ${c.time}`;
   if (c.llm) $('#llm').textContent = `LLM: ${c.llm.mode}｜本日 ${c.llm.tokens}/${c.llm.budget} tok（${c.llm.calls}回）`;
@@ -311,6 +350,8 @@ function renderClock(c) {
   const h = PREVIEW_HOUR ?? (c.minutes % 1440) / 60;
   // 昼はしっかり明るく、夜も真っ暗にしない（群青の夜に窓と街灯が灯る）
   const day = Math.min(1, Math.max(0, Math.sin(((h - 5.5) / 13) * Math.PI) * 1.6));
+  nightLevel = 1 - day;
+  $('#pop').textContent = `住民 ${c.population}人（いま町に ${c.inTown}人）`;
   const dusk = Math.max(0, 1 - Math.abs(h - 17.6) / 1.4);
   scene.fog.color.copy(town.setDaylight(day, dusk));
   sun.intensity = 0.25 + day * 1.7; hemi.intensity = 0.95 + day * 0.2; // 夜も人の色が分かる明るさを残す
@@ -329,6 +370,8 @@ be.on('log', (e) => addLog(e));
 be.on('sns', (e) => { const p = e; addSns(p); toast(`ナナシッター: ${p.author} が投稿しました`); });
 be.on('news', (e) => { $('#news').innerHTML = md(e.markdown); toast('ナナシ県民新聞が発行されました'); });
 be.on('roster', (e) => addRoster(e));
+be.on('roster_remove', (e) => { const c = cps.get(e.id); if (c) { c.gone = true; if (c.badge) c.badge.visible = false; } });
+be.on('layout', (l) => { layout = l; town.rebuild(l); renderWorkSel(); admin.layoutChanged(); if (activeTab === 'daicho') renderDaicho(); });
 be.on('photo_request', (e) => takePhoto(e));
 be.on('photo', (e) => {
   const { photoId, url } = e;
@@ -357,7 +400,7 @@ renderer.setAnimationLoop(() => {
   const now = performance.now();
   const dt = (now - t0) / 1000; t0 = now;
   updateCps(dt);
-  town.tick(dt);
+  town.tick(dt, gameMinuteNow() % 1440, nightLevel);
   if (follow) { controls.target.set(follow.x, 0, follow.z); camera.position.set(follow.x + 10, 12, follow.z + 14); }
   controls.update();
   sun.target.position.copy(controls.target);
@@ -379,11 +422,17 @@ openSheet('');
 
 if (be.mode === 'local') {
   $('#localBox').hidden = false;
-  $('#resetLocal').addEventListener('click', () => confirm('この端末の町を消して、はじめからにしますか？') && be.reset());
+  let armed = false;
+  $('#resetLocal').addEventListener('click', () => {
+    if (armed) return be.reset();
+    armed = true;
+    $('#resetLocal').textContent = 'もう一度押すと、はじめからになります';
+    setTimeout(() => { armed = false; $('#resetLocal').textContent = '町をはじめからにする'; }, 4000);
+  });
 }
 $('#loading').remove();
 
 // ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
-if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator && isSecureContext && !window.NANASHI_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
 window.__nanashi = { cps, scene, setCam, openSheet, mode: be.mode }; // デバッグ用

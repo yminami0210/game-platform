@@ -21,11 +21,81 @@ function run(sim, gameMinutes, step = 0.25, speed = 4) {
   for (let t = 0; t < gameMinutes / speed; t += step) sim.tick(step, speed);
 }
 
-test('人口が設定どおりに生成され、県庁の各部署に職員がいる', () => {
+test('住民は世帯・住まい・勤め先と結びついている（住民台帳）', () => {
   const { cfg, chronicle } = setup();
   const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
-  assert.equal(sim.cps.length, 300);
-  assert.ok(sim.cps.filter((c) => c.dept === 'koho').every((c) => c.skills.includes('sns_post')));
+  const residents = sim.cps.filter((c) => c.resident);
+  assert.ok(residents.length >= 300 && residents.length < 310);
+  for (const c of residents) {
+    const hh = sim.households.get(c.hh);
+    assert.ok(hh && hh.members.includes(c.id), `${c.name} は世帯に属している`);
+    assert.equal(c.surname, hh.surname, '家族は同じ名字');
+    assert.equal(c.home, hh.house, '世帯の家に住む');
+    assert.ok(sim.houseById[c.home], '住まいが実在する');
+  }
+  // 部屋の数より多くは住まない
+  const perHouse = {};
+  for (const hh of sim.households.values()) perHouse[hh.house] = (perHouse[hh.house] || 0) + 1;
+  for (const [id, n] of Object.entries(perHouse)) assert.ok(n <= sim.houseById[id].units);
+  // 働く人には勤め先がある。県庁の机は全部うまっている
+  for (const c of sim.cps.filter((x) => x.role === 'worker')) assert.ok(c.work === 'home' || sim.placeById[c.work]);
+  assert.equal(sim.cps.filter((c) => c.role === 'staff').length, sim.desks.length);
+  assert.ok(sim.cps.filter((c) => c.dept === 'koho').length > 0);
+});
+
+test('ベッドタウン: 平日の昼は住民の半数以上が電車で県外にいて、夜には帰ってくる', () => {
+  const { cfg, chronicle, events } = setup();
+  const sim = new Simulation({ seed: 7, population: 420, commuteShare: 0.85, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
+  // 2日目（火）の 12:00 まで進める
+  while (sim.minutes < 1440 + 12 * 60) sim.tick(0.25, 2);
+  const noon = sim.clock();
+  assert.ok(noon.away / noon.population > 0.5, `昼に県外: ${noon.away}/${noon.population}`);
+  while (sim.minutes < 1440 + 22 * 60) sim.tick(0.25, 2);
+  const night = sim.clock();
+  assert.ok(night.away / night.population < 0.05, `夜に県外: ${night.away}`);
+  assert.ok(events.some(([t, e]) => t === 'log' && e.kind === 'train'), '電車の乗り降りが記録される');
+  assert.ok(sim.cps.some((c) => c.incoming), '県外から通ってくる人もいる');
+});
+
+test('管理者: 建てる・移す・取り壊す。道路や線路の上には置けない', () => {
+  const { cfg, chronicle, events } = setup();
+  const sim = new Simulation({ seed: 7, population: 120, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
+  assert.match(sim.adminAdd({ item: 'conbini', x: 0, z: 90 }).error, /道路/);
+  assert.match(sim.adminAdd({ item: 'house_niko', x: 90, z: 27 }).error, /線路/);
+  assert.match(sim.adminMove({ id: 'station', x: 100, z: 100 }).error, /動かせません/);
+  // 空いている所を探して建てる
+  let added = null;
+  for (let x = -230; x < 230 && !added; x += 4) for (let z = -230; z < 230 && !added; z += 4) {
+    const r = sim.adminAdd({ item: 'clinic', x, z });
+    if (r.ok) added = r.id;
+  }
+  assert.ok(added, '診療所が建った');
+  assert.ok(events.some(([t]) => t === 'layout'));
+  const clinic = sim.placeById[added];
+  assert.ok(sim.cps.some((c) => c.work === added), '新しい働き口が埋まる');
+  assert.ok(sim.adminMove({ id: added, x: clinic.x, z: clinic.z, rot: 0 }).ok);
+  // 人が住む家を取り壊すと、世帯は空き家へ引っ越すか町を出る
+  const hh = [...sim.households.values()][0];
+  const before = hh.house;
+  assert.ok(sim.adminRemove({ id: before }).ok);
+  assert.ok(!sim.houseById[before]);
+  const moved = sim.households.get(hh.id);
+  assert.ok(!moved || moved.house !== before);
+  assert.ok(sim.adminRemove({ id: added }).ok);
+  assert.ok(!sim.cps.some((c) => c.work === added));
+});
+
+test('保存して復元すると、住民台帳とレイアウトが同じになる', () => {
+  const { cfg, chronicle } = setup();
+  const sim = new Simulation({ seed: 7, population: 150, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
+  run(sim, 600, 0.25, 2);
+  const data = JSON.parse(JSON.stringify(sim.serialize()));
+  const again = new Simulation({ seed: 7, population: 150, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), saved: data });
+  assert.equal(again.cps.length, sim.cps.length);
+  assert.equal(again.households.size, sim.households.size);
+  assert.equal(again.layout.houses.length, sim.layout.houses.length);
+  const c = sim.cps.find((x) => x.resident);
+  assert.equal(again.cpById(c.id).home, c.home);
 });
 
 test('1日回すと SNS 投稿・新聞・スナップショットが LLM なし（トークン0）でできる', async () => {
@@ -60,18 +130,22 @@ test('作業中の CP はタスク状態になり、Claude Code からの完了�
   assert.match(post[1].text, /Claude Code/);
 });
 
-test('住民課の手続きで CP とアバターが増える。アバターは token でのみ動かせる', () => {
+test('住民課の手続きで世帯とアバターが増える。アバターは token でのみ動かせる', () => {
   const { cfg, chronicle, events, dir } = setup();
   const sim = new Simulation({ seed: 5, population: 100, chronicle, executor: new Executor(cfg, { dataDir: dir }) });
+  const before = sim.residentCount();
   sim.requestTask('resident_register', { name: '試験 花子' });
   sim.requestTask('resident_register', { human: true, name: 'みなみ', color: '#ff0000', token: 'abc' });
-  run(sim, 500, 0.25, 1);
-  assert.equal(sim.cps.length, 102);
+  for (let i = 0; i < 4000 && sim.tasks.some((t) => t.type === 'resident_register' && t.status !== 'done'); i++) sim.tick(0.25, 1);
+  assert.equal(sim.residentCount(), before + 2);
   const human = sim.cps.find((c) => c.role === 'human');
   assert.equal(human.name, 'みなみ');
+  assert.ok(sim.houseById[human.home], 'アバターにも住まいがある');
   assert.equal(sim.moveHuman(human.id, 'wrong', 0, 0), false);
   assert.equal(sim.moveHuman(human.id, 'abc', 10, 10), true);
   assert.ok(events.some(([t, p]) => t === 'registered' && p.human));
+  const hana = sim.cps.find((c) => c.name === '試験 花子');
+  assert.equal(sim.households.get(hana.hh).surname, '試験');
 });
 
 test('omniroute モード: 上限回数を超えたらテンプレートに落ち、キャッシュで再課金しない', async () => {

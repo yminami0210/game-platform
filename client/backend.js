@@ -12,7 +12,7 @@ const ls = {
 export async function createBackend() {
   const q = new URLSearchParams(location.search);
   // GitHub Pages など静的な置き場では、サーバーを探さずにこの端末で動かす
-  const staticHost = /\.github\.io$/.test(location.hostname);
+  const staticHost = /\.github\.io$/.test(location.hostname) || !!window.NANASHI_STANDALONE; // Pages・Artifact
   if (q.get('mode') !== 'local' && !staticHost) {
     try {
       const r = await fetch('./api/init', { cache: 'no-store' });
@@ -35,6 +35,10 @@ function serverBackend(init) {
     goto: (id, b) => post(`./api/avatars/${id}/goto`, b),
     photo: (id, dataUrl) => post(`./api/photos/${id}`, dataUrl).catch(() => {}),
     photoUrl: (id) => `data/photos/${id}.jpg`,
+    registry: async () => (await fetch('./api/registry')).json(),
+    // 管理者: この PC からは合言葉なしで使える。別の端末では合言葉を付ける
+    admin: async (op, b, token = '') => (await fetch(`./api/admin/${op}`, { method: 'POST', headers: token ? { 'x-admin-token': token } : {}, body: JSON.stringify(b) })).json(),
+    adminCheck: async (token = '') => (await fetch('./api/admin/check', { headers: token ? { 'x-admin-token': token } : {} })).ok,
   };
 }
 
@@ -69,7 +73,7 @@ async function localBackend(q) {
   };
   const small = matchMedia('(max-width: 760px)').matches;
   const seed = 7;
-  const sim = new Simulation({ seed, population: Number(q.get('pop')) || (small ? 200 : 300), chronicle, executor, saved: ls.get(KEY.state) });
+  const sim = new Simulation({ seed, population: Number(q.get('pop')) || (small ? 300 : 420), chronicle, executor, saved: ls.get(KEY.state) });
   const api = createApi({ sim, chronicle, executor, seed });
   const speed = Number(q.get('speed')) || 1;
 
@@ -101,6 +105,10 @@ async function localBackend(q) {
     goto: later((id, b) => api.goto(id, b)),
     photo: later((id, dataUrl) => api.photo(id, dataUrl)),
     photoUrl: (id) => chronicle.photoUrl(id),
+    registry: later(() => api.registry()),
+    // この端末の町は持ち主が管理者
+    admin: later((op, b) => { const r = api.admin(op, b); if (r.ok) save(); return r; }),
+    adminCheck: async () => true,
     reset() {
       resetting = true;
       Object.values(KEY).forEach(ls.del);

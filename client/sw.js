@@ -1,6 +1,6 @@
 // オフライン用のサービスワーカー。画面とライブラリはキャッシュし、サーバーの API・SSE は素通しにする。
-const CACHE = 'nanashi-v1';
-const SHELL = ['./', './index.html', './style.css', './main.js', './town.js', './backend.js', './manifest.webmanifest',
+const CACHE = 'nanashi-v2';
+const SHELL = ['./', './index.html', './style.css', './main.js', './town.js', './backend.js', './admin.js', './manifest.webmanifest',
   './shared/world.js', './shared/lore.js', './shared/sim.js', './shared/templates.js', './shared/chronicle-core.js', './shared/api.js',
   './vendor/three/build/three.module.js', './vendor/three/examples/jsm/controls/OrbitControls.js', './icons/icon-192.png'];
 

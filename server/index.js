@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { loadConfig, ROOT, DATA } from './config.js';
 import { Chronicle } from './chronicle.js';
 import { Executor } from './executor.js';
@@ -14,7 +15,7 @@ const chronicle = new Chronicle();
 const executor = new Executor(cfg);
 const STATE_FILE = path.join(DATA, 'state.json');
 const saved = fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : null;
-const sim = new Simulation({ seed: cfg.seed, population: cfg.population, chronicle, executor, saved });
+const sim = new Simulation({ seed: cfg.seed, population: cfg.population, commuteShare: cfg.commuteShare, chronicle, executor, saved });
 
 // ---- SSE ----
 const clients = new Set();
@@ -90,8 +91,17 @@ const routes = {
   'POST /api/residents': (b) => api.residents(b),
   'POST /api/avatars': (b) => api.avatars(b),
   'POST /api/tasks': (b) => api.createTask(b),
+  'GET /api/registry': () => api.registry(),
 };
 
+// 管理者: この PC から（localhost）の操作は許可。ほかの端末からは .env の NANASHI_ADMIN_TOKEN が要る
+const ADMIN_TOKEN = process.env.NANASHI_ADMIN_TOKEN || '';
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const isAdmin = (req) => {
+  if (LOOPBACK.has(req.socket.remoteAddress)) return true;
+  const given = String(req.headers['x-admin-token'] || '');
+  return !!ADMIN_TOKEN && given.length === ADMIN_TOKEN.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(ADMIN_TOKEN));
+};
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
@@ -123,6 +133,13 @@ const server = http.createServer(async (req, res) => {
       const r = api.goto(m[1], await json1());
       return json(res, r.ok ? 200 : 403, r);
     }
+    if (req.method === 'POST' && (m = p.match(/^\/api\/admin\/(add|move|remove)$/))) {
+      if (!isAdmin(req)) return json(res, 403, { error: '管理者の合言葉が違います' });
+      const r = api.admin(m[1], await json1());
+      if (r.ok) save();
+      return json(res, r.ok ? 200 : 400, r);
+    }
+    if (req.method === 'GET' && p === '/api/admin/check') return json(res, isAdmin(req) ? 200 : 403, { ok: isAdmin(req) });
     if (req.method === 'POST' && (m = p.match(/^\/api\/photos\/([\w-]+)$/))) {
       const r = api.photo(m[1], await readBody(req, 3 * 1024 * 1024));
       return json(res, r.ok ? 200 : 409, r);
@@ -151,7 +168,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(cfg.port, () => {
-  console.log(`ナナシ県 開庁: http://localhost:${cfg.port}  (LLM モード: ${cfg.llm.mode}, 人口 ${sim.cps.length})`);
+  console.log(`ナナシ県 開庁: http://localhost:${cfg.port}  (LLM モード: ${cfg.llm.mode}, 住民 ${sim.residentCount()}人)`);
+  console.log(`  管理者モード: この PC からは使えます${ADMIN_TOKEN ? '（ほかの端末は .env の合言葉で）' : '（ほかの端末から使うには .env に NANASHI_ADMIN_TOKEN を設定）'}`);
   // 同じ Wi-Fi のスマホから開くための URL
   for (const list of Object.values(os.networkInterfaces())) {
     for (const a of list || []) if (a.family === 'IPv4' && !a.internal) console.log(`  スマホから: http://${a.address}:${cfg.port}`);
