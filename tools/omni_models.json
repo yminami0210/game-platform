@@ -1,0 +1,5 @@
+{
+  "writer": "gemini/gemini-3.8-flash",
+  "critic": "gemini/gemini-3.7-flash",
+  "clerk": "gemini/gemini-3.6-flash"
+}
