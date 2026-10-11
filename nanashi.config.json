@@ -6,13 +6,13 @@
   "llm": {
     "mode": "template",
     "omniroute": {
-      "baseUrl": "http://localhost:20128/v1",
-      "model": "auto",
+      "baseUrl": "http://127.0.0.1:20128/v1",
+      "model": "role:writer",
       "maxTokens": 220,
       "temperature": 0.8
     },
     "claudeCode": {
-      "baseUrl": "http://localhost:20128",
+      "baseUrl": "http://127.0.0.1:20128",
       "model": "haiku",
       "tasks": ["newspaper"]
     },

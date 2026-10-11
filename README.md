@@ -60,20 +60,23 @@ npm start          # http://localhost:8787
 
 ### OmniRoute を使う場合
 
+会社共通の「OmniRoute 運用設定」（Artifact。考える＝Claude、書く＝OmniRoute、最終チェック＝Claude）に従う。
+
 ```bash
-npx omniroute                    # ダッシュボード http://localhost:20128 でプロバイダ（無料枠など）を接続し、API キーを発行
-cp .env.example .env             # OMNIROUTE_API_KEY を記入（.env はコミットしない）
+omniroute serve --daemon --no-open   # 127.0.0.1:20128 で待ち受け（~/.omniroute/.env の OMNIROUTE_SERVER_HOST=127.0.0.1）。キー不要
 NANASHI_LLM_MODE=omniroute npm start
 ```
 
-モデルは `nanashi.config.json` の `llm.omniroute.model` で指定する（例: OmniRoute のコンボ名）。
-Claude Code 自体を OmniRoute 経由で使うには `scripts/claude-omniroute.sh` を使う。
+- モデルは `nanashi.config.json` の `llm.omniroute.model`。既定の `role:writer` は、会社共通の役割表 `tools/omni_models.json` の writer を使う
+- OmniRoute にキーを付けている場合だけ、`.env` に `OMNIROUTE_API_KEY` を書く（`.env` はコミットしない）
+- ルーティン業務（広報課の投稿など）を Claude Code から回すときは `python3 tools/omni_task.py <役割> <依頼> <出力>`（`/nanashi-koho` の手順）
+- `scripts/claude-omniroute.sh` は Claude Code 自体を OmniRoute 経由で動かす予備の方法
 
 ## Claude Code スキル（CP にスキルを持たせる）
 
 | スキル | 役割 |
 |---|---|
-| `/nanashi-koho` | 広報課として SNS 投稿・県民新聞を書く。実行中は 3D の広報課 CP が「作業中（Claude Code）」になる |
+| `/nanashi-koho` | 広報課として SNS 投稿・県民新聞を作る。Claude が依頼文と最終チェック、OmniRoute（writer）が本文を書く。実行中は 3D の広報課 CP が「作業中（Claude Code）」になる |
 | `/nanashi-jumin` | 住民課として CP を追加する・人間アバターを登録する（LLM 不使用） |
 
 ## API（抜粋）

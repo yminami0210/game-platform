@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { DATA } from './config.js';
+import { DATA, ROOT } from './config.js';
 import { NEWSPAPER_NAME } from './lore.js';
 import { templates } from './templates.js';
 
@@ -20,6 +20,17 @@ const PROMPTS = {
   newspaper: ({ day, dateLabel, digest, stats }) =>
     `架空の地方紙「${NEWSPAPER_NAME}」第${day}号（${dateLabel}）をMarkdownで書いて。見出し1つ+本文200字+箇条書き短信。実在の人物・企業名は出さない。素材(JSON): ${JSON.stringify({ digest, stats })}`,
 };
+
+// "role:writer" のような指定は、会社共通の役割表 tools/omni_models.json から実際のモデル名に置き換える
+export function resolveModel(model, file = path.join(ROOT, 'tools', 'omni_models.json')) {
+  const m = /^role:(\w+)$/.exec(model || '');
+  if (!m) return model;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))[m[1]] || model;
+  } catch {
+    return model;
+  }
+}
 
 // ---- 予算台帳 ---------------------------------------------------------------
 export class Ledger {
@@ -103,13 +114,14 @@ export class Executor {
 
   async #omniroute(prompt, task) {
     const o = this.cfg.omniroute;
+    // 127.0.0.1 だけで待ち受ける OmniRoute はキー不要（運用設定どおり）。キーを設定したときだけ送る
     const key = process.env.OMNIROUTE_API_KEY;
-    if (!key) throw new Error('OMNIROUTE_API_KEY 未設定');
+    const headers = { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) };
     const res = await this.fetch(`${o.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      headers,
       body: JSON.stringify({
-        model: o.model,
+        model: resolveModel(o.model),
         max_tokens: task === 'newspaper' ? o.maxTokens * 3 : o.maxTokens,
         temperature: o.temperature,
         messages: [{ role: 'user', content: prompt }],

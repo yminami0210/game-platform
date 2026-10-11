@@ -76,12 +76,15 @@ test('住民課の手続きで CP とアバターが増える。アバターは 
 
 test('omniroute モード: 上限回数を超えたらテンプレートに落ち、キャッシュで再課金しない', async () => {
   const { cfg, dir } = setup({ mode: 'omniroute', maxCallsPerGameDay: { sns_post: 1 } });
-  process.env.OMNIROUTE_API_KEY = 'test-key';
+  delete process.env.OMNIROUTE_API_KEY; // 運用設定: 127.0.0.1 の OmniRoute はキーなしで呼ぶ
+  const roles = JSON.parse(fs.readFileSync(new URL('../tools/omni_models.json', import.meta.url), 'utf8'));
   let calls = 0;
   const fetchImpl = async (url, opts) => {
     calls++;
-    assert.match(url, /\/chat\/completions$/);
+    assert.equal(url, 'http://127.0.0.1:20128/v1/chat/completions');
+    assert.equal(opts.headers.authorization, undefined);
     const body = JSON.parse(opts.body);
+    assert.equal(body.model, roles.writer, 'role:writer は omni_models.json の writer に置き換わる');
     assert.ok(body.max_tokens <= 220);
     return { ok: true, json: async () => ({ choices: [{ message: { content: 'LLM の投稿' } }], usage: { total_tokens: 90 } }) };
   };
@@ -93,7 +96,6 @@ test('omniroute モード: 上限回数を超えたらテンプレートに落�
   assert.equal(b.via, 'template', '1日1回の上限');
   assert.equal(calls, 1);
   assert.equal(ex.status().tokens, 90);
-  delete process.env.OMNIROUTE_API_KEY;
 });
 
 test('omniroute モード: 失敗時はテンプレートに落ちる', async () => {
