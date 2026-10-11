@@ -1,0 +1,110 @@
+{
+  "run": "2026-10-01-first-run",
+  "created": "2026-10-01 02:28",
+  "stages": {
+    "research": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "テーマ: Claude のスキル入門"
+    },
+    "writing": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "初稿完成（図2点の指示つき）"
+    },
+    "assets": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "図解2点＋見出し画像"
+    },
+    "quality": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "完成稿 final.md（修正10箇所）"
+    },
+    "marketing": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "X告知3パターン・タグ7個"
+    },
+    "audit": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "品質スコア88点"
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 02:28",
+      "stage": "research",
+      "state": "working",
+      "note": "記事テーマを調査中"
+    },
+    {
+      "at": "2026-10-01 02:32",
+      "stage": "research",
+      "state": "pass",
+      "note": "テーマ: Claude のスキル入門"
+    },
+    {
+      "at": "2026-10-01 02:32",
+      "stage": "writing",
+      "state": "working",
+      "note": "構成と初稿を作成中"
+    },
+    {
+      "at": "2026-10-01 02:34",
+      "stage": "writing",
+      "state": "pass",
+      "note": "初稿完成（図2点の指示つき）"
+    },
+    {
+      "at": "2026-10-01 02:34",
+      "stage": "assets",
+      "state": "working",
+      "note": "図解と見出し画像を作成中"
+    },
+    {
+      "at": "2026-10-01 02:37",
+      "stage": "assets",
+      "state": "pass",
+      "note": "図解2点＋見出し画像"
+    },
+    {
+      "at": "2026-10-01 02:37",
+      "stage": "quality",
+      "state": "working",
+      "note": "誤字・事実・表記をチェック中"
+    },
+    {
+      "at": "2026-10-01 02:39",
+      "stage": "quality",
+      "state": "pass",
+      "note": "完成稿 final.md（修正10箇所）"
+    },
+    {
+      "at": "2026-10-01 02:39",
+      "stage": "marketing",
+      "state": "working",
+      "note": "X告知文を3パターン作成中"
+    },
+    {
+      "at": "2026-10-01 02:41",
+      "stage": "marketing",
+      "state": "pass",
+      "note": "X告知3パターン・タグ7個"
+    },
+    {
+      "at": "2026-10-01 02:41",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括と学びの記録中"
+    },
+    {
+      "at": "2026-10-01 02:42",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア88点"
+    }
+  ]
+}

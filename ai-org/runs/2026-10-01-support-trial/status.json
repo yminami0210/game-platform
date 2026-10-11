@@ -1,0 +1,60 @@
+{
+  "run": "2026-10-01-support-trial",
+  "department": "support",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "triage": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "請求・返金/緊急度高/要エスカレーション"
+    },
+    "reply": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "返金を約束しない回答案・FAQ改善3件"
+    },
+    "audit": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "品質スコア92点"
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "triage",
+      "state": "working",
+      "note": "問い合わせを振り分け中"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "triage",
+      "state": "pass",
+      "note": "請求・返金/緊急度高/要エスカレーション"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "reply",
+      "state": "working",
+      "note": "回答案を作成中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "reply",
+      "state": "pass",
+      "note": "返金を約束しない回答案・FAQ改善3件"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
+    },
+    {
+      "at": "2026-10-01 03:18",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア92点"
+    }
+  ]
+}

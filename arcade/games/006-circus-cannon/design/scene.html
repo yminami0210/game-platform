@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>とんでけ大砲 代表場面</title>
+<link href="https://fonts.googleapis.com/css2?family=Rampart+One&family=Kiwi+Maru:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#c4b184}
+  svg{display:block}
+</style></head>
+<body>
+<svg id="s" width="420" height="780" viewBox="0 0 420 780"></svg>
+<script src="print.js"></script>
+<script>
+const W = 420, H = 780;
+const s = document.getElementById("s");
+const MARU = "'Kiwi Maru', 'Hiragino Maru Gothic ProN', sans-serif";
+defs(s);
+const POLE = 300;
+// リング（斜め上から見た楕円）。奥の縁＝客席との境、手前の縁＝深緑の縁板
+const RX = 210, RY = 552, RA = 262, RB = 140;
+const ringY = (x, side) => RY + side * RB * Math.sqrt(Math.max(0, 1 - ((x - RX) / RA) ** 2));
+const arc = (side, x0, x1, n = 24) => { const p = []; for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n; p.push([x, ringY(x, side)]); } return p; };
+
+// 天幕の内側
+roof(s, W, POLE, -10, 340);
+sunleak(s, 70, 200, 46, 26);
+sunleak(s, 372, 300, 30, 40);
+patch(s, 40, 268, 34, 26, -7);
+patch(s, 236, 120, 26, 40, 4, C.kage);
+patch(s, 380, 150, 26, 20, 9);
+// 使い込んだ天幕: 前の何発かの煤の跡
+stain(s, 132, 236, 22, 0.65);
+stain(s, 186, 196, 13, 0.55);
+stain(s, 96, 120, 11, 0.5);
+// 柱と張り綱
+el("path", { d: stroke(line([POLE - 1, -10], [POLE + 2, 430], 12), 13, 12, 0.6), fill: C.ita }, s);
+el("path", { d: stroke(line([POLE + 3, -10], [POLE + 4, 430], 12), 2.4, 2, 0.3), fill: C.hinata, opacity: 0.6, filter: "url(#dry)" }, s);
+rope(s, line([POLE, 104], [-10, 300], 14, 8), 2.2);
+rope(s, line([POLE, 118], [430, 286], 12, 6), 2.2);
+
+// 客席（奥）: リングの奥の縁まで。影の塊の上に、顔なしの連れの塊を寄せる
+el("path", { d: wobble([[-6, 326], [140, 332], [260, 326], [426, 330], ...arc(-1, 426, -6).map(([x, y]) => [x, y + 2])], 1), fill: C.kage }, s);
+for (let k = 0; k < 6; k++) { const y = 334 + k * 15 + j(2); el("path", { d: wobble([[196 - k * 2, y], [236 + k * 2, y + j(1)], [236 + k * 2, y + 4], [196 - k * 2, y + 4]], 0.6), fill: C.ita }, s); }
+const far = [C.ita, C.zou2, C.zou, C.ita];
+[[-4, 350, 3, 0.7], [70, 346, 2, 0.7], [140, 352, 2, 0.72], [254, 348, 4, 0.7], [358, 350, 2, 0.7],
+ [20, 380, 2, 0.82], [98, 384, 4, 0.82], [262, 380, 2, 0.82], [330, 386, 3, 0.82]].forEach(([x, y, n, sc], i) => {
+  if (x < POLE + 8 && x + n * 14 * sc > POLE - 8 && x > 200) return;
+  clump(s, x, y, n, sc, far[i % far.length]);
+});
+// 最前段（顔あり。姿勢で変える。家族・連れの塊と空席）
+[[14, 424, "sit", C.midori, 1], [38, 426, "talk", C.ita, 0, -1], [62, 424, "sit", C.zou2, 2],
+ [104, 422, "shoulder", C.midori, 1], [130, 426, "chin", C.sumi, 3], [152, 425, "sit", C.ita, 0],
+ [262, 424, "point", C.ita, 0], [286, 426, "sit", C.midori, 2],
+ [336, 424, "talk", C.zou2, 3], [360, 426, "sit", C.sumi, 1, -1], [404, 424, "chin", C.midori2, 2, -1]].forEach(([x, y, pose, col, hat, flip]) => {
+  person(s, x, y + (ringY(x, -1) - 436), 1.12, pose, col, hat, flip || 1);
+});
+el("rect", { x: 0, y: 320, width: W, height: 160, filter: "url(#grain)", opacity: 0.35 }, s);
+
+// リングの床（楕円の中だけおがくず）
+const floor = [...arc(-1, -10, 430), ...arc(1, 430, -10)];
+el("path", { d: wobble(floor, 0.8), fill: C.ogakuzu }, s);
+el("path", { d: wobble([...arc(-1, -10, 430), ...arc(-1, 430, -10).map(([x, y]) => [x, y + 18 + j(4)])], 1.2), fill: C.ita, opacity: 0.45 }, s);
+el("rect", { x: 0, y: 410, width: W, height: 300, filter: "url(#grain)", opacity: 0.6 }, s);
+for (let k = 0; k < 120; k++) {
+  const x = rnd() * W, y = 440 + rnd() * 240, L = 2 + rnd() * 4;
+  if (y > ringY(x, 1) - 6 || y < ringY(x, -1) + 6) continue;
+  el("path", { d: `M${x},${y} q${L / 2},${-1 - rnd()} ${L},${j(1)}`, stroke: rnd() < 0.5 ? C.hinata : C.ita, "stroke-width": 1, fill: "none", opacity: 0.8 }, s);
+}
+// 象の通り道（踏まれて濃くなったおがくずの帯。筆のかすれ）
+el("path", { d: stroke(bez([120, 604], [270, 588], [440, 600], 14), 24, 20, 1.6), fill: C.ita, opacity: 0.32 }, s);
+for (let k = 0; k < 9; k++) { const x = 140 + k * 30 + j(8), y = 596 + j(5); el("path", { d: stroke([[x, y], [x + 14 + rnd() * 10, y + j(2)]], 2.2, 0.5), fill: C.ita, opacity: 0.55 }, s); }
+// 熊手で掻いた跡（途切れる弧。曲がり方を揃えない）
+[[[18, 668], [70, 676], [120, 672]], [[34, 690], [84, 701], [150, 698]], [[150, 650], [196, 662], [232, 664]]].forEach((p, i) => {
+  const pts = bez(p[0], p[1], p[2], 12);
+  el("path", { d: stroke(pts.slice(0, 6 + i), 1.6, 0.6, 0.3), fill: C.hinata, opacity: 0.75 }, s);
+  el("path", { d: stroke(pts.slice(8 + i), 1.4, 0.5, 0.3), fill: C.hinata, opacity: 0.6 }, s);
+});
+// 前の演目の名残: 白墨の立ち位置の印1つ
+el("path", { d: stroke([[206, 626], [222, 634]], 2.6, 1.4), fill: C.hinata }, s);
+el("path", { d: stroke([[221, 624], [207, 636]], 2.6, 1.4), fill: C.hinata }, s);
+
+// 象と受け網（右）
+const ex = 322, ey = 566;
+el("path", { d: wobble(blob(ex - 6, ey + 36, 66, 7, 16, 0.12), 1), fill: C.ita, opacity: 0.7 }, s);
+elephant(s, ex, ey, 1.12);
+net(s, ex + 4, ey - 70, 128, 16);
+
+// 空の障害物（客席より上だけ。背景は無地の帆布）
+rope(s, line([-10, 170], [POLE - 6, 150], 14, 9), 1.8, C.sumi);
+walker(s, 84, 172, 1.05);
+sandbag(s, 226, -10, 252, 1.05);
+rope(s, line([356, 96], [357, 180], 6), 1.6, C.sumi);
+fireRing(s, 354, 222, 30, 1, 1);
+
+// 大砲（左下）と、飛んでいる曲芸師
+const cx0 = 72, cy0 = 622, ang = 52;
+el("path", { d: wobble(blob(cx0 + 4, cy0 + 34, 46, 6, 14, 0.12), 1), fill: C.ita, opacity: 0.7 }, s);
+acrobat(s, 168, 306, 150, 1.15);
+cannon(s, cx0, cy0, ang, 1.15);
+puff(s, 146, 510, 1.0);
+for (let k = 0; k < 5; k++) el("path", { d: stroke([[48 + k * 5, 656], [40 + k * 4, 648 - rnd() * 5]], 2, 0.5), fill: C.ita, opacity: 0.7 }, s);
+
+// 手前の縁板（楕円の手前の弧）
+const curb = arc(1, -20, 440, 30);
+el("path", { d: stroke(curb.map(([x, y]) => [x, y + 9]), 22, 22, 0.6), fill: C.midori }, s);
+el("path", { d: stroke(curb.map(([x, y]) => [x, y + 3]), 2, 2, 0.4), fill: C.yamabuki, opacity: 0.85, filter: "url(#dry)" }, s);
+el("path", { d: stroke(curb.map(([x, y]) => [x, y + 16]), 1.2, 1.2, 0.4), fill: C.midori2, opacity: 0.9 }, s);
+
+// 手前の客席（後ろ姿。縁の弧の下）
+el("path", { d: wobble([...curb.map(([x, y]) => [x, y + 20]), [440, 790], [-20, 790]], 1), fill: C.ita }, s);
+el("rect", { x: 0, y: 640, width: W, height: 150, filter: "url(#grain)", opacity: 0.5 }, s);
+const backs = [[22, 1.7, 0, C.midori], [70, 1.9, 1, C.sumi], [122, 1.6, 2, C.midori2], [166, 2.0, 0, C.zou2], [222, 1.75, 3, C.midori], [262, 1.85, 1, C.sumi]];
+backs.forEach(([bx, sc, k, col]) => {
+  const G = el("g", { transform: `translate(${bx},${792}) scale(${sc})` }, s);
+  el("path", { d: wobble([[-16, 0], [-13, -16], [-6, -20], [6, -20], [13, -15], [16, 0]], 0.8), fill: col }, G);
+  el("path", { d: wobble(blob(0, -27, 7, 7.5, 10, 0.08), 0.4), fill: k === 1 ? C.sumi : C.ita }, G);
+  if (k === 0) el("path", { d: wobble([[-10, -27], [10, -28], [7, -30], [6, -39], [-6, -39], [-7, -30]], 0.4), fill: C.sumi }, G);
+  if (k === 2) el("path", { d: wobble([[-13, -28], [13, -29], [9, -32], [4, -37], [-5, -36], [-9, -32]], 0.4), fill: C.midori2 }, G);
+  if (k === 3) el("path", { d: wobble([[-8, -29], [-7, -35], [7, -35], [8, -29], [12, -28], [-11, -28]], 0.4), fill: C.ita }, G);
+});
+// 客席の端の3人（お客の退屈の目盛り）
+el("path", { d: wobble([[290, 734], [414, 730], [414, 778], [288, 780]], 0.8), fill: C.midori }, s);
+spectator(s, 310, 742, 1.25, 0, C.ita, 0);
+spectator(s, 350, 742, 1.25, 2, C.midori2, 1);
+spectator(s, 390, 742, 1.25, 1, C.zou2, 2);
+signText(s, 351, 769, "お客の退屈", 13, { family: MARU, shadow: false, fill: C.hinata, anchor: "middle" });
+
+// 吊り看板（上）
+rope(s, line([46, -10], [46, 18], 4), 2, C.sumi);
+rope(s, line([372, -10], [372, 18], 4), 2, C.sumi);
+board(s, 14, 16, 392, 74);
+signText(s, 30, 44, "得点", 14, { family: MARU, shadow: false, fill: C.hinata });
+signText(s, 28, 79, "1,240", 34);
+signText(s, 168, 44, "ど真ん中", 14, { family: MARU, shadow: false, fill: C.hinata });
+signText(s, 168, 76, "2連続", 22);
+silkHat(s, 300, 80, 1.1);
+silkHat(s, 338, 80, 1.1);
+silkHat(s, 376, 80, 1.1, true);
+
+el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#grain)", opacity: 0.16 }, s);
+</script>
+</body></html>

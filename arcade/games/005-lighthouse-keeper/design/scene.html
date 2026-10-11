@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<title>霧笛の灯 代表場面</title>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&family=Zen+Old+Mincho:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#ebe2ca}
+  svg{display:block}
+  text{font-variant-numeric:tabular-nums}
+</style></head>
+<body>
+<svg id="s" width="420" height="780" viewBox="0 0 420 780"></svg>
+<script src="print.js"></script>
+<script>
+const W = 420, H = 780;
+const PX = 16, PY = 96, PW = 388, PH = 580;       // 絵の部分（周りは奉書白の紙の余白）
+const cx = PX + PW / 2, cy = PY + PH / 2 - 4;
+const s = document.getElementById("s");
+defs(s);
+el("rect", { x: 0, y: 0, width: W, height: H, fill: C.hosho }, s);
+el("rect", { x: 0, y: 0, width: W, height: H, filter: "url(#fiber)", opacity: 0.35 }, s);
+const P = picture(s, PX, PY, PW, PH, "pic");
+
+// 月（奉書白を2枚、わずかにずらして摺る。輪は描かない）
+el("path", { d: wobble(circlePts(66, 150, 17, 28, 0.4), 0.3), fill: C.hosho, opacity: 0.55, transform: "translate(2,-1.5)" }, P);
+el("path", { d: wobble(circlePts(66, 150, 17, 28, 0.4), 0.3), fill: C.hosho }, P);
+
+// 波の彫り跡
+for (let i = 0; i < 80; i++) {
+  const a = rnd() * Math.PI * 2, r = 110 + rnd() * 140;
+  const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.95, L = 6 + rnd() * 10;
+  if (y < PY + 120) continue;
+  const dark = y > PY + PH * 0.8;
+  el("path", { d: `M${x},${y} q${L / 2},${-2 - rnd() * 2} ${L},0`, stroke: dark ? C.ai3 : C.ai2, "stroke-width": 1.1, fill: "none", opacity: 0.6 }, P);
+}
+
+// 光の帯（灯室から右上へ）
+const ox = cx, oy = cy - 40;
+beam(P, ox, oy, -0.95, 40 * Math.PI / 180, 250, "main");
+
+// 霧の中の船（影絵）
+ship(P, cx - 128, cy - 112, 0.9, "hashi", false, "dim", true);
+ship(P, cx - 104, cy + 156, 0.95, "ho", false, "blink", true);
+ship(P, cx + 78, cy + 108, 0.95, "gyo", false, "solid");     // 岩礁寸前
+ship(P, cx - 158, cy + 36, 0.82, "gyo", false, "dim", true);
+
+// 霧の帯（横に摺った霧の版。ぼかしは使わない）
+[[cy - 70, 22, 0.30], [cy + 60, 26, 0.26], [cy + 178, 22, 0.3]].forEach(([y, h, o]) => {
+  const pts = []; for (let x = PX - 10; x <= PX + PW + 10; x += 26) pts.push([x, y + j(3)]);
+  for (let x = PX + PW + 10; x >= PX - 10; x -= 26) pts.push([x, y + h + j(5)]);
+  el("path", { d: wobble(pts, 1), fill: C.hosho, opacity: o }, P);
+});
+
+// 岩礁の輪（途切れた岩の帯）
+const reefR = 92;
+for (let i = 0; i < 44; i++) {
+  const a = (i / 44) * Math.PI * 2;
+  if ((i > 6 && i < 10) || (i > 20 && i < 23) || (i > 34 && i < 37)) continue;
+  rockBlob(P, cx + Math.cos(a) * (reefR + j(4)), cy + Math.sin(a) * (reefR + j(4)), 5 + rnd() * 4);
+}
+// 岬
+rockBlob(P, cx, cy + 4, 32);
+el("path", { d: wobble(circlePts(cx - 4, cy + 1, 20, 12, 4), 0.6), fill: "#6b5240" }, P);
+lighthouse(P, cx, cy + 8, 0.95);
+
+// 座礁した船（左下の岩礁で傾く）と朱の×
+const wa = 2.45, wx = cx + Math.cos(wa) * reefR, wy = cy + Math.sin(wa) * reefR;
+const wg = el("g", { transform: `rotate(-22 ${wx} ${wy})` }, P);
+ship(wg, wx + 2, wy - 4, 0.8, "gyo", true, null, true);
+cross(P, wx + 6, wy + 8, 9, false);
+
+// 光の中で刷り上がった船（2隻同時）と汽笛の輪
+ship(P, cx + 64, cy - 150, 1.05, "ho", true, null);
+ship(P, cx + 140, cy - 138, 1.0, "gyo", true, null);
+[[cx + 64, cy - 200], [cx + 136, cy - 166]].forEach(([x, y]) => {
+  for (let r = 0; r < 2; r++) el("path", { d: `M${x - 8 - r * 6},${y - r * 5} q${8 + r * 6},${-8 - r * 4} ${16 + r * 12},0`, stroke: C.hosho, "stroke-width": 1.6, fill: "none", opacity: 0.95 - r * 0.3 }, P);
+});
+// 間一髪（右の船を寸前で照らした）: 奉書白の短冊に朱の縦組み
+seal(P, cx + 168, cy - 56, "間一髪", 24, -5);
+
+// 縁の目印（岩礁まで3秒の船の方向）
+edgeMark(P, PX + PW - 34, PY + PH - 44, Math.atan2(108, 78));
+// 帰っていく船が霧の外で灯を振る
+el("circle", { cx: 372, cy: 130, r: 2.4, fill: C.odo }, P);
+el("path", { d: "M365,123 q7,-5 14,0", stroke: C.odo, "stroke-width": 1.2, fill: "none" }, P);
+
+// 紙の余白に刷る UI（墨＝焦茶）
+// 題箋の枠に得点
+el("path", { d: wobble([[16, 20], [160, 20], [160, 78], [16, 78]], 0.8), fill: "none", stroke: C.koge, "stroke-width": 1.6 }, s);
+el("path", { d: wobble([[20, 24], [156, 24], [156, 74], [20, 74]], 0.6), fill: "none", stroke: C.koge, "stroke-width": 0.8 }, s);
+const sc = el("text", { x: 88, y: 63, "text-anchor": "middle", fill: C.koge, "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 36 }, s); sc.textContent = "1,240";
+const t2 = el("text", { x: 404, y: 50, "text-anchor": "end", fill: C.koge, "font-family": "'Kaisei Decol', serif", "font-weight": 700, "font-size": 26 }, s); t2.textContent = "夜半";
+const t3 = el("text", { x: 404, y: 74, "text-anchor": "end", fill: C.koge, "font-family": "'Zen Old Mincho', serif", "font-weight": 700, "font-size": 14 }, s); t3.textContent = "得点 1.5倍";
+
+const by = 740;
+const tb = el("text", { x: 18, y: 704, fill: C.koge, "font-family": "'Zen Old Mincho', serif", "font-weight": 700, "font-size": 14 }, s); tb.textContent = "座礁";
+const marks = el("g", {}, s);
+[0, 1, 2].forEach(i => {
+  const G = el("g", { transform: `translate(${40 + i * 50},${by + 8}) scale(0.7)` }, marks);
+  el("path", { d: wobble([[-25, -11], [-22, -6], [-17, 0], [-10, 4], [17, 4], [21, 0], [22, -4], [12, -3], [-14, -3], [-19, -6]], 0.5), fill: C.koge, opacity: i === 0 ? 0.55 : 1 }, G);
+  el("path", { d: wobble([[12, -3], [11, -13], [15, -13], [15.5, -3]], 0.3), fill: C.koge, opacity: i === 0 ? 0.55 : 1 }, G);
+});
+cross(s, 40, by + 2, 11);
+const tf = el("text", { x: 404, y: 704, "text-anchor": "end", fill: C.koge, "font-family": "'Zen Old Mincho', serif", "font-weight": 700, "font-size": 14 }, s); tf.textContent = "霧笛";
+hornGauge(s, 262, by + 2, 3, 5, 24);
+paper(s, W, H, 0.4);
+</script>
+</body></html>

@@ -1,0 +1,33 @@
+/* 遊び場（player）見本用トークン — 題材: 街角の紙芝居の舞台（自転車の荷台に載る木の箱）と、泥絵具で描いた絵札 */
+:root{
+  --fence:#aea596;      /* 雨ざらしの板塀（地） */
+  --fence-line:#9d9384;
+  --kurikawa:#5a3820;   /* 栗皮茶：舞台の木枠 */
+  --kurikawa-hi:#7a5333;
+  --boru:#d8cdb3;       /* ボール紙：札の紙 */
+  --boru-edge:#a8997a;
+  --gunjo:#284a9a;      /* 群青：泥絵具の絵 */
+  --shu:#d2402a;        /* 朱：主役（新作の貼り紙・遊ぶ） */
+  --sumi:#2a221d;       /* 墨：絵札の線と文字 */
+  --paint-1:var(--gunjo); --paint-2:var(--sumi); --paint-3:var(--kurikawa);
+  --head:"Potta One","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --body:"Kiwi Maru","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+  --wood:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='120'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .16' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .05 0 0 0 0 .02 0 0 0 .9 -.25'/%3E%3C/filter%3E%3Crect width='600' height='120' filter='url(%23w)'/%3E%3C/svg%3E");
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --fence:#35302d; --fence-line:#2c2826; --kurikawa:#43291a; --kurikawa-hi:#5e3e27;
+  --boru:#c4b89c; --boru-edge:#857a62; --gunjo:#3557a8; --shu:#d94a32; --sumi:#241d19;}}
+:root[data-theme="dark"]{
+  --fence:#35302d; --fence-line:#2c2826; --kurikawa:#43291a; --kurikawa-hi:#5e3e27;
+  --boru:#c4b89c; --boru-edge:#857a62; --gunjo:#3557a8; --shu:#d94a32; --sumi:#241d19;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;font-family:var(--body);color:var(--sumi);background-color:var(--fence);
+  /* 板塀：幅のそろわない縦板 */
+  background-image:var(--grain),
+   repeating-linear-gradient(90deg,transparent 0 61px,var(--fence-line) 61px 63px,transparent 63px 118px,var(--fence-line) 118px 119px,transparent 119px 183px,var(--fence-line) 183px 185px);
+  overflow-x:hidden}
+/* 舞台の木（木目） */
+.wood{background-color:var(--kurikawa);background-image:var(--wood),var(--wood);background-size:600px 120px,380px 90px;background-position:0 0,40px 30px}
