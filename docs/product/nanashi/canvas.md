@@ -31,7 +31,8 @@
 
 ## How（PM と担当）
 - 設定集: `docs/nanashi/world-bible.md`（後半が 48個目の都道府県の設定集）
-- アカウントとプロンプト: `docs/nanashi/personas/README.md`、投稿の仕組み `server/personas.js`
+- 世界設定の正本: Claude Docs「ナナシ県 世界観バイブル」（写し `docs/nanashi/canon/world-bible.md`、未承認の提案 `docs/nanashi/proposals.md`）
+- アカウント: `docs/nanashi/sns-accounts.md`、投稿の仕組み `server/personas.js`
 - 過去ログ: `tools/nanashi_pastlog.mjs`
 - リスク: `docs/nanashi/arg-risks.md`
 - 3DCG の町: `client/`（観光案内図のような全景、建物の中、人の目線）。見た目の方針 `docs/nanashi/design-concept.md`

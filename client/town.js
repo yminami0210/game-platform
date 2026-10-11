@@ -1,7 +1,7 @@
 // ナナシ県の町並み。見た目の方針は docs/nanashi/design-concept.md（昭和の観光鳥瞰図・絵葉書）。
 // 輪郭線（裏返しの殻）＋段の陰（トゥーン）＋手塗りの色ばらつき。外部アセットは使わない。
 import * as THREE from 'three';
-import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, buildDesks, mulberry32, trainsAt } from './shared/world.js';
+import { ROAD_STEP, HALF, RAIL_Z, RIVER_Z, PORTAL_X, buildDesks, mulberry32, trainsAt } from './shared/world.js';
 import { DEPARTMENTS } from './shared/lore.js';
 
 export const PALETTE = {
@@ -195,57 +195,45 @@ export function buildTown(scene, seed, initialLayout) {
     }
   }
 
-  // 遠くの山（重なる稜線。遠いほど空の色に近づく）と海
+  // 山（重なる稜線。遠いほど空の色に近づく）。ナナシ県は四方を山に囲まれた盆地で、北に大岳がそびえる（正本のバイブル）
   const mountains = [];
   const ridge = (dist, count, h, color) => {
     for (let i = 0; i < count; i++) {
-      const a = Math.PI * (0.92 + (i / (count - 1)) * 1.16) + (rnd() - 0.5) * 0.08; // 北側の半円
+      const a = (i / count) * Math.PI * 2 + (rnd() - 0.5) * 0.08; // 町をぐるりと囲む
       const r = dist + (rnd() - 0.5) * 60;
-      const s = h * (0.7 + rnd() * 0.6);
+      const north = Math.max(0, -Math.sin(a)); // 北ほど高い
+      const s = h * (0.6 + rnd() * 0.5) * (0.75 + north * 0.5);
       mountains.push({ x: Math.cos(a) * r, y: 0, z: Math.sin(a) * r, sx: s * 1.9, sy: s, sz: s * 1.6, rot: rnd() * 3, color: jitter(color, rnd, 0.08) });
     }
   };
   const hill = new THREE.SphereGeometry(1, 16, 10); // 閉じた球の上半分だけ地上に出す（輪郭線が切れない）
-  // 奥ほど空の色に近く、手前の稜線だけ墨の線（刷り物の山）
-  ridge(1050, 11, 200, '#9fc0c9');
+  ridge(1050, 22, 200, '#9fc0c9');
+  mountains.push({ x: -60, y: 0, z: -1130, sx: 640, sy: 430, sz: 420, rot: 0.4, color: new THREE.Color('#93b4c0') }); // 大岳（2,210m）
   world.add(instanced(hill, toon('#ffffff'), mountains.splice(0), { outline: 0, shadow: false }));
-  ridge(840, 13, 140, '#6f9f86');
+  ridge(840, 26, 140, '#6f9f86');
   world.add(instanced(hill, toon('#ffffff'), mountains.splice(0), { outline: 0, shadow: false }));
-  ridge(640, 17, 75, '#4f8a55');
+  ridge(640, 30, 75, '#4f8a55');
   world.add(instanced(hill, toon('#ffffff'), mountains.splice(0), { outline: 5, shadow: false }));
 
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1400), toon(PALETTE.gunjo));
-  sea.rotation.x = -Math.PI / 2; sea.position.set(0, 0.03, 262 + 700);
-  const beach = new THREE.Mesh(new THREE.PlaneGeometry(3000, 22), toon('#efe3c4'));
-  beach.rotation.x = -Math.PI / 2; beach.position.set(0, 0.04, 262);
-  const shallows = new THREE.Mesh(new THREE.PlaneGeometry(3000, 34), toon('#5f9ccc'));
-  shallows.rotation.x = -Math.PI / 2; shallows.position.set(0, 0.05, 289);
-  world.add(sea, beach, shallows);
-  // 海の点景: 波の線、防波堤と灯台、漁港の船、海水浴場のパラソル
-  const waves = [];
-  for (let i = 0; i < 520; i++) waves.push({ x: (rnd() - 0.5) * 1500, y: 0.09, z: 290 + Math.pow(rnd(), 2) * 480, sx: 3 + rnd() * 6, sy: 1, sz: 1.4, rot: (rnd() - 0.5) * 0.15 });
-  // 波打ち際の白い線
-  const surf = new THREE.Mesh(new THREE.PlaneGeometry(3000, 1.6), new THREE.MeshBasicMaterial({ color: '#f4f8fb' }));
-  surf.rotation.x = -Math.PI / 2; surf.position.set(0, 0.07, 272.5); world.add(surf);
-  world.add(instanced(new THREE.BoxGeometry(1, 0.05, 0.35), new THREE.MeshBasicMaterial({ color: '#d6e6f3' }), waves, { outline: 0, shadow: false }));
-  world.add(box(5, 2.2, 60, toon('#d9d6cc'), 186, 1.1, 300));           // 防波堤（漁港を囲む）
-  world.add(box(3.2, 13, 3.2, toon('#fbfaf4'), 186, 6.5, 332));          // 灯台
-  world.add(box(4.2, 2.2, 4.2, toon('#d8402f'), 186, 14, 332));
-  world.add(box(120, 1.2, 14, toon('#d9d6cc'), 120, 0.6, 270));         // 漁港の岸壁
-  const boat = (x, z, rot, color) => {
-    const b = new THREE.Group();
-    b.add(box(9, 1.6, 3, toon('#fbfaf4'), 0, 0.8, 0));
-    b.add(box(3, 2.2, 2.4, toon(color), -1, 2.4, 0));
-    b.add(box(0.2, 5, 0.2, toon('#7a5a40'), 2.5, 3.5, 0));
-    b.position.set(x, 0, z); b.rotation.y = rot;
-    world.add(b);
-  };
-  [[74, 284, 0.1, '#c8463a'], [96, 285, -0.05, PALETTE.gunjo], [118, 284, 0.08, '#e3a62b'], [140, 286, 0, '#4a8a5a'], [60, 300, 0.4, '#fbfaf4']].forEach((a) => boat(...a));
-  boat(-180, 420, 0.6, '#c8463a'); boat(260, 520, -0.4, PALETTE.gunjo);
-  const parasols = [];
-  for (let i = 0; i < 12; i++) parasols.push({ x: -250 + i * 17 + rnd() * 6, y: 2.6, z: 258 + rnd() * 8, sx: 2.2, sy: 0.9, sz: 2.2, color: new THREE.Color(['#d8503e', '#fbfaf4', '#3a6aa0', '#e3a62b'][i % 4]) });
-  world.add(instanced(new THREE.ConeGeometry(1, 1, 10), toon('#ffffff'), parasols, { outline: 0.08 }));
-  world.add(instanced(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 4).translate(0, -1.3, 0), toon('#efe9da'), parasols.map((p) => ({ x: p.x, y: 2.6, z: p.z })), { outline: 0 }));
+  // ヨコネ川（町の南を東から西へ。両岸に土手と河川敷、向こう岸は田んぼ）
+  const [rz0, rz1] = RIVER_Z;
+  const strip = (z0, z1, color, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(3000, z1 - z0), toon(color)); m.rotation.x = -Math.PI / 2; m.position.set(0, y, (z0 + z1) / 2); world.add(m); return m; };
+  strip(rz0 - 12, rz0, '#b9cf72', 0.04);                 // 河川敷（北岸）
+  strip(rz0, rz1, '#6aa6c8', 0.05);                      // 川
+  strip(rz0 + 6, rz1 - 6, '#5a96bd', 0.06);              // 流れの深いところ
+  strip(rz1, rz1 + 10, '#b9cf72', 0.04);                 // 河川敷（南岸）
+  for (let x = -1400; x < 1400; x += 70) for (let z = rz1 + 20; z < 640; z += 40) { // 向こう岸の田んぼのあぜ
+    if (rnd() < 0.55) world.add(box(62, 0.12, 34, toon(rnd() < 0.5 ? '#9cba5a' : '#a9c25a'), x + 35, 0.05, z + 20, { outline: 0, shadow: false }));
+  }
+  for (const z of [rz0 - 13, rz1 + 11]) world.add(box(3000, 1.6, 3, toon('#8fb36b'), 0, 0.8, z, { outline: 0, shadow: false })); // 土手
+  const ripples = [];
+  for (let i = 0; i < 260; i++) ripples.push({ x: (rnd() - 0.5) * 1600, y: 0.09, z: rz0 + 2 + rnd() * (rz1 - rz0 - 4), sx: 3 + rnd() * 6, sy: 1, sz: 0.35, rot: (rnd() - 0.5) * 0.1 });
+  world.add(instanced(new THREE.BoxGeometry(1, 0.05, 1), new THREE.MeshBasicMaterial({ color: '#d6e6f3' }), ripples, { outline: 0, shadow: false }));
+  // 橋（駅前の通りの延長と、西の県道）
+  for (const bx of [0, -180]) {
+    world.add(box(9, 1, rz1 - rz0 + 26, toon('#cfcabd'), bx, 1.6, (rz0 + rz1) / 2));
+    for (const side of [-1, 1]) world.add(box(0.4, 1, rz1 - rz0 + 26, toon('#8d9aa6'), bx + side * 4.4, 2.6, (rz0 + rz1) / 2, { outline: 0.03 }));
+  }
 
   // 電柱と電線（昭和の空）
   const poles = [];
@@ -394,7 +382,14 @@ export function buildTown(scene, seed, initialLayout) {
   // ---- 線路・踏切・トンネル・駅のホーム（町の真ん中を東西に通る） ----
   const rail = new THREE.Group();
   rail.add(box(PORTAL_X * 2, 0.35, 5, toon('#a59d90'), 0, 0.17, RAIL_Z, { outline: 0 }));
-  for (const dz of [-0.75, 0.75]) rail.add(box(PORTAL_X * 2, 0.16, 0.16, toon('#c9ccd0'), 0, 0.45, RAIL_Z + dz, { outline: 0 }));
+  for (const dz of [-0.75, 0.75]) rail.add(box(PORTAL_X * 2, 0.16, 0.16, toon('#c9ccd0'), 0, 0.45, RAIL_Z + dz, { outline: 0 })); // 単線
+  { // 中ノ町駅の行き違い線（駅の前後 80m だけ 2 本になる）
+    const sx = initialLayout.places.find((p) => p.id === 'station')?.x ?? 30;
+    for (const side of [-1, 1]) for (const dz of [-0.75, 0.75]) {
+      rail.add(box(80, 0.16, 0.16, toon('#c9ccd0'), sx, 0.46, RAIL_Z + side * 1.8 + dz, { outline: 0 }));
+      for (const end of [-1, 1]) { const r = box(41, 0.16, 0.16, toon('#c9ccd0'), sx + end * 60, 0.46, RAIL_Z + side * 0.9 + dz, { outline: 0 }); r.rotation.y = -end * side * Math.atan2(1.8, 40); rail.add(r); }
+    }
+  }
   const sleepers = [];
   for (let x = -PORTAL_X; x < PORTAL_X; x += 1.6) sleepers.push({ x, y: 0.36, z: RAIL_Z, sx: 0.35, sy: 0.08, sz: 2.4 });
   rail.add(instanced(new THREE.BoxGeometry(1, 1, 1), toon('#6b5a48'), sleepers, { outline: 0, shadow: false }));
@@ -420,17 +415,17 @@ export function buildTown(scene, seed, initialLayout) {
     rail.add(box(46, 1, 4, toon('#e9e6dc'), st.x, 0.5, RAIL_Z - 4.4));
     rail.add(box(30, 0.3, 4.6, toon('#3f6a78'), st.x, 4.6, RAIL_Z - 4.4));
     for (let i = -2; i <= 2; i++) rail.add(box(0.25, 3.6, 0.25, toon('#8d9aa6'), st.x + i * 7, 2.8, RAIL_Z - 5.6, { outline: 0.03 }));
-    rail.add(signBoard('ななし', st.x + 14, 2.2, RAIL_Z - 2.3, 4, 1.2, { bg: '#ffffff', border: PALETTE.gunjo }));
+    rail.add(signBoard('なかのまち', st.x + 14, 2.2, RAIL_Z - 2.3, 4, 1.2, { bg: '#ffffff', border: PALETTE.gunjo }));
   }
   scene.add(rail);
 
-  // 電車（クリームに朱の帯、3両）。時刻表どおりに走らせる
+  // ヨコデン（クリームに朱の帯、2両）。時刻表どおりに走らせる。上りと下りが中ノ町駅ですれ違う
   const trains = [0, 1, 2].map(() => {
     const g = new THREE.Group();
-    for (let i = 0; i < 3; i++) {
-      g.add(box(17, 3.2, 3, toon('#f2e6c8', { emissive: new THREE.Color('#ffd27a'), emissiveIntensity: 0 }), (i - 1) * 17.6, 2.3, 0));
-      g.add(box(17.05, 1.0, 3.05, toon('#d8503e'), (i - 1) * 17.6, 1.2, 0, { outline: 0 }));
-      g.add(box(16, 0.4, 2.6, toon('#7b8590'), (i - 1) * 17.6, 4.1, 0, { outline: 0 }));
+    for (let i = 0; i < 2; i++) {
+      g.add(box(17, 3.2, 3, toon('#f2e6c8', { emissive: new THREE.Color('#ffd27a'), emissiveIntensity: 0 }), (i - 0.5) * 17.6, 2.3, 0));
+      g.add(box(17.05, 1.0, 3.05, toon('#d8503e'), (i - 0.5) * 17.6, 1.2, 0, { outline: 0 }));
+      g.add(box(16, 0.4, 2.6, toon('#7b8590'), (i - 0.5) * 17.6, 4.1, 0, { outline: 0 }));
     }
     g.position.set(0, 0, RAIL_Z);
     g.visible = false;
@@ -472,7 +467,7 @@ export function buildTown(scene, seed, initialLayout) {
         g.visible = !!t && Math.abs(t.x) < PORTAL_X - 4;
         if (!t) return;
         g.position.x = t.x;
-        g.position.z = RAIL_Z + (t.dir > 0 ? -0.0 : 0);
+        g.position.z = t.z ?? RAIL_Z;
         g.children.forEach((m) => { const mat = m.children?.[0]?.material; if (mat?.emissive) mat.emissiveIntensity = night * 0.9; });
       });
     },
@@ -572,13 +567,13 @@ function buildPlace(p, rnd, nightMats) {
       const tall = p.h > 7;
       facade(p.w, p.h, p.d, p.x, p.h / 2, p.z, tall ? lit(Math.max(2, Math.round(p.w / 4)), Math.max(1, Math.round(p.h / 4)), { lit: 0.5 }) : lit(Math.max(2, Math.round(p.w / 4)), 1, { door: true, lit: 0.8 }));
       // 低い店は切妻の瓦屋根、大きい建物は平屋根のへり
-      const roofColors = { shop: '#5d6e7e', kissa: '#7b4b3a', shokudo: '#4e5d6e', sento: '#3f4f60', conbini: null, super: null, car: null, mall: null, station: '#3f6a78', school: '#7b4b3a' };
+      const roofColors = { shop: '#5d6e7e', kissa: '#7b4b3a', shokudo: '#4e5d6e', sento: '#3f4f60', conbini: null, super: null, housou: null, mall: null, station: '#3f6a78', school: '#7b4b3a' };
       const rc = roofColors[p.kind];
       if (rc) gable(p.w + 1.6, p.d + 1.6, p.kind === 'station' || p.kind === 'school' ? 4 : 3.2, p.h, rc);
       else g.add(box(p.w + 0.8, 0.8, p.d + 0.8, toon('#e9e6dc'), p.x, p.h + 0.4, p.z));
       const signStyle = {
         super: { bg: '#c8463a', fg: '#ffffff' }, conbini: { bg: '#2f8a5a', fg: '#ffffff' }, mall: { bg: PALETTE.gunjo, fg: '#ffffff' },
-        car: { bg: '#ffffff', fg: PALETTE.gunjo, border: PALETTE.gunjo }, sento: { bg: '#2f4f80', fg: '#ffffff' }, kissa: { bg: '#5a2f1f', fg: '#f6d9a0' },
+        housou: { bg: '#ffffff', fg: PALETTE.gunjo, border: PALETTE.gunjo }, sento: { bg: '#2f4f80', fg: '#ffffff' }, kissa: { bg: '#5a2f1f', fg: '#f6d9a0' },
         station: { bg: '#ffffff', fg: PALETTE.sumi, border: PALETTE.sumi }, school: { bg: PALETTE.gofun, fg: PALETTE.sumi },
       }[p.kind] || { bg: PALETTE.gofun, fg: PALETTE.sumi, border: '#8a6a4a' };
       const sw = Math.min(p.w * 0.9, p.sign.length * 2.2 + 2);
@@ -596,17 +591,16 @@ function buildPlace(p, rnd, nightMats) {
         for (let i = 0; i < 3; i++) g.add(box(1, 1.8, 0.8, toon(['#c8463a', '#f2efe6', '#3a6aa0'][i]), p.x + p.w / 2 + 1, 0.9, p.z + p.d / 2 - 1.2 - i * 1.1)); // 自販機
         g.add(box(0.5, 1.3, 0.5, toon('#d8402f'), p.x - p.w / 2 - 1.5, 0.65, front + 1)); // 赤いポスト
       }
-      if (p.kind === 'car') {
-        const carColors = ['#c8463a', '#f2efe6', PALETTE.gunjo, '#e3c35a', '#4a7a5a'];
-        for (let i = 0; i < 5; i++) {
-          const cg = new THREE.Group();
-          cg.add(box(4.2, 1, 1.8, toon(carColors[i]), 0, 0.8, 0));
-          cg.add(box(2.4, 0.8, 1.6, toon('#b8d0dc'), -0.2, 1.7, 0));
-          cg.position.set(p.x - p.w / 2 + 4 + i * 6.5, 0, front + 6);
-          cg.rotation.y = Math.PI / 2; g.add(cg);
-        }
+      if (p.kind === 'housou') { // ナナシ放送: 屋上の電波塔と中継車
+        const tw = new THREE.Group();
+        for (let i = 0; i < 4; i++) tw.add(box(0.35, 26 - i * 5, 0.35, toon(i % 2 ? '#fbfaf4' : '#d8503e'), 0, p.h + (26 - i * 5) / 2, 0, { outline: 0.03 }));
+        tw.add(box(3, 0.3, 3, toon('#8d9aa6'), 0, p.h + 18, 0, { outline: 0.03 }));
+        tw.position.set(p.x + p.w / 4, 0, p.z); g.add(tw);
+        const van = new THREE.Group();
+        van.add(box(5, 2.2, 2.2, toon('#fbfaf4'), 0, 1.3, 0)); van.add(box(5.05, 0.5, 2.25, toon(PALETTE.gunjo), 0, 1.1, 0, { outline: 0 }));
+        van.add(box(1.4, 0.3, 1.4, toon('#d9d6cc'), 0.8, 2.6, 0));
+        van.position.set(p.x - p.w / 2 + 6, 0, front + 6); van.rotation.y = Math.PI / 2; g.add(van);
       }
-      if (p.kind === 'mall') g.add(signBoard('屋上遊園地', p.x, p.h + 2, p.z, 14, 2.4, { bg: '#e3a62b', fg: '#ffffff' }));
     }
   }
   return g;

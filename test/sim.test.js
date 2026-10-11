@@ -223,51 +223,58 @@ test('見た目は部品の組み合わせで台帳に残り、店・家の詳�
   assert.equal(av.look.hair, 'bun'); assert.equal(av.look.body, 'tall'); assert.notEqual(av.look.extra, 'bogus');
 });
 
-test('SNS アカウント（観光課・住人A・住人B・ふじや）が町の暮らしに合わせて投稿する（トークン 0）', async () => {
-  const { menuOf } = await import('../server/personas.js');
+test('SNS は正本の4アカウント（県庁・ナナシ放送・まるやす・ナナシくん）で、正本の文体を守る（トークン 0）', async () => {
+  const { weatherOf } = await import('../server/personas.js');
   const { cfg, chronicle } = setup();
-  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), startMinutes: 0 });
+  // 2026-10-01（木）から 2026-10-14 まで（正本の 10 月の出来事がある期間）
+  const start = (Date.UTC(2026, 9, 1) - Date.UTC(2026, 2, 30)) / 60000;
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), startMinutes: start });
   const posts = [];
   chronicle.listeners.add((type, p) => type === 'sns' && p.persona && posts.push(p));
-  run(sim, 1440 * 3, 0.25, 8);
+  run(sim, 1440 * 14, 0.25, 8);
   const by = (id) => posts.filter((p) => p.persona === id);
-  for (const id of ['kanko', 'a', 'b', 'fujiya']) assert.ok(by(id).length >= 1, `${id} が投稿していない`);
-  // ふじやの本日のおすすめは、その日のメニュー
-  for (const p of by('fujiya').filter((p) => p.text.startsWith('【本日のおすすめ】'))) assert.ok(p.text.includes(menuOf(p.day)[0]));
-  // 住人A はナナミ市の高校に通う女の子、住人B とは別の人
-  const a = sim.personas.bound.a;
-  assert.ok(a.school && a.sex === 'f');
-  assert.notEqual(sim.personas.bound.b.given, a.given);
-  // 一気に時間を飛ばしたときは投稿しない
-  const n = posts.length;
-  sim.jumpTo(sim.minutes + 600);
-  run(sim, 5, 0.25, 4);
-  assert.ok(posts.length - n <= 1);
-  assert.ok(posts.every((p) => p.via === 'template' && p.handle.startsWith('@')));
+  for (const id of ['kencho', 'housou', 'maruyasu', 'nanashikun']) assert.ok(by(id).length >= 2, `${id} が投稿していない`);
+  assert.equal(by('maruyasu').length, 14, 'まるやすは毎日1回');
+  // お天気には日付・最高／最低気温・降水確率・風速・時刻が必ず入る
+  for (const p of by('housou').filter((p) => p.text.includes('お天気'))) assert.match(p.text, /\d+月\d+日（.）.*最高-?\d+℃／最低-?\d+℃、降水確率\d+%.*\d+時.*\d+m\/s/);
+  // 正本の出来事が正しい日に出る（10月12日は県民駅伝、10月1日はナナシくんの衣替え）
+  const dayOf = (p) => new Date(Date.UTC(2026, 2, 30) + (p.day - 1) * 86400000).getUTCDate();
+  assert.ok(by('maruyasu').some((p) => dayOf(p) === 12 && p.text.includes('県民駅伝')));
+  assert.ok(by('nanashikun').some((p) => dayOf(p) === 1 && p.text.includes('衣替え')));
+  // 絵文字・ハッシュタグ・「なぜか」「不思議と」は使わない。実在の都道府県名も出さない
+  for (const p of posts) {
+    assert.doesNotMatch(p.text, /[\u{1F300}-\u{1FAFF}]|#|なぜか|不思議と|どこか/u, p.text);
+    assert.doesNotMatch(p.text, /東京|大阪|北海道|ナナミ|オトギ|まるなな|ななっしー/, p.text);
+  }
+  assert.ok(posts.every((p) => p.via === 'template' && p.draft === true), 'すべて下書き（人間の承認待ち）');
+  // 正本の投稿例の天気（11月5日）
+  const w = weatherOf(new Date(Date.UTC(2026, 10, 5)));
+  assert.deepEqual([w.sky, w.hi, w.lo, w.oroshi.from, w.oroshi.gust], ['晴れのちくもり', 14, 3, 13, 18]);
 });
 
-test('4人の投稿者は決まった名前・年齢・見た目で町に住み、定休日にはふじやの話をしない', async () => {
+test('正本の登場人物が町の住人に配役される（西村ハル・丸山保・戸田由佳・三浦勝・佐藤恵・北村課長）', async () => {
   const { CAST } = await import('../server/personas.js');
   const { cfg, chronicle } = setup();
   const sim = new Simulation({ seed: 7, population: 420, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), startMinutes: 0 });
   const b = sim.personas.bound;
-  for (const id of ['a', 'b', 'fujiya', 'kanko']) {
+  for (const id of ['haru', 'maruyama', 'toda', 'miura', 'sato', 'kitamura']) {
     const c = b[id], k = CAST[id];
     assert.ok(c, `${id} の住人がいない`);
-    assert.equal(c.name, `${k.surname} ${k.given}`);
+    assert.equal(c.surname, k.surname);
+    if (k.given) assert.equal(c.given, k.given);
     assert.equal(c.age, k.age);
-    assert.deepEqual(c.look, k.look);
-    assert.equal(sim.households.get(c.hh).surname, k.surname, '家族の名字もそろう');
+    assert.equal(c.sex, k.sex);
+    if (k.work) assert.equal(c.work, k.work);
+    if (k.dept) assert.equal(c.dept, k.dept);
   }
-  assert.equal(b.fujiya.work, 'shokudo');
-  assert.ok(b.fujiya.resident, 'ふじやの店主は町に住んでいる');
+  // ハルは母と祖母の3人暮らしで、県立中ノ町商業に通う
+  const fam = sim.households.get(b.haru.hh).members.map((id) => sim.cpById(id));
+  assert.equal(fam.length, 3);
+  assert.ok(fam.every((m) => m.sex === 'f' && m.surname === '西村'));
+  assert.equal(sim.cpDetail(b.haru.id).workLabel, '県立中ノ町商業高校');
+  assert.equal(b.kitamura.title, '課長');
   // 保存して開き直しても同じ人
   const again = new Simulation({ seed: 7, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }), saved: JSON.parse(JSON.stringify(sim.serialize())) });
-  assert.equal(again.personas.bound.a.id, b.a.id);
-  const posts = [];
-  chronicle.listeners.add((type, p) => type === 'sns' && p.persona && posts.push(p));
-  run(sim, 1440 * 7, 0.25, 8);
-  const closedDays = new Set(posts.filter((p) => p.persona === 'fujiya' && p.text.includes('定休日')).map((p) => p.day));
-  assert.ok(closedDays.size >= 1);
-  for (const p of posts) if (closedDays.has(p.day) && p.persona !== 'fujiya') assert.ok(!/ふじやで|ふじやの(今日|貼り紙|前を)/.test(p.text), `定休日にふじやの話: ${p.text}`);
+  assert.equal(again.personas.bound.haru.id, b.haru.id);
+  assert.equal(again.personas.bound.maruyama.name, '丸山 保');
 });

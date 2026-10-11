@@ -1,7 +1,7 @@
 # 「48個目の都道府県」世界観IP ビジネス構想書（概要版）
 
 - 状態: **オーナー提示（2026-10-11）**。Core・Why・ビジネスモデルの正本。PM の補足は末尾の「PM メモ」に分けて書く
-- 関連: キャンバス `canvas.md`、リスクと対策 `docs/nanashi/arg-risks.md`、設定集 `docs/nanashi/world-bible.md`、SNS アカウントの設計 `docs/nanashi/personas/`
+- 関連: キャンバス `canvas.md`、リスクと対策 `docs/nanashi/arg-risks.md`、設定集 `docs/nanashi/world-bible.md`、世界設定の正本 Claude Docs「ナナシ県 世界観バイブル」（https://claude.ai/artifact/STEnzTzLxtiCPCds5ynLfy）、SNS アカウント `docs/nanashi/sns-accounts.md`
 
 ## マクロ背景
 AI に仕事を置き換えられて可処分時間が増える一方で、コンテンツは一部に集中している（寡占化）。
@@ -57,7 +57,7 @@ AI に仕事を置き換えられて可処分時間が増える一方で、コ�
 
 ### 構想書に合わせて直したこと
 - キャンバスの Why を「眺めて住みたくなる土地」から「SNS で考察して時間を溶かす ARG」に置き直した（`canvas.md` の Refine の記録）
-- 4つのアカウントの設計と、投稿の型を作った（`docs/nanashi/personas/`）。町の中では、もうナナシッターに投稿し始めている（下書き。外には出していない）
+- 2026-10-11（後）: SNS のアカウントと登場人物は、正本のバイブルの4アカウント（ナナシ県庁・ナナシ放送・スーパーまるやす・ナナシくん）と主役6人に合わせた。構想書の住人A・住人B・料理屋との食い違いは `docs/nanashi/proposals.md` の C でオーナーに確認する
 
 ### オーナーに決めてほしいこと（`docs/product/questions.md` にも書いた）
 `docs/nanashi/arg-risks.md` の「要判断」の4つ。

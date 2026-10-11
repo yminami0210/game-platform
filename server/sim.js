@@ -1,6 +1,6 @@
 // シミュレーション本体。CP は LLM を使わず、決められた暮らしの予定と重み付きランダムで動く。
 // 住人は「世帯 → 住まい → 勤め先・学校 → 毎日の予定」で一人ずつ管理する（住民台帳）。
-// 町は駅を中心にしたベッドタウン。働く住人の多くは電車で県外へ通い、県外からも人が来る。
+// 町は駅を中心にしたベッドタウン。働く住人の多くはヨコデンで町の外（下川原市・深田市）へ通い、外からも人が来る。
 import { DEPARTMENTS, DEPT_ROUTINES, GIVEN_F, GIVEN_M, PLACE_ACTIONS, SURNAMES, TOWN_EVENTS, TRIP_WORDS } from './lore.js';
 import {
   CATALOG, CITIES, HOUSE_TYPES, KIND_INFO, buildDesks, defaultLayout, makeHouse, mulberry32,
@@ -13,10 +13,10 @@ export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, aw
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
 const DEPT_BY_ID = Object.fromEntries(DEPARTMENTS.map((d) => [d.id, d]));
 const SAVE_VERSION = 2;
-const KIND_LABEL = { kencho: '県庁', office: '県庁', station: '駅', mall: 'ショッピングセンター', car: '自動車販売店', school: '小学校', bokujo: '牧場', tanbo: '田んぼ' };
+const KIND_LABEL = { kencho: '県庁', office: '県庁', station: '駅', mall: 'ショッピングセンター', housou: '放送局', school: '小学校', bokujo: '牧場', tanbo: '田んぼ' };
 
 export const ROLE_LABEL = {
-  staff: '県庁職員', worker: '町で勤務', commuter: '県外へ通勤', incommuter: '県外から通勤', student: '児童',
+  staff: '県庁職員', worker: '町で勤務', commuter: '町の外へ通勤', incommuter: '町の外から通勤', student: '児童',
   retired: '隠居', homemaker: '家事', visitor: '来訪者', human: '人間アバター',
 };
 
@@ -28,11 +28,12 @@ export function dateLabel(day) {
 
 // 住所（区画から町名を付ける）
 export function addressOf(h) {
-  const zone = Math.abs(h.x) <= 60 && Math.abs(h.z) <= 60 ? '駅前' : h.z > 120 ? '浜町' : h.z < -120 ? '山手' : h.x < 0 ? '西町' : '東町';
+  const zone = Math.abs(h.x) <= 60 && Math.abs(h.z) <= 60 ? '駅前' : h.z > 120 ? '川端町' : h.z < -120 ? '山手' : h.x < 0 ? '西町' : '東町';
   return `${zone}${String(h.id).replace(/\D/g, '') || 1}番地`;
 }
 
-const cityName = (id) => CITIES.find((c) => c.id === id)?.name || '県外';
+const OLD_CITY = { nanami: 'shimogawara', otogi: 'fukada' };
+const cityName = (id) => CITIES.find((c) => c.id === id)?.name || '町の外';
 
 export class Simulation {
   constructor({ seed = 7, population = 420, commuteShare = 0.85, chronicle, executor, saved = null, startMinutes = 9 * 60 + 30 }) {
@@ -91,7 +92,7 @@ export class Simulation {
   #placeName(id) {
     if (id === 'home') return '自宅';
     if (id === 'office') return '県庁';
-    if (id === 'out') return '県外';
+    if (id === 'out') return '町の外';
     return this.placeById[id]?.name || '町なか';
   }
 
@@ -177,7 +178,7 @@ export class Simulation {
       for (const c of members) {
         if (c.role) continue;
         if (c.age < 13) c.role = 'student';
-        else if (c.age < 20) Object.assign(c, { role: 'commuter', city: 'nanami', school: true, p: { ...c.p, leave: this.#between(6.9, 7.5), back: this.#between(16.2, 18.2) } }); // 高校はナナミ市
+        else if (c.age < 20) Object.assign(c, { role: 'commuter', city: 'shogyo', school: true, p: { ...c.p, leave: this.#between(6.9, 7.5), back: this.#between(16.2, 18.2) } }); // 高校は県立中ノ町商業（ヨコデンで通う）
         else if (c.age >= 65) c.role = 'retired';
         else working.push(c);
       }
@@ -192,7 +193,7 @@ export class Simulation {
     const inTown = Math.round(working.length * (1 - this.commuteShare));
     working.forEach((c, i) => {
       if (i < inTown && jobs.length) this.#assignJob(c, jobs.pop());
-      else Object.assign(c, { role: 'commuter', city: this.rnd() < 0.75 ? 'nanami' : 'otogi' });
+      else Object.assign(c, { role: 'commuter', city: this.rnd() < 0.75 ? 'shimogawara' : 'fukada' });
     });
     // 4) 余った働き口は、県外から電車で通ってくる人で埋める
     for (const job of jobs) this.#newIncommuter(job);
@@ -208,7 +209,7 @@ export class Simulation {
 
   #newIncommuter(job) {
     const c = this.#newPerson({ surname: pick(SURNAMES, this.rnd), age: Math.round(this.#between(22, 60)), resident: false });
-    c.city = this.rnd() < 0.6 ? 'nanami' : 'otogi';
+    c.city = this.rnd() < 0.6 ? 'shimogawara' : 'fukada';
     this.#assignJob(c, job);
     c.role = c.role === 'staff' ? 'staff' : 'worker';
     c.incoming = true; // 県外から通う人（住まいは県外）
@@ -243,7 +244,7 @@ export class Simulation {
     if (spec.look) cp.look = cleanLook(spec.look, cp.look);
     cp.role = spec.role === 'human' ? 'human' : spec.role === 'student' ? 'student' : spec.role === 'worker' && this.placeById[spec.work] ? 'worker' : 'commuter';
     if (cp.role === 'worker') cp.work = spec.work;
-    if (cp.role === 'commuter') cp.city = 'nanami';
+    if (cp.role === 'commuter') cp.city = 'shimogawara';
     cp.color = spec.color || null;
     const [x, z] = arriveAt || platformSpot(this.station, this.rnd);
     Object.assign(cp, { x, z, place: 'station', until: this.minutes });
@@ -267,6 +268,7 @@ export class Simulation {
     this.#index();
     for (const hh of saved.households) this.households.set(hh.id, hh);
     for (const c of saved.cps) {
+      if (OLD_CITY[c.city]) c.city = c.school ? 'shogyo' : OLD_CITY[c.city]; // 正本のバイブルに合わせる前の保存
       const cp = { ...c, x: 0, z: 0, path: [], state: c.away ? STATE.away : STATE.idle, activity: c.away ? `${cityName(c.city)}にいる` : '在宅', until: this.minutes, place: c.away ? 'out' : 'home', taskId: null, next: null };
       const home = this.houseById[cp.home];
       if (home) { cp.x = home.x; cp.z = home.z; } else { [cp.x, cp.z] = platformSpot(this.station, this.rnd); }
@@ -383,7 +385,7 @@ export class Simulation {
   #spawnVisitor() {
     const c = this.#newPerson({ surname: pick(SURNAMES, this.rnd), age: Math.round(this.#between(18, 75)), resident: false });
     c.role = 'visitor';
-    c.city = this.rnd() < 0.5 ? 'nanami' : 'otogi';
+    c.city = this.rnd() < 0.5 ? 'shimogawara' : 'fukada';
     const kinds = ['kissa', 'shop', 'sento', 'shokudo', 'park', 'mall', 'super'];
     c.visitPlan = shuffle(this.places(kinds).map((p) => p.id), this.rnd).slice(0, 2 + Math.floor(this.rnd() * 2));
     [c.x, c.z] = platformSpot(this.station, this.rnd);
@@ -459,7 +461,7 @@ export class Simulation {
     // 週末の県外へのお出かけ（若い人ほど）
     if (wk && h >= 9.5 && h < 11.5 && cp.age >= 18 && cp.age < 60 && cp.lastOuting !== this.day && this.rnd() < 0.25) {
       cp.lastOuting = this.day;
-      cp.city = cp.city || 'nanami';
+      cp.city = cp.city || 'shimogawara';
       return this.#goToTrain(cp, 'outing', `${cityName(cp.city)}へ出かける電車を待っている`);
     }
     return this.#leisure(cp, h, wk);
@@ -501,7 +503,7 @@ export class Simulation {
       kissa: () => this.#fav(cp, 'kissa', ['kissa']),
       eat: () => this.#fav(cp, 'eat', ['shokudo', 'kissa']),
       park: () => this.#fav(cp, 'park', ['park']),
-      mall: () => this.#fav(cp, 'mall', ['mall', 'car']),
+      mall: () => this.#fav(cp, 'mall', ['mall']),
       errand: () => pick(this.places(['post', 'clinic', 'koban', 'conbini', 'shop']), this.rnd)?.id,
     };
     const id = ids[k]();
@@ -723,7 +725,7 @@ export class Simulation {
       for (const c of [...this.cps]) {
         if (c.work !== id) continue;
         if (c.incoming) this.#removeCp(c, '帰った');
-        else Object.assign(c, { role: 'commuter', work: null, city: 'nanami', until: this.minutes });
+        else Object.assign(c, { role: 'commuter', work: null, city: 'shimogawara', until: this.minutes });
       }
     }
     this.#layoutChanged(`${b.name || `${HOUSE_TYPES[b.type].label}（${addressOf(b)}）`}が取り壊された`);
@@ -759,7 +761,7 @@ export class Simulation {
   #workLabel(c) {
     if (c.role === 'staff') return `ナナシ県庁 ${DEPT_BY_ID[c.dept].name}${c.title ? ' ' + c.title : ''}`;
     if (c.role === 'worker') return c.work === 'home' ? '自宅で店を営む' : this.#placeName(c.work);
-    if (c.role === 'commuter') return `${cityName(c.city)}の${c.school ? '高校' : '会社'}`;
+    if (c.role === 'commuter') return c.school ? cityName(c.city) : `${cityName(c.city)}の会社`;
     if (c.role === 'student') return this.places(['school'])[0]?.name || '学校';
     return '';
   }
@@ -771,7 +773,7 @@ export class Simulation {
     const h = this.houseById[c.home];
     const t = (x) => `${Math.floor(x)}:${String(Math.round((x % 1) * 60)).padStart(2, '0')}`;
     let today = '';
-    if (c.role === 'commuter') today = `${t(c.p.leave)}ごろ駅へ → ${cityName(c.city)}で${c.school ? '授業' : '仕事'} → ${t(c.p.back)}ごろの電車で帰る`;
+    if (c.role === 'commuter') today = `${t(c.p.leave)}ごろ駅へ → ${c.school ? '中ノ町商業で授業' : `${cityName(c.city)}で仕事`} → ${t(c.p.back)}ごろのヨコデンで帰る`;
     else if (c.incoming) today = `${cityName(c.city)}から朝の電車で来て、夕方に帰る`;
     else if (c.role === 'staff' || c.role === 'worker') today = `${t(this.#workInfo(c).open)}から仕事（休み: ${c.role === 'staff' ? '土日' : `${WEEK[c.p.offDay]}曜`}）`;
     else if (c.role === 'student') today = '8:00〜15:00 学校、そのあと公園か家';

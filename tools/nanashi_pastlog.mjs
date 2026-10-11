@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ChronicleCore } from '../server/chronicle-core.js';
 import { Simulation, dateLabel } from '../server/sim.js';
-import { PERSONAS } from '../server/personas.js';
+import { CAST, PERSONAS } from '../server/personas.js';
 import { templates } from '../server/templates.js';
 import { mulberry32, realMinutes } from '../server/world.js';
 
@@ -33,10 +33,10 @@ const start = (today - DAYS) * 1440;
 const sim = new Simulation({ seed: SEED, chronicle, executor, startMinutes: start });
 if (process.argv.includes('--cast')) { // 4人の配役（町の台帳の上での住所・家族・勤め先）を表示して終わる
   for (const [id, c] of Object.entries(sim.personas.bound)) {
-    if (!c) { console.log(`${id}: 該当する住人がいない`); continue; }
+    if (!c) { console.log(`${CAST[id]?.note || id}: 該当する住人がいない`); continue; }
     const d = sim.cpDetail(c.id);
     const fam = (sim.households.get(c.hh)?.members || []).map((m) => sim.cpById(m)).filter((m) => m && m !== c).map((m) => `${m.name}（${m.age}）`);
-    console.log(`${PERSONAS[id].label}: ${d.name}（${d.age}）／${d.address}／${d.household}${fam.length ? `：${fam.join('、')}` : ''}／${d.workLabel}／${d.today}／見た目: ${d.lookText}`);
+    console.log(`${CAST[id].note}\n  → ${d.name}（${d.age}）／${d.address}／${d.household}${fam.length ? `：${fam.join('、')}` : ''}／${d.workLabel}／${d.today}／見た目: ${d.lookText}`);
   }
   process.exit(0);
 }

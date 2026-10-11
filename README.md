@@ -1,18 +1,19 @@
 # ナナシ県 — ないのに、ありそう。
 
 存在しない「ナナシ県」を 3DCG で運営するシミュレーション。
-昭和の空気が少し残る町で、数百人の CP（住民）が暮らしている。県庁では 8 つの部署が働く。
-広報課は町の出来事を SNS（ナナシッター）と県民新聞で発信し、住民課は新しい住民や人間のアバターを受け入れる。
+県庁所在地・中ノ町市の中ノ町駅のまわりで、数百人の CP（住民）が暮らしている。県庁では 8 つの部署が働く（世界設定の正本は Claude Docs「ナナシ県 世界観バイブル」）。
+広報課は町の出来事を SNS と県民だよりで発信し、住民課は新しい住民や人間のアバターを受け入れる。
 
-| 広報課が作業中（3D と連動） | ナナシッターと写真 |
+| 広報課が作業中（3D と連動） | SNS と写真 |
 |---|---|
 | ![](docs/nanashi/screenshot-koho.png) | ![](docs/nanashi/screenshot-sns.png) |
 
 ## 48個目の都道府県（SNS の ARG）
 
-構想書: `docs/product/nanashi/business-plan.md`。SNS の4つのアカウント（県庁観光課・住人A・住人B・大衆食堂ふじや）は、この町の実在の住人・店に結びついて投稿する（テンプレート・トークン 0。町のナナシッターに出る下書きで、外には出さない）。
-- 設定集: `docs/nanashi/world-bible.md`／アカウントとプロンプト: `docs/nanashi/personas/README.md`／リスク: `docs/nanashi/arg-risks.md`
-- 過去ログを作る: `node tools/nanashi_pastlog.mjs --days 21 --check` → `data/arg/pastlog/`（見本 `docs/nanashi/personas/sample-week/`）
+構想書: `docs/product/nanashi/business-plan.md`。**世界設定の正本は Claude Docs の「ナナシ県 世界観バイブル」**（写し `docs/nanashi/canon/world-bible.md`）。町と SNS はこれに合わせる。
+- 町の実装との対応: `docs/nanashi/world-bible.md`／正本にない設定（未承認の提案）: `docs/nanashi/proposals.md`
+- SNS の4アカウント（ナナシ県庁・ナナシ放送・スーパーまるやす・ナナシくん）: `docs/nanashi/sns-accounts.md`。書いている人は町の住人（西村ハル・丸山保・戸田由佳・三浦勝・佐藤恵・北村課長を配役）
+- 過去ログを作る: `node tools/nanashi_pastlog.mjs --days 21 --check` → `data/arg/pastlog/`（見本 `docs/nanashi/sns-sample-week/`）。リスク: `docs/nanashi/arg-risks.md`
 
 ## 動かし方
 
@@ -63,7 +64,7 @@ claude.ai の Artifact にしてあります（非公開。開けるのはオー
 |---|---|
 | 上部 | 日付・時刻・人口・LLM モードと本日のトークン使用量 |
 | 左「県庁 業務ボード」 | 部署ごとの在席数。進行中のタスク（担当 CP・移動中／作業中・進み具合） |
-| 右タブ | 町のログ ／ SNS（ナナシッター、写真つき投稿）／ 県民新聞 ／ 台帳（住民台帳）／ 窓口（転入届・アバター登録） |
+| 右タブ | 町のログ ／ SNS（写真つき投稿・4アカウントの下書き）／ 県民だより ／ 台帳（住民台帳）／ 窓口（転入届・アバター登録） |
 | 見え方 | **全景**（つまんで拡大・指で動かす）と **人の目線**（カードの「目線で見る」。左右になぞると見回す）の2つ |
 | 人をタップ | 似顔絵・見た目・世帯・住所・勤め先・今日の予定・いまの行動。「目線で見る」「台帳で見る」 |
 | 店・施設をタップ | 営業時間・営業中か・いる人・働く人・今日のお客・最近の出来事。「中を見る」で建物の中の全景、「利用する」でミニゲーム（`docs/nanashi/minigames.md`） |
@@ -105,7 +106,7 @@ NANASHI_LLM_MODE=omniroute npm start
 
 | スキル | 役割 |
 |---|---|
-| `/nanashi-koho` | 広報課として SNS 投稿・県民新聞を作る。Claude が依頼文と最終チェック、OmniRoute（writer）が本文を書く。実行中は 3D の広報課 CP が「作業中（Claude Code）」になる |
+| `/nanashi-koho` | 広報課として SNS 投稿・県民だよりを作る。Claude が依頼文と最終チェック、OmniRoute（writer）が本文を書く。実行中は 3D の広報課 CP が「作業中（Claude Code）」になる |
 | `/nanashi-jumin` | 住民課として CP を追加する・人間アバターを登録する（LLM 不使用） |
 
 ## API（抜粋）

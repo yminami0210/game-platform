@@ -1,6 +1,6 @@
 // 地図の表示（2D）。WebGL が使えない端末（アプリ内の表示など）でも町が見えるように、
 // 昭和の観光鳥瞰図のように斜め上から見下ろした絵を Canvas 2D で描く。view3d.js と同じ形で使える。
-import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, buildDesks, footprint, mulberry32, trainsAt } from './shared/world.js';
+import { ROAD_STEP, HALF, RAIL_Z, RIVER_Z, PORTAL_X, buildDesks, footprint, mulberry32, trainsAt } from './shared/world.js';
 import { DEPARTMENTS } from './shared/lore.js';
 import { drawFigure, facingFromScreen, personStyle } from './portrait.js';
 
@@ -80,10 +80,14 @@ export function createMap2D({ canvas, init, layout, mobile }) {
       g.lineTo(X(1200), Y(z)); g.closePath(); g.fill();
     }
     g.fillStyle = C.moegi; g.fillRect(0, Y(-300), w, h);
-    // 海
-    g.fillStyle = C.beach; g.fillRect(0, Y(251), w, h);
-    g.fillStyle = C.shallow; g.fillRect(0, Y(272), w, h);
-    g.fillStyle = C.gunjo; g.fillRect(0, Y(306), w, h);
+    // ヨコネ川（町の南を東から西へ。両岸に河川敷、向こう岸は田んぼ）。ナナシ県は海のない内陸県
+    const [rz0, rz1] = RIVER_Z;
+    g.fillStyle = '#b9cf72'; g.fillRect(0, Y(rz0 - 12), w, Y(rz1 + 10) - Y(rz0 - 12));
+    g.fillStyle = C.shallow; g.fillRect(0, Y(rz0), w, Y(rz1) - Y(rz0));
+    g.fillStyle = '#5a96bd'; g.fillRect(0, Y(rz0 + 6), w, Y(rz1 - 6) - Y(rz0 + 6));
+    g.fillStyle = '#9cba5a';
+    for (let x = -1400; x < 1400; x += 70) for (let z = rz1 + 20; z < 640; z += 40) if ((Math.abs(x * 7 + z * 3) % 10) < 6) g.fillRect(X(x + 4), Y(z + 3), 62 * v.s, 34 * v.s * TILT);
+    g.fillStyle = '#cfcabd'; for (const bx of [0, -180]) g.fillRect(X(bx - 4.5), Y(rz0 - 13), 9 * v.s, Y(rz1 + 13) - Y(rz0 - 13)); // 橋
     // 区画
     for (let bx = -HALF; bx < HALF; bx += ROAD_STEP) for (let bz = -HALF; bz < HALF; bz += ROAD_STEP) {
       g.fillStyle = (bx + bz) % 120 === 0 ? C.lot : '#b2c96c';
@@ -103,7 +107,11 @@ export function createMap2D({ canvas, init, layout, mobile }) {
     // 線路
     g.fillStyle = C.rail; g.fillRect(X(-PORTAL_X), Y(RAIL_Z - 2.5), PORTAL_X * 2 * v.s, 5 * v.s * TILT);
     g.strokeStyle = '#7d756a'; g.lineWidth = Math.max(1, v.s * 0.2);
-    for (const dz of [-0.75, 0.75]) { g.beginPath(); g.moveTo(X(-PORTAL_X), Y(RAIL_Z + dz)); g.lineTo(X(PORTAL_X), Y(RAIL_Z + dz)); g.stroke(); }
+    for (const dz of [-0.75, 0.75]) { g.beginPath(); g.moveTo(X(-PORTAL_X), Y(RAIL_Z + dz)); g.lineTo(X(PORTAL_X), Y(RAIL_Z + dz)); g.stroke(); } // 単線
+    const stx = layout.places.find((p) => p.id === 'station')?.x ?? 30;
+    for (const side of [-1, 1]) for (const dz of [-0.75, 0.75]) { // 中ノ町駅の行き違い線
+      g.beginPath(); g.moveTo(X(stx - 80), Y(RAIL_Z + dz)); g.lineTo(X(stx - 40), Y(RAIL_Z + side * 1.8 + dz)); g.lineTo(X(stx + 40), Y(RAIL_Z + side * 1.8 + dz)); g.lineTo(X(stx + 80), Y(RAIL_Z + dz)); g.stroke();
+    }
     // 建物と木（奥から順に）
     const ink = Math.max(1, v.s * 0.12);
     g.lineJoin = 'round';
@@ -216,9 +224,9 @@ export function createMap2D({ canvas, init, layout, mobile }) {
     const X = (x) => sx(x, v, w), Y = (z, y = 0) => sy(z, y, v, h);
     const st = layout.places.find((p) => p.id === 'station');
     for (const t of trainsAt(minute, st?.x ?? 30)) {
-      for (let i = -1; i <= 1; i++) {
-        const cx = t.x + i * 17.6;
-        const x0 = X(cx - 8.5), x1 = X(cx + 8.5), top = Y(RAIL_Z - 1.5, 3.8), front = Y(RAIL_Z + 1.5, 3.8), base = Y(RAIL_Z + 1.5, 0.5);
+      for (let i = 0; i < 2; i++) { // ヨコデンは2両
+        const cx = t.x + (i - 0.5) * 17.6, tz = t.z ?? RAIL_Z;
+        const x0 = X(cx - 8.5), x1 = X(cx + 8.5), top = Y(tz - 1.5, 3.8), front = Y(tz + 1.5, 3.8), base = Y(tz + 1.5, 0.5);
         g.fillStyle = '#7b8590'; g.fillRect(x0, top, x1 - x0, front - top);
         g.fillStyle = '#f2e6c8'; g.fillRect(x0, front, x1 - x0, base - front);
         g.fillStyle = '#d8503e'; g.fillRect(x0, base - (base - front) * 0.3, x1 - x0, (base - front) * 0.3);

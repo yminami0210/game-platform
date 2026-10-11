@@ -5,35 +5,38 @@ import { DEPARTMENTS } from './lore.js';
 export const ROAD_STEP = 60; // 道路は x, z とも 60m 間隔の格子
 export const HALF = 240;     // 町の範囲は -240..240
 export const ROAD_HALF = 5.5; // 道路＋歩道の半幅
-export const RAIL_Z = 27;     // 線路（東西にまっすぐ町の真ん中を通る）
+export const RAIL_Z = 27;     // ヨコデンの線路（単線。東西にまっすぐ町の真ん中を通り、中ノ町駅ですれ違う）
 export const RAIL_BAND = [22.5, 31.5]; // 線路の敷地（建物を置けない）
 export const PORTAL_X = 400;  // トンネルの位置（ここで町の外とつながる）
 
-// 隣の町（架空）。通勤先・来訪者のふるさと
+// 町の外（正本のバイブル: 県内の市町村）。通勤先・来訪者のふるさと。ヨコデンは西の下川原から東の上ヨコネまで
 export const CITIES = [
-  { id: 'nanami', name: 'ナナミ市', dir: 1, note: '東の港町。会社と大きな百貨店がある' },
-  { id: 'otogi', name: 'オトギ町', dir: -1, note: '西の山あいの温泉町' },
+  { id: 'shimogawara', name: '下川原市', dir: -1, note: '西。ヨコネ川の下流。部品工場と団地の町' },
+  { id: 'fukada', name: '深田市', dir: 1, note: '東。米とかぶらの産地。田んぼの真ん中に県立大学' },
+  { id: 'shogyo', name: '県立中ノ町商業高校', dir: 1, note: '高校生の通学先' },
 ];
+export const RIVER_Z = [262, 292]; // ヨコネ川（町の南を東から西へ流れる。南岸の先は田んぼと山）
 
 // 標準のレイアウト。駅を町の真ん中に置き、駅前の桜通りの向こうに県庁がある
 export const PLACES = [
   { id: 'kencho', name: 'ナナシ県庁', kind: 'kencho', x: 30, z: -46, w: 44, d: 14, h: 28, color: '#c9c3b6', sign: 'ナナシ県庁', locked: true },
   { id: 'office', name: '県庁 執務フロア', kind: 'office', x: 30, z: -20, w: 48, d: 26, h: 3, color: '#b9b2a2', sign: '', locked: true },
-  { id: 'station', name: 'ナナシ駅', kind: 'station', x: 30, z: 13, w: 40, d: 12, h: 10, color: '#c7b79a', sign: 'ナナシ駅', face: -1, locked: true },
-  { id: 'super', name: 'スーパーまるなな', kind: 'super', x: 90, z: -30, w: 30, d: 22, h: 8, color: '#e8e1d0', sign: 'スーパーまるなな' },
-  { id: 'conbini1', name: 'ナナシマート駅前店', kind: 'conbini', x: -22, z: 44, w: 14, d: 10, h: 5, color: '#f2f2f2', sign: 'ナナシマート' },
-  { id: 'conbini2', name: 'ナナシマート県道店', kind: 'conbini', x: 150, z: 90, w: 14, d: 10, h: 5, color: '#f2f2f2', sign: 'ナナシマート' },
-  { id: 'mall', name: 'ナナシ・シティプラザ', kind: 'mall', x: -150, z: -150, w: 46, d: 40, h: 22, color: '#d8cfc0', sign: 'シティプラザ' },
-  { id: 'car', name: '名無自動車', kind: 'car', x: 150, z: -150, w: 34, d: 24, h: 7, color: '#dfe6ea', sign: '名無自動車' },
+  { id: 'station', name: '中ノ町駅', kind: 'station', x: 30, z: 13, w: 40, d: 12, h: 10, color: '#c7b79a', sign: '中ノ町駅', face: -1, locked: true },
+  { id: 'super', name: 'スーパーまるやす本店', kind: 'super', x: 90, z: -30, w: 30, d: 22, h: 8, color: '#e8e1d0', sign: 'まるやす' },
+  { id: 'conbini1', name: 'コンビニ駅前店', kind: 'conbini', x: -22, z: 44, w: 14, d: 10, h: 5, color: '#f2f2f2', sign: 'コンビニ' },
+  { id: 'conbini2', name: 'コンビニ県道店', kind: 'conbini', x: 150, z: 90, w: 14, d: 10, h: 5, color: '#f2f2f2', sign: 'コンビニ' },
+  { id: 'mall', name: 'ナカノモール', kind: 'mall', x: -150, z: -150, w: 46, d: 40, h: 22, color: '#d8cfc0', sign: 'ナカノモール' },
+  { id: 'housou', name: 'NNSナナシ放送', kind: 'housou', x: 150, z: -150, w: 34, d: 24, h: 14, color: '#dfe6ea', sign: 'ナナシ放送' },
+  { id: 'post', name: '中ノ町郵便局', kind: 'post', x: -22, z: -30, w: 12, d: 10, h: 6, color: '#efe9da', sign: '〒 中ノ町郵便局' },
   { id: 'yaoya', name: '青果マルヤ', kind: 'shop', x: -42, z: 108, w: 10, d: 9, h: 6, color: '#cfa77a', sign: '青果マルヤ' },
   { id: 'sakanaya', name: '魚辰', kind: 'shop', x: -28, z: 108, w: 10, d: 9, h: 6, color: '#a9c1c9', sign: '魚辰' },
   { id: 'kissa', name: '純喫茶ポプラ', kind: 'kissa', x: -14, z: 108, w: 10, d: 9, h: 6, color: '#8c5a3c', sign: '喫茶ポプラ' },
   { id: 'shoten', name: '七星堂書店', kind: 'shop', x: 14, z: 108, w: 10, d: 9, h: 6, color: '#b8a27a', sign: '七星堂' },
   { id: 'shokudo', name: '大衆食堂ふじや', kind: 'shokudo', x: 28, z: 108, w: 10, d: 9, h: 6, color: '#c98f5a', sign: 'ふじや' },
   { id: 'sento', name: '名無湯', kind: 'sento', x: 44, z: 108, w: 14, d: 12, h: 7, color: '#9a8a7a', sign: '名無湯' },
-  { id: 'park', name: 'ななし公園', kind: 'park', x: 90, z: 150, w: 40, d: 40, h: 0, color: '#7fa66a', sign: '' },
-  { id: 'school', name: 'ナナシ第一小学校', kind: 'school', x: -150, z: 90, w: 44, d: 20, h: 12, color: '#e6dccb', sign: '第一小学校' },
-  { id: 'bokujo', name: '名無牧場', kind: 'bokujo', x: 210, z: 210, w: 46, d: 46, h: 0, color: '#8fb36b', sign: '名無牧場' },
+  { id: 'park', name: '中ノ町公園', kind: 'park', x: 90, z: 150, w: 40, d: 40, h: 0, color: '#7fa66a', sign: '' },
+  { id: 'school', name: '中ノ町第一小学校', kind: 'school', x: -150, z: 90, w: 44, d: 20, h: 12, color: '#e6dccb', sign: '第一小学校' },
+  { id: 'bokujo', name: '中ノ町牧場', kind: 'bokujo', x: 210, z: 210, w: 46, d: 46, h: 0, color: '#8fb36b', sign: '牧場' },
   { id: 'tanbo', name: '田んぼ', kind: 'tanbo', x: -210, z: 210, w: 46, d: 46, h: 0, color: '#9cba5a', sign: '' },
 ];
 export const PLACE_BY_ID = Object.fromEntries(PLACES.map((p) => [p.id, p]));
@@ -42,7 +45,7 @@ export const PLACE_BY_ID = Object.fromEntries(PLACES.map((p) => [p.id, p]));
 export const KIND_INFO = {
   kencho: { jobs: 0, open: 8.5, close: 17.25 }, office: { jobs: 0, open: 8.5, close: 17.25 },
   station: { jobs: 3, open: 5.5, close: 23.5 }, super: { jobs: 6, open: 9, close: 20 }, conbini: { jobs: 2, open: 6, close: 23 },
-  mall: { jobs: 6, open: 10, close: 20 }, car: { jobs: 3, open: 9, close: 18 }, shop: { jobs: 2, open: 9, close: 19 },
+  mall: { jobs: 6, open: 10, close: 20 }, housou: { jobs: 5, open: 9, close: 22 }, shop: { jobs: 2, open: 9, close: 19 },
   kissa: { jobs: 2, open: 8, close: 19 }, shokudo: { jobs: 2, open: 11, close: 21 }, sento: { jobs: 2, open: 15, close: 23 },
   park: { jobs: 0, open: 6, close: 18 }, school: { jobs: 4, open: 8, close: 16 }, bokujo: { jobs: 3, open: 6, close: 17 },
   tanbo: { jobs: 2, open: 6, close: 17 }, clinic: { jobs: 3, open: 9, close: 18 }, post: { jobs: 2, open: 9, close: 17 },
@@ -55,14 +58,14 @@ export const CATALOG = {
   house_niko: { label: '二階建て', house: 'niko' },
   house_apart: { label: '木造アパート', house: 'apart' },
   house_mise: { label: '店舗つき住宅', house: 'mise' },
-  conbini: { label: 'コンビニ', kind: 'conbini', w: 14, d: 10, h: 5, color: '#f2f2f2', names: ['ナナシマート'] },
-  shop: { label: '商店', kind: 'shop', w: 10, d: 9, h: 6, color: '#d6b98a', names: ['豆腐の山田', '肉のマツイ', '文具ハナブサ', 'ナナシ薬局', '金物のカネキ', '花の店すみれ'] },
+  conbini: { label: 'コンビニ', kind: 'conbini', w: 14, d: 10, h: 5, color: '#f2f2f2', names: ['コンビニ'] },
+  shop: { label: '商店', kind: 'shop', w: 10, d: 9, h: 6, color: '#d6b98a', names: ['豆腐の山田', '肉のマツイ', '文具ハナブサ', '中ノ町薬局', '金物のカネキ', '花の店すみれ'] },
   kissa: { label: '喫茶店', kind: 'kissa', w: 10, d: 9, h: 6, color: '#8c5a3c', names: ['喫茶ひまわり', '珈琲ランプ', '喫茶白樺'] },
   shokudo: { label: '食堂', kind: 'shokudo', w: 10, d: 9, h: 6, color: '#c98f5a', names: ['中華そば一番', 'とんかつ丸', 'うどんの松'] },
   sento: { label: '銭湯', kind: 'sento', w: 14, d: 12, h: 7, color: '#9a8a7a', names: ['松の湯', '亀の湯'] },
-  super: { label: 'スーパー', kind: 'super', w: 30, d: 22, h: 8, color: '#e8e1d0', names: ['スーパーやまびこ'] },
-  clinic: { label: '診療所', kind: 'clinic', w: 12, d: 10, h: 7, color: '#f4f4ef', names: ['名無医院', '七瀬内科'] },
-  post: { label: '郵便局', kind: 'post', w: 12, d: 10, h: 6, color: '#efe9da', names: ['ナナシ郵便局'] },
+  super: { label: 'スーパー', kind: 'super', w: 30, d: 22, h: 8, color: '#e8e1d0', names: ['スーパーまるやす 支店'] },
+  clinic: { label: '診療所', kind: 'clinic', w: 12, d: 10, h: 7, color: '#f4f4ef', names: ['中ノ町内科', '駅前医院'] },
+  post: { label: '郵便局', kind: 'post', w: 12, d: 10, h: 6, color: '#efe9da', names: ['中ノ町郵便局 分室'] },
   koban: { label: '交番', kind: 'koban', w: 7, d: 7, h: 5, color: '#e9e6dc', names: ['駅前交番', '町なか交番'] },
   park: { label: '公園', kind: 'park', w: 30, d: 30, h: 0, color: '#7fa66a', names: ['ちびっこ広場', 'すずらん公園'] },
 };
@@ -196,37 +199,36 @@ export function realMinutes(now = Date.now()) {
 
 // ---- 電車の時刻表 -------------------------------------------------------------
 // 1日の何分に駅に着くか。朝夕は10分おき、昼は20分おき、5:40〜23:40
+// ヨコデン（正本のバイブル）: 単線・2両・30分に1本。上りと下りが中ノ町駅で同じ時刻にすれ違う
 export function trainTimes() {
   const out = [];
-  for (let m = 5 * 60 + 40; m <= 23 * 60 + 40;) {
-    out.push(m);
-    const h = m / 60;
-    m += (h >= 6.5 && h < 9) || (h >= 17 && h < 19.5) ? 10 : 20;
-  }
+  for (let m = 5 * 60 + 40; m <= 23 * 60 + 10; m += 30) out.push(m);
   return out;
 }
 export const TRAIN_TIMES = trainTimes();
 export const TRAIN_DWELL = 2;  // 停車（分）
 export const TRAIN_RUN = 6;    // トンネルから駅まで（分）
+export const TRAIN_CARS = 2;
+const LOOP = 1.8;               // 駅の行き違い線（駅の前後だけ線路が2本になる）
 
-// その時刻に見えている電車（x 座標と向き）。dir=1 は西から東へ
+// その時刻に見えている電車（x 座標・z 座標と向き）。dir=1 は西から東へ
 export function trainsAt(minuteOfDay, stationX = 30) {
   const list = [];
-  TRAIN_TIMES.forEach((t, i) => {
-    const dir = i % 2 === 0 ? 1 : -1;
+  const z = (x, dir) => RAIL_Z + dir * LOOP * Math.max(0, Math.min(1, 1 - (Math.abs(x - stationX) - 40) / 40));
+  for (const t of TRAIN_TIMES) for (const dir of [1, -1]) {
     const from = -dir * PORTAL_X, to = dir * PORTAL_X;
     const m = minuteOfDay;
+    let x = null, stopped = false;
     if (m >= t - TRAIN_RUN && m < t) {
       const k = (m - (t - TRAIN_RUN)) / TRAIN_RUN;
-      const ease = 1 - (1 - k) * (1 - k); // 減速して止まる
-      list.push({ x: from + (stationX - from) * ease, dir, stopped: false });
-    } else if (m >= t && m < t + TRAIN_DWELL) {
-      list.push({ x: stationX, dir, stopped: true });
-    } else if (m >= t + TRAIN_DWELL && m < t + TRAIN_DWELL + TRAIN_RUN) {
+      x = from + (stationX - from) * (1 - (1 - k) * (1 - k)); // 減速して止まる
+    } else if (m >= t && m < t + TRAIN_DWELL) { x = stationX; stopped = true; }
+    else if (m >= t + TRAIN_DWELL && m < t + TRAIN_DWELL + TRAIN_RUN) {
       const k = (m - t - TRAIN_DWELL) / TRAIN_RUN;
-      list.push({ x: stationX + (to - stationX) * k * k, dir, stopped: false }); // 加速して出ていく
+      x = stationX + (to - stationX) * k * k; // 加速して出ていく
     }
-  });
+    if (x != null) list.push({ x, z: z(x, dir), dir, stopped });
+  }
   return list;
 }
 

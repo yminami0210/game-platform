@@ -298,7 +298,7 @@ $('#officeInside').addEventListener('click', () => { openSheet(''); openInside('
 // ---- 人の目線 ----
 function openFirstPerson(id) {
   const c = cps.get(id);
-  if (!c || c.state === 6 || c.gone) return toast('いまは県外にいるので、目線では見られません');
+  if (!c || c.state === 6 || c.gone) return toast('いまは町の外にいるので、目線では見られません');
   $('#card').hidden = true;
   closeInside();
   fpv.setPeople([...cps.values()]);
@@ -366,7 +366,7 @@ function renderAvatar() {
   const st = $('#avatarStatus');
   if (!avatar) { st.textContent = ''; return; }
   if (!avatar.cpId) { st.textContent = '住民課で手続き中です…'; return; }
-  st.textContent = `登録済み: ${cps.get(avatar.cpId)?.info.name || ''}（ナナシ駅に到着）`;
+  st.textContent = `登録済み: ${cps.get(avatar.cpId)?.info.name || ''}（中ノ町駅に到着）`;
   $('#walkWrap').hidden = false; $('#camAvatar').hidden = false;
 }
 renderAvatar();
@@ -417,8 +417,8 @@ async function renderDaicho() {
   daicho = await be.registry();
   const s = daicho.summary;
   $('#daichoSummary').innerHTML = `住民 <b>${s.residents}</b>人・<b>${s.households}</b>世帯（空き部屋 ${s.vacancies}）<br>`
-    + `働く人 ${s.workers}人のうち県外へ通う人 <b>${s.commuters}</b>人／県外から通ってくる人 ${s.incommuters}人／来訪者 ${s.visitors}人<br>`
-    + `いま県外にいる住民 <b>${s.awayNow}</b>人（${Math.round((100 * s.awayNow) / Math.max(1, s.residents))}%）`;
+    + `働く人 ${s.workers}人のうち町の外へ通う人 <b>${s.commuters}</b>人／町の外から通ってくる人 ${s.incommuters}人／来訪者 ${s.visitors}人<br>`
+    + `いま町の外にいる住民 <b>${s.awayNow}</b>人（${Math.round((100 * s.awayNow) / Math.max(1, s.residents))}%）`;
   drawDaicho();
 }
 function drawDaicho() {
@@ -426,7 +426,7 @@ function drawDaicho() {
   const q = $('#daichoSearch').value.trim();
   const list = daicho.households.filter((hh) => !q || hh.address.includes(q) || hh.surname.includes(q) || hh.members.some((m) => m.name.includes(q) || m.work.includes(q) || m.lookText?.includes(q)));
   $('#daicho').innerHTML = list.slice(0, 200).map((hh) => `<li><b>${esc(hh.surname)}家</b><span class="addr">${esc(hh.address)}${hh.houseType ? `・${esc(hh.houseType)}` : ''}</span>`
-    + hh.members.map((m) => `<span class="m${m.away ? ' away' : ''}" data-id="${m.id}"><img src="${portraitUrl(m.look, 48)}" alt="">${esc(m.name)}（${m.age}）${esc(m.role)}${m.work ? `・${esc(m.work)}` : ''}${m.away ? ' — 県外' : ''}<span class="look">${esc(m.lookText)}</span></span>`).join('') + '</li>').join('')
+    + hh.members.map((m) => `<span class="m${m.away ? ' away' : ''}" data-id="${m.id}"><img src="${portraitUrl(m.look, 48)}" alt="">${esc(m.name)}（${m.age}）${esc(m.role)}${m.work ? `・${esc(m.work)}` : ''}${m.away ? ' — 町の外' : ''}<span class="look">${esc(m.lookText)}</span></span>`).join('') + '</li>').join('')
     || '<li class="muted">見つかりません</li>';
 }
 $('#daichoSearch').addEventListener('input', drawDaicho);
@@ -480,7 +480,7 @@ be.on('frame', (e) => applyFrame(e));
 be.on('clock', (e) => { const c = e; renderClock(c); if (c.tasks) { tasks = c.tasks; renderTasks(); } });
 be.on('log', (e) => addLog(e));
 be.on('sns', (e) => { const p = e; addSns(p); toast(`ナナシッター: ${p.author} が投稿しました`); });
-be.on('news', (e) => { $('#news').innerHTML = md(e.markdown); toast('ナナシ県民新聞が発行されました'); });
+be.on('news', (e) => { $('#news').innerHTML = md(e.markdown); toast('県民だよりが発行されました'); });
 be.on('roster', (e) => { addRoster(e); if (!$('#fp').hidden) fpv.setPeople([...cps.values()]); });
 be.on('roster_remove', (e) => { const c = cps.get(e.id); if (c) { c.gone = true; view.setBadge(c, null); } });
 be.on('layout', (l) => { layout = l; view.rebuild(l); fpv.setLayout(l); renderWorkSel(); admin.layoutChanged(); if (activeTab === 'daicho') renderDaicho(); });
@@ -495,7 +495,7 @@ be.on('registered', (e) => {
   if (avatar && r.human && r.token === avatar.token) {
     avatar.cpId = r.cpId; store.set('nanashi.avatar', avatar);
     setTimeout(renderAvatar, 600);
-    toast('アバター登録が完了しました。ナナシ駅に到着しています');
+    toast('アバター登録が完了しました。中ノ町駅に到着しています');
   }
 });
 

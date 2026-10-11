@@ -1,24 +1,24 @@
 // LLM を使わない文章テンプレート（トークン 0）。ブラウザ単体モードでもそのまま使う。
-import { HASHTAGS, NEWSPAPER_NAME } from './lore.js';
+import { NEWSPAPER_NAME } from './lore.js';
 
 const pick = (arr, rnd) => arr[Math.floor(rnd() * arr.length)];
 
 export const templates = {
-  sns_post({ event, author }, rnd) {
-    const openers = ['【県庁広報課より】', '【ナナシ県だより】', '【今日のナナシ県】', '【広報課の小さな発見】'];
-    const closers = ['皆さまもお出かけの際はぜひ。', '県庁広報課は今日も見ています。', '詳しくは県民新聞で。', 'またお知らせします。'];
-    const tags = [HASHTAGS[0], pick(HASHTAGS.slice(1), rnd)].join(' ');
-    return `${pick(openers, rnd)}${event.text}。${pick(closers, rnd)}（担当: ${author}） ${tags}`;
+  // 文体は正本のバイブルに合わせる: 数字・時刻・地名を入れ、感想やまとめで終えない。絵文字・ハッシュタグは使わない
+  sns_post({ event }, rnd) {
+    const when = event.time ? `${String(event.time).replace(/^0/, '')}ごろ、` : '';
+    const tail = pick(['', '', '県庁広報課が確認しました。', '詳しくは県民だよりに載せます。'], rnd);
+    return `【ナナシ県庁 広報課】${when}${event.text}。${tail}`;
   },
   newspaper({ day, dateLabel, digest, stats }, rnd) {
     const [top, ...rest] = digest;
-    const head = top ? top.text : '県内はおおむね平穏';
+    const head = top ? top.text : '大きな出来事はなし';
     const lines = [
       `# ${NEWSPAPER_NAME}　第${day}号`,
       `*${dateLabel}*`,
       '',
       `## 一面　${head}`,
-      top ? `${top.place}で${top.time}ごろ、${top.text}。目撃した${top.who}さんは「まさかと思った」と話している。` : '大きな出来事はなかった。',
+      top ? `${top.place}で${top.time}ごろ、${top.text}。居合わせた${top.who}さんは「${pick(['朝から並んでいた', '知らなかった', '来週もあるらしい', '帰りにまた寄る'], rnd)}」と話した。` : '大きな出来事はなかった。',
       '',
       '## 県内のうごき',
       ...rest.map((e) => `- ${e.time} ${e.place}：${e.text}`),
@@ -27,7 +27,6 @@ export const templates = {
       `- 本日の人口 ${stats.population}人（転入 ${stats.arrivals}人）`,
       `- 広報課のSNS投稿 ${stats.posts}件、写真 ${stats.photos}枚`,
       '',
-      `> ${pick(['ないのに、ありそう。', '明日もナナシ県は続く。', '県民の皆さまの声をお待ちしています。'], rnd)}`,
       '',
     ];
     return lines.join('\n');

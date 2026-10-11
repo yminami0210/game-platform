@@ -1,6 +1,6 @@
 // 人の目線（1人称）。その人の目の高さから、歩いている向きの町を描く。
 // WebGL を使わず Canvas 2D の簡単な透視投影で描く（iPhone のアプリ内表示でも動く）。指で左右になぞると見回せる。
-import { ROAD_STEP, HALF, RAIL_Z, PORTAL_X, footprint, mulberry32, trainsAt } from './shared/world.js';
+import { ROAD_STEP, HALF, RAIL_Z, RIVER_Z, PORTAL_X, footprint, mulberry32, trainsAt } from './shared/world.js';
 import { drawFigure, facingFromScreen, personStyle } from './portrait.js';
 
 const INK = '#22324f';
@@ -181,9 +181,9 @@ export function createFirstPerson({ canvas, seed = 7 }) {
     // 地面
     g.fillStyle = night > 0.5 ? '#4d6a3c' : '#a9c25a'; g.fillRect(0, H * 0.5, W, H * 0.5);
     const near = (x, z, r = VIEW) => Math.abs(x - cam.x) < r && Math.abs(z - cam.z) < r;
-    // 海と砂浜
-    poly([[cam.x - 400, 0, 251], [cam.x + 400, 0, 251], [cam.x + 400, 0, 600], [cam.x - 400, 0, 600]], '#efe3c4');
-    poly([[cam.x - 400, 0, 272], [cam.x + 400, 0, 272], [cam.x + 400, 0, 600], [cam.x - 400, 0, 600]], '#2f5ba0');
+    // ヨコネ川と河川敷（海のない内陸県）
+    poly([[cam.x - 400, 0.01, RIVER_Z[0] - 12], [cam.x + 400, 0.01, RIVER_Z[0] - 12], [cam.x + 400, 0.01, RIVER_Z[1] + 10], [cam.x - 400, 0.01, RIVER_Z[1] + 10]], '#b9cf72');
+    poly([[cam.x - 400, 0.02, RIVER_Z[0]], [cam.x + 400, 0.02, RIVER_Z[0]], [cam.x + 400, 0.02, RIVER_Z[1]], [cam.x - 400, 0.02, RIVER_Z[1]]], '#6aa6c8');
     // 公園・田んぼなど平らな場所
     for (const it of boxes) if (it.flat && near(it.f.x, it.f.z)) {
       const { f } = it; poly([[f.x - f.hx, 0.02, f.z - f.hz], [f.x + f.hx, 0.02, f.z - f.hz], [f.x + f.hx, 0.02, f.z + f.hz], [f.x - f.hx, 0.02, f.z + f.hz]], it.b.kind === 'tanbo' ? '#8fb84a' : it.b.kind === 'office' ? '#d9cfb9' : '#9cc767');
@@ -209,11 +209,11 @@ export function createFirstPerson({ canvas, seed = 7 }) {
       list.push({ d: Math.hypot(cx - cam.x, cz - cam.z) + 0.5, draw: () => drawBox(it, dd) });
     }
     for (const [x, z] of poles) if (near(x, z, 120) && dist(x, z) > 0.5) list.push({ d: Math.hypot(x - cam.x, z - cam.z), draw: () => drawPole(x, z) });
-    for (const t of trainsAt(minute, stationX)) for (let i = -1; i <= 1; i++) {
-      const tx = t.x + i * 17.6;
-      if (!near(tx, RAIL_Z)) continue;
-      const it = { b: {}, f: { x: tx, z: RAIL_Z, hx: 8.5, hz: 1.5 }, h: 3.8, roofH: 0, wall: '#f2e6c8' };
-      list.push({ d: Math.hypot(tx - cam.x, RAIL_Z - cam.z), draw: () => drawBox(it, 50) });
+    for (const t of trainsAt(minute, stationX)) for (let i = 0; i < 2; i++) { // ヨコデンは2両
+      const tx = t.x + (i - 0.5) * 17.6, tz = t.z ?? RAIL_Z;
+      if (!near(tx, tz)) continue;
+      const it = { b: {}, f: { x: tx, z: tz, hx: 8.5, hz: 1.5 }, h: 3.8, roofH: 0, wall: '#f2e6c8' };
+      list.push({ d: Math.hypot(tx - cam.x, tz - cam.z), draw: () => drawBox(it, 50) });
     }
     for (const c of people) {
       if (c === who || c.gone || c.state === 4 || c.state === 6 || !near(c.x, c.z, 120)) continue;

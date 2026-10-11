@@ -5,7 +5,7 @@ description: ナナシ県 住民課として CP（住民）を追加したり、
 
 # ナナシ県 住民課（人事機能）
 
-LLM は使わない。API を呼ぶだけ（トークンほぼ 0）。住民課の CP が手続きし、完了するとナナシ駅に新住民が到着する。
+LLM は使わない。API を呼ぶだけ（トークンほぼ 0）。住民課の CP が手続きし、完了すると中ノ町駅に新住民が到着する。
 
 - CP を追加: `curl -s -XPOST localhost:8787/api/residents -d '{"name":"山田 太郎","role":"worker","work":"super"}'`
   - `role`: `resident`（一般）/ `worker`（勤め人。`work` に施設 id）/ `student`（児童）。`name` 省略で自動命名。

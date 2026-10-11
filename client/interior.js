@@ -16,6 +16,7 @@ const ROOM = {
   school: { floor: '#b8935f', wall: '#f1e8d2', trim: '#4a8a5a' }, office: { floor: '#cfc6b0', wall: '#f1ede2', trim: '#2f5ba0' },
   house: { floor: '#cdbb7a', wall: '#efe6d0', trim: '#6c5a4c' }, mall: { floor: '#e6e3da', wall: '#f7f5ee', trim: '#2f5ba0' },
   park: { floor: '#a9c25a', wall: '#8fc8d8', trim: '#5e9a62' },
+  housou: { floor: '#d6d2c6', wall: '#f1ede2', trim: '#2f5ba0' },
 };
 
 export function createInterior(canvas) {

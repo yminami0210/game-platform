@@ -1,69 +1,69 @@
-// SNS アカウント（ペルソナ）: 県庁観光課・住人A・住人B・料理屋「ふじや」。
-// 構想書（docs/product/nanashi/business-plan.md）の「点：世界観の土台」。町の中の実在の住人・店に結びつけ、
-// その人が本当にいる場所・時刻に合わせて投稿する。だから投稿どうしが自然に交差する。
-// 文はテンプレートだけで作る（トークン 0）。設定は docs/nanashi/world-bible.md、口調は docs/nanashi/personas/README.md。
+// SNS アカウントと主な登場人物（正本: 世界観バイブル。写し docs/nanashi/canon/world-bible.md）。
+// アカウントは「ナナシ県庁」「ナナシ放送」「スーパーまるやす」「ナナシくん」の4つ。書いている人は町の住人に配役する。
+// SNS は県民に向けた普通の発信（県外の読者を意識しない）。数字・値段・地名・時刻を入れ、絵文字は使わない。
+// 文はテンプレートだけで作る（トークン 0）。正本では、すべての投稿はエージェントが下書きして人間が承認する。
+// ここで作る投稿は町の中の下書きで、外には出さない。
 import { EPOCH_UTC, mulberry32 } from './world.js';
+import { randomLook } from './looks.js';
+import { GIVEN_F, GIVEN_M } from './lore.js';
 
 export const PERSONAS = {
-  kanko: {
-    handle: '@nanashi_kanko', label: '県庁観光課',
-    profile: 'ナナシ県庁 観光課の公式アカウントです。県内の季節の便りをお届けします。※この県はフィクションです。AI が運用しています。',
+  kencho: {
+    handle: '@nanashi_pref', label: 'ナナシ県庁', writer: 'sato',
+    profile: 'ナナシ県庁の公式アカウントです（担当: 観光課）。イベント、工事、制度のお知らせ。※フィクションです。',
   },
-  a: {
-    handle: '@nanashi_resident_a', label: '住人A',
-    profile: 'ナナシ県の高校2年。ナナシ線でナナミ市の高校に通ってます。※フィクションの県の、架空の住人です（AI 運用）。',
+  housou: {
+    handle: '@nns_nanashi', label: 'ナナシ放送', writer: 'toda',
+    profile: 'NNSナナシ放送（テレビ・ラジオ）。番組表、お天気、県内ニュース。※フィクションです。',
   },
-  b: {
-    handle: '@nanashi_resident_b', label: '住人B',
-    profile: 'ナナシ県在住、ナナミ市で働いています。帰り道の商店街と、おいしいもの。※フィクションの県の、架空の住人です（AI 運用）。',
+  maruyasu: {
+    handle: '@maruyasu_honten', label: 'スーパーまるやす', writer: 'maruyama',
+    profile: 'スーパーまるやす本店です。特売、入荷、季節の品を店長がお知らせします。※フィクションです。',
   },
-  fujiya: {
-    handle: '@fujiya_nanashi', label: '大衆食堂ふじや',
-    profile: 'ナナシ県の商店街の大衆食堂です。毎朝、本日のおすすめを書いています。11時〜14時／17時〜21時。※フィクションの県の、架空のお店です（AI 運用）。',
+  nanashikun: {
+    handle: '@nanashi_kun', label: 'ナナシくん', writer: 'sato',
+    profile: 'ナナシ県のPRキャラ、ナナシくんです（観光課）。※フィクションです。',
   },
 };
 
-// ふじやの本日のおすすめ（日ごとに決まる。住人のつぶやきと食い違わないように、ここだけで決める）
-const MENUS = [
-  ['さばの味噌煮定食', 650], ['しょうが焼き定食', 700], ['ぶり大根定食（名無大根）', 720], ['アジフライ定食', 680],
-  ['親子丼', 600], ['カレーライス', 550], ['肉じゃが定食', 650], ['中華そば', 500], ['焼き魚定食（魚辰さんの魚）', 680],
-  ['オムライス', 620], ['ハムカツ定食', 600], ['かきあげうどん', 520],
-];
-export const menuOf = (day) => MENUS[(day * 7 + Math.floor(day / 3)) % MENUS.length];
-
-const LEAF_NAMES = ['ゆうこ', '三郎', 'はる', 'としお', 'みつ', '健二', 'さくら', 'まさお'];
-const BOARD = ['「傘、戻りました」', '「七瀬さんへ　またね」', '「おかえりなさい」がふたつ', '「3時に改札」', '「ななっしーの顔、まだ決まりません」'];
-const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
-const hm = (m) => `${Math.floor((m % 1440) / 60)}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
-
-// 4人の正式な設定（くわしくは docs/nanashi/personas/characters.md）。町の中の住人をこの人に「配役」する。
-// 見た目の部品は server/looks.js の LOOK_PARTS から選ぶ。
+// 主な登場人物（正本の「登場人物」と「追加された設定」）。町の住人をこの人に配役する
 export const CAST = {
-  a: {
-    surname: '菜種', given: '澪', yomi: 'なたね みお', sns: 'みお（高2）', age: 16, sex: 'f',
-    look: { face: 'egg', eyes: 'dot', brows: 'thin', mouth: 'smile', hair: 'bob', hairColor: '#1f1b18', skin: '#f7dcc4', body: 'slim', top: '#efe6d0', bottom: '#2b3a55', extra: 'none' },
-    p: { wake: 6.2, sleep: 23.2, leave: 6.95, back: 17.3, fav: { shop: 'yaoya' } }, // 6:57 に家を出て、7:07 の鐘をホームで聞く
-    family: [{ sex: 'm', adult: true, given: '和夫' }, { sex: 'f', adult: true, given: '洋子' }, { sex: 'm', adult: false, given: '健太' }],
-  },
-  b: {
-    surname: '梨木', given: 'さくら', yomi: 'なしき さくら', sns: 'さくら', age: 27, sex: 'f',
-    look: { face: 'oval', eyes: 'droop', brows: 'thin', mouth: 'open', hair: 'long', hairColor: '#3d2f26', skin: '#f3d2b4', body: 'normal', top: '#f2b8c6', bottom: '#4a4036', extra: 'none' },
-    p: { wake: 6.6, sleep: 23.6, leave: 7.6, back: 18.8, fav: { eat: 'shokudo', kissa: 'kissa', bath: 'sento', shop: 'super' } }, // 行きつけ
-    family: [],
-  },
-  fujiya: {
-    surname: '藤谷', given: '修', yomi: 'ふじたに おさむ', sns: '大衆食堂ふじや', age: 52, sex: 'm', title: '店主（二代目）',
-    look: { face: 'square', eyes: 'sharp', brows: 'thick', mouth: 'flat', hair: 'crop', hairColor: '#3d2f26', skin: '#e8c09c', body: 'stout', top: '#efe6d0', bottom: '#2b3a55', extra: 'scarf' },
-    p: { wake: 5.3, sleep: 22.2, offDay: 2 }, // 定休日は水曜
-    family: [{ sex: 'f', adult: true, given: '康子' }, { sex: 'f', adult: false, given: '千夏' }, { sex: 'm', adult: false, given: '大地' }], // 先代の源蔵はオトギ町で隠居
-  },
-  kanko: {
-    surname: '七瀬', given: '光太郎', yomi: 'ななせ こうたろう', sns: 'ナナシ県庁 観光課', age: 34, sex: 'm', title: '主事',
-    look: { face: 'round', eyes: 'smile', brows: 'thin', mouth: 'smile', hair: 'parted', hairColor: '#1f1b18', skin: '#f3d2b4', body: 'normal', top: '#3a6aa0', bottom: '#6b6f75', extra: 'glasses' },
-    p: { wake: 6.4, sleep: 23, fav: { eat: 'shokudo' } }, // お昼はたいていふじや
-    family: [],
-  },
+  haru: { surname: '西村', given: 'ハル', yomi: 'にしむら はる', age: 17, sex: 'f', note: '県立中ノ町商業2年、放送部。母と祖母の3人暮らし。中ノ町駅の北側の住宅地' },
+  maruyama: { surname: '丸山', given: '保', yomi: 'まるやま たもつ', age: 58, sex: 'm', work: 'super', title: '2代目店長', note: 'スーパーまるやすの2代目店長' },
+  toda: { surname: '戸田', given: '由佳', yomi: 'とだ ゆか', age: 34, sex: 'f', work: 'housou', title: '気象予報士', note: 'ナナシ放送の気象予報士' },
+  miura: { surname: '三浦', given: '勝', yomi: 'みうら まさる', age: 41, sex: 'm', work: 'post', title: '局員', note: '中ノ町郵便局の局員。窓口に入って14年' },
+  sato: { surname: '佐藤', given: '恵', yomi: 'さとう めぐみ', age: 29, sex: 'f', dept: 'kanko', note: '県庁観光課。ナナシくんの担当' },
+  kitamura: { surname: '北村', given: null, age: 56, sex: 'm', dept: 'kanko', title: '課長', note: '観光課の北村課長。佐藤の上司' },
 };
+
+const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
+
+// ---- 中ノ町のお天気（ナナシ放送の戸田の予報に使う。日付ごとに決まる） ----
+// 内陸の盆地。夏は蒸し暑く、冬は雪より風（ヨコネおろし）が厳しい。月ごとの平年の最高／最低気温
+const NORMALS = [[5, -4], [6, -4], [11, 0], [18, 5], [23, 11], [26, 16], [30, 21], [31, 22], [27, 17], [20, 10], [14, 3], [8, -2]];
+const SKIES = [['晴れ', 0], ['晴れのちくもり', 20], ['くもりのち晴れ', 20], ['くもり', 30], ['くもり一時雨', 50], ['雨', 80]];
+export function weatherOf(date) {
+  const y = date.getUTCFullYear(), mo = date.getUTCMonth(), d = date.getUTCDate();
+  // 正本の投稿例: 11月5日（木）晴れのちくもり、最高14℃／最低3℃、ヨコネおろしは13時ごろから最大瞬間風速18m/s前後
+  if (y === 2026 && mo === 10 && d === 5) return { sky: '晴れのちくもり', hi: 14, lo: 3, pop: 10, oroshi: { from: 13, gust: 18 }, rain: false };
+  const r = mulberry32(y * 1000 + mo * 40 + d);
+  const wet = [0.25, 0.25, 0.3, 0.3, 0.35, 0.5, 0.45, 0.35, 0.45, 0.3, 0.25, 0.25][mo];
+  const roll = r();
+  const i = roll < wet * 0.45 ? 5 : roll < wet ? 4 : roll < wet + 0.15 ? 3 : roll < wet + 0.3 ? 2 : roll < wet + 0.5 ? 1 : 0;
+  const [sky, base] = SKIES[i];
+  const [nh, nl] = NORMALS[mo];
+  const hi = Math.round(nh + (r() - 0.5) * 6 - (i >= 4 ? 2 : 0)), lo = Math.round(nl + (r() - 0.5) * 5);
+  const pop = Math.min(90, base + Math.floor(r() * 2) * 10);
+  // ヨコネおろし: 最初の日は11月上旬。冬（11〜3月）の雨でない日にときどき
+  const season = mo === 10 ? d >= 5 : mo >= 11 || mo <= 2;
+  const oroshi = season && i < 4 && r() < 0.4 ? { from: 11 + Math.floor(r() * 4), gust: 12 + Math.floor(r() * 11) } : null;
+  return { sky, hi, lo: Math.min(lo, hi - 4), pop, oroshi, rain: i >= 4 };
+}
+
+const md = (date) => `${date.getUTCMonth() + 1}月${date.getUTCDate()}日`;
+const wk = (date) => WEEK[(date.getUTCDay() + 6) % 7];
+const between = (date, m0, d0, m1, d1) => { const v = (date.getUTCMonth() + 1) * 100 + date.getUTCDate(); return v >= m0 * 100 + d0 && v <= m1 * 100 + d1; };
+const is = (date, m, d) => date.getUTCMonth() + 1 === m && date.getUTCDate() === d;
 
 export class PersonaHub {
   constructor(sim) {
@@ -73,173 +73,181 @@ export class PersonaHub {
     this.ids = this.#cast();
   }
 
-  // 町の住人の中から条件に合う人を選び（毎回同じ人になるよう一番古い住人）、正式な名前・年齢・見た目・暮らしにする。
+  // 町の住人の中から条件に合う人を選び（毎回同じ人になるよう一番古い住人）、正本の名前・年齢・勤め先にする。
   // 家族の名字もそろえる。保存した町を開き直しても同じ人が同じ設定になる
   #cast() {
     const s = this.sim;
-    const pick = (f) => s.cps.filter((c) => c.resident && f(c)).sort((x, y) => x.id - y.id)[0] || null;
+    const taken = new Set();
     const members = (c) => (s.households.get(c.hh)?.members || []).map((id) => s.cpById(id)).filter(Boolean);
-    const a = pick((c) => c.school && c.sex === 'f' && c.age >= 16 && c.age <= 17 && members(c).length >= 3) || pick((c) => c.school && c.sex === 'f');
-    const b = pick((c) => c.role === 'commuter' && !c.school && c.sex === 'f' && c.age >= 23 && c.age <= 32 && members(c).length === 1 && c.hh !== a?.hh)
-      || pick((c) => c.role === 'commuter' && !c.school && c.sex === 'f' && c.age >= 23 && c.age <= 32 && c.hh !== a?.hh);
-    // ふじやの店主は町に住む人（県外から通う店員ではなく）。いなければ、家族のいる働きざかりの男性に店を継がせる
-    const fujiya = pick((c) => c.work === 'shokudo' && c.hh !== a?.hh && c.hh !== b?.hh)
-      || pick((c) => c.sex === 'm' && c.age >= 40 && c.age <= 65 && ['worker', 'commuter'].includes(c.role) && members(c).length >= 2 && c.hh !== a?.hh && c.hh !== b?.hh);
-    if (fujiya && fujiya.work !== 'shokudo') Object.assign(fujiya, { role: 'worker', work: 'shokudo', city: null, school: false });
-    const kanko = pick((c) => c.role === 'staff' && c.dept === 'kanko' && c.seat === 1) || pick((c) => c.role === 'staff' && c.dept === 'kanko');
-    const chosen = { a, b, fujiya, kanko };
-    for (const [id, c] of Object.entries(chosen)) {
-      if (!c) continue;
-      const k = CAST[id];
+    const pick = (f) => s.cps.filter((c) => c.resident && !taken.has(c.hh) && f(c)).sort((x, y) => x.id - y.id)[0] || null;
+    const look = (c) => randomLook(mulberry32(s.seed * 7919 + c.id * 104729), { sex: c.sex, age: c.age });
+    const rename = (c, k) => {
+      for (const m of members(c)) { m.surname = k.surname; m.name = `${k.surname} ${m.given}`; }
       const hh = s.households.get(c.hh);
-      // 家族: 名字をそろえ、決めてある続柄の人には決めてある名前をつける
-      const fam = members(c).filter((m) => m !== c);
-      for (const m of fam) { m.surname = k.surname; m.name = `${k.surname} ${m.given}`; }
-      const used = new Set();
-      for (const f of k.family) {
-        const m = fam.find((x) => !used.has(x) && x.sex === f.sex && (x.age >= 20) === f.adult);
-        if (m) { used.add(m); m.given = f.given; m.name = `${k.surname} ${f.given}`; }
-      }
       if (hh) hh.surname = k.surname;
-      Object.assign(c, { surname: k.surname, given: k.given, name: `${k.surname} ${k.given}`, age: k.age, sex: k.sex, look: { ...k.look }, p: { ...c.p, ...k.p } });
+      const changed = c.sex !== k.sex || Math.abs(c.age - k.age) > 8;
+      // 下の名前が正本で決まっていない人（北村課長）は、性別が変わったときだけ台帳の名前の表から選び直す
+      const given = k.given || (c.sex === k.sex ? c.given : (k.sex === 'm' ? GIVEN_M : GIVEN_F)[c.id % (k.sex === 'm' ? GIVEN_M : GIVEN_F).length]);
+      Object.assign(c, { surname: k.surname, given, age: k.age, sex: k.sex });
+      c.name = `${k.surname} ${c.given}`;
+      if (changed) c.look = look(c);
       if (k.title) c.title = k.title;
-      c.persona = id;
+      taken.add(c.hh);
+    };
+    const out = {};
+    // 観光課の2人（佐藤は主事、北村は課長）
+    const kanko = s.cps.filter((c) => c.role === 'staff' && c.dept === 'kanko').sort((x, y) => x.seat - y.seat);
+    const kitamura = kanko.find((c) => c.seat === 0), sato = kanko.find((c) => c.seat !== 0);
+    if (kitamura) { rename(kitamura, CAST.kitamura); out.kitamura = kitamura; }
+    if (sato) { rename(sato, CAST.sato); out.sato = sato; }
+    // 西村ハル: 中ノ町駅の北側の家に、母と祖母との3人暮らし。3人家族の家を選び、父にあたる人を祖母にする
+    const north = (c) => (s.houseById[c.home]?.z ?? 99) < 13;
+    const fam3 = (c) => members(c).length === 3 && members(c).filter((m) => m.age >= 25).length === 2 && !members(c).some((m) => m.role === 'staff');
+    const haru = pick((c) => c.age >= 15 && c.age <= 18 && fam3(c) && north(c)) || pick((c) => c.age >= 10 && c.age <= 20 && fam3(c) && north(c))
+      || pick((c) => c.age >= 15 && c.age <= 18 && fam3(c)) || pick((c) => c.school);
+    if (haru) {
+      const adults = members(haru).filter((m) => m !== haru);
+      Object.assign(haru, { role: 'commuter', school: true, city: 'shogyo', work: null, p: { ...haru.p, leave: 7.2, back: 17.6 } }); // 放送部なので帰りは少し遅い
+      rename(haru, CAST.haru);
+      const mother = adults.find((m) => m.sex === 'f') || adults[0];
+      const grand = adults.find((m) => m !== mother);
+      if (mother) Object.assign(mother, { sex: 'f', age: Math.max(40, Math.min(50, mother.age)) });
+      if (grand) { Object.assign(grand, { sex: 'f', age: 72, role: 'retired', city: null, work: null, school: false, given: grand.sex === 'f' ? grand.given : 'トメ' }); grand.name = `${CAST.haru.surname} ${grand.given}`; grand.look = look(grand); }
+      out.haru = haru;
     }
-    return Object.fromEntries(Object.entries(chosen).map(([id, c]) => [id, c?.id ?? null]));
+    // 町の店で働く3人
+    for (const id of ['maruyama', 'toda', 'miura']) {
+      const k = CAST[id];
+      const near = (c) => c.sex === k.sex && Math.abs(c.age - k.age) <= 12 && ['worker', 'commuter'].includes(c.role) && !c.school;
+      const c = pick((x) => x.work === k.work && near(x)) || pick(near);
+      if (!c) continue;
+      Object.assign(c, { role: 'worker', work: k.work, city: null });
+      rename(c, k);
+      out[id] = c;
+    }
+    for (const [id, c] of Object.entries(out)) c.persona = id;
+    return Object.fromEntries(Object.entries(out).map(([id, c]) => [id, c.id]));
   }
 
-  // 結びついている住人（町を出入りしても同じ人）
+  // 配役した住人（町を出入りしても同じ人）
   get bound() {
-    return Object.fromEntries(Object.entries(this.ids).map(([id, cpId]) => [id, cpId == null ? null : this.sim.cpById(cpId)]));
+    return Object.fromEntries(Object.entries(this.ids).map(([id, cpId]) => [id, this.sim.cpById(cpId)]));
   }
 
   // 時刻 before → after のあいだに来た投稿の枠を処理する（町が進むたびに呼ぶ）
   tick(before, after) {
     if (after - before > 30) return; // 一気に時間を飛ばしたとき（開き直し）は投稿しない
     const s = this.sim;
-    const day = s.day, wd = s.weekday, weekend = wd >= 5;
-    const dom = new Date(EPOCH_UTC + (day - 1) * 86400000).getUTCDate();
+    const day = s.day;
+    const date = new Date(EPOCH_UTC + (day - 1) * 86400000);
+    const wd = (date.getUTCDay() + 6) % 7, weekend = wd >= 5;
     const at = (m) => { const t = s.dayStart() + m; return t > before && t <= after; };
-    // 毎日同じ分に投稿すると機械っぽいので、枠ごとに日によって少しずらす（決まった時刻の鐘などはずらさない）
+    // 毎日同じ分に投稿すると機械っぽいので、枠ごとに日によって少しずらす
     const J = (n, spread = 24) => Math.floor(this.#rnd(day, 100 + n)() * spread) - Math.floor(spread / 3);
-    const b = this.bound;
-    const fujiyaClosed = b.fujiya && wd === b.fujiya.p.offDay; // ふじやの定休日（水曜）は、誰もふじやの話をしない
-    const once = (key, fn) => { const k = `${day}:${key}`; if (this.done.has(k)) return; this.done.add(k); fn(this.#rnd(day, [...key].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7) % 9973)); }; // 枠ごとに別の乱数
+    const once = (key, fn) => { const k = `${day}:${key}`; if (this.done.has(k)) return; this.done.add(k); fn(this.#rnd(day, [...key].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7) % 9973)); };
     if (this.done.size > 400) this.done = new Set([...this.done].filter((k) => k.startsWith(`${day}:`)));
+    const today = weatherOf(date);
 
-    // ---- 大衆食堂ふじや ----
-    const f = b.fujiya;
-    if (f) {
-      const closed = wd === f.p.offDay;
-      if (at(10 * 60 + 40 + J(1, 10))) once('f-am', () => {
-        const [menu, price] = menuOf(day);
-        const r = this.#rnd(day, 1);
-        if (closed) return this.#post('fujiya', '本日は定休日です。また明日、お待ちしています。');
-        const extra = [`小鉢は名無大根の煮物です。`, `ごはん大盛り無料です。`, `魚辰さんから、いい魚が入りました。`, `先代のおすすめ帳を見ながら書いています。`, ``, ``][Math.floor(r() * 6)];
-        const nanori = dom === 7 ? '\n本日は名乗らずの日のため、お呼び出しは番号でいたします。' : '';
-        this.#post('fujiya', `【本日のおすすめ】${menu}　${price}円\n11時からです。${extra}${nanori}`);
-      });
-      if (!closed && at(14 * 60 + 10 + J(2))) once('f-noon', () => { const r = this.#rnd(day, 2); if (r() < 0.45) this.#post('fujiya', this.#pickFor('fujiya', ['お昼の部、おわりました。夜は17時からです。', `本日の${menuOf(day)[0]}、お昼で売り切れました。ありがとうございました。`, 'ランチの部、のれんを下ろしました。夜もやっています。', 'お昼にご来店のみなさま、ありがとうございました。夜は小鉢を一品増やします。'], r)); });
-      if (!closed && at(20 * 60 + 40 + J(3))) once('f-pm', () => { const r = this.#rnd(day, 3); if (r() < 0.3) this.#post('fujiya', this.#pickFor('fujiya', ['本日もありがとうございました。明日のおすすめは、明日の朝に書きます。', '本日は閉店です。おやすみなさい。', '明日の仕込みをしています。名無大根、いいのが入りました。', 'のれんを下ろしました。また明日。'], r)); });
-    }
+    // ---- スーパーまるやす（丸山店長。毎日1回。店長の話し言葉のまま、感嘆符が多い） ----
+    if (at(9 * 60 + 20 + J(1, 30))) once('m', (r) => this.#post('maruyasu', this.#maruyasu(date, wd, today, r)));
 
-    // ---- 県庁観光課 ----
-    if (b.kanko) {
-      if (dom === 7 && at(8 * 60 + 30)) once('k-7', () => this.#post('kanko', '【おしらせ】本日は名乗らずの日です。お店や窓口では「そちらさま」とお呼びします。名札は明日おつけください。#ナナシ県'));
-      if (!weekend && at(12 * 60 + 5 + J(4, 30))) once('k-noon', () => {
-        const ev = s.chronicle.day.filter((e) => e.kind === 'event' && e.importance >= 1).sort((x, y) => y.importance - x.importance)[0];
-        const r = this.#rnd(day, 4);
-        if (ev && r() < 0.7) return this.#post('kanko', `【県内のできごと】${ev.text}。${this.#pickFor('kanko', ['今日もナナシ県はおだやかです。', '観光課も見に行ってきます。', 'お近くの方は、ぜひ。', '皆さまのお便りもお待ちしています。'], r)} #ナナシ県 #おかえりなさいナナシ県`);
-        this.#post('kanko', this.#pickFor('kanko', KANKO_NOTES, r));
-      });
-      if (!weekend && at(16 * 60 + 30 + J(5, 40))) once('k-pm', () => { const r = this.#rnd(day, 5); if (r() < 0.45) this.#post('kanko', this.#pickFor('kanko', KANKO_NOTES, r)); });
-      if (wd === 6 && at(10 * 60 + J(6, 30))) once('k-week', () => {
-        const evs = s.chronicle.day.filter((e) => e.kind === 'event').slice(-3).map((e) => e.text);
-        this.#post('kanko', evs.length ? `【今日のナナシ県】${evs.join('。')}。よい日曜日を。#ナナシ県` : '【今日のナナシ県】県内はおだやかな日曜日です。駅の伝言板は、今日も「おかえりなさい」です。#ナナシ県');
-      });
-    }
+    // ---- ナナシ放送（毎日1〜3回。番組告知・お天気（戸田）・県内ニュース） ----
+    if (at(18 * 60 + 40 + J(2, 20))) once('h-wx', () => this.#post('housou', this.#forecast(new Date(date.getTime() + 86400000))));
+    if (wd === 1 && at(12 * 60 + J(3, 30))) once('h-prog', (r) => this.#post('housou', `【ナナシ放送】今夜7時は「ヨコネ川さんぽ」。今週は${this.#pickFor('h-prog', ['深田市のかぶら畑', '鳴沢町の温泉街', '上ヨコネ村', '下川原の工場街', '中ノ町駅前商店街'], r)}を歩きます。`));
+    if (at(12 * 60 + 30 + J(4, 30))) once('h-news', (r) => { const n = this.#news(date, r); if (n) this.#post('housou', n); });
 
-    // ---- 住人A（高校2年。ナナシ線でナナミ市の高校へ） ----
-    const a = b.a;
-    if (a) {
-      const leave = Math.round(a.p.leave * 60), back = Math.round(a.p.back * 60);
-      if (!weekend && at(7 * 60 + 7) && (a.place === 'station' || a.state === 5)) once('a-707', (r) => { if (r() < 0.55) this.#post('a', this.#pickFor('a', ['黙りの一分。ホームの全員ほんとに黙るの、ちょっとすき', '7:07の鐘。今日はちゃんと黙れた', '鐘の途中でくしゃみしそうになった。耐えた', '鐘のあいだは、ななし鳩も鳴かない', '黙りの一分のあいだに電車が来た。運転士さんも黙ってた'], r)); });
-      if (!weekend && at(leave + 9 + J(7, 6))) once('a-am', (r) => {
-        if (r() > 0.75) return;
-        const lines = [`${s.timeLabel().replace(/^0/, '')}の電車。今日も伝言板に「おかえりなさい」って書いてあった`, 'ナナシ線、トンネル入るとき毎回耳がきーんってなる', '朝の電車で数え柑たべてる人いた。房かぞえてた', '一本のがした。10分まち', '駅の売店の七つ割り煎餅、ためしに割ったら8こになった（なんで）', '同じ車両のおばあちゃんに「おかえり」って言われた。いってきますなんだけど', 'トンネル抜けたらナナミ市。今日は晴れ'];
-        if (dom === 7) lines.push('今日は名乗らずの日だから、出席とるとき先生が困ってた');
-        this.#post('a', this.#pickFor('a', lines, r));
-      });
-      if (!weekend && at(back + 25 + J(8, 50))) once('a-after', (r) => {
-        if (r() > 0.7) return;
-        const today = s.chronicle.day;
-        const daikon = today.some((e) => e.place === 'yaoya' && /大根/.test(e.text));
-        const lines = ['七星堂で立ち読み。今月号はまだって言われた', `おつかいでマルヤ。大根の葉っぱに「${this.#pick(LEAF_NAMES, r)}」って書いてあった。消してから帰る`, 'ポプラの前とおったらナポリタンのにおい。お腹すいた', `駅の伝言板、${this.#pick(BOARD, r)}って増えてた`, '名無湯の前で猫が寝てた。三毛', '図書委員の当番で遅くなった。七星堂に寄る時間なかった', ...(fujiyaClosed ? [] : [`帰りにふじやの貼り紙みた。今日は${menuOf(day)[0]}だったらしい`])];
-        if (daikon) lines.push('マルヤの大根50円だった。2本かった。重い');
-        this.#post('a', this.#pickFor('a', lines, r));
-      });
-      if (at(21 * 60 + 20 + J(9, 70))) once('a-night', (r) => { if (r() < 0.4) this.#post('a', this.#pickFor('a', ['宿題おわらない。数え柑、数が合わないからもう一個たべた', wd < 3 ? `まだ${WEEK[wd]}曜。週末が遠い` : wd === 4 ? 'あした土曜！' : '明日の小テスト、範囲どこだっけ', 'おやすみ。ななし鳩が「ななー」って鳴いてる', 'こたつ出した。数え柑の季節', '伝言板に何か書こうと思って、やめた'], r)); });
-      if (weekend && at(14 * 60 + J(10, 90))) once('a-we', (r) => {
-        if (r() < 0.5) return;
-        if (a.away) return this.#post('a', 'ナナミ市の駅ビル。帰りのトンネル抜けたら「おかえり」って言われた気がした');
-        this.#post('a', `ふじやでお昼。今日のおすすめは${menuOf(day)[0]}だった`);
-      });
-    }
+    // ---- ナナシ県庁（観光課の佐藤。平日1〜2回。お役所のお知らせ。少し硬い） ----
+    if (!weekend && at(10 * 60 + J(5, 40))) once('k-am', (r) => { const n = this.#kencho(date, wd, r); if (n) this.#post('kencho', n); });
+    if (!weekend && at(15 * 60 + 30 + J(6, 40))) once('k-pm', (r) => {
+      if (r() > 0.4) return;
+      const ev = s.chronicle.day.filter((e) => e.kind === 'event' && ['kencho', 'station', 'mall', 'post'].includes(e.place)).at(-1);
+      if (ev) this.#post('kencho', `【ナナシ県庁】${ev.text}。`);
+    });
 
-    // ---- 住人B（ナナミ市で働く。グルメ） ----
-    const bb = b.b;
-    if (bb) {
-      const back = Math.round(bb.p.back * 60);
-      if (!weekend && at(12 * 60 + 15 + J(11, 40))) once('b-lunch', (r) => { if (r() < 0.55) this.#post('b', this.#pickFor('b', [fujiyaClosed ? 'ナナミ市の駅ビルでランチ。今日はふじやも休みだし' : `ナナミ市の駅ビルでランチ。おいしいけど、ふじやの${menuOf(day)[0]}のほうが気になる`, 'お昼はコンビニ。早く帰ってポプラ行きたい', '同僚に「ナナシ県ってどこ？」って聞かれた。どこって、ここだけど', 'お昼休み。デスクで七つ割り煎餅。今日も8こ', 'ナナミ市のお昼は高い。ポプラのナポリタンなら380円なのに', '会社の地図にナナシ県が載ってなかった。まあいいか'], r)); });
-      if (!weekend && at(back + 50 + J(12, 40))) once('b-eve', (r) => {
-        if (r() > 0.8) return;
-        // 町の中で本当にいる場所の話をする（ふじやにいるなら、ふじやのおすすめ）
-        const where = bb.place;
-        const [menu] = menuOf(day);
-        const byPlace = {
-          kissa: ['帰りにポプラ。ナポリタン、380円になってた。それでも頼む', 'ポプラのクリームソーダ。インベーダーの台、今日も誰か遊んでた'],
-          shokudo: [`ふじやで晩ごはん。今日のおすすめは${menu}。手書きの字がまた上手になってる`],
-          sento: [`名無湯。富士山の絵がきれいになってた。湯上がりはななし牛乳（ふたに「${(day % 9) + 1}日目」）`],
-          super: ['まるななのタイムセールに間に合った。鐘が鳴ると、みんな少しだけ走る'],
-        };
-        const lines = (fujiyaClosed && where === 'shokudo' ? null : byPlace[where]) || [`${hm(back)}ごろの電車で帰宅。トンネルを抜けると空気が変わる`, '帰りの電車。伝言板の「おかえりなさい」、まだ消えてなかった', '帰りの電車で数え柑の房を数えたら11だった。いつもは10', 'ナナシ駅の改札で、駅員さんに「おかえりなさい」って言われる。毎日', '今日の晩ごはんは名無大根の煮物。母のレシピ', '駅を出たら名無湯のけむり。今日は寄らずに帰る', '帰りにマルヤに寄ったら、もう閉まってた', 'アパートの隣の部屋の人、県庁の観光課の人らしい。廊下でななっしーの顔の話をしてた', ...(fujiyaClosed ? ['ふじや、今日は定休日だった。水曜なの忘れてた'] : [`ふじやの前を通ったら「${menu}　売り切れ」の貼り紙`])];
-        this.#post('b', this.#pickFor('b', lines, r));
-      });
-      if (weekend && at(12 * 60 + 15 + J(13, 60))) once('b-we', (r) => { if (r() < 0.5) { const [menu, price] = menuOf(day); this.#post('b', r() < 0.6 ? `休日のお昼はふじや。${menu}、${price}円。` : `マルヤで名無大根。葉っぱの名前は「${this.#pick(LEAF_NAMES, r)}」でした`); } });
-      if (dom === 7 && at(19 * 60 + 30 + J(14, 60))) once('b-7', () => this.#post('b', '名乗らずの日。会社では名前を呼ばれるから、帰ってくるとほっとする'));
-    }
+    // ---- ナナシくん（観光課の持ち回り。週数回。一言だけ、写真が主役） ----
+    const kun = this.#nanashikun(date, wd, today);
+    if (kun && at(kun.at * 60 + J(7, 20))) once('n', () => this.#post('nanashikun', kun.text, { photoNote: '写真が主役（出演の写真を添える）' }));
+  }
+
+  // まるやす: 季節の品と曜日の特売（正本の「追加された設定」の値段と時刻）
+  #maruyasu(date, wd, today, r) {
+    if (is(date, 10, 12)) return '今日は県民駅伝！コースの前なので、店頭で応援用のお茶を配ってます！';
+    if (between(date, 10, 3, 10, 4)) return 'かぶら祭りの会場に出てます！受付テントの向かいで、ますめし1個450円！';
+    if (between(date, 11, 1, 11, 10)) return '風袋、今年の柄が入荷しました！水色に黄色の丸です！3枚で398円！';
+    const list = [];
+    if (wd === 1) return `火曜市です！今日は卵が1パック98円！${today.rain ? '雨なのでポイント2倍ですよ！' : ''}`;
+    else if (today.rain) list.push('雨の日はポイント2倍です！足元に気をつけて来てください！');
+    if (between(date, 10, 15, 12, 31)) list.push(wd < 5 ? '焼きいも、今日も焼きます！1本180円！14時と16時に焼き上がり！' : '焼きいも、1本180円です！');
+    if (between(date, 10, 22, 12, 31)) list.push('深田産のかぶらが並びました！大きいのは1個298円！');
+    if (between(date, 10, 15, 10, 25)) list.push('さんまはそろそろ終わりです！これからは塩さばが中心になります！');
+    list.push('今日の卵はね、おっちらまでもたんよ！1パック98円！', 'ますめし用の升、1個220円で置いてます！洗った升は1個5円で引き取ります！', '屋根酢コーナーに、上ヨコネの吉澤さんちのが入りました！去年すぐなくなったやつです！！');
+    return this.#pickFor('m', list, r);
+  }
+
+  // 戸田の予報（日付、天気、最高／最低気温、降水確率、風速、時刻を必ず入れる）
+  #forecast(next) {
+    const w = weatherOf(next);
+    const wind = w.oroshi
+      ? `ヨコネおろしは${w.oroshi.from}時ごろから、最大瞬間風速${w.oroshi.gust}m/s前後の見込み。風袋は今夜のうちに。`
+      : w.rain ? `降り始めは${9 + (next.getUTCDate() % 7)}時ごろ。風は弱く、最大3m/s前後。` : `風は弱く、14時ごろに最大${2 + (next.getUTCDate() % 3)}m/s前後。`;
+    return `【ナナシ放送 お天気】あす${md(next)}（${wk(next)}）の中ノ町、${w.sky}、最高${w.hi}℃／最低${w.lo}℃、降水確率${w.pop}%。${wind}戸田`;
+  }
+
+  // 県内ニュース（正本の「追加された設定」にある出来事だけ）
+  #news(date, r) {
+    if (is(date, 10, 5)) return '【ナナシ放送】深田市のかぶら祭り。重さ当ての大かぶらは9.1kg、2日目のかぶらは7.6kgで、当てた人はいませんでした。人出は2日間で約1万2千人。';
+    if (is(date, 10, 6)) return '【ナナシ放送】かぶら祭りの重さ当てで、上ヨコネ村の70代の男性が大かぶらの9.1kgを当てました。毎年「9.1kg」と書いていたそうです。';
+    if (is(date, 10, 12)) return '【ナナシ放送】県民駅伝は下川原市チームが3年ぶりに優勝。中ノ町市チームはゴール前300mで抜かれて2位でした。';
+    if (is(date, 10, 16)) return '【ナナシ放送】下川原ものづくりフェアはあす10月17日（土）、下川原市民体育館で。ねじの詰め放題があります。';
+    if (is(date, 10, 23)) return '【ナナシ放送】あす10月24日の中ノ町商業の文化祭。放送部の校内ラジオに、13時30分からナナシくんがゲスト出演します。一般公開は9時から15時まで。';
+    if (is(date, 10, 28)) return '【ナナシ放送】県展の入選が発表されました。今年の応募は612点。';
+    if (between(date, 10, 19, 10, 30) && r() < 0.35) return '【ナナシ放送】まるやすの焼きいもは、平日14時と16時に焼き上がるそうです。1本180円。';
+    return null;
+  }
+
+  // 県庁のお知らせ（正本の工事・制度・行事）
+  #kencho(date, wd, r) {
+    if (is(date, 6, 11)) return '【ナナシ県庁】本日6月11日は県民の日です。県立の博物館と美術館は入館無料です。';
+    if (between(date, 10, 5, 10, 9)) return '【ナナシ県庁】10月12日（月・スポーツの日）は県民駅伝です。コースは県道3号線（中ノ町〜下川原）。ゴールは下川原市役所前です。';
+    if (is(date, 10, 13)) return '【ナナシ県庁】県民駅伝は下川原市チームが優勝しました。区間記録は県のホームページに載せています。';
+    if (between(date, 10, 19, 10, 23)) return '【ナナシ県庁】県展の応募は612点でした。入選の発表は10月28日です。出品された方には郵便でもお知らせします。';
+    if (between(date, 10, 26, 10, 30)) return '【ナナシ県庁】県営バスの深田・鳴沢方面は、11月1日から冬ダイヤになります。';
+    if (between(date, 10, 1, 10, 31) && wd === 0) return '【ナナシ県庁】県道7号線（鳴沢方面）は10月31日まで片側交互通行です。ご迷惑をおかけします。';
+    if (r() < 0.5) return null;
+    return this.#pickFor('k', [
+      '【ナナシ県庁】県立歴史博物館では、県名が決まらなかったときの会議記録を展示しています。',
+      '【ナナシ県庁】ナナシくんのイベント出演のご依頼は、観光課で受け付けています。',
+      '【ナナシ県庁】11月の県展は、県立美術館で開きます。6部門（日本画・洋画・彫刻・工芸・書・写真）です。',
+    ], r);
+  }
+
+  // ナナシくん（正本の出演予定。しゃべらない、一言だけ）
+  #nanashikun(date, wd, today) {
+    if (is(date, 10, 1)) return { at: 10, text: '衣替え。冬用です。' };
+    if (is(date, 10, 21)) return { at: 11, text: '中ノ町第一保育園のいも掘り。' };
+    if (is(date, 10, 24)) return { at: 14, text: '中ノ町商業の文化祭。校内ラジオ。' };
+    if (is(date, 10, 12)) return { at: 12, text: '県民駅伝。' };
+    if (between(date, 10, 3, 10, 4)) return { at: 13, text: 'かぶら祭り。' };
+    if (today.oroshi && wd < 5) return { at: 16, text: '風。' };
+    if (wd === 2 || wd === 5) return { at: 15, text: ['県庁の玄関。', '中ノ町駅。', 'ヨコネ川。', 'まるやす。'][Math.floor(date.getUTCDate() / 2) % 4] };
+    return null;
   }
 
   #rnd(day, slot) { return mulberry32(this.sim.seed * 7331 + day * 97 + slot * 13); }
   #pick(list, r) { return list[Math.floor(r() * list.length)]; }
-  // 最近そのアカウントが使った文は避ける（同じつぶやきのくり返しを減らす）
+  // 最近そのアカウントが使った文は避ける（同じ投稿のくり返しを減らす）
   #pickFor(id, list, r) {
     const used = this.recent[id] || [];
     const fresh = list.filter((t) => !used.includes(t));
     const t = this.#pick(fresh.length ? fresh : list, r);
-    this.recent[id] = [...used, t].slice(-Math.max(3, Math.floor(list.length * 0.7)));
+    this.recent[id] = [...used, t].slice(-Math.max(1, Math.floor(list.length * 0.7)));
     return t;
   }
 
-  #post(id, text) {
+  #post(id, text, extra = {}) {
     const s = this.sim;
     const p = PERSONAS[id];
-    const cp = this.bound[id];
-    const name = CAST[id].sns;
-    s.chronicle.postSns({ id: `${id}-${s.day}-${Math.floor(s.minutes % 1440)}`, day: s.day, time: s.timeLabel(), author: name, handle: p.handle, persona: id, cpId: cp?.id ?? null, text, via: 'template' });
+    const writer = this.bound[p.writer];
+    s.chronicle.postSns({ id: `${id}-${s.day}-${Math.floor(s.minutes % 1440)}`, day: s.day, time: s.timeLabel(), author: p.label, handle: p.handle, persona: id, cpId: writer?.id ?? null, writer: writer?.name ?? null, text, via: 'template', draft: true, ...extra });
   }
 }
-
-const KANKO_NOTES = [
-  '【県の特産】名無大根は、葉っぱに名前を書いて売られています。お買い上げの際は、名前をご自分で消してからお持ち帰りください。#ナナシ県',
-  '【観光課より】ナナシ駅の伝言板は、どなたでもお使いいただけます。毎朝の「おかえりなさい」は、町内会の当番の方が書いています。#ナナシ県',
-  '【観光課より】七つ割り煎餅は、ナナシ駅の売店で買えます。7つに割ってお召し上がりください。#ナナシ県',
-  '【観光課より】名無湯の富士山のペンキ絵が塗り直されました。湯上がりには、ななし牛乳をどうぞ。#ナナシ県',
-  '【県の花】名無草が咲いています。花びらの数は、数えなくても大丈夫です。#ナナシ県',
-  '【観光課より】本日も七時七分の鐘が鳴りました。ご協力ありがとうございました。#ナナシ県',
-  '【おしらせ】雨の日は、傘に住所をお書きください。お忘れ物が早く戻ります。#ナナシ県',
-  '【観光課より】ナナシ線は朝夕10分おきに走っています。トンネルを抜けるとナナミ市です。#ナナシ県',
-  '【観光課より】純喫茶ポプラのナポリタンは380円です。先月から30円上がりました。#ナナシ県',
-  '【観光課より】ななっしーの顔は、まだ決まっていません。ご意見は観光課まで。#ナナシ県',
-  '【観光課より】ななっしーの顔を決める会議は、今年で7年目になりました。#ナナシ県',
-];
