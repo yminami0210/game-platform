@@ -65,19 +65,21 @@ async function draw() {
   });
 
   // ---- 2. ガラスの温度（ゲージを出さず、色と筋で見せる）----
-  text(g, "ガラスの温度と失敗", 40, 478, 26, FH, INK);
-  const prof = [10, 13, 18, 24, 30, 35, 38, 40, 40, 38, 34, 28];
+  text(g, "ガラスの温度と失敗（ゲージを出さず、色・筋・透けで見せる）", 40, 478, 24, FH, INK);
+  const prof = [10, 13, 18, 24, 31, 37, 41, 43, 43, 41, 36, 29];
   const states = [
-    ["熱い", 1, {}], ["冷めかけ", 0.5, {}], ["冷えた（割れる）", 0.08, {}],
-    ["薄すぎ", 0.9, { state: "thin" }], ["気泡（断る）", 0.95, { state: "bubble" }], ["仕上がり", 0, { state: "done" }],
+    ["熱い（作業中の高さ）", 1, { workY: 0.55, small: true }], ["冷めかけ", 0.55, { small: true }], ["筋が出始め（危ない）", 0.38, { state: "warn", small: true }], ["冷えた（触ると割れる）", 0.08, { state: "cold", small: true }],
+    ["割れた", 0.08, { state: "broken", small: true }], ["薄すぎ（透ける）", 0.9, { state: "thin", small: true }], ["気泡の玉（断る）", 0.95, { state: "bubble", small: true }], ["仕上がり", 0, { state: "done", small: true }],
   ];
   states.forEach(([name, heat, o], i) => {
-    const cx = 100 + i * 140, top = 520;
+    const cx = 74 + i * 108, top = 520;
     setSeed(100 + i);
     pipe(g, cx, 496, top + 1, 6);
-    const pr = o.state === "thin" ? prof.map(r => r * 1.18) : prof;
+    const pr = o.state === "thin" ? prof.map(r => r * 1.22) : prof;
     drawGlass(g, cx, top, 128, pr, heat, o);
-    stext(g, name, cx, 712, 13, FB, INK, { weight: 700, align: "center" });
+    const parts = name.split("（");
+    stext(g, parts[0], cx, 712, 13, FB, INK, { weight: 700, align: "center" });
+    if (parts[1]) stext(g, "（" + parts[1], cx, 734, 12, FB, INK, { align: "center" });
   });
   // 割れ: 床の箱にたまるかけら（尖った多角形。光らせない）
   setSeed(9);
@@ -126,11 +128,12 @@ async function draw() {
   setSeed(70);
   const furn = (x, y, open) => {
     const op = []; for (let k = 0; k <= 12; k++) { const a = Math.PI + k / 12 * Math.PI; op.push([x + Math.cos(a) * 40, y - 52 + Math.sin(a) * 40]); }
-    pastel(g, polyPath([[x - 62, y + 12], [x - 60, y - 70], [x - 20, y - 110], [x + 40, y - 106], [x + 64, y - 60], [x + 62, y + 12]]), [C.brick, "#b8987a"], { ang: -0.15, len: [8, 16], wid: [2, 3.2], dens: 1.2, bb: [x - 64, y - 112, 130, 126], tooth: 0.35 });
-    const gapTop = open ? y - 92 : y - 18;
-    pastel(g, polyPath([[x - 38, gapTop], [x + 38, gapTop], [x + 38, y - 1], [x - 38, y - 1]]), [C.hot, mix(C.hot, C.core, 0.5)], { ang: 0.02, len: [8, 18], wid: [2, 3.2], dens: 2, bb: [x - 40, gapTop - 2, 80, y - gapTop + 2], tooth: 0.15 });
-    if (!open) pastel(g, polyPath([...op.map(([a, b]) => [a, b + 1]), [x + 40, gapTop], [x - 40, gapTop]]), [C.iron, "#57525d"], { ang: 1.45, len: [10, 20], wid: [2, 3.2], dens: 1.6, bb: [x - 42, y - 96, 84, 80], tooth: 0.2 });
-    else pastel(g, polyPath([[x - 22, y - 30], [x + 26, y - 34], [x + 22, y - 6], [x - 18, y - 4]]), [C.core], { ang: 0, len: [6, 14], wid: [1.8, 3], a: [0.5, 0.9], dens: 1.5, bb: [x - 24, y - 36, 52, 34], tooth: 0.3 });
+    pastel(g, polyPath(loose([[x - 62, y + 12], [x - 60, y - 70], [x - 20, y - 110], [x + 40, y - 106], [x + 64, y - 60], [x + 62, y + 12]], 2.5)), [C.brick, "#b8987a", "#a98668"], S("brick", { bb: [x - 66, y - 114, 134, 130] }));
+    const gapTop = open ? y - 92 : y - 20;
+    pastel(g, polyPath([[x - 38, gapTop], [x + 38, gapTop], [x + 38, y - 1], [x - 38, y - 1]]), [C.ember, mix(C.ember, C.hot, 0.4)], { ang: 0.02, len: [8, 18], wid: [2, 3.2], dens: 2, bb: [x - 40, gapTop - 2, 80, y - gapTop + 2], tooth: 0.12 });
+    const hh2 = open ? 40 : 13, hot = Array.from({ length: 10 }, (_, k) => { const t = k / 9; return [x - 30 + t * 60 + rr(-3, 3), y - 2 - Math.sin(t * Math.PI) * hh2 * rr(0.7, 1.1)]; });
+    pastel(g, polyPath([...hot, [x + 30, y - 1], [x - 30, y - 1]]), [C.hot, mix(C.hot, C.core, 0.35)], { ang: 0.02, len: [6, 14], wid: [1.8, 3], a: [0.6, 0.95], dens: 1.5, bb: [x - 34, y - hh2 - 6, 68, hh2 + 6], tooth: 0.25, mottle: 0.4, mscale: 10 });
+    if (!open) { pastel(g, polyPath([...op.map(([a, b]) => [a, b + 1]), [x + 40, gapTop], [x - 40, gapTop]]), [C.iron, "#57525d"], S("iron", { bb: [x - 42, y - 96, 84, 80] })); charcoal(g, wob([[x - 38, gapTop], [x, gapTop + 2.5], [x + 38, gapTop]], 0.8, 4), 2.2, C.ember, { passes: 1, gaps: 0.1 }); }
     charcoal(g, wob([...op, [x + 40, y], [x - 40, y], op[0]], 0.7, 5), 2.2, INK);
   };
   furn(110, 1270, false); furn(260, 1270, true);

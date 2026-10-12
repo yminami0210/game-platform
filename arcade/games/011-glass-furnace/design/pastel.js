@@ -81,15 +81,35 @@ function pastel(g, path, col, o = {}) {
   L.save(); path(L); L.clip();
   const cols = Array.isArray(col) ? col : [col];
   const n = Math.floor((bb[2] * bb[3]) / 14 * dens);
+  const ms = o.mseed ?? Math.floor(rr(1, 999));
   for (let i = 0; i < n; i++) {
     const x = bb[0] + rnd() * bb[2], y = bb[1] + rnd() * bb[3];
-    const an = (typeof ang === "function" ? ang(x, y) : ang) + rr(-0.22, 0.22), l = rr(len[0], len[1]);
+    // 筆圧のむら: ゆっくり変わる値で、塗りの密度を場所ごとに変える
+    if (o.mottle && rnd() < o.mottle * vnoise(x / (o.mscale || 26), y / (o.mscale || 26), ms) * 1.6) continue;
+    const an = (typeof ang === "function" ? ang(x, y) : ang) + rr(-(o.spread ?? 0.22), o.spread ?? 0.22), l = rr(len[0], len[1]);
+    const bw = typeof o.bow === "function" ? o.bow(x, y) : (o.bow ?? 0) + rr(-1.2, 1.2);
     L.strokeStyle = jitterCol(pick(cols), o.var ?? 0.07); L.globalAlpha = rr(a[0], a[1]); L.lineWidth = rr(wid[0], wid[1]);
     L.beginPath(); L.moveTo(x - Math.cos(an) * l / 2, y - Math.sin(an) * l / 2);
-    L.quadraticCurveTo(x + rr(-1.2, 1.2), y + rr(-1.2, 1.2), x + Math.cos(an) * l / 2, y + Math.sin(an) * l / 2); L.stroke();
+    L.quadraticCurveTo(x - Math.sin(an) * bw, y + Math.cos(an) * bw, x + Math.cos(an) * l / 2, y + Math.sin(an) * l / 2); L.stroke();
   }
   L.restore();
   compose(g, L, o.tooth ?? 0.45, o.alpha ?? 1, o.op);
+}
+// 塗りの形を輪郭とずらす（人の手のパステルは輪郭と塗りが 1〜3px ずれる）
+function loose(pts, amp = 2.5, seg = 14) { const o = wob([...pts, pts[0]], 0, seg); return o.map(([x, y]) => [x + rr(-amp, amp), y + rr(-amp, amp)]); }
+// 物ごとのストロークの組（長さ・太さ・向き・密度を変える）
+const ST = {
+  wall:  { ang: (x, y) => 0.12 + (vnoise(x / 120, y / 120, 8) - 0.5) * 0.6, len: [26, 60], wid: [5, 10], a: [0.12, 0.3], dens: 0.22, tooth: 0.25, spread: 0.12, mottle: 0.7, mscale: 60 },
+  brick: { ang: () => (rnd() < 0.8 ? 0 : 1.57), len: [6, 14], wid: [2, 3.4], a: [0.7, 1], dens: 1.8, tooth: 0.3, spread: 0.3, mottle: 0.45, mscale: 18 },
+  wood:  { len: [30, 70], wid: [1.2, 2.6], a: [0.55, 0.95], dens: 0.9, tooth: 0.3, spread: 0.04, mottle: 0.35, mscale: 30 },
+  iron:  { ang: 1.45, len: [10, 22], wid: [2, 3.4], a: [0.8, 1], dens: 1.6, tooth: 0.2, mottle: 0.25 },
+  sky:   { ang: (x, y) => 0.05, len: [20, 40], wid: [5, 9], a: [0.3, 0.6], dens: 0.35, tooth: 0.08, spread: 0.08 },
+  cloth: { len: [4, 9], wid: [1.4, 2.4], a: [0.6, 0.95], dens: 1.6, tooth: 0.45, spread: 0.6, mottle: 0.3 },
+};
+function S(name, extra = {}) { return Object.assign({}, ST[name], extra); }
+// 紙の地に、パステルが掠った跡をごく弱く（場所で濃さが変わる）
+function paperGraze(g, W, H, cols) {
+  pastel(g, c => { c.beginPath(); c.rect(-10, -10, W + 20, H + 20); }, cols, { ang: (x, y) => (vnoise(x / 150, y / 150, 2) - 0.5) * 1.2, len: [10, 30], wid: [1.2, 3], a: [0.1, 0.28], dens: 0.45, tooth: 0.55, mottle: 0.85, mscale: 50, bb: [0, 0, W, H] });
 }
 // 指でこすった面（擦筆）。境目が柔らかく、粒が少ない
 function smudge(g, path, col, a = 0.5, bb) {
@@ -143,51 +163,56 @@ function glassOutline(cx, top, h, prof, wob1 = 0.6) {
   for (let k = 1; k < 8; k++) { const a = Math.PI - k / 8 * Math.PI; bot.push([cx + Math.cos(a) * rb, yb + Math.sin(a) * rb * 0.55]); }
   return { pts: [...L, ...bot, ...R.reverse()], L, R: R.reverse() };
 }
-// heat: 1=熱い 0.5=暗赤 0=冷えた。state: hot|done|thin|bubble
+// heat: 1=熱い 0.5=暗赤 0=冷えた。state: hot|warn|cold|done|thin|bubble|broken
+// o.workY: 作業中の高さ（0..1）。o.small: 小さい器（映り込みを描かない）
 function drawGlass(g, cx, top, h, prof, heat = 1, o = {}) {
   const sh = glassOutline(cx, top, h, prof), P = polyPath(sh.pts), bb = bbox(sh.pts, 6);
-  const n = prof.length;
-  // 本体の色（温度で 朱橙 → 暗赤 → 鈍い灰。ゲージを出さない）
-  const body = o.state === "done" ? C.teal : heat > 0.5 ? mix(C.ember, C.hot, (heat - 0.5) * 2) : mix(C.cold, C.ember, heat * 2);
-  if (o.state === "done") {
-    // 仕上がり: 透けた青緑。中央は薄く地が透け、縁は厚く濃い
-    pastel(g, P, [C.teal, mix(C.teal, C.day, 0.35)], { ang: (x, y) => 0.05, len: [8, 18], wid: [1.4, 2.6], a: [0.25, 0.5], dens: 0.9, bb, tooth: 0.35 });
+  const n = prof.length, st = o.state || "hot";
+  let best = 0; prof.forEach((r, i) => { if (r >= prof[best]) best = i; });
+  // ガラスの面は丸みに沿った弧のストローク（中央で平ら、縁ほど強く曲がる）
+  const arc = { ang: (x, y) => 0.04, bow: (x, y) => { const i = Math.min(n - 1, Math.max(0, Math.round((y - top) / h * (n - 1)))), r = prof[i] || 1; return 3.2 * Math.max(-1, Math.min(1, (x - cx) / r)) ** 2 * 1.4 + rr(-0.6, 0.6); }, len: [8, 20], wid: [1.6, 3], spread: 0.08 };
+  const body = st === "done" ? C.teal : heat > 0.5 ? mix(C.ember, C.hot, (heat - 0.5) * 2) : mix(C.cold, C.ember, heat * 2);
+  if (st === "done") {
+    pastel(g, P, [C.teal, mix(C.teal, C.day, 0.35)], Object.assign({}, arc, { a: [0.25, 0.5], dens: 0.9, bb, tooth: 0.35, mottle: 0.4 }));
     edgeBand(g, sh, mix(C.teal, C.charcoal, 0.35), 4.5, 0.85);
+  } else if (st === "thin") {
+    // 薄すぎ: 淡い朱橙を疎らに塗り、ガラス越しに壁の紙が透ける。縁だけ細く明るい
+    smudge(g, P, mix(C.hot, C.core, 0.55), 0.75, bb);
+    pastel(g, P, [mix(C.hot, C.core, 0.6)], Object.assign({}, arc, { a: [0.25, 0.45], dens: 0.25, bb, tooth: 0.3 }));
+    rim(g, sh, mix(C.core, C.chalk, 0.4), 1.6, 0.9);
   } else {
-    // 面は横に巻くストローク（回っている丸みが出る）。中央の縦帯を少し明るく
-    pastel(g, P, [body, mix(body, C.charcoal, 0.15)], { ang: (x, y) => Math.sin((x - cx) / 40) * 0.25, len: [7, 16], wid: [1.8, 3.2], a: [0.7, 0.98], dens: 1.25, bb, tooth: 0.18 });
-    // 縁は暗い（厚みで暗く見える）
+    pastel(g, P, [body, mix(body, C.charcoal, 0.12)], Object.assign({}, arc, { a: [0.75, 1], dens: 1.25, bb, tooth: 0.16, mottle: 0.25, mscale: 18 }));
     edgeBand(g, sh, mix(body, C.charcoal, 0.45), 3.5, 0.8);
-    // 竿に近い首は冷えて暗い（鉄に熱を取られる）。電球の口金のような帯にせず、上から下へ薄れる
-    {
-      const nk = Math.max(3, Math.floor(n * 0.18)), pts = [...sh.L.slice(0, nk), ...sh.R.slice(0, nk).reverse()];
-      pastel(g, polyPath(pts), [mix(body, C.charcoal, 0.5), mix(body, C.ember, 0.6)], { ang: 0.05, len: [5, 12], wid: [1.6, 2.8], a: [0.35, 0.75], dens: 1.3, bb: bbox(pts), tooth: 0.35 });
-    }
-    // 芯: いちばん厚い所（胴の下・窓と反対の右寄り）にだけ、形の違う2〜3枚の斑で重ねる。外へは一切にじませない
-    if (heat > 0.25 && o.state !== "thin") {
-      const k = (heat - 0.25) / 0.75;
-      let best = 0; prof.forEach((r, i) => { if (r >= prof[best]) best = i; });
-      const blobs = [[best, 0.62, 0.34], [Math.max(1, best - 4), 0.4, 0.22], [Math.min(n - 2, best + 2), 0.3, 0.16]];
-      for (const [i, sx, sy] of blobs) {
-        const r = prof[i], y = top + h * i / (n - 1), x = cx + r * 0.16;
-        const rad = Array.from({ length: 13 }, () => [rr(0.75, 1.15), rr(0.7, 1.2)]);
-        // 大きさを3段に変えて重ねる（縁ほど薄い。硬い切り紙の縁にしない）
-        for (const sc of [1.0, 0.7, 0.42]) {
-          const pts = rad.map(([a1, a2], q) => { const an = q / 12 * Math.PI * 2; return [x + Math.cos(an) * r * sx * a1 * sc * rr(0.92, 1.08), y + Math.sin(an) * h * sy * 0.5 * a2 * sc * rr(0.92, 1.08)]; });
-          pastel(g, c => { polyPath(sh.pts)(c); c.clip(); polyPath(pts)(c); }, [C.core, mix(C.core, C.hot, 0.45)], { ang: (px, py) => Math.sin((px - cx) / 30) * 0.3, len: [5, 12], wid: [1.4, 2.6], a: [0.3, 0.7], dens: 0.75, bb: bbox(pts), tooth: 0.55, alpha: 0.3 * k, op: "lighter" });
+    // 竿に近い首は鉄に熱を取られて暗い
+    { const nk = Math.max(3, Math.floor(n * 0.18)), pts = [...sh.L.slice(0, nk), ...sh.R.slice(0, nk).reverse()];
+      pastel(g, polyPath(pts), [mix(body, C.charcoal, 0.5), mix(body, C.ember, 0.6)], Object.assign({}, arc, { a: [0.35, 0.75], dens: 1.3, bb: bbox(pts), tooth: 0.35 })); }
+    // 芯: 厚い所に、大きさも位置も違う斑を2〜3枚（大きな淡い楕円の面を作らない）。外へは出さない
+    if (heat > 0.4) {
+      const k = (heat - 0.4) / 0.6;
+      const blobs = [[best, 0.52, 0.07, 0.12], [Math.max(1, best - 4), 0.3, 0.04, -0.2], [Math.min(n - 2, best + 2), 0.24, 0.035, 0.3]];
+      for (const [i, sx, sy, off] of blobs) {
+        const r = prof[i], y = top + h * i / (n - 1), x = cx + r * off;
+        const rad = Array.from({ length: 11 }, () => [rr(0.6, 1.3), rr(0.6, 1.3)]);
+        for (const sc of [1, 0.66, 0.36]) {  // 3段に重ねて縁ほど薄く（切り紙の硬い縁にしない）
+          const pts = rad.map(([a1, a2], q) => { const an = q / 11 * Math.PI * 2; return [x + Math.cos(an) * r * sx * a1 * sc, y + Math.sin(an) * h * sy * a2 * sc]; });
+          pastel(g, c => { polyPath(sh.pts)(c); c.clip(); polyPath(pts)(c); }, [C.core, mix(C.core, C.hot, 0.45)], Object.assign({}, arc, { a: [0.3, 0.7], dens: 0.7, bb: bbox(pts), tooth: 0.6, alpha: 0.3 * k, op: "lighter" }));
         }
       }
     }
-    if (o.state === "thin") pastel(g, P, [C.chalk, mix(C.chalk, C.hot, 0.25)], { ang: 0.1, len: [6, 14], wid: [1.4, 2.4], a: [0.2, 0.5], dens: 0.7, bb, tooth: 0.5, alpha: 0.75 });
-    if (heat < 0.35) crazing(g, sh, cx, top, h, prof, (0.35 - heat) / 0.35);
+    // 冷えの筋: 髪の毛ほどの短い擦れ（warn は少し、cold は多め）。割れのひびとは描き分ける
+    if (st === "warn" || st === "cold" || st === "broken") scuffs(g, sh, cx, top, h, prof, st === "warn" ? 0.45 : 1);
   }
-  if (o.state === "bubble") bubble(g, cx + prof[Math.floor(n * 0.6)] * 0.15, top + h * 0.6, prof[Math.floor(n * 0.6)] * 0.42);
-  // 窓の映り込み（運河の窓が丸みに沿って小さく曲がって映る）。光る塊ではなく「窓の形」
-  windowGlint(g, cx, top, h, prof, o.state === "done" ? 1 : 0.85);
-  // 木炭の輪郭: 窓に向いた左側は細くかすれ、右と底は太い
-  charcoal(g, wob(sh.L, 0.8, 5), 1.3, C.charcoal, { gaps: 0.12, a: 0.75 });
+  if (st === "bubble") bubble(g, cx + prof[Math.floor(n * 0.62)] * 0.12, top + h * 0.62, prof[Math.floor(n * 0.62)] * 0.4, body);
+  if (st === "broken") crack(g, cx, top, h, prof);
+  // 窓の映り込み（大きいガラスだけ）
+  if (!o.small && h >= 120 && st !== "thin") windowGlint(g, cx, top, h, prof, st === "done" ? 0.55 : 0.5);
+  // 竿の付け根のジャックの押し跡（細い溝1本）
+  if (st !== "done") { const i = 1, r = prof[i], y = top + h * i / (n - 1) + 2; charcoal(g, wob([[cx - r + 1, y], [cx, y + 2.5], [cx + r - 1, y]], 0.3, 3), 1.1, mix(body, C.charcoal, 0.6), { passes: 1, a: 0.8 }); }
+  // 木炭の輪郭: 窓に向いた左側は細くかすれ、右と底は太い。所々で塗りと離れる
+  charcoal(g, wob(sh.L, 0.8, 5), 1.3, C.charcoal, { gaps: 0.16, a: 0.75 });
   const rest = sh.pts.slice(sh.L.length - 1);
-  charcoal(g, wob(rest, 0.8, 5), 2.4, C.charcoal, { press: t => 0.7 + 0.6 * Math.sin(t * 3.14) });
+  charcoal(g, wob(rest, 0.8, 5), 2.4, C.charcoal, { press: t => 0.7 + 0.6 * Math.sin(t * 3.14), gaps: 0.04 });
+  if (o.workY != null) workMark(g, cx, top, h, prof, o.workY);
   return sh;
 }
 function edgeBand(g, sh, col, w, a) {
@@ -195,37 +220,62 @@ function edgeBand(g, sh, col, w, a) {
   L.strokeStyle = col; L.globalAlpha = a; L.lineWidth = w * 2; L.beginPath(); sh.pts.forEach(([x, y], i) => i ? L.lineTo(x, y) : L.moveTo(x, y)); L.closePath(); L.stroke();
   L.restore(); compose(g, L, 0.5);
 }
-function windowGlint(g, cx, top, h, prof, a) {
-  const n = prof.length; let best = 0; prof.forEach((r, i) => { if (r >= prof[best]) best = i; });
-  const i0 = Math.max(1, best - 2), r = prof[i0], y = top + h * i0 / (n - 1);
-  if (r < 10) return;
-  // 運河の窓（4枚のガラス）が、丸みに沿って小さく弓なりに映る。上の2枚は大きく、下の2枚は細い
-  const x0 = cx - r * 0.7, pw = Math.max(2, r * 0.07), ph = Math.min(h * 0.11, r * 0.42), gap = Math.max(1.3, r * 0.03);
-  const L = layer(g); L.fillStyle = C.day; L.globalAlpha = a;
-  for (const [col, row] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-    const px = x0 + col * (pw + gap) + row * r * 0.04, py = y - ph + row * (ph + gap), w = pw * (col ? 0.75 : 1), hh = ph * (row ? 0.55 : 1);
-    const bend = r * 0.025;
-    L.beginPath(); L.moveTo(px + bend, py); L.lineTo(px + w + bend * 0.6, py + 0.6); L.quadraticCurveTo(px + w - bend, py + hh / 2, px + w + bend * 0.2, py + hh); L.lineTo(px - bend * 0.2, py + hh - 0.5); L.quadraticCurveTo(px - bend * 1.4, py + hh / 2, px + bend, py); L.fill();
-  }
-  compose(g, L, 0.3, 0.8);
-}
-// 冷えた表面の細い白い筋（短い・向き不揃い・枝分かれ。規則的な縞にしない）
-function crazing(g, sh, cx, top, h, prof, k) {
+function rim(g, sh, col, w, a) {
   const L = layer(g); L.save(); polyPath(sh.pts)(L); L.clip();
-  L.strokeStyle = C.chalk; const n = prof.length;
-  for (let i = 0; i < 9 * k + 3; i++) {
-    const j = Math.floor(rr(0.1, 0.95) * n), r = prof[j], y = top + h * j / (n - 1), x = cx + rr(-r * 0.8, r * 0.8);
-    let px = x, py = y, an = rr(-0.6, 0.6) + (rnd() < 0.5 ? 0 : Math.PI);
-    L.lineWidth = rr(0.6, 1.1); L.globalAlpha = rr(0.45, 0.85); L.beginPath(); L.moveTo(px, py);
-    for (let s = 0; s < 4; s++) { an += rr(-0.7, 0.7); px += Math.cos(an) * rr(3, 8); py += Math.sin(an) * rr(2, 6); L.lineTo(px, py); if (rnd() < 0.3) { L.moveTo(px, py); L.lineTo(px + rr(-5, 5), py + rr(-5, 5)); L.moveTo(px, py); } }
-    L.stroke();
-  }
+  L.strokeStyle = col; L.globalAlpha = a; L.lineWidth = w * 2; L.beginPath(); sh.pts.forEach(([x, y], i) => i ? L.lineTo(x, y) : L.moveTo(x, y)); L.closePath(); L.stroke();
   L.restore(); compose(g, L, 0.3);
 }
-function bubble(g, x, y, r) {
-  const pts = []; for (let k = 0; k <= 14; k++) { const a = k / 14 * Math.PI * 2; pts.push([x + Math.cos(a) * r * (1 + 0.18 * Math.sin(a * 2 + 1)), y + Math.sin(a) * r * 0.8 * (1 + 0.12 * Math.cos(a * 3))]); }
-  pastel(g, polyPath(pts), [mix(C.chalk, C.hot, 0.2)], { ang: 0.3, len: [4, 9], wid: [1.2, 2], a: [0.3, 0.6], dens: 1, bb: bbox(pts), tooth: 0.5, alpha: 0.8 });
-  charcoal(g, wob(pts.slice(3, 12), 0.6, 4), 1.1, mix(C.charcoal, C.ember, 0.3), { passes: 1, a: 0.7 });
+// 窓の映り込み: 十字の桟のある弓なりの四角を1つ（白墨色 50%、紙の目で抜く）。平行線にしない
+function windowGlint(g, cx, top, h, prof, a) {
+  const n = prof.length; let best = 0; prof.forEach((r, i) => { if (r >= prof[best]) best = i; });
+  const i0 = Math.max(1, best - 3), r = prof[i0], y = top + h * i0 / (n - 1);
+  if (r < 24) return;
+  const w = r * 0.26, hh = r * 0.34, x0 = cx - r * 0.7, y0 = y - hh * 0.6, bw = r * 0.06;
+  const quad = []; // 左右の辺は丸みで外へ弓なり、上下の辺はわずかに下がる
+  for (let k = 0; k <= 6; k++) { const t = k / 6; quad.push([x0 + w * t, y0 + Math.sin(t * Math.PI) * -bw * 0.5 + t * bw]); }
+  for (let k = 0; k <= 6; k++) { const t = k / 6; quad.push([x0 + w + bw + Math.sin(t * Math.PI) * bw, y0 + bw + hh * t]); }
+  for (let k = 0; k <= 6; k++) { const t = k / 6; quad.push([x0 + w - w * t + bw * 0.5, y0 + hh + bw * 1.6 - t * bw]); }
+  for (let k = 0; k <= 6; k++) { const t = k / 6; quad.push([x0 - Math.sin(t * Math.PI) * bw * 1.4, y0 + hh - hh * t]); }
+  const L = layer(g); L.fillStyle = C.chalk; L.globalAlpha = a; polyPath(quad)(L); L.fill();
+  // 桟の十字は抜く（細く、少し曲がる）
+  L.globalCompositeOperation = "destination-out"; L.globalAlpha = 1; L.strokeStyle = "#000"; L.lineWidth = Math.max(1.6, r * 0.05);
+  L.beginPath(); L.moveTo(x0 + w * 0.5 + bw * 0.3, y0 - 2); L.quadraticCurveTo(x0 + w * 0.5 + bw, y0 + hh / 2, x0 + w * 0.5 + bw * 0.4, y0 + hh + 4); L.stroke();
+  L.beginPath(); L.moveTo(x0 - 4, y0 + hh * 0.45); L.quadraticCurveTo(x0 + w / 2, y0 + hh * 0.45 + bw, x0 + w + bw + 4, y0 + hh * 0.5 + bw); L.stroke();
+  compose(g, L, 0.45);
+}
+// 冷えの筋: 髪の毛ほどの細さの短い白い擦れ（向き不揃い。枝分かれさせない）
+function scuffs(g, sh, cx, top, h, prof, k) {
+  const L = layer(g); L.save(); polyPath(sh.pts)(L); L.clip(); L.strokeStyle = C.chalk; const n = prof.length;
+  for (let i = 0; i < 26 * k; i++) {
+    const j = Math.floor(rr(0.12, 0.95) * n), r = prof[j], y = top + h * j / (n - 1), x = cx + rr(-r * 0.85, r * 0.85), an = rr(-0.5, 0.5), l = rr(3, 9);
+    L.lineWidth = rr(0.4, 0.7); L.globalAlpha = rr(0.4, 0.8);
+    L.beginPath(); L.moveTo(x, y); L.quadraticCurveTo(x + l / 2, y + rr(-1.5, 1.5), x + Math.cos(an) * l, y + Math.sin(an) * l); L.stroke();
+  }
+  L.restore(); compose(g, L, 0.5);
+}
+// 割れ: 木炭の太い折れ線＋片側に白墨の光（ひび）。欠けたかけらが1つ下へ
+function crack(g, cx, top, h, prof) {
+  const n = prof.length, i = Math.floor(n * 0.55), r = prof[i], y = top + h * 0.55;
+  const pts = [[cx - r * 0.9, y - 10], [cx - r * 0.4, y + 2], [cx - r * 0.1, y - 6], [cx + r * 0.3, y + 8], [cx + r * 0.85, y + 1]];
+  charcoal(g, pts, 2.6, C.charcoal, { passes: 1, press: () => 1 });
+  chalk(g, pts.map(([x, y2]) => [x + 0.5, y2 + 2.6]), 1.2, C.chalk, { tooth: 0.3 });
+  charcoal(g, [[cx - r * 0.1, y - 6], [cx - r * 0.05, y - 22]], 1.8, C.charcoal, { passes: 1 });
+  const sh = [[cx + r * 0.6, y + h * 0.42], [cx + r * 0.85, y + h * 0.38], [cx + r * 0.78, y + h * 0.46]];
+  pastel(g, polyPath(sh), [C.cold], { ang: 0, len: [3, 6], wid: [1, 2], dens: 4, bb: bbox(sh), tooth: 0.2 });
+  charcoal(g, [...sh, sh[0]], 1.2, C.charcoal, { passes: 1 });
+}
+// 気泡: 内側にゆがんだ白っぽい楕円（白墨の弧2本・閉じない）＋その周りだけ色が薄い
+function bubble(g, x, y, r, body) {
+  const ring = Array.from({ length: 15 }, (_, k) => { const a = k / 14 * Math.PI * 2; return [x + Math.cos(a) * r * 1.35 * (1 + 0.12 * Math.sin(a * 2)), y + Math.sin(a) * r * 0.95]; });
+  pastel(g, polyPath(ring), [mix(body, C.core, 0.5)], { ang: 0.05, len: [5, 10], wid: [1.4, 2.4], a: [0.4, 0.7], dens: 1, bb: bbox(ring), tooth: 0.4, alpha: 0.7 });
+  const pt = (a0, a1, k) => Array.from({ length: 9 }, (_, q) => { const a = a0 + (a1 - a0) * q / 8; return [x + Math.cos(a) * r * k * (1 + 0.15 * Math.sin(a * 3 + 1)), y + Math.sin(a) * r * 0.62 * k]; });
+  chalk(g, pt(-2.8, -0.4, 1), 1.8, C.chalk, { tooth: 0.35 });
+  chalk(g, pt(0.5, 2.2, 0.92), 1.4, C.chalk, { tooth: 0.5, a: 0.75 });
+}
+// 作業中の高さ: ガラスの両脇に白墨の「く」の字の刻みを左右1本ずつ（ゲージにしない）
+function workMark(g, cx, top, h, prof, t) {
+  const n = prof.length, i = Math.round(t * (n - 1)), r = prof[i], y = top + h * t;
+  for (const s of [-1, 1]) chalk(g, wob([[cx + s * (r + 11), y - 5], [cx + s * (r + 5), y], [cx + s * (r + 11), y + 5]], 0.5, 3), 2.2, C.chalk, { tooth: 0.4 });
 }
 
 // 竿（鉄）: 上から下へ。木炭の2本線＋鈍い灰のパステル
@@ -240,30 +290,30 @@ function pipe(g, x, y0, y1, w = 7) {
   charcoal(g, wob([...m, m[0]], 0.5, 4), 1.5, C.charcoal, { passes: 1 });
 }
 
-// 砂袋（命）。broken=崩れた袋（中身がこぼれて平たい）
-// 砂袋（命）: 麻の袋を横に寝かせた枕形。両端の角を縛り、上に縫い目。broken=破れて中身がこぼれ、平たい
+// 砂袋（命）: 横に寝かせた麻袋。上辺は重みでたわみ、片端は紐で縛り、もう片端は折り込み。床に擦筆の影
 function sandbag(g, x, y, s = 1, broken = false) {
-  const w = 30 * s, hh = (broken ? 7 : 14) * s, pts = [];
-  // 四隅を少しつまんだ枕の輪郭
-  const c = [[x - w, y - hh * 0.7], [x - w * 0.5, y - hh * (broken ? 0.9 : 1.15)], [x + w * 0.4, y - hh * (broken ? 0.8 : 1.2)], [x + w, y - hh * 0.8], [x + w * 1.04, y + hh * 0.6], [x + w * 0.3, y + hh * 1.05], [x - w * 0.5, y + hh], [x - w * 1.05, y + hh * 0.7]];
-  for (let i = 0; i < c.length; i++) { const p = c[i], q = c[(i + 1) % c.length]; pts.push(p, [(p[0] + q[0]) / 2 + rr(-1.5, 1.5) * s, (p[1] + q[1]) / 2 + rr(-1.5, 1.5) * s]); }
-  pastel(g, polyPath(pts), ["#a8936e", "#b9a37c", "#9a8562"], { ang: (px, py) => 0.15 + (px - x) / w * 0.25, len: [5, 11], wid: [1.4, 2.6], dens: 1.4, bb: bbox(pts), tooth: 0.4 });
-  // 縛った角の耳
-  for (const [ex, ey, d] of [[x - w * 1.02, y - hh * 0.65, -1], [x + w * 1.0, y - hh * 0.75, 1]]) {
-    const ear = [[ex, ey - 3 * s], [ex + d * 9 * s, ey - 7 * s], [ex + d * 8 * s, ey + 2 * s], [ex, ey + 3 * s]];
-    pastel(g, polyPath(ear), ["#9a8562"], { ang: 0.4, len: [3, 7], wid: [1.2, 2], dens: 3, bb: bbox(ear), tooth: 0.3 });
-    charcoal(g, wob([...ear, ear[0]], 0.4, 3), 1.1, C.charcoal, { passes: 1 });
-    charcoal(g, [[ex, ey - 4 * s], [ex + d * 1.5, ey + 4 * s]], 2.2, C.charcoal, { passes: 1 });
-  }
-  charcoal(g, wob([...pts, pts[0]], 0.7, 5), 1.6, C.charcoal, { gaps: 0.05 });
+  const w = 30 * s, hh = (broken ? 8 : 16) * s;
+  smudge(g, ellPath(x + 2, y + hh * 0.9, w * 1.1, 5 * s), "#3f3946", 0.9, [x - w * 1.2, y + hh * 0.9 - 7 * s, w * 2.4, 14 * s]);
+  // 角の丸い枕の輪郭（上辺は重みで中央がたわむ）
+  const sg = v => Math.sign(v) * Math.abs(v);
+  const pts = Array.from({ length: 28 }, (_, k) => { const a = k / 28 * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a);
+    const px = x + w * Math.sign(c) * Math.abs(c) ** 0.55, py = y + hh * Math.sign(sn) * Math.abs(sn) ** 0.75 + (sn < 0 ? hh * 0.35 * (1 - Math.abs(c)) : 0); return [px + rr(-1, 1) * s, py + rr(-1, 1) * s]; });
+  const bot = pts.slice(1, 14);
+  pastel(g, polyPath(loose(pts, 1.2 * s)), ["#a8936e", "#b9a37c", "#9a8562"], { ang: (px) => (px - x) / w * 0.35, len: [10, 22], wid: [2.4, 4], a: [0.7, 1], dens: 1.3, bb: bbox(pts, 8), tooth: 0.3, spread: 0.1, mottle: 0.2 });
+  pastel(g, c => { polyPath(pts)(c); c.clip(); c.beginPath(); c.rect(x - w - 4, y + hh * 0.15, w * 2 + 8, hh * 2); }, ["#7d6a4f"], { ang: 0, len: [10, 20], wid: [2, 3.4], a: [0.35, 0.65], dens: 1, bb: [x - w - 4, y, w * 2 + 8, hh + 6], tooth: 0.35 });
+  // 縛った紐（右端だけ）と、左端の折り込み
+  const ex = x + w, ey = y - hh * 0.35;
+  charcoal(g, [[ex - 3 * s, ey - 6 * s], [ex - 2 * s, ey + 7 * s]], 2, "#5a4a3a", { passes: 1 });
+  charcoal(g, wob([[ex - 2 * s, ey], [ex + 7 * s, ey - 2 * s], [ex + 6 * s, ey + 5 * s]], 0.4, 3), 1.1, "#5a4a3a", { passes: 1 });
+  charcoal(g, wob([[x - w + 4 * s, y - hh * 0.6], [x - w + 7 * s, y + hh * 0.5]], 0.4, 3), 1, C.charcoal, { passes: 1, a: 0.6 });
+  // 輪郭は下側だけ（床に接する所）。上は塗りのまま
+  charcoal(g, wob(bot, 0.7, 5), 1.6, C.charcoal, { gaps: 0.15, passes: 1 });
   if (!broken) {
-    // 上の縫い目（不揃いな短い針目。点線にしない）
-    let px = x - w * 0.75;
-    while (px < x + w * 0.7) { const l = rr(3, 6) * s; charcoal(g, [[px, y - hh * 0.9 + rr(-1, 1)], [px + l, y - hh * 0.95 + rr(-1, 1)]], 1.1, C.charcoal, { passes: 1, a: 0.7 }); px += l + rr(3, 6) * s; }
+    let px = x - w * 0.7;
+    while (px < x + w * 0.6) { const l = rr(3, 6) * s, t = (px - x + w) / (2 * w); const yy = y - hh * (0.75 + 0.3 * Math.sin(t * Math.PI)) + hh * 0.35 * Math.sin(t * Math.PI) ** 2 + 3 * s; charcoal(g, [[px, yy + rr(-0.6, 0.6)], [px + l, yy + rr(-0.6, 0.6)]], 1, C.charcoal, { passes: 1, a: 0.6 }); px += l + rr(3, 6) * s; }
   } else {
-    // 裂け目とこぼれた砂（小さな山1つ）
     charcoal(g, wob([[x + w * 0.2, y - hh], [x + w * 0.35, y - hh * 0.2], [x + w * 0.3, y + hh * 0.4]], 0.6, 3), 1.6, C.charcoal, { passes: 1 });
-    const pile = [[x + w * 0.7, y + hh * 1.1], [x + w * 1.1, y - hh * 0.1], [x + w * 1.6, y + hh * 1.1]];
+    const pile = [[x + w * 0.7, y + hh * 1.1], [x + w * 1.1, y - hh * 0.2], [x + w * 1.6, y + hh * 1.1]];
     pastel(g, polyPath(pile), ["#cdbb93", "#bca87e"], { ang: 0, len: [3, 6], wid: [1, 1.8], dens: 2, bb: bbox(pile), tooth: 0.55 });
   }
 }
