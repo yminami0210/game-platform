@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=900,initial-scale=1">
+<title>朝つゆの網 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=RocknRoll+One&family=Yomogi&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#c3c9bd}canvas{display:block}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script src="stitch.js"></script>
+<script>
+// 見本帳: 色（毛糸のかせ）／糸と露の針の見本／生き物／画面の部品／文字／結果の1枚
+const W = 900, H = 1340;
+const F = (px, fam) => `${px}px "${fam}", sans-serif`;
+const HEAD = (s) => F(s, "RocknRoll One"), BODY = (s) => F(s, "Yomogi");
+function skein(g, x, y, col, name, hex) {
+  // 毛糸のかせ: 細長い輪を毛糸の線で（色の揺れつき）。真ん中に名前テープの帯
+  for (let i = 0; i < 46; i++) {
+    const o = rr(-9, 9), c = vary(col);
+    g.strokeStyle = C.slate; g.globalAlpha = 0.18; g.lineWidth = 2.2; g.beginPath(); g.ellipse(x + 1, y + 2, 34 + o * 0.6, 82 + o, 0, 0, 7); g.stroke();
+    g.globalAlpha = 1; g.strokeStyle = c; g.lineWidth = 1.9; g.beginPath(); g.ellipse(x + rr(-1, 1), y, 34 + o * 0.6, 82 + o, rr(-0.03, 0.03), 0, 7); g.stroke();
+  }
+  tape(g, x - 60, y - 22, 120, 46, { rot: rr(-0.03, 0.03) });
+  text(g, name, x, y - 2, BODY(15), C.slate, { align: "center" });
+  text(g, hex, x, y + 17, BODY(14), "#4a5256", { align: "center" });
+}
+function frayed(g, x, y, dir) {
+  // 食い破られた糸の端（3本のより糸がほどけて丸まる）
+  for (const [k, c] of [[-1, "#cfd6d4"], [0, "#e6eae6"], [1, "#b9c3c1"]]) {
+    g.strokeStyle = c; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y);
+    g.quadraticCurveTo(x + dir * (6 + k * 2), y + 4 + k * 4, x + dir * (3 + k), y + 10 + k * 3); g.stroke();
+  }
+}
+async function draw() {
+  await document.fonts.load(HEAD(40)); await document.fonts.load(BODY(16));
+  const g = makeCanvas("c", W, H); setSeed(1010);
+  linen(g, W, H);
+  // --- 題 ---
+  text(g, "朝つゆの網", 40, 92, HEAD(58), C.slate);
+  const ul = curvePts(40, 112, 360, 110, 6); couch(g, ul); beadsOn(g, ul, 26, 2, 3.4);
+  spider(g, 520, 70, 1.6, 0.4);
+  text(g, "イギリスの家庭菜園で、豆の支柱のあいだに糸を渡す", 40, 152, BODY(20), C.slate);
+  text(g, "借りる物: クルーエル刺繍の毛糸と銀糸のとめ縫い、糸に縫い付けたガラスビーズ、仮縫いのしつけ糸", 40, 180, BODY(16), "#3d4549");
+  // --- 1 色（毛糸のかせ） ---
+  text(g, "色", 40, 236, HEAD(24), C.slate);
+  const sk = [[C.yew, "イチイの生垣", "#34432b"], [C.leaf, "豆の葉", "#7d9a3c"], [C.hazel, "ハシバミの樹皮", "#7b6450"], [C.silver, "銀糸", "#e6eae6"], [C.lemon, "スズメバチ", "#e6c21f"], [C.slate, "粘板岩の濃灰", "#2a2f33"]];
+  sk.forEach(([c, n, h], i) => skein(g, 100 + i * 140, 350, c, n, h));
+  text(g, "地は灰緑の麻布 #c3c9bd（空だけに見える）。レモンはスズメバチと、その通り道のしつけ糸にだけ使う", 40, 470, BODY(16), "#3d4549");
+
+  // --- 2 糸と露 ---
+  text(g, "糸と露", 40, 530, HEAD(24), C.slate);
+  // 生垣の切れ端を下に敷いて、暗い地の上での見え方を確かめる
+  const strip = (x, y, w, h) => { g.save(); g.beginPath(); g.rect(x, y, w, h); g.fillStyle = C.yew; g.fill(); g.clip(); for (let i = 0; i < (w * h) / 1400; i++) clump(g, rr(x, x + w), rr(y, y + h), rr(20, 34), rr(16, 26), C.yew, C.yewL); g.restore(); };
+  strip(40, 548, 820, 230);
+  // 短い糸・長い糸（露は長さに応じて不揃い）
+  pin(g, 70, 590); pin(g, 200, 584); let p1 = curvePts(70, 590, 200, 584, 4); couch(g, p1); beadsOn(g, p1, 18, 1.5, 3);
+  pin(g, 240, 594); pin(g, 520, 580); let p2 = curvePts(240, 594, 520, 580, 10); couch(g, p2); beadsOn(g, p2, 16, 1.5, 3.2);
+  // 交点の結び目
+  let p3 = curvePts(290, 560, 380, 650, 3), x3 = curvePts(270, 640, 400, 566, 3); couch(g, p3); couch(g, x3);
+  for (const [x, y] of crossings(p3, x3)) knot(g, x, y, 3, C.silver);
+  // かかった瞬間（しなる＋露が片側へ3粒）
+  pin(g, 560, 610); pin(g, 840, 600); let p4 = curvePts(560, 610, 840, 600, 46); couch(g, p4); beadsOn(g, p4.slice(0, 8), 14, 1.6, 3);
+  bead(g, 726, 612, 2.4); bead(g, 740, 598, 1.7); bead(g, 716, 596, 1.4); fly(g, 700, 648, 1.6, 0.3);
+  // 巻き終えた虫・切れた糸（スズメバチが食い破った端）
+  pin(g, 70, 712); let p5 = curvePts(70, 712, 220, 708, 6); couch(g, p5); wrapped(g, 150, 722, 1.3);
+  pin(g, 260, 720); couch(g, curvePts(260, 720, 360, 726, 3)); frayed(g, 360, 726, 1);
+  pin(g, 520, 716); couch(g, curvePts(520, 716, 430, 722, 3)); frayed(g, 430, 722, -1);
+  wasp(g, 396, 690, 1.3, -1.6);
+  // しつけ糸の予告（ふつう＝銀灰の細い運針／スズメバチ＝レモンの太い運針）
+  baste(g, [[560, 690], [860, 684]], "#c3ccca", 1.4, { l0: 6, l1: 10, g0: 6, g1: 11, shA: 0.5 });
+  baste(g, [[560, 738], [860, 726]], C.lemon, 2.1, { l0: 8, l1: 17, g0: 6, g1: 12, shA: 0.6 });
+  tape(g, 40, 790, 820, 64);
+  text(g, "上: 短い糸と長い糸、交点の結び目、ハエがかかってしなった糸（露は片側に3粒だけはじける）", 56, 815, BODY(15), C.slate);
+  text(g, "下: 巻き終えた虫、スズメバチが食い破った糸の端、虫の通り道の予告（ふつう／スズメバチ）", 56, 840, BODY(15), C.slate);
+
+  // --- 3 生き物（脚は短い2針、毛・爪・複眼は描かない） ---
+  text(g, "生き物", 40, 900, HEAD(24), C.slate);
+  const cr = [["庭蜘蛛", spider, 1.8], ["ハエ", fly, 2.2], ["ガ", moth, 1.8], ["カナブン", beetle, 1.9], ["テントウムシ", ladybird, 2], ["ミツバチ", bee, 1.9], ["スズメバチ", wasp, 1.9]];
+  cr.forEach(([n, f, s], i) => { const x = 90 + i * 120; f(g, x, 966, s, 0); text(g, n, x, 1036, BODY(16), C.slate, { align: "center" }); });
+  text(g, "ミツバチは丸い結び玉の琥珀と焦げ茶、スズメバチは細い腰ととがった腹のレモンと濃灰（形と色の両方で見分ける）", 40, 1066, BODY(15), "#3d4549");
+
+  // --- 4 画面の部品 ---
+  text(g, "画面の部品", 40, 1118, HEAD(24), C.slate);
+  tape(g, 40, 1136, 120, 42); text(g, "38", 54, 1170, HEAD(30), C.slate); text(g, "てん", 104, 1167, BODY(16), C.slate);
+  reel(g, 210, 1160, 1, 1); reel(g, 262, 1160, 0.5, 1); reel(g, 314, 1160, 0, 1);
+  text(g, "糸巻き（満／半分／空）", 192, 1210, BODY(14), C.slate);
+  baste(g, [[380, 1150], [520, 1151]], C.slate, 1.5, { l0: 6, l1: 9, g0: 4, g1: 6, shA: 0.3 });
+  baste(g, [[536, 1151], [640, 1150]], "#8f9a92", 1, { l0: 2, l1: 3, g0: 9, g1: 12, shA: 0.15 }); needle(g, 530, 1150, -0.12);
+  text(g, "ひと日の進み（縫い進む針）", 380, 1180, BODY(14), C.slate);
+  pin(g, 680, 1150); pin(g, 720, 1150, true); text(g, "かけ所／選んだ所", 660, 1196, BODY(14), C.slate);
+  tape(g, 790, 1136, 70, 32); text(g, "とめる", 801, 1158, BODY(16), C.slate);
+  // --- 5 文字 ---
+  text(g, "文字", 40, 1252, HEAD(24), C.slate);
+  text(g, "RocknRoll One  題と点数 0123456789", 120, 1252, HEAD(20), C.slate);
+  text(g, "Yomogi  説明と名前テープ。糸をかけ所からかけ所へ渡す", 120, 1284, BODY(18), C.slate);
+  document.body.dataset.ready = "1";
+}
+draw();
+</script>
+</body></html>
