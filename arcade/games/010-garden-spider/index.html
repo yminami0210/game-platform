@@ -44,8 +44,8 @@ function makeGame(seed) {
   const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
   const G = {
     t: 0, dur: 120, score: 0, silk: 1000, silkMax: 1000, tears: 0, over: false, reason: "", anchors: [], threads: [], bugs: [], events: [],
-    combo: 0, lastCatch: -9, nid: 1, bid: 1, wind: { st: 0, t0: 0, next: 46 }, nextSpawn: 1.0, nextWasp: 23, wasp: null,
-    stats: { fly: 0, moth: 0, beetle: 0, lady: 0, bee: 0 }, xs: [-40, 430], pen: [], earn: [], routes: ROUTES,
+    combo: 0, lastCatch: -9, nid: 1, bid: 1, wind: { st: 0, t0: 0, next: 46 }, nextSpawn: 1.0, nextWasp: 23, wasp: null, lastHaz: -9,
+    stats: { fly: 0, moth: 0, beetle: 0, lady: 0, bee: 0, knot: 0 }, lost: [], xs: [-40, 430], pen: [], earn: [], routes: ROUTES,
   };
   POLES.forEach(() => 0);
   for (const [pi, t] of PIN_AT) { const p = POLES[pi]; G.anchors.push({ id: G.anchors.length, kind: "pin", x: p[0] + (p[2] - p[0]) * t, y: p[1] + (p[3] - p[1]) * t, poles: [pi], alive: true }); }
@@ -92,16 +92,29 @@ function makeGame(seed) {
   G.cut = (id, by, quiet) => {
     const i = G.threads.findIndex((t) => t.id === id); if (i < 0) return 0;
     const T = G.threads[i]; G.threads.splice(i, 1); let n = 1;
+    if (by !== "player") G.lost.push({ a: T.a, b: T.b, by });
     if (by === "player") G.silk = Math.min(G.silkMax, G.silk + T.len * 0.5);
     for (const b of G.bugs) if (b.th === id && (b.st === "caught" || b.st === "thrash" || b.st === "held")) { b.st = "flee"; if (b.sp !== "bee" && b.sp !== "lady") ev("escape", { x: b.x, y: b.y, sp: b.sp }); }
     for (const b of G.bugs) if (b.th === id && b.st === "cocoon") b.st = "drop";
     const A = G.anchors[T.a], B = G.anchors[T.b];
     ev("cut", { by, ax: A.x, ay: A.y, bx: B.x, by2: B.y, len: T.len, id, seed: T.seed, quiet: !!quiet });
     for (const K of G.anchors) if (K.alive && K.kind === "knot" && K.parents.includes(id)) {
+      // ミツバチは1本だけ切る: 結び目はもう1本の糸の上に残る（つながる糸は落ちない）
+      if (by === "bee" && K.parents.length > 1) { const j = K.parents.indexOf(id); K.parents.splice(j, 1); K.u.splice(j, 1); continue; }
       K.alive = false;
       for (const t2 of G.threads.filter((t) => t.a === K.id || t.b === K.id)) n += G.cut(t2.id, by, true);
     }
     return n;
+  };
+  // 切ると一緒に落ちる糸（結び目の連鎖）。長押し中の予告に使う
+  G.cutSet = (id) => {
+    const out = new Set(), dead = new Set(), go = (tid) => {
+      if (out.has(tid) || !thr(tid)) return; out.add(tid);
+      for (const K of G.anchors) if (K.alive && K.kind === "knot" && !dead.has(K.id) && K.parents.includes(tid)) {
+        dead.add(K.id); for (const t2 of G.threads) if (t2.a === K.id || t2.b === K.id) go(t2.id);
+      }
+    };
+    go(id); return out;
   };
   G.pickAnchor = (x, y, r = 26) => { let best = -1, bd = r; for (const a of G.anchors) if (a.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; best = a.id; } } return best; };
   G.pickThread = (x, y, r = 16) => {
@@ -112,6 +125,16 @@ function makeGame(seed) {
       const d = Math.hypot(A.x + dx * u - x, A.y + dy * u + sag - y); if (d < bd) { bd = d; best = T.id; }
     }
     return best;
+  };
+  G.threatIds = () => {
+    const o = new Set(); if (!G.wasp || G.wasp.st === "gone" || G.wasp.torn) return o;
+    const R = ROUTES[G.wasp.ri]; for (const T of G.threads) if (routeCrosses(R, G.anchors[T.a], G.anchors[T.b])) o.add(T.id); return o;
+  };
+  // 近くに糸が2本以上あるときは、スズメバチの予告が付いた糸を先に選ぶ（予告の付いた糸は 1.5 倍の幅で拾う）
+  G.pickThreadPref = (x, y, r = 16) => {
+    const th = G.threatIds(); if (!th.size) return G.pickThread(x, y, r);
+    const keep = G.threads; G.threads = keep.filter((T) => th.has(T.id)); const t1 = G.pickThread(x, y, r * 1.5); G.threads = keep;
+    return t1 >= 0 ? t1 : G.pickThread(x, y, r);
   };
   function tear(T) {
     const ends = [T.a, T.b]; let n = G.cut(T.id, "wasp");
@@ -124,7 +147,7 @@ function makeGame(seed) {
   function end(reason) {
     if (G.over) return;
     if (reason === "dusk") for (const b of G.bugs) if (b.st === "caught") { // 日暮れに巻きかけの虫は巻き終える
-      const S = SPEC[b.sp], pts = S.pts * b.mult; b.st = "cocoon"; b.ct = 6; G.score += pts; G.stats[b.sp]++; G.earn.push({ t: G.t, p: pts }); ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th });
+      const S = SPEC[b.sp], pts = S.pts * b.mult + (b.kb || 0); b.st = "cocoon"; b.ct = 6; G.score += pts; G.stats[b.sp]++; if (b.kb) G.stats.knot++; G.earn.push({ t: G.t, p: pts }); ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th });
     }
     G.over = true; G.reason = reason; ev("end", { reason }); }
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -141,13 +164,13 @@ function makeGame(seed) {
     if (b.sp === "wasp") { if (!b.torn) { b.torn = 1; tear(T); } return; }
     if (G.wind.st === 2 && T.len > 170 && rnd() < 0.5) { ev("slip", { x: b.x, y: b.y, wind: 1 }); return; }
     const kn = G.knotsOn(T.id);
-    if (b.sp === "fly" && kn === 0 && rnd() < 0.35) { ev("slip", { x: b.x, y: b.y }); return; }
+    if ((b.sp === "fly" && kn === 0 && rnd() < 0.35) || (b.sp === "moth" && kn === 0 && rnd() < 0.3)) { ev("slip", { x: b.x, y: b.y }); return; }
     if (b.sp === "beetle" && kn === 0) { G.cut(T.id, "beetle"); G.pen.push({ t: G.t, k: "beetle" }); ev("break", { x: b.x, y: b.y }); b.st = "flee"; return; }
     b.th = T.id; b.u = u; T.bowT = G.t; T.vibT = G.t;
     for (const O of G.threads) if (O !== T) O.vibT = G.t + 0.05;
     if (b.sp === "lady") { b.st = "held"; b.ht = 0.8; G.score += SPEC.lady.pts; G.stats.lady++; G.pen.push({ t: G.t, k: "lady" }); G.earn.push({ t: G.t, p: SPEC.lady.pts }); ev("lady", { x: b.x, y: b.y }); return; }
     if (b.sp === "bee") { b.st = "thrash"; b.ht = 0.9; G.stats.bee++; ev("bee", { x: b.x, y: b.y }); return; }
-    b.st = "caught"; b.wt = 0;
+    b.st = "caught"; b.wt = 0; b.kb = (b.sp === "moth" || b.sp === "beetle") && kn > 0 ? Math.min(3, kn) : 0;
     G.combo = G.t - G.lastCatch <= 1.2 ? G.combo + 1 : 1; G.lastCatch = G.t; b.mult = G.combo >= 2 ? 2 : 1;
     ev("catch", { x: b.x, y: b.y, sp: b.sp, combo: G.combo, th: T.id, u });
   }
@@ -162,8 +185,11 @@ function makeGame(seed) {
     // ふつうの虫
     if (t >= G.nextSpawn && t < G.dur - 1.5) {
       const ev2 = t > G.dur - 30;
-      const wsp = { fly: 5, moth: t > 12 ? 2.2 + 2 * p : 0, beetle: t > 60 ? (t > G.dur - 20 ? 4.6 : ev2 ? 3.2 : 1.1) : 0, lady: t > 18 ? 0.9 : 0, bee: t > 28 ? 1.0 : 0 };
+      const wsp = { fly: 5, moth: t > 12 ? 2.2 + 2 * p : 0, beetle: t > 60 ? (t > G.dur - 20 ? 5.6 : ev2 ? 4.0 : 1.1) : 0, lady: t > 18 ? 0.9 : 0, bee: t > 28 ? 1.0 : 0 };
+      // テントウムシ・ミツバチ（避けようのない罰）は 2.5 秒あけ、スズメバチの予告中は出さない（罰を重ねない）
+      if (t - G.lastHaz < 2.5 || G.wasp) { wsp.lady = 0; wsp.bee = 0; }
       const names = Object.keys(wsp), sp = names[pickRoute(names.map((n) => wsp[n]))];
+      if (sp === "lady" || sp === "bee") G.lastHaz = t;
       const rw = ROUTES.map((r, i) => (sp === "beetle" ? (i >= 3 ? 1 : 0) : r.sky ? 1.8 : 1));
       spawn(sp, pickRoute(rw), 1.2);
       G.nextSpawn = t + lerp(1.45, 0.62, Math.pow(p, 1.1)) * (t > G.dur - 20 ? 0.7 : ev2 ? 0.82 : 1) * (0.7 + rnd() * 0.6);
@@ -189,9 +215,9 @@ function makeGame(seed) {
       } else if (b.st === "caught") {
         b.wt += dt;
         if (b.wt >= 2.0) {
-          const S = SPEC[b.sp], pts = S.pts * b.mult; b.st = "cocoon"; b.ct = 6;
-          G.score += pts; G.silk = Math.min(G.silkMax, G.silk + S.ret); G.stats[b.sp]++; G.earn.push({ t, p: pts });
-          ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th });
+          const S = SPEC[b.sp], pts = S.pts * b.mult + (b.kb || 0); b.st = "cocoon"; b.ct = 6;
+          G.score += pts; G.silk = Math.min(G.silkMax, G.silk + S.ret); G.stats[b.sp]++; if (b.kb) G.stats.knot++; G.earn.push({ t, p: pts });
+          ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th, kb: b.kb || 0 });
         }
       } else if (b.st === "held") { b.ht -= dt; if (b.ht <= 0) b.st = "flee"; }
       else if (b.st === "thrash") { b.ht -= dt; if (b.ht <= 0) { G.cut(b.th, "bee"); G.pen.push({ t, k: "bee" }); ev("beecut", { x: b.x, y: b.y }); b.st = "flee"; } }
@@ -204,6 +230,63 @@ function makeGame(seed) {
     else if (!G.threads.length && G.silk < 36 && !G.bugs.some((b) => b.st === "caught")) end("empty");
   };
   return G;
+}
+
+// ===== 入力の判定（画面に依存しない。ボットも同じ物を使う） =====
+// 同じ場所でタップ（まち針・結び目）と長押し（糸を切る）を受けるので、押した瞬間には決めない。
+// まち針・結び目も離した時点で決める。近くに糸があれば、押した長さで決める: HOLD 以上 = 糸を切る / TAP 未満で離す = まち針のタップ / その間 = 切りかけ（KEEP 秒は進みが残る）
+const HOLD = 0.35, TAP = 0.2, KEEP = 0.7, DRAG = 12;
+function makeInput(G) {
+  const I = { sel: -1, drag: -1, press: null, carry: null };
+  function anchorTap(a, sure) {
+    if (I.sel >= 0 && I.sel !== a && G.anchors[I.sel] && G.anchors[I.sel].alive) { if (sure) { G.link(I.sel, a); I.sel = -1; } else I.sel = a; }
+    else if (I.sel === a) I.sel = -1;
+    else I.sel = a;
+  }
+  function near(tid, x, y, r) { const keep = G.threads; G.threads = keep.filter((T) => T.id === tid); const h = G.pickThread(x, y, r); G.threads = keep; return h === tid; }
+  function doCut(tid) { G.cut(tid, "player"); I.sel = -1; I.press = null; I.carry = null; G.events.push({ type: "pcut", id: tid, t: G.t }); }
+  I.down = (wx, wy, s, t, right) => {
+    if (right) { const tid = G.pickThreadPref(wx, wy, 16 / s); if (tid >= 0) doCut(tid); return; }
+    const a = G.pickAnchor(wx, wy, 26 / s), c = I.carry; I.carry = null;
+    let tid = G.pickThreadPref(wx, wy, 16 / s), k = 0;
+    // 切りかけの糸の近くをもう一度押したら、その糸の続きから
+    if (c && t - c.t <= KEEP && G.thread(c.tid) && near(c.tid, wx, wy, 24 / s)) { tid = c.tid; k = c.k; }
+    if (tid >= 0 || a >= 0) {
+      const dA = a >= 0 ? Math.hypot(G.anchors[a].x - wx, G.anchors[a].y - wy) * s : 99;
+      I.press = { tid, t0: t - k, tDown: t, a, dA, wx, wy, s, cs: null };
+      return;
+    }
+    I.sel = -1;
+  };
+  I.move = (dist) => { // dist = 押した所から動いた画面上の距離
+    const P = I.press; if (!P || dist <= DRAG) return;
+    I.press = null; if (P.a >= 0 && G.anchors[P.a].alive) { I.sel = P.a; I.drag = P.a; }
+  };
+  I.tick = (t) => {
+    const P = I.press; if (!P || P.tid < 0) return false;
+    if (!G.thread(P.tid)) { // 押している糸が先に切れたら、指の下の別の糸に乗り換える（進みはそのまま）
+      const t2 = G.pickThreadPref(P.wx, P.wy, 16 / P.s); if (t2 < 0) { I.press = null; return false; } P.tid = t2; P.cs = null;
+    }
+    if (t - P.t0 >= HOLD) { doCut(P.tid); return true; }
+    return false;
+  };
+  I.up = (wx, wy, s, t) => {
+    if (I.drag >= 0) { const b = G.pickAnchor(wx, wy, 26 / s); if (b >= 0 && b !== I.drag) { G.link(I.drag, b); I.sel = -1; } I.drag = -1; }
+    const P = I.press; if (!P) return;
+    if (I.tick(t)) return;
+    I.press = null;
+    const held = t - P.tDown, ok = P.a >= 0 && G.anchors[P.a].alive;
+    if (P.tid < 0) { if (ok && held < HOLD) anchorTap(P.a, true); return; } // まち針だけ: 離したらタップ（長押しでは糸を渡さない）
+    if (held < TAP && ok) anchorTap(P.a, P.dA <= 14); // 糸も近い: 短いタップで、まち針の真上を押したときだけ糸を渡す
+    else I.carry = { tid: P.tid, k: t - P.t0, t };
+  };
+  I.prog = (t) => { // 長押しの進み 0..1（離した後も KEEP 秒は残す）
+    if (I.press) return { tid: I.press.tid, k: Math.min(1, (t - I.press.t0) / HOLD), live: 1 };
+    const c = I.carry; if (c && t - c.t <= KEEP && G.thread(c.tid)) return { tid: c.tid, k: c.k / HOLD, live: 1 - (t - c.t) / KEEP };
+    return null;
+  };
+  I.reset = () => { I.sel = -1; I.drag = -1; I.press = null; I.carry = null; };
+  return I;
 }
 </script>
 <script>
@@ -497,15 +580,22 @@ function clump(g, cx, cy, rx, ry, base, light, o = {}) {
     g.save(); g.globalAlpha = 0.3; g.translate(1.5, 3.5); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
     g.save(); P(g); g.globalAlpha = 0.6; g.fillStyle = base; g.fill(); g.restore();
     const bx = cx + rr(-rx * 0.3, rx * 0.3), by = cy + ry * rr(1.1, 1.6), rot = rr(-0.35, 0.35), k = Math.min(1, rx / 80);
+    // 大きな株は扇に放射させず、2〜3枚の面に割って面ごとに針の向きを変える（草ブラシに見せない）
+    const np = rx > 50 ? (R() < 0.5 ? 2 : 3) : 0, pa = [], cut = [], wph = rr(0, 6);
+    for (let i = 0; i < np; i++) pa.push(-Math.PI / 2 + rr(-1.1, 1.1) + (i - (np - 1) / 2) * 0.5);
+    for (let i = 1; i < np; i++) cut.push(-1 + 2 * i / np + rr(-0.15, 0.15));
+    const plane = (x, y) => { const u = (x - cx) / rx + 0.12 * Math.sin(y / 9 + wph) + 0.25 * (y - cy) / ry * (np === 3 ? 1 : -1); let i = 0; while (i < cut.length && u > cut[i]) i++; return i; };
     fill(g, P, { box: [cx - rx, cy - ry, cx + rx, cy + ry], per: 7 + 3 * k, l0: 6, l1: 10 + 4 * k, w0: 2, w1: 2.7, shA: 0.18,
-      col: (x, y) => { const t = (y - (cy - ry)) / (2 * ry) + rr(-0.15, 0.15); return vary(t < 0.28 ? light : t < 0.75 ? base : darken(base, 0.1)); },
-      angf: (x, y) => Math.atan2(y - by, x - bx) + rot + rr(-0.3, 0.3) });
+      col: (x, y) => { const t = (y - (cy - ry)) / (2 * ry) + rr(-0.15, 0.15) + (np ? (plane(x, y) % 2 ? 0.12 : -0.08) : 0); return vary(t < 0.28 ? light : t < 0.75 ? base : darken(base, 0.1)); },
+      angf: np ? (x, y) => pa[plane(x, y)] + rr(-0.28, 0.28) : (x, y) => Math.atan2(y - by, x - bx) + rot + rr(-0.3, 0.3) });
   }
   g.save(); g.beginPath();
-  const a0 = o.outlineOnly ? 0 : Math.PI * rr(1.0, 1.1), a1e = o.outlineOnly ? Math.PI * 2 : Math.PI * rr(1.9, 2.0);
+  // 刺しかけの株は輪郭を一周させず、途中で止める（型紙の印にしない）
+  const os = rr(0, Math.PI * 2), a0 = o.outlineOnly ? os : Math.PI * rr(1.0, 1.1), a1e = o.outlineOnly ? os + Math.PI * rr(1.25, 1.75) : Math.PI * rr(1.9, 2.0);
   for (let i = 0; i <= 40; i++) { const a = a0 + (a1e - a0) * i / 40, q = rad(a) * 1.01; g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); }
   g.strokeStyle = o.outlineOnly ? C.yew : darken(base, 0.3); g.lineWidth = 1.6; g.setLineDash([4.5, 1.6]); g.stroke(); g.restore();
-  if (o.outlineOnly) for (let i = 0; i < 8; i++) { const a = rr(Math.PI * 1.1, Math.PI * 1.9), q = rr(0.35, 0.75); stitch(g, cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q + 7, cx + Math.cos(a) * rx * q * 1.12, cy + Math.sin(a) * ry * q, 1.8, C.yewL, { shA: 0.2 }); }
+  const fa = rr(Math.PI * 1.05, Math.PI * 1.6), fn = 4 + Math.floor(R() * 7);
+  if (o.outlineOnly) for (let i = 0; i < fn; i++) { const a = fa + rr(0, Math.PI * 0.45), q = rr(0.4, 0.85); stitch(g, cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q + 7, cx + Math.cos(a) * rx * q * 1.12, cy + Math.sin(a) * ry * q, 1.8, C.yewL, { shA: 0.2 }); }
 }
 function vine(g, x1, y1, x2, y2, amp = 7, col = C.leafD) {
   const n = Math.max(6, Math.hypot(x2 - x1, y2 - y1) / 8), a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a), ph = rr(0, 6);
@@ -521,7 +611,7 @@ const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").m
 let best = 0; try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) { best = 0; }
 let DPR = 1, W = 390, H = 844, Lay = null, bg = null, plain = null, SPR = {}, HUD = {};
 let state = "title", G = null, demo = null, paused = false, muted = false, overT = 0, newBest = false;
-let sel = -1, dragFrom = -1, ptr = null, press = null, kbCur = -1, kbOn = false, mouseLike = false;
+let IN = null, ptr = null, kbCur = -1, kbOn = false, mouseLike = false;
 let parts = [], pops = [], banner = null, shake = 0, fpsLog = [], lastNow = 0, simNow = 0;
 const told = {};
 const spider = { x: 196, y: 90, a: 0 };
@@ -548,6 +638,7 @@ function layout() {
   }
   build();
   if (G) G.xs = [Lay.xL - 30, Lay.xR + 30];
+  SPR.over = null;
 }
 const sx = (x) => Lay.ox + x * Lay.s, sy = (y) => Lay.oy + y * Lay.s;
 
@@ -766,7 +857,7 @@ function buzzOff() { if (!buzz) return; const t = AC.currentTime, b = buzz; buzz
 // ---------- 遊びの始まりと終わり ----------
 function start() {
   G = makeGame((Date.now() ^ (Math.random() * 1e9)) >>> 0); G.xs = [Lay.xL - 30, Lay.xR + 30];
-  sel = -1; dragFrom = -1; press = null; parts = []; pops = []; banner = null; paused = false; state = "play"; newBest = false;
+  IN = makeInput(G); downXY = null; parts = []; pops = []; banner = null; paused = false; state = "play"; newBest = false;
   spider.x = sx(196); spider.y = sy(84);
 }
 function finish() {
@@ -775,8 +866,8 @@ function finish() {
 }
 function say(lines, life = 2.2, key) { if (key) { if (told[key]) return; told[key] = 1; } banner = { lines, life, max: life }; }
 function pop(x, y, str, col = C.slate) { pops.push({ x, y, str, col, life: 1.1 }); }
-const NOLINK = { silk: ["糸が足りない。虫を巻くと糸巻きに戻る"], same: ["同じ支柱どうしは結べない"], short: ["近すぎて糸が渡せない"], full: ["これ以上は張れない。いらない糸は長押しで切る"] };
-function tryLink(a, b) { const r = G.link(a, b); if (r && NOLINK[r]) { say(NOLINK[r], 1.6); snd.thud(); } return !r; }
+const NOLINK = { silk: ["糸が足りない。｜虫を巻くと｜糸巻きに戻る"], same: ["同じ支柱どうしは｜結べない"], short: ["近すぎて｜糸が渡せない"], full: ["これ以上は張れない。｜いらない糸は｜長押しで切る"] };
+function tryLink(a, b) { return !G.link(a, b); }
 function threatSet(G) {
   if (!G.wasp) return null; const R = ROUTES[G.wasp.ri], s = new Set();
   for (const T of G.threads) if (routeCrosses(R, G.anchors[T.a], G.anchors[T.b])) s.add(T.id);
@@ -786,6 +877,7 @@ function handleEvents(now) {
   const v = Lay;
   for (const e of G.events) {
     if (e.type === "link") snd.ping(e.len);
+    else if (e.type === "nolink") { if (NOLINK[e.why]) { say(NOLINK[e.why], 1.6); snd.thud(); } }
     else if (e.type === "catch") {
       snd.boing(); const T = G.thread(e.th);
       if (T && T._bd) { // 露のビーズが片側へ3粒まではじける
@@ -794,7 +886,7 @@ function handleEvents(now) {
         for (const b of cand) { b.gone = true; const p = ptOn(T, b.u); parts.push({ k: "bead", x: p[0], y: p[1], vx: side * (60 + Math.random() * 80) * (T._B[0] > T._A[0] ? 1 : -1), vy: -60 - Math.random() * 80, sz: b.sz, life: 0.8, max: 0.8 }); }
       }
       if (e.combo >= 2) pop(sx(e.x), sy(e.y) - 22, "まとめ捕り ×2");
-    } else if (e.type === "wrap") { snd.wrap(); pop(sx(e.x), sy(e.y) - 14, "+" + e.pts); }
+    } else if (e.type === "wrap") { snd.wrap(); pop(sx(e.x), sy(e.y) - 14, e.kb ? `+${e.pts} 結び目` : "+" + e.pts); if (e.kb) say(["結び目のある糸で捕まえた｜ガ・カナブンは｜結び目の数だけ点が増える"], 2.6, "knot"); }
     else if (e.type === "cut") {
       e.by === "player" ? snd.snap() : 0;
       const ang = Math.atan2(e.by2 - e.ay, e.bx - e.ax), half = Math.min(70, e.len / 2) * v.s, curl = e.by !== "player";
@@ -802,16 +894,16 @@ function handleEvents(now) {
       parts.push({ k: "end", x: sx(e.bx), y: sy(e.by2), a0: ang + Math.PI, len: half * (curl ? 0.6 : 1), curl, life: 1.2, max: 1.2 });
     } else if (e.type === "tear") {
       snd.tear(); shake = RM ? 0 : 0.3;
-      say(["スズメバチに網を破られた", `糸が${e.n}本切れた　やぶれ ${e.tears}/3`], 2.2);
+      say(["スズメバチに｜網を破られた", `糸が${e.n}本切れた　｜やぶれ ${e.tears}/3`], 2.2);
       pop(sx(e.x), sy(e.y), "やぶれ", C.slate);
-    } else if (e.type === "lady") { snd.bad(); pop(sx(e.x), sy(e.y) - 16, "−3"); say(["テントウムシは菜園の味方。捕まえると −3"], 2.2, "lady"); }
+    } else if (e.type === "lady") { snd.bad(); pop(sx(e.x), sy(e.y) - 16, "−3"); say(["テントウムシは菜園の味方。｜捕まえると −3"], 2.2, "lady"); }
     else if (e.type === "bee") { noise(0.5, 300, 2, 0.08); }
-    else if (e.type === "beecut") { snd.snap(); say(["ミツバチは暴れて糸を1本切る"], 2.2, "bee"); }
-    else if (e.type === "break") { snd.snap(); pop(sx(e.x), sy(e.y) - 16, "切られた"); say(["カナブンは結び目のある糸でないと止まらない", "糸を交差させて結び目を作る"], 2.6, "beetle"); }
+    else if (e.type === "beecut") { snd.snap(); say(["ミツバチは暴れて｜糸を1本切る"], 2.2, "bee"); }
+    else if (e.type === "break") { snd.snap(); pop(sx(e.x), sy(e.y) - 16, "切られた"); say(["カナブンは｜結び目のある糸でないと｜止まらない", "糸を交差させて｜結び目を作る"], 2.6, "beetle"); }
     else if (e.type === "escape") pop(sx(e.x), sy(e.y) - 16, "にげた");
     else if (e.type === "slip" && e.wind) pop(sx(e.x), sy(e.y) - 16, "すり抜けた");
-    else if (e.type === "waspwarn") { buzzOn(); say(["黄と黒の撚り糸はスズメバチの通り道", "かかる糸は長押し（右クリック）で切る"], 3.2, "wasp"); }
-    else if (e.type === "windwarn") { snd.wind(); say(["風が来る。長い糸はゆれて虫を逃がしやすい"], 2.4, "wind"); }
+    else if (e.type === "waspwarn") { buzzOn(); say(["黄と黒の撚り糸は｜スズメバチの通り道", "かかる糸は｜長押し（右クリック）で切る"], 3.4, "wasp"); }
+    else if (e.type === "windwarn") { snd.wind(); say(["風が来る。｜長い糸はゆれて｜虫を逃がしやすい"], 2.4, "wind"); }
     else if (e.type === "end") { if (e.reason === "dusk") snd.dusk(); overT = now + (e.reason === "dusk" ? 1.0 : 1.6); }
   }
   G.events.length = 0;
@@ -821,10 +913,11 @@ function handleEvents(now) {
 function inR(r, x, y, pad = 6) { return r && x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad; }
 function toW(x, y) { return [(x - Lay.ox) / Lay.s, (y - Lay.oy) / Lay.s]; }
 let downXY = null;
+const nowS = () => performance.now() / 1000;
 cv.addEventListener("pointerdown", (e) => {
   e.preventDefault(); initAudio(); mouseLike = e.pointerType === "mouse";
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 無くても動く */ }
-  const x = e.clientX, y = e.clientY, now = performance.now() / 1000;
+  const x = e.clientX, y = e.clientY, now = nowS();
   if (state === "title") { if (!Lay.land || inR(HUD.start, x, y, 40) || y > H * 0.3) start(); return; }
   if (state === "over") { if (now - overT > 0.8 && inR(HUD.again, x, y, 14)) start(); return; }
   if (state !== "play" || G.over) return;
@@ -833,30 +926,18 @@ cv.addEventListener("pointerdown", (e) => {
   if (paused) { paused = false; return; }
   kbOn = false;
   const [wx, wy] = toW(x, y);
-  if (e.button === 2) { const tid = G.pickThread(wx, wy, 16 / Lay.s); if (tid >= 0) { G.cut(tid, "player"); sel = -1; } return; }
-  const a = G.pickAnchor(wx, wy, 26 / Lay.s);
   downXY = [x, y];
-  if (a >= 0) {
-    if (sel >= 0 && sel !== a) { tryLink(sel, a); sel = -1; }
-    else if (sel === a) sel = -1;
-    else { sel = a; dragFrom = a; }
-  } else {
-    const tid = G.pickThread(wx, wy, 16 / Lay.s);
-    if (tid >= 0) press = { tid, t0: now, x, y }; else sel = -1;
-  }
+  IN.down(wx, wy, Lay.s, now, e.button === 2);
   ptr = [wx, wy];
 }, { passive: false });
 cv.addEventListener("pointermove", (e) => {
   const x = e.clientX, y = e.clientY; mouseLike = e.pointerType === "mouse";
   ptr = toW(x, y);
-  if (press && Math.hypot(x - press.x, y - press.y) > 12) press = null;
+  if (IN && downXY && state === "play") IN.move(Math.hypot(x - downXY[0], y - downXY[1]));
 });
 const up = (e) => {
-  if (state === "play" && G && dragFrom >= 0) {
-    const [wx, wy] = toW(e.clientX, e.clientY), b = G.pickAnchor(wx, wy, 26 / Lay.s);
-    if (b >= 0 && b !== dragFrom) { tryLink(dragFrom, b); sel = -1; }
-  }
-  dragFrom = -1; press = null; if (e.pointerType !== "mouse") ptr = null;
+  if (state === "play" && G && IN && downXY) { const [wx, wy] = toW(e.clientX, e.clientY); IN.up(wx, wy, Lay.s, nowS()); }
+  downXY = null; if (e.pointerType !== "mouse") ptr = null;
 };
 cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 cv.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -881,11 +962,12 @@ addEventListener("keydown", (e) => {
   else if (k === " " || k === "Enter") {
     kbOn = true;
     if (kbCur < 0 || !G.anchors[kbCur].alive) { cycle("x", 0); return; }
-    if (sel < 0) sel = kbCur; else if (sel === kbCur) sel = -1; else { tryLink(sel, kbCur); sel = -1; }
+    if (IN.sel < 0) IN.sel = kbCur; else if (IN.sel === kbCur) IN.sel = -1; else { tryLink(IN.sel, kbCur); IN.sel = -1; }
   } else if (k === "x" || k === "X") {
-    const id = kbCur >= 0 ? kbCur : sel; if (id < 0) return;
-    const ts = G.threads.filter((t) => t.a === id || t.b === id); if (ts.length) { G.cut(ts[ts.length - 1].id, "player"); sel = -1; }
-  } else if (k === "Escape") sel = -1;
+    const id = kbCur >= 0 ? kbCur : IN.sel; if (id < 0) return;
+    const th = G.threatIds(), ts = G.threads.filter((t) => t.a === id || t.b === id).sort((a, b) => (th.has(a.id) ? 1 : 0) - (th.has(b.id) ? 1 : 0));
+    if (ts.length) { G.cut(ts[ts.length - 1].id, "player"); IN.sel = -1; }
+  } else if (k === "Escape") IN.sel = -1;
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") paused = true; });
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
@@ -914,7 +996,17 @@ function drawBug(b, now, v) {
   }
   ctx.restore(); ctx.globalAlpha = 1;
 }
+// 「｜」は語の切れ目（折り返してよい所）。入りきるなら1行に、入らなければ切れ目で折る（語の途中で折らない）
 function wrap(str, maxW) {
+  if (str.includes("｜")) {
+    const out = []; let cur = "";
+    for (const ch of str.split("｜")) {
+      if (!cur || ctx.measureText(cur + ch).width <= maxW) { cur += ch; continue; }
+      out.push(cur); cur = ch;
+    }
+    if (cur) out.push(cur);
+    return out.flatMap((l) => (ctx.measureText(l).width <= maxW ? [l] : wrap(l, maxW)));
+  }
   const out = []; let cur = "";
   for (const ch of str) {
     if ("、。）」".includes(ch) || !cur || ctx.measureText(cur + ch).width <= maxW) { cur += ch; continue; }
@@ -983,22 +1075,30 @@ function drawPlay(now, dt) {
   ctx.save(); ctx.translate(sx(26), sy(642)); ctx.rotate(-0.05); ctx.scale(v.s, v.s); ctx.fillText("いんげん", 0, 0); ctx.restore();
   drawPreviews(now);
   frameNo++; computeWeb(G, v, now, dt);
-  drawWeb(G, v, now, { threat: threatSet(G), selKnot: sel });
-  // 長押しで切る途中: 中央からほどけていく
-  if (press) {
-    const T = G.thread(press.tid), k = Math.min(1, (performance.now() / 1000 - press.t0) / 0.5);
-    if (T && T._A) { ctx.beginPath(); const p0 = ptOn(T, 0.5 - k * 0.5); ctx.moveTo(p0[0], p0[1]); for (let i = 1; i <= 10; i++) { const p = ptOn(T, 0.5 - k * 0.5 + k * i / 10); ctx.lineTo(p[0], p[1]); } ctx.strokeStyle = C.slate; ctx.globalAlpha = 0.7; ctx.lineWidth = 3.4; ctx.stroke(); ctx.globalAlpha = 1; }
+  drawWeb(G, v, now, { threat: threatSet(G), selKnot: IN.sel });
+  // 長押しで切る途中: 中央からほどけていく。一緒に落ちる糸（結び目の連鎖）は留めを濃灰の×にして先に見せる
+  const pr = IN.prog(nowS());
+  if (pr) {
+    const T = G.thread(pr.tid), k = pr.k;
+    if (T && T._A) {
+      ctx.globalAlpha = 0.75 * pr.live;
+      if (IN.press) { const P = IN.press; if (!P.cs || P.csN !== G.threads.length) { P.cs = G.cutSet(P.tid); P.csN = G.threads.length; }
+        ctx.beginPath();
+        for (const id of P.cs) { const O = G.thread(id); if (!O || !O._A || O === T) continue; for (const u of [0.3, 0.7]) { const p = ptOn(O, u), r = 3.6 * Math.max(0.8, v.s); ctx.moveTo(p[0] - r, p[1] - r); ctx.lineTo(p[0] + r, p[1] + r); ctx.moveTo(p[0] + r, p[1] - r); ctx.lineTo(p[0] - r, p[1] + r); } }
+        ctx.strokeStyle = C.slate; ctx.lineWidth = 2; ctx.stroke(); }
+      ctx.beginPath(); const p0 = ptOn(T, 0.5 - k * 0.5); ctx.moveTo(p0[0], p0[1]); for (let i = 1; i <= 10; i++) { const p = ptOn(T, 0.5 - k * 0.5 + k * i / 10); ctx.lineTo(p[0], p[1]); } ctx.strokeStyle = C.slate; ctx.lineWidth = 3.4; ctx.stroke(); ctx.globalAlpha = 1;
+    }
   }
   // 選んだまち針から指先へ、仮の糸
-  if (sel >= 0 && G.anchors[sel].alive && ptr && (dragFrom >= 0 || mouseLike)) {
-    const A = aPos(G, sel, v); ctx.strokeStyle = "#eef2f0"; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.3; line(ctx, A[0], A[1], sx(ptr[0]), sy(ptr[1])); ctx.globalAlpha = 1;
+  if (IN.sel >= 0 && G.anchors[IN.sel].alive && ptr && (IN.drag >= 0 || mouseLike)) {
+    const A = aPos(G, IN.sel, v); ctx.strokeStyle = "#eef2f0"; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.3; line(ctx, A[0], A[1], sx(ptr[0]), sy(ptr[1])); ctx.globalAlpha = 1;
   }
   for (const b of G.bugs) if (b.st !== "pre") drawBug(b, now, v);
   // まち針
   for (const A of G.anchors) {
     if (!A.alive) continue;
-    if (A.kind === "knot" && A.id !== sel) continue;
-    const p = aPos(G, A.id, v), S = A.id === sel ? SPR.pinSel : SPR.pin;
+    if (A.kind === "knot" && A.id !== IN.sel) continue;
+    const p = aPos(G, A.id, v), S = A.id === IN.sel ? SPR.pinSel : SPR.pin;
     if (A.kind === "knot") { ctx.drawImage(SPR.pinSel.c, p[0] - SPR.pinSel.d / 2, p[1] - SPR.pinSel.d / 2, SPR.pinSel.d, SPR.pinSel.d); continue; }
     ctx.drawImage(S.c, p[0] + 2 * v.s - S.d / 2, p[1] - S.d / 2, S.d, S.d);
   }
@@ -1007,7 +1107,7 @@ function drawPlay(now, dt) {
   let tx = sx(196), ty = sy(86);
   const wb = G.bugs.find((b) => b.st === "caught");
   if (wb && G.thread(wb.th) && G.thread(wb.th)._A) { const p = ptOn(G.thread(wb.th), wb.u); tx = p[0] + 6 * v.s; ty = p[1] - 8 * v.s; }
-  else if (sel >= 0 && G.anchors[sel].alive) { const p = aPos(G, sel, v); tx = p[0] - 10 * v.s; ty = p[1] + 12 * v.s; }
+  else if (IN.sel >= 0 && G.anchors[IN.sel].alive) { const p = aPos(G, IN.sel, v); tx = p[0] - 10 * v.s; ty = p[1] + 12 * v.s; }
   const dx = tx - spider.x, dy = ty - spider.y, dd = Math.hypot(dx, dy), stp = Math.min(dd, 420 * v.s * dt);
   if (dd > 0.5) { spider.x += dx / dd * stp; spider.y += dy / dd * stp; spider.a += (Math.atan2(dy, dx) + Math.PI / 2 - spider.a) * Math.min(1, dt * 8); }
   ctx.save(); ctx.translate(spider.x, spider.y); ctx.rotate(Math.max(-0.6, Math.min(0.6, spider.a))); ctx.drawImage(SPR.spider.c, -SPR.spider.d / 2, -SPR.spider.d / 2, SPR.spider.d, SPR.spider.d); ctx.restore();
@@ -1066,15 +1166,39 @@ function drawTitle(now, dt) {
     const lx = 24; ctx.textAlign = "left"; ctx.font = `40px ${FH}`; ctx.fillText("朝つゆの網", lx, 76);
     ctx.drawImage(SPR.titleLine, lx, 80, 210, 21);
     const pw = Math.min(tw, Lay.ox - 30);
-    const h1 = tapeBox(16, 100, pw, ["庭の蜘蛛になって、豆の支柱に糸を渡す"], `15px ${FB}`, 21, SPR.tLine);
+    const h1 = tapeBox(16, 100, pw, ["庭の蜘蛛になって、｜豆の支柱に糸を渡す"], `15px ${FB}`, 21, SPR.tHow);
     HUD.how = { x: 16, y: 100 + h1 + 12, w: pw, h: 62 };
     HUD.start = { x: W - Lay.ox / 2 - 112, y: H / 2 - 24, w: 224, h: 48 };
   }
   const how = HUD.how;
-  tapeBox(how.x, how.y, how.w, ["まち針を2つ押すと糸が渡る", "黄と黒の撚り糸の道には張らない"], `${Lay.land ? 14 : 15}px ${FB}`, 22, SPR.tHow);
+  tapeBox(how.x, how.y, how.w, ["まち針を2つ押すと｜糸が渡る", "黄と黒の撚り糸の道には｜張らない"], `${Lay.land ? 14 : 15}px ${FB}`, 22, SPR.tHow);
   const st = HUD.start; ctx.drawImage(SPR.tStart, st.x - 1, st.y - 1, 232, 56);
   ctx.font = `19px ${FH}`; ctx.fillText("糸を張りはじめる", st.x + st.w / 2, st.y + st.h / 2 + 1);
   if (best > 0) { ctx.font = `15px ${FB}`; ctx.fillText(`これまでの一番　${best} てん`, st.x + st.w / 2, st.y + st.h + 22); }
+}
+// 結果の挿絵の下地: 支柱とまち針を淡い返し縫いの輪郭で残す（網が残っていなくても空っぽにしない）。1回だけ作る
+function overBack(v) {
+  const [c, g] = mkc(W, H); setSeed(91);
+  g.save(); g.translate(v.ox, v.oy); g.scale(v.s, v.s);
+  for (const p of POLES) { const P = bastePaths([[p[0], p[1]], [(p[0] + p[2]) / 2 + rr(-2, 2), (p[1] + p[3]) / 2], [p[2], p[3]]], 3.2, { l0: 8, l1: 15, g0: 2, g1: 5 }); strokeBaste(g, P, C.hazel, C.hazelL, 0.55, 0.25); }
+  for (const [pi, t] of PIN_AT) { const p = POLES[pi], x = p[0] + (p[2] - p[0]) * t, y = p[1] + (p[3] - p[1]) * t; knot(g, x, y, 3.2, "#d9d2c0"); }
+  const P = bastePaths([[-6, 692], [130, 690], [260, 694], [396, 690]], 2, { l0: 6, l1: 12, g0: 3, g1: 7 }); strokeBaste(g, P, "#8a9a6a", "#a7b585", 0.5, 0.2);
+  g.restore(); return c;
+}
+// 破られた糸は、両端に丸まった切れ端として残す
+function drawLost(G, v) {
+  const seen = new Set(); ctx.lineCap = "round";
+  for (const L of G.lost) {
+    const key = L.a + "-" + L.b; if (seen.has(key)) continue; seen.add(key);
+    const A = G.anchors[L.a], B = G.anchors[L.b], ang = Math.atan2(B.y - A.y, B.x - A.x), len = Math.min(16, Math.hypot(B.x - A.x, B.y - A.y) * 0.22) * v.s;
+    for (const [P, a] of [[A, ang], [B, ang + Math.PI]]) {
+      const x = v.ox + P.x * v.s, y = v.oy + P.y * v.s, ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len + len * 0.35;
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = C.slate; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 0.7, y + 1.1); ctx.quadraticCurveTo(x + Math.cos(a) * len * 0.6 + 0.7, y + 1.1, ex + 0.7, ey + 1.1); ctx.stroke();
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = L.by === "wasp" ? "#cfc9b2" : "#d8dfdd"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + Math.cos(a) * len * 0.6, y, ex, ey); ctx.stroke();
+      ctx.beginPath(); ctx.arc(ex + 1.6, ey, 1.8, Math.PI, Math.PI * 2.5); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
 }
 function drawOver(now, dt) {
   ctx.drawImage(plain, 0, 0, W, H);
@@ -1085,13 +1209,18 @@ function drawOver(now, dt) {
   ctx.fillStyle = C.slate; ctx.textAlign = Lay.land ? "left" : "center"; ctx.textBaseline = "alphabetic"; ctx.font = `24px ${FH}`;
   const head = G.reason === "torn" ? "スズメバチに網を破られた" : G.reason === "empty" ? "糸が尽きた" : "日が暮れた";
   ctx.fillText(head, Lay.land ? 24 : W / 2, 38);
+  if (!SPR.over || SPR.over.k !== v.s) SPR.over = { k: v.s, c: overBack(v) };
+  ctx.drawImage(SPR.over.c, 0, 0, W, H);
+  drawLost(G, v);
   frameNo++; computeWeb(G, v, now, dt); drawWeb(G, v, now, { allBeads: true });
   const cs = SPR.cocoon.d * v.s / Lay.s;
   for (const b of G.bugs) if ((b.st === "cocoon" || b.st === "caught") && G.thread(b.th)) { const p = ptOn(G.thread(b.th), b.u); ctx.drawImage(SPR.cocoon.c, p[0] - cs / 2, p[1] - cs / 2 + 2, cs, cs); }
   const d = new Date(), S = G.stats;
+  const why = G.reason === "torn" ? `日暮れまで あと${Math.max(1, Math.ceil(G.dur - G.t))}秒だった` : G.reason === "empty" ? "糸を使いきった" : G.tears ? `スズメバチに${G.tears}回破られた` : "一度も破られずに日暮れまで";
   const rows = [
     [`${d.getMonth() + 1}月${d.getDate()}日の網`, 32, `16px ${FB}`],
     [`ハエ ${S.fly}匹　ガ ${S.moth}匹　カナブン ${S.beetle}匹`, 32, `15px ${FB}`],
+    [S.knot && (ctx.font = `15px ${FB}`, ctx.measureText(`${why}　結び目で ${S.knot}匹`).width <= tw - 20) ? `${why}　結び目で ${S.knot}匹` : why, 32, `15px ${FB}`],
     [`${G.score}`, 60, `40px ${FH}`],
     [newBest ? `自己ベストを更新　${best} てん` : `自己ベスト　${best} てん`, 32, `15px ${FB}`],
   ];
@@ -1112,7 +1241,7 @@ function frame(ms) {
   fpsLog.push(ms); if (fpsLog.length > 240) fpsLog.shift();
   if (state === "play" && !paused) {
     if (!G.over) { G.step(dt); simNow += dt; }
-    if (press && now - press.t0 >= 0.5) { G.cut(press.tid, "player"); press = null; sel = -1; }
+    IN.tick(nowS());
     handleEvents(now);
     if (G.wasp && !buzz) buzzOn(); else if (!G.wasp && buzz) buzzOff();
     if (AC && now > nextBird) { if (nextBird) snd.bird(); nextBird = now + 7 + Math.random() * 6; }
