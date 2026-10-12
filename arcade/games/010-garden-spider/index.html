@@ -235,7 +235,7 @@ function makeGame(seed) {
 // ===== 入力の判定（画面に依存しない。ボットも同じ物を使う） =====
 // 同じ場所でタップ（まち針・結び目）と長押し（糸を切る）を受けるので、押した瞬間には決めない。
 // まち針・結び目も離した時点で決める。近くに糸があれば、押した長さで決める: HOLD 以上 = 糸を切る / TAP 未満で離す = まち針のタップ / その間 = 切りかけ（KEEP 秒は進みが残る）
-const HOLD = 0.35, TAP = 0.2, KEEP = 0.7, DRAG = 12;
+const HOLD = 0.35, TAP = 0.2, KEEP = 0.7, DRAG = 12, TAP_ON = 14, TAP_NEAR = 0.3; // TAP_ON: まち針の真上とみなす画面上の距離 / TAP_NEAR: まち針が近いときのタップの長さ
 function makeInput(G) {
   const I = { sel: -1, drag: -1, press: null, carry: null };
   function anchorTap(a, sure) {
@@ -265,7 +265,9 @@ function makeInput(G) {
   I.tick = (t) => {
     const P = I.press; if (!P || P.tid < 0) return false;
     if (!G.thread(P.tid)) { // 押している糸が先に切れたら、指の下の別の糸に乗り換える（進みはそのまま）
-      const t2 = G.pickThreadPref(P.wx, P.wy, 16 / P.s); if (t2 < 0) { I.press = null; return false; } P.tid = t2; P.cs = null;
+      const t2 = G.pickThreadPref(P.wx, P.wy, 16 / P.s);
+      if (t2 < 0) { if (P.a >= 0) P.tid = -1; else I.press = null; return false; } // まち針を押していたなら、まち針だけのタップとして残す
+      P.tid = t2; P.cs = null;
     }
     if (t - P.t0 >= HOLD) { doCut(P.tid); return true; }
     return false;
@@ -277,7 +279,8 @@ function makeInput(G) {
     I.press = null;
     const held = t - P.tDown, ok = P.a >= 0 && G.anchors[P.a].alive;
     if (P.tid < 0) { if (ok && held < HOLD) anchorTap(P.a, true); return; } // まち針だけ: 離したらタップ（長押しでは糸を渡さない）
-    if (held < TAP && ok) anchorTap(P.a, P.dA <= 14); // 糸も近い: 短いタップで、まち針の真上を押したときだけ糸を渡す
+    if (ok && P.dA <= TAP_ON && held < HOLD) anchorTap(P.a, true); // まち針の真上: HOLD 前に離せば、ゆっくり押してもタップ
+    else if (held < TAP_NEAR && ok) anchorTap(P.a, P.dA <= 14); // 糸も近い: 短いタップで、まち針の真上を押したときだけ糸を渡す
     else I.carry = { tid: P.tid, k: t - P.t0, t };
   };
   I.prog = (t) => { // 長押しの進み 0..1（離した後も KEEP 秒は残す）
