@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=900,initial-scale=1">
+<title>炉ばたの一吹き 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Antique&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#8a8291}canvas{display:block}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script src="pastel.js"></script>
+<script>
+// 色・形・文字の見本帳（鳩羽色のパステル紙の上に、実物のパステルと木炭で描いた体裁）
+const W = 900, H = 1320;
+const INK = C.charcoal;
+// 小さい字は鳩羽色の紙に直接置かない（木炭×紙は 4.0:1）。白っぽい紙片（#ebe6dc、11.9:1）を貼ってから書く
+function stext(g, s, x, y, size, font, col, o = {}) {
+  g.save(); g.font = `${o.weight || 400} ${size}px ${font}`; const w = g.measureText(s).width; g.restore();
+  const x0 = o.align === "center" ? x - w / 2 : x, pad = 5;
+  const q = [[x0 - pad + rr(-1, 1), y - size - 1 + rr(-1, 1)], [x0 + w + pad + rr(-1, 1), y - size - 2 + rr(-1, 1)], [x0 + w + pad + rr(-1, 1), y + size * 0.38 + rr(-1, 1)], [x0 - pad + rr(-1, 1), y + size * 0.4 + rr(-1, 1)]];
+  pastel(g, polyPath(q), ["#ebe6dc", "#e4ded3"], { ang: 0.04, len: [10, 22], wid: [2.4, 4], a: [0.85, 1], dens: 3, bb: bbox(q), tooth: 0.06 });
+  text(g, s, x, y, size, font, col, o);
+}
+async function draw() {
+  await document.fonts.load('40px "Zen Antique"'); await document.fonts.load('16px "BIZ UDPGothic"'); await document.fonts.load('700 16px "BIZ UDPGothic"');
+  const g = makeCanvas("c", W, H); setSeed(3);
+  paper(g, W, H);
+  // 題
+  text(g, "炉ばたの一吹き", 40, 84, 50, FH, INK);
+  stext(g, "運河の町のガラス工房を、鳩羽色のパステル紙にソフトパステルと木炭で描く。色と形と文字の見本。", 44, 118, 16, FB, INK);
+  charcoal(g, wob([[40, 136], [860, 132]], 1.2, 10), 1.6, INK, { gaps: 0.1, a: 0.7 });
+
+  // ---- 1. パステル（色）: 折れたパステルの棒に、紙の帯を巻いて名前を書く ----
+  text(g, "色", 40, 178, 26, FH, INK);
+  const sticks = [
+    ["鳩羽色の紙", C.paper, "#8a8291", "地。全体の約45%"],
+    ["耐火煉瓦", C.brick, "#c7a98a", "炉・煉瓦。約15%"],
+    ["熱いガラスの朱橙", C.hot, "#e8662a", "主役。ガラスだけ"],
+    ["冷めかけの暗赤", C.ember, "#8e2f22", "冷える途中・焼けた縁"],
+    ["瓶ガラスの青緑", C.teal, "#1f7a72", "仕上がった器だけ"],
+    ["白墨", C.chalk, "#f6f3ea", "注文の輪郭・小さい字"],
+  ];
+  sticks.forEach(([name, col, hex, role], i) => {
+    const x = 40 + i * 140, y = 200;
+    // 折れた棒（長さ・折れ口をそろえない）
+    const len = 92 + rr(-14, 10), w = 34;
+    const body = [[x + 4, y + 8], [x + w, y + 4], [x + w + 2, y + len - rr(4, 12)], [x + w * 0.6, y + len + rr(-2, 6)], [x + 2, y + len - rr(0, 8)]];
+    pastel(g, polyPath(body), [col, mix(col, "#ffffff", 0.08), mix(col, "#000000", 0.08)], { ang: 1.5, len: [8, 18], wid: [2, 3.6], a: [0.85, 1], dens: 2, bb: bbox(body), tooth: col === C.paper ? 0.1 : 0.2 });
+    charcoal(g, wob([...body, body[0]], 0.6, 5), 1.4, INK, { passes: 1, a: 0.8 });
+    // 紙の帯
+    const band = [[x, y + 30], [x + w + 4, y + 28], [x + w + 5, y + 58], [x + 1, y + 60]];
+    pastel(g, polyPath(band), ["#ebe6dc"], { ang: 0.05, len: [8, 16], wid: [2, 3], dens: 3, bb: bbox(band), tooth: 0.1 });
+    charcoal(g, wob([...band, band[0]], 0.4, 4), 1, INK, { passes: 1, a: 0.6 });
+    // 名前と hex（紙の上に墨）
+    stext(g, name, x, y + 132, 14, FB, INK, { weight: 700 });
+    stext(g, hex, x, y + 152, 14, FB, INK);
+    stext(g, role, x, y + 172, 12.5, FB, INK);
+  });
+  // 小さな面積の色（棒にしない。こすった跡）
+  const smalls = [["芯の淡橙", C.core, "ガラスの内側だけ（加算）"], ["鈍い灰", C.cold, "冷えたガラス"], ["木炭", C.charcoal, "輪郭・文字（真っ黒にしない）"], ["鉄", C.iron, "竿・扉・道具"], ["山吹", C.gold, "合った白墨の線だけ"]];
+  smalls.forEach(([name, col, role], i) => {
+    const x = 40 + i * 168, y = 404;
+    smudge(g, ellPath(x + 22, y, 22, 10, -0.2), col, 1, [x - 4, y - 14, 54, 28]);
+    pastel(g, ellPath(x + 18, y, 16, 6, -0.2), [col], { ang: -0.2, len: [8, 16], wid: [2, 3], dens: 2, bb: [x, y - 10, 40, 20], tooth: 0.3 });
+    stext(g, name, x + 50, y - 2, 14, FB, INK, { weight: 700 });
+    stext(g, role, x + 50, y + 16, 11.5, FB, INK);
+  });
+
+  // ---- 2. ガラスの温度（ゲージを出さず、色と筋で見せる）----
+  text(g, "ガラスの温度と失敗", 40, 478, 26, FH, INK);
+  const prof = [10, 13, 18, 24, 30, 35, 38, 40, 40, 38, 34, 28];
+  const states = [
+    ["熱い", 1, {}], ["冷めかけ", 0.5, {}], ["冷えた（割れる）", 0.08, {}],
+    ["薄すぎ", 0.9, { state: "thin" }], ["気泡（断る）", 0.95, { state: "bubble" }], ["仕上がり", 0, { state: "done" }],
+  ];
+  states.forEach(([name, heat, o], i) => {
+    const cx = 100 + i * 140, top = 520;
+    setSeed(100 + i);
+    pipe(g, cx, 496, top + 1, 6);
+    const pr = o.state === "thin" ? prof.map(r => r * 1.18) : prof;
+    drawGlass(g, cx, top, 128, pr, heat, o);
+    stext(g, name, cx, 712, 13, FB, INK, { weight: 700, align: "center" });
+  });
+  // 割れ: 床の箱にたまるかけら（尖った多角形。光らせない）
+  setSeed(9);
+
+  // ---- 3. 注文（石盤に白墨）----
+  text(g, "注文の形（石盤に白墨）", 40, 770, 26, FH, INK);
+  const sl = [[40, 790], [860, 786], [862, 960], [38, 964]];
+  pastel(g, polyPath([[30, 780], [870, 776], [872, 970], [28, 974]]), ["#7a5b45", "#8d6a50"], { ang: 0.04, len: [10, 22], wid: [1.8, 3], dens: 1.6, bb: [28, 776, 846, 200], tooth: 0.3 });
+  pastel(g, polyPath(sl), [C.slate, "#3d4146", "#30343a"], { ang: -0.5, len: [10, 20], wid: [2, 3.6], a: [0.8, 1], dens: 1.6, bb: bbox(sl), tooth: 0.12 });
+  charcoal(g, wob([[30, 780], [870, 776], [872, 970], [28, 974], [30, 780]], 0.6, 8), 1.8, INK, { passes: 1 });
+  const orders = [
+    ["コップ", [[-18, -48], [-20, 30], [20, 30], [18, -48]]],
+    ["電球型", [[-8, -50], [-9, -36], [-26, -14], [-28, 8], [-18, 28], [18, 28], [28, 8], [26, -14], [9, -36], [8, -50]]],
+    ["とっくり", [[-6, -50], [-6, -36], [-18, -12], [-24, 8], [-20, 26], [20, 26], [24, 8], [18, -12], [6, -36], [6, -50]]],
+    ["一輪挿し", [[-4, -52], [-4, -20], [-12, 0], [-16, 16], [-12, 30], [12, 30], [16, 16], [12, 0], [4, -20], [4, -52]]],
+    ["ふた瘤の花びん", [[-6, -52], [-14, -38], [-14, -26], [-8, -16], [-22, 2], [-24, 20], [-14, 32], [14, 32], [24, 20], [22, 2], [8, -16], [14, -26], [14, -38], [6, -52]]],
+    ["ふちの開いた鉢", [[-34, -26], [-24, -18], [-22, 6], [-14, 24], [14, 24], [22, 6], [24, -18], [34, -26]]],
+  ];
+  orders.forEach(([name, pts], i) => {
+    const ox = 100 + i * 136, oy = 868; setSeed(200 + i);
+    chalk(g, wob(pts.map(([x, y]) => [ox + x, oy + y]), 1.0, 4), 2.4);
+    chalkText(g, name, ox, 940, 15, FH, { align: "center" });
+  });
+
+  // ---- 4. 画面の部品 ----
+  text(g, "画面の部品", 40, 1030, 26, FH, INK);
+  // 砂袋（命）3 → 崩れる
+  setSeed(31);
+  sandbag(g, 80, 1090, 1); sandbag(g, 160, 1090, 1); sandbag(g, 240, 1096, 1, true);
+  stext(g, "割れは3回まで。砂袋が1つずつ崩れる", 40, 1140, 12.5, FB, INK);
+  // 銀貨と数字
+  for (let i = 0; i < 5; i++) coin(g, 360, 1100 - i * 4.2, 11);
+  coin(g, 386, 1104, 11);
+  text(g, "23", 408, 1110, 34, FH, INK); stext(g, "枚", 450, 1109, 14, FB, INK, { weight: 700 });
+  stext(g, "稼いだ銀貨。数字は Zen Antique", 340, 1140, 12.5, FB, INK);
+  // 鐘楼の時計（一日の残り）
+  [0.15, 0.5, 0.85].forEach((t, i) => {
+    const x = 600 + i * 56, y = 1088; setSeed(60 + i);
+    pastel(g, ellPath(x, y, 18, 18), [C.chalk], { ang: 0, len: [3, 6], wid: [1.2, 2], dens: 4, bb: [x - 20, y - 20, 40, 40], tooth: 0.2 });
+    g.save(); g.fillStyle = C.ember; g.globalAlpha = 0.55; g.beginPath(); g.moveTo(x, y); g.arc(x, y, 14, -Math.PI / 2, -Math.PI / 2 + t * Math.PI * 2); g.closePath(); g.fill(); g.restore();
+    charcoal(g, wob(Array.from({ length: 13 }, (_, k) => [x + Math.cos(k / 12 * 6.283) * 18, y + Math.sin(k / 12 * 6.283) * 18]), 0.5, 4), 1.4, INK, { passes: 1 });
+    charcoal(g, [[x, y], [x + Math.cos(-Math.PI / 2 + t * 2 * Math.PI) * 14, y + Math.sin(-Math.PI / 2 + t * 2 * Math.PI) * 14]], 2, INK, { passes: 1 });
+  });
+  stext(g, "向こう岸の鐘楼の時計が、一日の残り", 590, 1140, 12.5, FB, INK);
+  // 炉のすき間（扉を下ろした所／上げた所）
+  setSeed(70);
+  const furn = (x, y, open) => {
+    const op = []; for (let k = 0; k <= 12; k++) { const a = Math.PI + k / 12 * Math.PI; op.push([x + Math.cos(a) * 40, y - 52 + Math.sin(a) * 40]); }
+    pastel(g, polyPath([[x - 62, y + 12], [x - 60, y - 70], [x - 20, y - 110], [x + 40, y - 106], [x + 64, y - 60], [x + 62, y + 12]]), [C.brick, "#b8987a"], { ang: -0.15, len: [8, 16], wid: [2, 3.2], dens: 1.2, bb: [x - 64, y - 112, 130, 126], tooth: 0.35 });
+    const gapTop = open ? y - 92 : y - 18;
+    pastel(g, polyPath([[x - 38, gapTop], [x + 38, gapTop], [x + 38, y - 1], [x - 38, y - 1]]), [C.hot, mix(C.hot, C.core, 0.5)], { ang: 0.02, len: [8, 18], wid: [2, 3.2], dens: 2, bb: [x - 40, gapTop - 2, 80, y - gapTop + 2], tooth: 0.15 });
+    if (!open) pastel(g, polyPath([...op.map(([a, b]) => [a, b + 1]), [x + 40, gapTop], [x - 40, gapTop]]), [C.iron, "#57525d"], { ang: 1.45, len: [10, 20], wid: [2, 3.2], dens: 1.6, bb: [x - 42, y - 96, 84, 80], tooth: 0.2 });
+    else pastel(g, polyPath([[x - 22, y - 30], [x + 26, y - 34], [x + 22, y - 6], [x - 18, y - 4]]), [C.core], { ang: 0, len: [6, 14], wid: [1.8, 3], a: [0.5, 0.9], dens: 1.5, bb: [x - 24, y - 36, 52, 34], tooth: 0.3 });
+    charcoal(g, wob([...op, [x + 40, y], [x - 40, y], op[0]], 0.7, 5), 2.2, INK);
+  };
+  furn(110, 1270, false); furn(260, 1270, true);
+  stext(g, "炉: ふだんは扉を下ろし、すき間だけ熱い。温め直す間は扉が上がる", 340, 1210, 12.5, FB, INK);
+  // 文字見本
+  text(g, "炉ばたの一吹き 0123456789", 340, 1256, 28, FH, INK);
+  stext(g, "2本の指を広げると、その高さがふくらむ。つまむと細くなる。", 340, 1288, 15, FB, INK);
+  stext(g, "見出し: Zen Antique ／ 本文: BIZ UDPGothic。小さい字は紙片か石盤の上だけ", 340, 1310, 10.5, FB, INK);
+}
+draw().then(() => { document.body.dataset.ready = "1"; });
+</script>
+</body></html>
