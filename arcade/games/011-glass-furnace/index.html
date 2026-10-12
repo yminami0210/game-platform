@@ -1125,7 +1125,8 @@ cv.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "touch") setTouch(true);
   try { cv.setPointerCapture(e.pointerId); } catch (er) { /* なくてよい */ }
   const p = toLogical(e);
-  ptrs.set(e.pointerId, { x0: p.x, y0: p.y, x: p.x, y: p.y, t0: performance.now(), btn: e.button, used: false, glass: onGlass(p) });
+  const t0 = performance.now();
+  ptrs.set(e.pointerId, { x0: p.x, y0: p.y, x: p.x, y: p.y, t0, btn: e.button, used: false, glass: onGlass(p), hist: [[t0, p.y]] });
   if (state !== "play") return;
   if (ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()]; a.used = b.used = true;
@@ -1136,7 +1137,7 @@ cv.addEventListener("pointermove", (e) => {
   const p = toLogical(e), rec = ptrs.get(e.pointerId);
   if (e.pointerType === "mouse") { lastMouse = p; if (!rec && state === "play" && onGlass(p, 60)) workY = yOf(p); }
   if (!rec) return;
-  e.preventDefault(); rec.x = p.x; rec.y = p.y; rec.hist = rec.hist || []; rec.hist.push([performance.now(), p.y]); if (rec.hist.length > 12) rec.hist.shift();
+  e.preventDefault(); rec.x = p.x; rec.y = p.y; const hn = performance.now(); rec.hist.push([hn, p.y]); while (rec.hist.length > 2 && hn - rec.hist[1][0] > 400) rec.hist.shift();
   if (state !== "play") return;
   if (pinch && ptrs.size >= 2) {
     const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -1153,12 +1154,16 @@ function release(e, cancel) {
   const p = toLogical(e), dx = p.x - rec.x0, dy = p.y - rec.y0, dt = performance.now() - rec.t0;
   if (rec.btn === 1) { sim.reject(); return; }
   if (rec.btn !== 0) return;
-  // 払い: 縦に 48 以上動き、離す直前まで動いていた（止めてから離したら高さ選びだけ）
-  const nowT = performance.now(), hs = (rec.hist || []).filter((h) => nowT - h[0] < 200);
-  const vy = hs.length ? (p.y - hs[0][1]) / Math.max(16, nowT - hs[0][0]) : dt < 600 ? dy / Math.max(16, dt) : 0;
-  const flick = dt < 1500 && (dt < 600 || Math.abs(vy) > 0.05);
-  if (flick && dy > 48 && dy > Math.abs(dx) * 1.2 && vy > 0) { sim.cut(); return; }
-  if (flick && dy < -48 && -dy > Math.abs(dx) * 1.2 && vy < 0) { if (!sim.reject() && sim.S.phase === "furnace") sim.furnace(); return; }
+  // 払い（切り離し・替える）は「離す直前 80ms の縦の速さ」だけで決める。
+  // 止めてから離した・速さを落としながら離した（高さ選びのなぞり）は払いにしない。
+  const nowT = performance.now(), hs = rec.hist.concat([[nowT, p.y]]);
+  const yAt = (t) => { if (t <= hs[0][0]) return hs[0][1]; for (let i = hs.length - 1; i > 0; i--) if (hs[i - 1][0] <= t) { const a = hs[i - 1], b = hs[i], f = b[0] > a[0] ? (t - a[0]) / (b[0] - a[0]) : 1; return a[1] + (b[1] - a[1]) * f; } return hs[0][1]; };
+  const W = 80, vEnd = (p.y - yAt(nowT - W)) / W; let vPeak = 0;
+  for (const h of hs) if (h[0] - W >= rec.t0 - 1) vPeak = Math.max(vPeak, Math.abs(h[1] - yAt(h[0] - W)) / W);
+  const keep = Math.abs(vEnd) >= 0.6 * vPeak; // 最後まで勢いが落ちていない
+  if (dt <= 500 && keep && vEnd >= 0.25 && dy > 48 && dy > Math.abs(dx) * 1.2) { sim.cut(); return; }
+  // 替える（玉を失う）はさらに厳しく: 短く速く、64 以上
+  if (dt <= 450 && keep && vEnd <= -0.35 && dy < -64 && -dy > Math.abs(dx) * 1.5) { if (!sim.reject() && sim.S.phase === "furnace") sim.furnace(); return; }
   if (Math.hypot(dx, dy) < 16 && dt < 1200) tap(p);
 }
 cv.addEventListener("pointerup", (e) => { e.preventDefault(); release(e, false); });
