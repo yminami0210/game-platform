@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>朝つゆの網</title>
+<meta name="description" content="イギリスの家庭菜園で、庭の蜘蛛になって豆の支柱に糸を渡すミニゲーム">
+<link href="https://fonts.googleapis.com/css2?family=RocknRoll+One&family=Yomogi&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#c3c9bd;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+body{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:Yomogi,"Hiragino Maru Gothic ProN",sans-serif}
+canvas{display:block;touch-action:none;outline:none}
+</style>
+</head>
+<body>
+<canvas id="c" role="img" aria-label="朝つゆの網。まち針を2つ押して糸を渡し、虫を捕まえる"></canvas>
+<script id="logic">
+// ===== 遊びの中身（描画に依存しない。自動プレイのボットもこれを読む） =====
+const WORLD = { w: 390, h: 692 };
+// ハシバミの支柱（x1,y1 = 地面, x2,y2 = 上の端）。4本目の右に鉢、5本目は左の1本
+const POLES = [[56, 640, 192, 66], [330, 650, 202, 64], [168, 672, 198, 60], [372, 520, 344, 156], [30, 584, 50, 196]];
+const PIN_AT = [[0, .18], [0, .42], [0, .66], [0, .86], [1, .16], [1, .40], [1, .64], [1, .86], [2, .30], [2, .62], [3, .12], [3, .5], [4, .18], [4, .52], [4, .9]];
+// 虫の通り道（左右に横切るゆるい S 字）。sky=生垣より上
+const ROUTES = [
+  { a: 92, b: 112, m: 8, p: 0, sky: 1 }, { a: 132, b: 84, m: 10, p: 2, sky: 1 }, { a: 190, b: 160, m: 12, p: 1, sky: 1 },
+  { a: 262, b: 300, m: 14, p: 3 }, { a: 340, b: 318, m: 12, p: 5 }, { a: 420, b: 380, m: 14, p: 4 },
+  { a: 470, b: 524, m: 12, p: 1 }, { a: 566, b: 540, m: 10, p: 2 }, { a: 150, b: 500, m: 16, p: 0 }, { a: 560, b: 220, m: 16, p: 3 },
+];
+const SPEC = {
+  fly: { pts: 1, ret: 50, v: 1.0 }, moth: { pts: 3, ret: 110, v: 0.8 }, beetle: { pts: 8, ret: 190, v: 0.72 },
+  lady: { pts: -3, ret: 0, v: 0.75 }, bee: { pts: 0, ret: 0, v: 0.85 }, wasp: { pts: 0, ret: 0, v: 1.7 },
+};
+function routeY(r, x) { const u = Math.max(0, Math.min(1, x / 390)); return Math.max(26, Math.min(670, r.a + (r.b - r.a) * u + r.m * Math.sin(x / 390 * Math.PI * 2 + r.p))); }
+function routePts(r, x0 = -40, x1 = 430, st = 10) { const o = []; for (let x = x0; x <= x1 + 0.1; x += st) o.push([x, routeY(r, x)]); return o; }
+function segX(ax, ay, bx, by, cx, cy, dx, dy) { // 交われば [u(1本目), v(2本目)]
+  const d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx); if (Math.abs(d) < 1e-9) return null;
+  const u = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d, v = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / d;
+  return u >= 0 && u <= 1 && v >= 0 && v <= 1 ? [u, v] : null;
+}
+function routeCrosses(r, A, B) { const P = routePts(r, -40, 430, 15); let n = 0; for (let i = 1; i < P.length; i++) if (segX(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], A.x, A.y, B.x, B.y)) n++; return n; }
+
+function makeGame(seed) {
+  let s = (seed >>> 0) || 1;
+  const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const G = {
+    t: 0, dur: 120, score: 0, silk: 1000, silkMax: 1000, tears: 0, over: false, reason: "", anchors: [], threads: [], bugs: [], events: [],
+    combo: 0, lastCatch: -9, nid: 1, bid: 1, wind: { st: 0, t0: 0, next: 46 }, nextSpawn: 1.0, nextWasp: 23, wasp: null,
+    stats: { fly: 0, moth: 0, beetle: 0, lady: 0, bee: 0 }, xs: [-40, 430], pen: [], earn: [], routes: ROUTES,
+  };
+  POLES.forEach(() => 0);
+  for (const [pi, t] of PIN_AT) { const p = POLES[pi]; G.anchors.push({ id: G.anchors.length, kind: "pin", x: p[0] + (p[2] - p[0]) * t, y: p[1] + (p[3] - p[1]) * t, poles: [pi], alive: true }); }
+  G.anchors.push({ id: G.anchors.length, kind: "pin", x: 196, y: 76, poles: [0, 1, 2], alive: true, top: 1 });
+  G.anchors.push({ id: G.anchors.length, kind: "pin", x: 336, y: 140, poles: [3], alive: true, pot: 1 });
+  const ev = (type, o = {}) => { o.type = type; o.t = G.t; G.events.push(o); };
+  const thr = (id) => G.threads.find((t) => t.id === id);
+  G.thread = thr;
+  G.knotsOn = (id) => { let n = 0; for (const k of G.anchors) if (k.alive && k.kind === "knot" && k.parents.includes(id)) n++; return n; };
+  function sharesLine(A, B) {
+    const par = (K) => (K.kind === "knot" ? K.parents : []);
+    for (const pid of par(A)) { const T = thr(pid); if (T && (T.a === B.id || T.b === B.id)) return true; if (par(B).includes(pid)) return true; }
+    for (const pid of par(B)) { const T = thr(pid); if (T && (T.a === A.id || T.b === A.id)) return true; }
+    return false;
+  }
+  G.canLink = (ia, ib) => {
+    const A = G.anchors[ia], B = G.anchors[ib];
+    if (!A || !B || !A.alive || !B.alive || ia === ib) return "none";
+    if (A.poles.some((p) => B.poles.includes(p)) || sharesLine(A, B)) return "same";
+    if (G.threads.some((t) => (t.a === ia && t.b === ib) || (t.a === ib && t.b === ia))) return "dup";
+    const len = Math.hypot(B.x - A.x, B.y - A.y);
+    if (len < 36) return "short";
+    if (G.threads.length >= 18) return "full";
+    if (G.silk < len) return "silk";
+    return "";
+  };
+  G.link = (ia, ib) => {
+    if (G.over) return "over";
+    const why = G.canLink(ia, ib); if (why) { ev("nolink", { why, a: ia, b: ib }); return why; }
+    const A = G.anchors[ia], B = G.anchors[ib], len = Math.hypot(B.x - A.x, B.y - A.y);
+    G.silk -= len;
+    const T = { id: G.nid++, a: ia, b: ib, len, born: G.t, seed: (rnd() * 1e9) >>> 0, bowT: -9, vibT: G.t };
+    for (const O of G.threads.slice()) {
+      const OA = G.anchors[O.a], OB = G.anchors[O.b], r = segX(A.x, A.y, B.x, B.y, OA.x, OA.y, OB.x, OB.y);
+      if (!r || r[0] < 0.05 || r[0] > 0.95 || r[1] < 0.05 || r[1] > 0.95) continue;
+      const x = A.x + (B.x - A.x) * r[0], y = A.y + (B.y - A.y) * r[0];
+      if (G.anchors.some((k) => k.alive && Math.hypot(k.x - x, k.y - y) < 12)) continue;
+      G.anchors.push({ id: G.anchors.length, kind: "knot", x, y, poles: [], parents: [T.id, O.id], u: [r[0], r[1]], alive: true, born: G.t });
+      O.vibT = G.t;
+    }
+    G.threads.push(T); ev("link", { id: T.id, len });
+    return "";
+  };
+  G.cut = (id, by, quiet) => {
+    const i = G.threads.findIndex((t) => t.id === id); if (i < 0) return 0;
+    const T = G.threads[i]; G.threads.splice(i, 1); let n = 1;
+    if (by === "player") G.silk = Math.min(G.silkMax, G.silk + T.len * 0.5);
+    for (const b of G.bugs) if (b.th === id && (b.st === "caught" || b.st === "thrash" || b.st === "held")) { b.st = "flee"; if (b.sp !== "bee" && b.sp !== "lady") ev("escape", { x: b.x, y: b.y, sp: b.sp }); }
+    for (const b of G.bugs) if (b.th === id && b.st === "cocoon") b.st = "drop";
+    const A = G.anchors[T.a], B = G.anchors[T.b];
+    ev("cut", { by, ax: A.x, ay: A.y, bx: B.x, by2: B.y, len: T.len, id, seed: T.seed, quiet: !!quiet });
+    for (const K of G.anchors) if (K.alive && K.kind === "knot" && K.parents.includes(id)) {
+      K.alive = false;
+      for (const t2 of G.threads.filter((t) => t.a === K.id || t.b === K.id)) n += G.cut(t2.id, by, true);
+    }
+    return n;
+  };
+  G.pickAnchor = (x, y, r = 26) => { let best = -1, bd = r; for (const a of G.anchors) if (a.alive) { const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; best = a.id; } } return best; };
+  G.pickThread = (x, y, r = 16) => {
+    let best = -1, bd = r;
+    for (const T of G.threads) {
+      const A = G.anchors[T.a], B = G.anchors[T.b], dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy;
+      const u = Math.max(0, Math.min(1, ((x - A.x) * dx + (y - A.y) * dy) / L2)), sag = Math.min(7, T.len * 0.03) * 4 * u * (1 - u);
+      const d = Math.hypot(A.x + dx * u - x, A.y + dy * u + sag - y); if (d < bd) { bd = d; best = T.id; }
+    }
+    return best;
+  };
+  function tear(T) {
+    const ends = [T.a, T.b]; let n = G.cut(T.id, "wasp");
+    for (const t2 of G.threads.slice()) { if (n >= 3) break; if (ends.includes(t2.a) || ends.includes(t2.b)) n += G.cut(t2.id, "wasp", true); }
+    G.tears++; G.pen.push({ t: G.t, k: "tear" });
+    const A = G.anchors[T.a], B = G.anchors[T.b];
+    ev("tear", { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, n, tears: G.tears });
+    if (G.tears >= 3) end("torn");
+  }
+  function end(reason) {
+    if (G.over) return;
+    if (reason === "dusk") for (const b of G.bugs) if (b.st === "caught") { // 日暮れに巻きかけの虫は巻き終える
+      const S = SPEC[b.sp], pts = S.pts * b.mult; b.st = "cocoon"; b.ct = 6; G.score += pts; G.stats[b.sp]++; G.earn.push({ t: G.t, p: pts }); ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th });
+    }
+    G.over = true; G.reason = reason; ev("end", { reason }); }
+  const lerp = (a, b, k) => a + (b - a) * k;
+  function pickRoute(w) { let tot = 0; for (const x of w) tot += x; let q = rnd() * tot; for (let i = 0; i < w.length; i++) { q -= w[i]; if (q <= 0) return i; } return w.length - 1; }
+  function spawn(sp, ri, pre) {
+    const dir = rnd() < 0.5 ? 1 : -1, R = ROUTES[ri], p = G.t / G.dur;
+    const x = dir > 0 ? G.xs[0] : G.xs[1];
+    const v = (46 + 44 * p) * SPEC[sp].v * (0.9 + rnd() * 0.2);
+    const b = { id: G.bid++, sp, ri, dir, x, y: routeY(R, x), v, st: "pre", pt: pre, pre, ph: rnd() * 6, pass: new Set(), born: G.t, th: -1, u: 0, wt: 0 };
+    G.bugs.push(b); return b;
+  }
+  function hit(b, T, u) {
+    b.pass.add(T.id);
+    if (b.sp === "wasp") { if (!b.torn) { b.torn = 1; tear(T); } return; }
+    if (G.wind.st === 2 && T.len > 170 && rnd() < 0.5) { ev("slip", { x: b.x, y: b.y, wind: 1 }); return; }
+    const kn = G.knotsOn(T.id);
+    if (b.sp === "fly" && kn === 0 && rnd() < 0.35) { ev("slip", { x: b.x, y: b.y }); return; }
+    if (b.sp === "beetle" && kn === 0) { G.cut(T.id, "beetle"); G.pen.push({ t: G.t, k: "beetle" }); ev("break", { x: b.x, y: b.y }); b.st = "flee"; return; }
+    b.th = T.id; b.u = u; T.bowT = G.t; T.vibT = G.t;
+    for (const O of G.threads) if (O !== T) O.vibT = G.t + 0.05;
+    if (b.sp === "lady") { b.st = "held"; b.ht = 0.8; G.score += SPEC.lady.pts; G.stats.lady++; G.pen.push({ t: G.t, k: "lady" }); G.earn.push({ t: G.t, p: SPEC.lady.pts }); ev("lady", { x: b.x, y: b.y }); return; }
+    if (b.sp === "bee") { b.st = "thrash"; b.ht = 0.9; G.stats.bee++; ev("bee", { x: b.x, y: b.y }); return; }
+    b.st = "caught"; b.wt = 0;
+    G.combo = G.t - G.lastCatch <= 1.2 ? G.combo + 1 : 1; G.lastCatch = G.t; b.mult = G.combo >= 2 ? 2 : 1;
+    ev("catch", { x: b.x, y: b.y, sp: b.sp, combo: G.combo, th: T.id, u });
+  }
+  G.step = (dt) => {
+    if (G.over) return;
+    G.t += dt; const t = G.t, p = Math.min(1, t / G.dur);
+    // 風（昼過ぎから。葉が傾いて 1.5 秒前に予告 → 3 秒吹く）
+    const W = G.wind;
+    if (W.st === 0 && t >= W.next && !G.wasp && t < G.dur - 6) { W.st = 1; W.t0 = t; ev("windwarn"); }
+    else if (W.st === 1 && t - W.t0 >= 1.5) { W.st = 2; W.t0 = t; ev("wind"); G.pen.push({ t, k: "wind" }); }
+    else if (W.st === 2 && t - W.t0 >= 3) { W.st = 0; W.next = t + 15 + rnd() * 6; }
+    // ふつうの虫
+    if (t >= G.nextSpawn && t < G.dur - 1.5) {
+      const ev2 = t > G.dur - 30;
+      const wsp = { fly: 5, moth: t > 12 ? 2.2 + 2 * p : 0, beetle: t > 60 ? (t > G.dur - 20 ? 4.6 : ev2 ? 3.2 : 1.1) : 0, lady: t > 18 ? 0.9 : 0, bee: t > 28 ? 1.0 : 0 };
+      const names = Object.keys(wsp), sp = names[pickRoute(names.map((n) => wsp[n]))];
+      const rw = ROUTES.map((r, i) => (sp === "beetle" ? (i >= 3 ? 1 : 0) : r.sky ? 1.8 : 1));
+      spawn(sp, pickRoute(rw), 1.2);
+      G.nextSpawn = t + lerp(1.45, 0.62, Math.pow(p, 1.1)) * (t > G.dur - 20 ? 0.7 : ev2 ? 0.82 : 1) * (0.7 + rnd() * 0.6);
+    }
+    // スズメバチ（同時に1匹だけ。3 秒前から通り道を予告）
+    if (!G.wasp && t >= G.nextWasp && W.st === 0 && t < G.dur - 5) {
+      const rw = ROUTES.map((r) => { let n = 0; for (const T of G.threads) n += Math.min(1, routeCrosses(r, G.anchors[T.a], G.anchors[T.b])); return 1 + 0.4 * n; });
+      G.wasp = spawn("wasp", pickRoute(rw), 3.0); ev("waspwarn", { ri: G.wasp.ri });
+    }
+    for (const b of G.bugs) {
+      if (b.st === "pre") { b.pt -= dt; if (b.pt <= 0) { b.st = "fly"; if (b.sp === "wasp") ev("waspgo"); } continue; }
+      if (b.st === "fly") {
+        const ox = b.x, oy = b.y, R = ROUTES[b.ri]; b.ph += dt;
+        b.x += b.dir * b.v * dt * (b.x < -20 || b.x > 410 ? 3 : 1); // 布の外（横画面の左右）は速く通り過ぎる
+        const wob = b.sp === "bee" ? 13 * Math.sin(b.ph * 3.1) + 5 * Math.sin(b.ph * 7.3) : b.sp === "moth" ? 7 * Math.sin(b.ph * 4) : b.sp === "fly" ? 4 * Math.sin(b.ph * 9) : 0;
+        b.y = routeY(R, b.x) + wob;
+        if (b.x < G.xs[0] - 5 || b.x > G.xs[1] + 5) { b.st = "gone"; continue; }
+        for (const T of G.threads.slice()) {
+          if (b.pass.has(T.id) || !G.threads.includes(T)) continue;
+          const A = G.anchors[T.a], B = G.anchors[T.b], r = segX(ox, oy, b.x, b.y, A.x, A.y, B.x, B.y);
+          if (r) { hit(b, T, r[1]); if (b.st !== "fly") break; }
+        }
+      } else if (b.st === "caught") {
+        b.wt += dt;
+        if (b.wt >= 2.0) {
+          const S = SPEC[b.sp], pts = S.pts * b.mult; b.st = "cocoon"; b.ct = 6;
+          G.score += pts; G.silk = Math.min(G.silkMax, G.silk + S.ret); G.stats[b.sp]++; G.earn.push({ t, p: pts });
+          ev("wrap", { sp: b.sp, pts, x: b.x, y: b.y, th: b.th });
+        }
+      } else if (b.st === "held") { b.ht -= dt; if (b.ht <= 0) b.st = "flee"; }
+      else if (b.st === "thrash") { b.ht -= dt; if (b.ht <= 0) { G.cut(b.th, "bee"); G.pen.push({ t, k: "bee" }); ev("beecut", { x: b.x, y: b.y }); b.st = "flee"; } }
+      else if (b.st === "cocoon") { b.ct -= dt; if (b.ct <= 0) b.st = "gone"; }
+      else if (b.st === "flee" || b.st === "drop") { b.ph += dt; b.y += (b.st === "drop" ? 160 : -70) * dt; b.x += b.dir * 30 * dt; if (b.y < -60 || b.y > 760) b.st = "gone"; }
+    }
+    if (G.wasp && G.wasp.st === "gone") { G.wasp = null; G.nextWasp = t + lerp(13, 7, p) + rnd() * 2.5; }
+    G.bugs = G.bugs.filter((b) => b.st !== "gone");
+    if (t >= G.dur) end("dusk");
+    else if (!G.threads.length && G.silk < 36 && !G.bugs.some((b) => b.st === "caught")) end("empty");
+  };
+  return G;
+}
+</script>
+<script>
+"use strict";
+// ===== 刺繍の描画道具（design/stitch.js の考え方。起動時の作り置きだけで使う乱数はシード固定） =====
+const C = {
+  yew: "#34432b", yewL: "#4e5f38", leaf: "#7d9a3c", leafD: "#5a7430", leafL: "#a7bd5c",
+  hazel: "#7b6450", hazelL: "#a08566", hazelD: "#4f3e30", silver: "#e6eae6", lemon: "#e6c21f", slate: "#2a2f33",
+  linen: "#c3c9bd", pot: "#b56a43", tape: "#f5f4ee", ladyR: "#c23a2a", bee: "#c98f2a", beeD: "#6b4a2a",
+  moth: "#c4ab84", mothD: "#7a6650", beetle: "#55703a", beetleL: "#8fa65a", spider: "#a8713e", spiderD: "#7a4f2c", spiderL: "#c8ac80",
+  jute: "#c4ab84",
+};
+let _s = 7;
+const setSeed = (n) => (_s = (n >>> 0) || 1);
+function R() { _s ^= _s << 13; _s >>>= 0; _s ^= _s >> 17; _s ^= _s << 5; _s >>>= 0; return _s / 4294967296; }
+const rr = (a, b) => a + R() * (b - a);
+const pick = (a) => a[Math.floor(R() * a.length)];
+function rgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mix(h, k, t) { const a = rgb(h), b = rgb(k); return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join(""); }
+const lighten = (h, t) => mix(h, "#ffffff", t), darken = (h, t) => mix(h, "#000000", t);
+const vary = (h) => (R() < 0.5 ? lighten(h, rr(0, 0.09)) : darken(h, rr(0, 0.09)));
+function line(g, a, b, c, d) { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
+function stitch(g, x1, y1, x2, y2, w, col, o = {}) {
+  g.lineCap = "round";
+  if (o.sh !== false) { g.strokeStyle = C.slate; g.globalAlpha = o.shA ?? 0.32; g.lineWidth = w + 0.6; line(g, x1 + 0.7, y1 + 1.1, x2 + 0.7, y2 + 1.1); }
+  g.globalAlpha = o.a ?? 1; g.strokeStyle = col; g.lineWidth = w; line(g, x1, y1, x2, y2);
+  if (o.hi !== false && w >= 1.4) {
+    g.globalAlpha = (o.a ?? 1) * 0.45; g.strokeStyle = lighten(col, 0.45); g.lineWidth = Math.max(0.5, w * 0.3);
+    const ux = x2 - x1, uy = y2 - y1; line(g, x1 + ux * 0.25 - 0.4, y1 + uy * 0.25 - 0.5, x1 + ux * 0.7 - 0.4, y1 + uy * 0.7 - 0.5);
+  }
+  g.globalAlpha = 1;
+}
+function linen(g, x0, y0, w, h) {
+  g.fillStyle = C.linen; g.fillRect(x0, y0, w, h);
+  for (let i = 0; i < w * h / 26; i++) {
+    const x = x0 + rr(0, w), y = y0 + rr(0, h), v = R() < 0.5, l = rr(3, 10);
+    g.strokeStyle = R() < 0.55 ? lighten(C.linen, rr(0.12, 0.3)) : darken(C.linen, rr(0.06, 0.14)); g.globalAlpha = rr(0.3, 0.7); g.lineWidth = rr(0.6, 1.1);
+    line(g, x, y, v ? x + rr(-0.3, 0.3) : x + l, v ? y + l : y + rr(-0.3, 0.3));
+  }
+  for (let i = 0; i < w * h / 900; i++) { const x = x0 + rr(0, w), y = y0 + rr(0, h), v = R() < 0.5, l = rr(10, 26); g.strokeStyle = lighten(C.linen, 0.3); g.globalAlpha = 0.7; g.lineWidth = rr(1.2, 1.8); line(g, x, y, v ? x : x + l, v ? y + l : y); }
+  g.globalAlpha = 1;
+}
+function fill(g, path, o) {
+  g.save(); path(g); g.clip();
+  const [x0, y0, x1, y1] = o.box, n = Math.round((x1 - x0) * (y1 - y0) / (o.per ?? 30));
+  for (let i = 0; i < n; i++) {
+    const x = rr(x0, x1), y = rr(y0, y1);
+    if (o.dens && R() > o.dens(x, y)) continue;
+    const a = o.angf ? o.angf(x, y) : (o.ang ?? 0) + rr(-(o.jit ?? 0.25), o.jit ?? 0.25), l = rr(o.l0 ?? 5, o.l1 ?? 12);
+    const col = typeof o.col === "function" ? o.col(x, y) : vary(pick(o.col));
+    stitch(g, x, y, x + Math.cos(a) * l, y + Math.sin(a) * l, rr(o.w0 ?? 1.6, o.w1 ?? 2.4), col, { shA: o.shA ?? 0.28 });
+  }
+  g.restore();
+}
+function satin(g, path, cx, cy, rad, ang, col, o = {}) {
+  g.save(); path(g); g.clip();
+  const sp = o.sp ?? 2.1, ca = Math.cos(ang), sa = Math.sin(ang);
+  for (let d = -rad; d <= rad; d += sp * rr(0.8, 1.2)) {
+    const a = ang + rr(-0.06, 0.06), px = cx - sa * d, py = cy + ca * d, c = vary(Array.isArray(col) ? pick(col) : col);
+    stitch(g, px - Math.cos(a) * rad, py - Math.sin(a) * rad, px + Math.cos(a) * rad, py + Math.sin(a) * rad, sp * 1.25, c, { shA: 0.18 });
+  }
+  g.restore();
+  if (o.edge !== false) { g.save(); path(g); g.strokeStyle = o.edge ?? darken(Array.isArray(col) ? col[0] : col, 0.35); g.lineWidth = o.ew ?? 1.3; g.setLineDash([3.2, 1.1]); g.stroke(); g.restore(); }
+}
+function ell(cx, cy, rx, ry, rot = 0) { return (g) => { g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, 0, Math.PI * 2); }; }
+function poly(pts) { return (g) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); }; }
+function knot(g, x, y, r, col) {
+  g.fillStyle = C.slate; g.globalAlpha = 0.35; g.beginPath(); g.arc(x + 0.7, y + 1, r + 0.4, 0, 7); g.fill();
+  g.globalAlpha = 1; g.fillStyle = vary(col); g.beginPath();
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, q = r * rr(0.85, 1.1); i ? g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q) : g.moveTo(x + q, y); }
+  g.closePath(); g.fill();
+  g.strokeStyle = lighten(col, 0.4); g.globalAlpha = 0.6; g.lineWidth = Math.max(0.5, r * 0.32);
+  g.beginPath(); g.arc(x - r * 0.15, y - r * 0.1, r * 0.55, Math.PI * 0.95, Math.PI * 1.6); g.stroke(); g.globalAlpha = 1;
+}
+function bead(g, x, y, r) {
+  g.fillStyle = C.slate; g.globalAlpha = 0.4; g.beginPath(); g.arc(x + 0.8, y + 1.2, r, 0, 7); g.fill();
+  g.globalAlpha = 0.92; g.fillStyle = "#b9ccce"; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  g.globalAlpha = 1; g.fillStyle = "#eef3f2"; g.beginPath(); g.arc(x - r * 0.15, y - r * 0.2, r * 0.62, 0, 7); g.fill();
+  g.strokeStyle = "#5b6d70"; g.lineWidth = Math.max(0.8, r * 0.35); g.beginPath(); g.arc(x, y, r * 0.86, 0.15 * Math.PI, 0.9 * Math.PI); g.stroke();
+  g.fillStyle = "#ffffff"; g.beginPath(); g.arc(x - r * 0.38, y - r * 0.42, Math.max(0.7, r * 0.26), 0, 7); g.fill();
+}
+// しつけ糸（1針ずつ。長さ・間隔・傾きは一様乱数でばらす。setLineDash は使わない）→ Path2D にまとめて返す
+function bastePaths(pts, w, o = {}) {
+  const P = { sh: new Path2D(), thin: new Path2D(), mid: new Path2D(), top: new Path2D(), w };
+  const segs = []; let tot = 0;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); tot += d; }
+  const at = (s) => { let i = 0; while (i < segs.length - 1 && s > segs[i]) { s -= segs[i]; i++; } const t = Math.min(1, s / segs[i]); return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t]; };
+  let s = rr(0, 6);
+  while (s < tot) {
+    const l = rr(o.l0 ?? 4, o.l1 ?? 14), a = at(s), b0 = at(Math.min(tot, s + l));
+    const ang = Math.atan2(b0[1] - a[1], b0[0] - a[0]) + rr(-0.07, 0.07), L = Math.hypot(b0[0] - a[0], b0[1] - a[1]);
+    const b = [a[0] + Math.cos(ang) * L, a[1] + Math.sin(ang) * L], Pt = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    P.sh.moveTo(a[0] + 0.8, a[1] + 0.8); P.sh.lineTo(b[0] + 0.8, b[1] + 0.8);
+    P.thin.moveTo(a[0], a[1]); P.thin.lineTo(b[0], b[1]);
+    const m1 = Pt(0.18), m2 = Pt(0.82); P.mid.moveTo(m1[0], m1[1]); P.mid.lineTo(m2[0], m2[1]);
+    if (o.ply) {
+      const nx = -Math.sin(ang), ny = Math.cos(ang), turns = Math.max(2, Math.round(L / 4));
+      for (let k = 0; k <= 12; k++) { const t = 0.1 + 0.8 * k / 12, q = Math.sin(t * turns * Math.PI) * w * 0.4, [x, y] = Pt(t); k ? P.top.lineTo(x + nx * q, y + ny * q) : P.top.moveTo(x + nx * q, y + ny * q); }
+    } else { const h1 = Pt(0.3), h2 = Pt(0.7); P.top.moveTo(h1[0] - 0.3, h1[1] - 0.4); P.top.lineTo(h2[0] - 0.3, h2[1] - 0.4); }
+    s += l + rr(o.g0 ?? 3, o.g1 ?? 10);
+  }
+  return P;
+}
+function strokeBaste(g, P, col, topCol, alpha, shA = 0.45) {
+  g.lineCap = "round";
+  g.globalAlpha = alpha * shA; g.strokeStyle = C.slate; g.lineWidth = P.w * 0.9; g.stroke(P.sh);
+  g.globalAlpha = alpha; g.strokeStyle = col; g.lineWidth = P.w * 0.5; g.stroke(P.thin); g.lineWidth = P.w; g.stroke(P.mid);
+  g.strokeStyle = topCol; g.lineWidth = topCol === C.slate ? P.w * 0.42 : Math.max(0.5, P.w * 0.3); if (topCol !== C.slate) g.globalAlpha = alpha * 0.6; g.stroke(P.top);
+  g.globalAlpha = 1;
+}
+function chain(g, pts, col, o = {}) {
+  const sc = o.s ?? 1;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], d = Math.hypot(bx - ax, by - ay); if (!d) continue;
+    const ux = (bx - ax) / d, uy = (by - ay) / d, nx = -uy, ny = ux;
+    for (let t = 0; t < d; t += rr(2.8, 3.8) * sc) {
+      const x = ax + ux * t, y = ay + uy * t, L = rr(5.5, 7.5) * sc, k = rr(0.9, 1.5) * sc;
+      stitch(g, x - nx * k * 0.5, y - ny * k * 0.5, x + ux * L + nx * k * 0.5, y + uy * L + ny * k * 0.5, 1.7 * sc, vary(col), { shA: 0.3 });
+    }
+  }
+}
+function hem(g, x0, x1, y, h) {
+  g.fillStyle = C.slate; g.globalAlpha = 0.35; g.fillRect(x0, y - 2, x1 - x0, 3); g.globalAlpha = 1;
+  g.fillStyle = darken(C.linen, 0.07); g.fillRect(x0, y, x1 - x0, h);
+  for (let i = 0; i < (x1 - x0) * h / 40; i++) { const x = rr(x0, x1), yy = rr(y, y + h); g.strokeStyle = lighten(C.linen, 0.15); g.globalAlpha = 0.6; g.lineWidth = 0.8; line(g, x, yy, x + rr(3, 8), yy); }
+  g.globalAlpha = 1;
+  let x = x0 + rr(2, 8);
+  while (x < x1) { const dx = rr(4, 7); stitch(g, x, y + rr(3, 5), x + dx, y - rr(3, 5), 1.3, "#8a8f86", { shA: 0.35 }); x += rr(9, 15); }
+}
+function pole(g, x1, y1, x2, y2, w) {
+  const a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a), bend = rr(-3, 3);
+  const mx = (x1 + x2) / 2 + nx * bend, my = (y1 + y2) / 2 + ny * bend;
+  const P = (g) => { g.beginPath(); g.moveTo(x1 + nx * w, y1 + ny * w); g.quadraticCurveTo(mx + nx * w * 0.9, my + ny * w * 0.9, x2 + nx * w * 0.6, y2 + ny * w * 0.6); g.lineTo(x2 - nx * w * 0.6, y2 - ny * w * 0.6); g.quadraticCurveTo(mx - nx * w * 0.9, my - ny * w * 0.9, x1 - nx * w, y1 - ny * w); g.closePath(); };
+  g.save(); g.globalAlpha = 0.45; g.translate(2, 3); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
+  g.save(); P(g); g.clip(); g.fillStyle = C.hazelD; g.fill();
+  const L = Math.hypot(x2 - x1, y2 - y1);
+  for (let k = -w; k < w; k += rr(1.4, 2.2)) {
+    let s = rr(-20, 0);
+    while (s < L) {
+      const l = rr(14, 34), c = k < -w * 0.2 ? pick([C.hazelL, C.hazel]) : k > w * 0.5 ? pick([C.hazelD, C.hazel]) : C.hazel;
+      const bx = x1 + Math.cos(a) * s + nx * (k + bend * Math.sin(Math.PI * s / L)), by = y1 + Math.sin(a) * s + ny * (k + bend * Math.sin(Math.PI * s / L));
+      stitch(g, bx, by, bx + Math.cos(a) * l, by + Math.sin(a) * l, 2.1, vary(c), { shA: 0.2 });
+      s += l + rr(1, 3);
+    }
+  }
+  for (let i = 0; i < L / 26; i++) { const s = rr(0, L), k = rr(-w * 0.6, w * 0.4), bx = x1 + Math.cos(a) * s + nx * k, by = y1 + Math.sin(a) * s + ny * k; stitch(g, bx, by, bx + nx * rr(2, 4), by + ny * rr(2, 4), 1.2, "#cdb999", { shA: 0.2, hi: false }); }
+  g.restore();
+}
+function twine(g, x, y, s = 1) {
+  for (let i = 0; i < 5; i++) knot(g, x + rr(-4, 4) * s, y + rr(-3, 3) * s, rr(2.2, 3) * s, "#b39a6a");
+  stitch(g, x + 2 * s, y + 3 * s, x + 6 * s, y + 14 * s, 1.5, "#b39a6a", { shA: 0.35 });
+  stitch(g, x - 1 * s, y + 3 * s, x - 5 * s, y + 11 * s, 1.5, darken("#b39a6a", 0.1), { shA: 0.35 });
+}
+function leaf(g, x, y, len, ang, o = {}) {
+  const ca = Math.cos(ang), sa = Math.sin(ang), w = len * (o.wr ?? 0.62), tx = x + ca * len, ty = y + sa * len, nx = -sa, ny = ca;
+  const P = (g) => { g.beginPath(); g.moveTo(x, y);
+    g.bezierCurveTo(x + nx * w * 0.9 - ca * len * 0.15, y + ny * w * 0.9 - sa * len * 0.15, x + ca * len * 0.55 + nx * w * 0.75, y + sa * len * 0.55 + ny * w * 0.75, tx, ty);
+    g.bezierCurveTo(x + ca * len * 0.55 - nx * w * 0.7, y + sa * len * 0.55 - ny * w * 0.7, x - nx * w * 0.85 - ca * len * 0.15, y - ny * w * 0.85 - sa * len * 0.15, x, y); g.closePath(); };
+  g.save(); g.globalAlpha = 0.4; g.translate(1.6, 2.4); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
+  g.save(); P(g); g.clip(); g.fillStyle = C.leafD; g.fill();
+  const light = o.light ?? 1;
+  for (let t = -0.12; t < 1; t += rr(0.035, 0.05)) {
+    const vx = x + ca * len * t, vy = y + sa * len * t;
+    for (const sd of [1, -1]) {
+      const ex = vx + nx * sd * w + ca * len * -0.22, ey = vy + ny * sd * w + sa * len * -0.22;
+      stitch(g, ex, ey, vx + ca * 2, vy + sa * 2, 2, vary(sd * light > 0 ? pick([C.leaf, C.leafL, C.leaf]) : pick([C.leafD, C.leaf])), { shA: 0.22 });
+    }
+  }
+  g.restore();
+  stitch(g, x, y, x + ca * len * 0.85, y + sa * len * 0.85, 1.1, C.leafL, { shA: 0.2, hi: false });
+  g.save(); P(g); g.strokeStyle = darken(C.leafD, 0.25); g.lineWidth = 1.1; g.setLineDash([3, 1.2]); g.stroke(); g.restore();
+}
+function tape(g, x, y, w, h, o = {}) {
+  g.save(); g.translate(x, y); g.rotate(o.rot ?? 0);
+  g.fillStyle = C.slate; g.globalAlpha = 0.4; g.fillRect(2, 3, w, h); g.globalAlpha = 1;
+  g.fillStyle = C.tape; g.beginPath(); g.moveTo(0, 0.6); g.lineTo(w, 0); g.lineTo(w - 0.4, h); g.lineTo(0.3, h + 0.5); g.closePath(); g.fill();
+  g.fillStyle = darken(C.tape, 0.1); g.fillRect(0, 0, 4, h); g.fillRect(w - 4, 0, 4, h);
+  g.strokeStyle = "#7d8a8c"; g.lineWidth = 0.9; line(g, 5, 2.2, w - 5, 2); line(g, 5, h - 2, w - 5, h - 2.2);
+  for (const sx of [2, w - 2]) { stitch(g, sx, h * 0.25, sx, h * 0.25 + 3, 1.1, C.slate, { sh: false, hi: false }); stitch(g, sx, h * 0.65, sx, h * 0.65 + 3, 1.1, C.slate, { sh: false, hi: false }); }
+  g.restore();
+}
+function reel(g, x, y, amt, s = 1) {
+  const W = 26 * s, H = 34 * s;
+  g.save(); g.translate(x, y);
+  const fl = (yy) => { g.fillStyle = C.slate; g.globalAlpha = 0.4; g.beginPath(); g.ellipse(1.5, yy + 2, W / 2 + 4, 4.5 * s, 0, 0, 7); g.fill(); g.globalAlpha = 1;
+    satin(g, ell(0, yy, W / 2 + 4, 4.5 * s), 0, yy, W / 2 + 6, 0.2, [C.hazelL, C.hazel], { sp: 1.8, ew: 1 }); };
+  fl(H / 2);
+  g.fillStyle = C.hazelD; g.fillRect(-5 * s, -H / 2, 10 * s, H);
+  const rw = 5 * s + (W / 2 - 5 * s) * amt;
+  if (amt > 0.02) {
+    g.fillStyle = "#aeb8b6"; g.fillRect(-rw, -H / 2 + 3, rw * 2, H - 6);
+    for (let yy = -H / 2 + 4; yy < H / 2 - 3; yy += rr(1.6, 2.6)) { g.strokeStyle = pick(["#dfe5e3", "#c3ccca", "#f2f5f4"]); g.lineWidth = rr(0.8, 1.3); line(g, -rw + 0.5, yy + rr(-0.6, 0.6), rw - 0.5, yy + rr(-0.8, 0.8)); }
+    g.strokeStyle = C.slate; g.globalAlpha = 0.35; g.lineWidth = 1; line(g, rw, -H / 2 + 3, rw, H / 2 - 3); g.globalAlpha = 1;
+  }
+  fl(-H / 2);
+  g.fillStyle = C.slate; g.beginPath(); g.ellipse(0, -H / 2, 3 * s, 1.4 * s, 0, 0, 7); g.fill();
+  if (amt > 0.02) { g.strokeStyle = "#dfe5e3"; g.lineWidth = 1.1; g.beginPath(); g.moveTo(rw - 1, -4); g.quadraticCurveTo(rw + 8, 4, rw + 4, 16 * s); g.stroke(); }
+  g.restore();
+}
+function needle(g, x, y, ang = -0.35) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  g.fillStyle = C.slate; g.globalAlpha = 0.4; g.beginPath(); g.moveTo(-15, 2.4); g.lineTo(17, 1.6); g.lineTo(-15, 4.2); g.fill(); g.globalAlpha = 1;
+  g.fillStyle = "#c8cfcf"; g.beginPath(); g.moveTo(-16, -1.5); g.lineTo(18, 0); g.lineTo(-16, 1.5); g.quadraticCurveTo(-19, 0, -16, -1.5); g.fill();
+  g.strokeStyle = "#ffffff"; g.lineWidth = 0.7; line(g, -14, -0.7, 12, -0.1);
+  g.strokeStyle = C.slate; g.lineWidth = 0.9; g.beginPath(); g.ellipse(-13, 0, 2.4, 0.6, 0, 0, 7); g.stroke();
+  g.restore();
+}
+function pinDraw(g, x, y, sel) {
+  stitch(g, x, y, x + 5, y + 9, 1.1, "#c8cfcf", { shA: 0.35, hi: false });
+  knot(g, x, y, sel ? 4.8 : 3.4, sel ? C.silver : "#5f7f8c");
+  if (sel) { g.strokeStyle = "#dfe5e3"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, y + 3); g.quadraticCurveTo(x - 6, y + 14, x - 1, y + 22); g.stroke(); }
+}
+// --- 生き物（刺繍のワッペン。顔・毛・爪・針・顎は描かない）。f=羽ばたきの2コマ目 ---
+function wings(g, pts, fill, edge, f) {
+  for (const [x, y, rx, ry, rot] of pts) { g.save(); ell(x, y, rx * (f ? 0.86 : 1), ry, rot + (f ? Math.sign(x) * 0.28 : 0))(g); g.fillStyle = fill; g.fill(); g.strokeStyle = edge; g.lineWidth = 1.1; g.setLineDash([2.5, 1]); g.stroke(); g.restore(); }
+}
+function spiderDraw(g) {
+  const legs = [[-2, -7, -8, -12, -10, -17], [-3, -4, -10, -6, -14, -7], [-3, -1, -10, 1, -14, 3], [-2, 2, -8, 6, -10, 11]];
+  for (const [ax, ay, bx, by, cx, cy] of legs) for (const m of [1, -1]) {
+    stitch(g, ax * m, ay, bx * m + rr(-0.4, 0.4), by + rr(-0.4, 0.4), 2.6, C.spiderL, { shA: 0.5, hi: false });
+    stitch(g, bx * m, by, cx * m + rr(-0.5, 0.5), cy + rr(-0.5, 0.5), 2.3, C.spiderL, { shA: 0.5, hi: false });
+  }
+  satin(g, ell(0, -5, 5.5, 5.5), 0, -5, 7, 1.57, [C.spiderD], { sp: 1.6, ew: 1 });
+  satin(g, ell(0, 8, 9.5, 10.5, 0.05), 0, 8, 12, 0.4, [C.spider, C.spiderD], { sp: 1.8 });
+  for (const [kx, ky] of [[0, 2.5], [0, 8], [0.4, 13.5], [-4.5, 7.5], [4.5, 8.2]]) knot(g, kx, ky, 1.7, "#f2efe6");
+}
+function flyDraw(g, f) {
+  wings(g, [[5, -4, 5.5, 3.2, -0.5], [-5, -4, 5.5, 3.2, 0.5]], "rgba(220,228,228,0.6)", "#8d9a9c", f);
+  satin(g, ell(0, 1, 3.6, 6), 0, 1, 7, 0, ["#3c4448", C.slate], { sp: 1.5, ew: 0.8 });
+  knot(g, 0, -6, 2.6, "#3c4448");
+}
+// ガ: 目玉模様は後ろ羽に寄せた小さな結び玉（等倍 3px 以下。2つ並んで顔に見えないよう左右で位置と大きさを変える）
+function mothDraw(g, f) {
+  for (const m of [1, -1]) {
+    const k = f ? 0.88 : 1;
+    satin(g, ell(m * 7 * k, 7, 7 * k, 5, m * 0.4), m * 7, 7, 9, m * 0.9, [C.mothD, C.moth], { sp: 1.7, ew: 1.1, edge: C.slate });
+    satin(g, ell(m * 9 * k, -3, 10 * k, 7, m * -0.35), m * 9, -3, 12, m * 0.5, [C.moth, lighten(C.moth, 0.15)], { sp: 1.7, ew: 1.1, edge: C.slate });
+  }
+  knot(g, 8.5, 9, 1.3, C.mothD); knot(g, -6.5, 7.5, 1.0, C.mothD);
+  satin(g, ell(0, 2, 2.8, 9), 0, 2, 10, 1.57, [C.mothD], { sp: 1.4, ew: 0.8 });
+  stitch(g, -1, -7, -6, -13, 1.2, C.mothD, { hi: false }); stitch(g, 1, -7, 6, -13, 1.2, C.mothD, { hi: false });
+}
+function beetleDraw(g, f) {
+  for (const m of [1, -1]) for (const yy of [-3, 3, 9]) stitch(g, m * 6, yy, m * 12, yy + (f ? 1 : 3), 1.5, C.slate, { hi: false });
+  satin(g, ell(0, -9, 5.5, 3.6), 0, -9, 7, 0, [C.beetle], { sp: 1.6, ew: 0.9 });
+  satin(g, ell(0, 3, 9, 11), 0, 3, 12, 1.57, [C.beetle, darken(C.beetle, 0.15)], { sp: 1.8 });
+  stitch(g, 0, -7, 0, 13, 1.1, darken(C.beetle, 0.4), { hi: false });
+  stitch(g, -5, -4, -6, 6, 1.6, "#dfe5e3", { shA: 0.15 }); stitch(g, 4, -5, 5, 0, 1.4, C.beetleL, { shA: 0.1 });
+}
+function ladyDraw(g, f) {
+  satin(g, ell(0, -8, 4.5, 3.2), 0, -8, 6, 0, [C.slate], { sp: 1.4, ew: 0.8 });
+  satin(g, ell(0, 1, 8, 8.5), 0, 1, 10, 1.4, [C.ladyR, darken(C.ladyR, 0.12)], { sp: 1.8 });
+  stitch(g, 0, -6, 0, 9.5, 1, C.slate, { hi: false });
+  for (const [kx, ky, r] of [[-4, -2, 1.8], [4.2, -1, 1.6], [-3.5, 4.5, 1.5], [3.8, 5, 1.9]]) knot(g, kx, ky, r, C.slate);
+}
+function beeDraw(g, f) {
+  wings(g, [[8, -7, 8, 5.5, -0.6], [-8, -7, 8, 5.5, 0.6]], "rgba(232,238,236,0.72)", "#7d8a8c", f);
+  const body = ell(0, 2, 7.5, 8.5);
+  satin(g, body, 0, 2, 10, 0.1, [C.bee, lighten(C.bee, 0.1)], { sp: 1.7, edge: C.beeD, ew: 1.1 });
+  g.save(); body(g); g.clip();
+  for (const [yy, h] of [[0, 3.2], [5.5, 3.6]]) { g.fillStyle = C.beeD; g.beginPath(); g.moveTo(-9, yy); g.quadraticCurveTo(0, yy + 1.5, 9, yy); g.lineTo(9, yy + h); g.quadraticCurveTo(0, yy + h + 1.5, -9, yy + h); g.fill(); }
+  g.restore();
+  satin(g, ell(0, -7.5, 3.6, 3.2), 0, -7.5, 5, 0, [C.beeD], { sp: 1.3, ew: 0.8 });
+}
+function waspDraw(g, f) {
+  wings(g, [[8, -6, 9, 3, -0.35], [-8, -6, 9, 3, 0.35]], "rgba(225,232,232,0.5)", "#7d8a8c", f);
+  satin(g, ell(0, -12, 3.6, 3.2), 0, -12, 5, 0, [C.lemon], { sp: 1.3, ew: 0.8, edge: C.slate });
+  satin(g, ell(0, -5, 4, 4.4), 0, -5, 6, 0, [C.slate], { sp: 1.4, ew: 0.8 });
+  const ab = poly([[-5.6, 2], [5.6, 2], [5, 9], [2.6, 15], [0, 18], [-2.6, 15], [-5, 9]]);
+  satin(g, ab, 0, 8, 12, 0, [C.lemon], { sp: 1.6, edge: C.slate, ew: 1 });
+  g.save(); ab(g); g.clip();
+  for (const [yy, h] of [[4.2, 1.6], [8.6, 2.6], [13.2, 2]]) { g.fillStyle = C.slate; g.beginPath(); g.moveTo(-7, yy); g.lineTo(7, yy - 0.8); g.lineTo(7, yy + h); g.lineTo(-7, yy + h + 0.6); g.fill(); }
+  g.restore();
+  stitch(g, -1.5, -14, -5, -19, 1.1, C.slate, { hi: false }); stitch(g, 1.5, -14, 5, -19, 1.1, C.slate, { hi: false });
+}
+function cocoonDraw(g) { satin(g, ell(0, 0, 6, 9, 0.2), 0, 0, 10, 0.3, ["#d6dddb", "#bfc8c6"], { sp: 1.4, ew: 0.9, edge: "#8d9a9c" }); }
+function potOnCane(g, x, y, s = 1) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  const P = poly([[-11, -16], [11, -16], [14, 2], [-14, 2]]);
+  g.save(); g.globalAlpha = 0.4; g.translate(2, 3); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
+  satin(g, P, 0, -7, 16, 1.57, [C.pot, darken(C.pot, 0.12)], { sp: 2 });
+  satin(g, poly([[-15, 0], [15, 0], [15, 6], [-15, 6]]), 0, 3, 16, 0, [lighten(C.pot, 0.1), C.pot], { sp: 1.8 });
+  g.restore();
+}
+// 生垣のこんもり。針は短く（6〜14px）、本数を控え、向きは株ごとにばらす。外形はなめらかな曲線
+function clump(g, cx, cy, rx, ry, base, light, o = {}) {
+  const ph1 = rr(0, 6), ph2 = rr(0, 6), a1 = rr(0.04, 0.08), a2 = rr(0.02, 0.05);
+  const rad = (a) => 1 + a1 * Math.sin(a * 3 + ph1) + a2 * Math.sin(a * 5 + ph2);
+  const P = (g) => { g.beginPath(); for (let i = 0; i <= 48; i++) { const a = i / 48 * Math.PI * 2, q = rad(a); g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); } g.closePath(); };
+  if (!o.outlineOnly) {
+    g.save(); g.globalAlpha = 0.3; g.translate(1.5, 3.5); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
+    g.save(); P(g); g.globalAlpha = 0.6; g.fillStyle = base; g.fill(); g.restore();
+    const bx = cx + rr(-rx * 0.3, rx * 0.3), by = cy + ry * rr(1.1, 1.6), rot = rr(-0.35, 0.35), k = Math.min(1, rx / 80);
+    fill(g, P, { box: [cx - rx, cy - ry, cx + rx, cy + ry], per: 7 + 3 * k, l0: 6, l1: 10 + 4 * k, w0: 2, w1: 2.7, shA: 0.18,
+      col: (x, y) => { const t = (y - (cy - ry)) / (2 * ry) + rr(-0.15, 0.15); return vary(t < 0.28 ? light : t < 0.75 ? base : darken(base, 0.1)); },
+      angf: (x, y) => Math.atan2(y - by, x - bx) + rot + rr(-0.3, 0.3) });
+  }
+  g.save(); g.beginPath();
+  const a0 = o.outlineOnly ? 0 : Math.PI * rr(1.0, 1.1), a1e = o.outlineOnly ? Math.PI * 2 : Math.PI * rr(1.9, 2.0);
+  for (let i = 0; i <= 40; i++) { const a = a0 + (a1e - a0) * i / 40, q = rad(a) * 1.01; g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); }
+  g.strokeStyle = o.outlineOnly ? C.yew : darken(base, 0.3); g.lineWidth = 1.6; g.setLineDash([4.5, 1.6]); g.stroke(); g.restore();
+  if (o.outlineOnly) for (let i = 0; i < 8; i++) { const a = rr(Math.PI * 1.1, Math.PI * 1.9), q = rr(0.35, 0.75); stitch(g, cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q + 7, cx + Math.cos(a) * rx * q * 1.12, cy + Math.sin(a) * ry * q, 1.8, C.yewL, { shA: 0.2 }); }
+}
+function vine(g, x1, y1, x2, y2, amp = 7, col = C.leafD) {
+  const n = Math.max(6, Math.hypot(x2 - x1, y2 - y1) / 8), a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a), ph = rr(0, 6);
+  let px = x1, py = y1;
+  for (let i = 1; i <= n; i++) { const t = i / n, w = Math.sin(t * 9 + ph) * amp * rr(0.8, 1.1), x = x1 + (x2 - x1) * t + nx * w, y = y1 + (y2 - y1) * t + ny * w; stitch(g, px, py, x, y, 1.6, vary(col), { shA: 0.3, hi: false }); px = x; py = y; }
+}
+
+// ===== 画面・入力・音 =====
+const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const FH = '"RocknRoll One", "Hiragino Maru Gothic ProN", sans-serif', FB = 'Yomogi, "Hiragino Maru Gothic ProN", sans-serif';
+const BEST_KEY = "garden_spider_best";
+const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+let best = 0; try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) { best = 0; }
+let DPR = 1, W = 390, H = 844, Lay = null, bg = null, plain = null, SPR = {}, HUD = {};
+let state = "title", G = null, demo = null, paused = false, muted = false, overT = 0, newBest = false;
+let sel = -1, dragFrom = -1, ptr = null, press = null, kbCur = -1, kbOn = false, mouseLike = false;
+let parts = [], pops = [], banner = null, shake = 0, fpsLog = [], lastNow = 0, simNow = 0;
+const told = {};
+const spider = { x: 196, y: 90, a: 0 };
+
+// ---------- 配置 ----------
+function layout() {
+  W = Math.max(280, innerWidth); H = Math.max(280, innerHeight); DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); cv.style.width = W + "px"; cv.style.height = H + "px";
+  const land = W > H * 1.15;
+  let s, ox, oy, top;
+  if (!land) { top = 98; s = Math.min(W / 390, (H - top - 4) / 724); ox = (W - 390 * s) / 2; oy = top + Math.max(0, (H - top - 724 * s) * 0.3); }
+  else { top = 8; s = Math.min((H - top) / 570, (W - 360) / 390); ox = (W - 390 * s) / 2; oy = top - 30 * s; }
+  Lay = { s, ox, oy, land, top, xL: -ox / s, xR: (W - ox) / s };
+  if (!land) {
+    HUD.score = { x: 12, y: 26, w: 124, h: 42 }; HUD.tears = { x: 14, y: 72, w: 122, h: 22 };
+    HUD.reel = { x: W - 34, y: 56 };
+    if (W >= 372) { HUD.pause = { x: W - 146, y: 34, w: 70, h: 30 }; HUD.sound = { x: W - 196, y: 36, w: 44, h: 30 }; }
+    else { HUD.pause = { x: W - 142, y: 26, w: 70, h: 30 }; HUD.sound = { x: W - 128, y: 62, w: 44, h: 28 }; }
+    HUD.banner = { x: W / 2, y: Lay.oy + 6 };
+  } else {
+    HUD.score = { x: 18, y: 36, w: 138, h: 46 }; HUD.tears = { x: 20, y: 90, w: 134, h: 22 };
+    HUD.reel = { x: W - 44, y: 74 }; HUD.pause = { x: W - 176, y: 42, w: 76, h: 30 }; HUD.sound = { x: W - 176, y: 82, w: 76, h: 30 };
+    HUD.banner = { x: ox / 2, y: H - 120 };
+  }
+  build();
+  if (G) G.xs = [Lay.xL - 30, Lay.xR + 30];
+}
+const sx = (x) => Lay.ox + x * Lay.s, sy = (y) => Lay.oy + y * Lay.s;
+
+// ---------- 作り置き（動かない物はここで1回だけ描く） ----------
+function mkc(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.ceil(w * DPR)); c.height = Math.max(1, Math.ceil(h * DPR)); const g = c.getContext("2d"); g.scale(DPR, DPR); return [c, g]; }
+function sprite(size, k, fn) { const [c, g] = mkc(size * k, size * k); g.scale(k, k); g.translate(size / 2, size / 2); fn(g); return { c, d: size * k }; }
+const LEAVES = [[0, .1, -1, 1.15], [0, .3, 1, 1], [0, .52, -1, 1.05, 1], [0, .7, -1, .9], [1, .12, 1, 1.15], [1, .34, 1, 1], [1, .56, -1, .95, 1], [2, .14, 1, 1.05], [2, .66, -1, .85],
+  [3, .22, 1, 1], [3, .5, -1, .95, 1], [3, .8, 1, .85], [1, .76, 1, .75], [4, .32, 1, 1], [4, .7, -1, .9, 1]];
+const along = (p, t) => [p[0] + (p[2] - p[0]) * t, p[1] + (p[3] - p[1]) * t];
+let dynLeaves = [];
+function drawScene(g, xL, xR) {
+  setSeed(12);
+  { // 雲は1つだけ（ステムステッチの輪郭＋間を空けた針。麻が透ける）
+    const cx = 268, cy = 56, pts = [];
+    for (let i = 0; i <= 40; i++) { const a = i / 40 * Math.PI * 2, bump = 1 + 0.16 * Math.sin(a * 5 + 1) + 0.08 * Math.sin(a * 3), ry = Math.sin(a) > 0 ? 12 : 19; pts.push([cx + Math.cos(a) * 58 * bump, cy + Math.sin(a) * ry * bump + (Math.sin(a) > 0 ? Math.sin(a * 4) * 3 : 0)]); }
+    chain(g, pts, "#a9b8b6");
+    for (const [x, y, l] of [[232, 50, 26], [254, 40, 38], [276, 58, 30], [246, 64, 20], [296, 48, 22]]) stitch(g, x, y, x + l, y + rr(-1.5, 1.5), 2, "#eef1ec", { shA: 0.18 });
+  }
+  const bush = [[190, 260, 92, 84, 0], [46, 264, 74, 70, 0], [340, 230, 84, 82, 0], [112, 184, 36, 26, 1], [262, 180, 30, 22, 1], [118, 350, 56, 48, 0], [272, 342, 62, 52, 0], [380, 336, 34, 40, 0], [10, 350, 30, 36, 0],
+    [200, 398, 46, 34, 0], [60, 420, 32, 26, 0], [332, 412, 40, 30, 0], [146, 432, 24, 20, 0], [250, 440, 22, 18, 0], [368, 452, 20, 16, 0]];
+  const all = bush.map((b) => [...b]);
+  // 布の外側へ行くほど、刺していない麻の地と輪郭だけの株が増える（横一列の帯にしない）
+  for (const off of [-390, 390, -780, 780, -1170, 1170]) if (off + 390 > xL - 100 && off < xR + 100) for (const b of bush) {
+    const x = off + 390 - b[0], dist = x < 0 ? -x : x - 390, keep = R() < Math.max(0.2, 1 - dist / 420) * (b[2] < 30 ? 0.45 : 1), out = b[4] || (R() < Math.min(0.6, dist / 420) && b[2] < 60);
+    const ry = rr(-10, 10) + (b[2] > 60 ? rr(-6, 30) : rr(-20, 20)), k = rr(0.8, 1.15);
+    if (keep) all.push([x + rr(-30, 30), b[1] + ry, b[2] * k, b[3] * k * rr(0.85, 1.1), out ? 1 : 0]);
+  }
+  all.sort((a, b) => b[2] - a[2] || a[1] - b[1]);
+  for (const [x, y, rx, ry, out] of all) {
+    if (x + rx < xL - 20 || x - rx > xR + 20) continue;
+    const k = Math.min(1, Math.max(0, (rx - 20) / 72));
+    clump(g, x, y, rx, ry, out ? C.yew : mix(C.yewL, darken(C.yew, 0.12), k), out ? C.yewL : k > 0.5 ? C.yewL : "#6f8048", { outlineOnly: !!out });
+  }
+  const L = xL - 12, Rr = xR + 12;
+  const pathTop = [[L, 520], [-6, 520], [80, 504], [170, 492], [260, 480], [330, 474], [396, 470], [Rr, 466]], pathBot = [[Rr, 480], [396, 484], [320, 494], [240, 514], [150, 544], [70, 576], [-6, 610], [L, 612]];
+  const pathP = poly([...pathTop, ...pathBot]);
+  g.save(); pathP(g); g.globalAlpha = 0.5; g.fillStyle = "#6f8443"; g.fill(); g.restore();
+  fill(g, pathP, { box: [L, 460, Rr, 616], per: 5.5, ang: -1.45, jit: 0.35, l0: 4, l1: 9, w0: 1.7, w1: 2.2, col: ["#7f9450", "#93a65c", "#6a7f3e"], shA: 0.22 });
+  chain(g, pathTop, "#5c7036", { s: 0.8 }); chain(g, pathBot, "#5c7036", { s: 0.8 });
+  const nz = (x, y) => Math.sin(x / 53 + y / 31) + Math.sin(x / 23 - y / 41 + 2) * 0.6;
+  const bed = (pts) => { const P = poly(pts); g.save(); P(g); g.globalAlpha = 0.6; g.fillStyle = C.hazelD; g.fill(); g.restore();
+    fill(g, P, { box: [L, 440, Rr, 700], per: 6.5, l0: 4, l1: 10, w0: 2, w1: 2.6, shA: 0.25, angf: (x, y) => nz(x, y) * 0.5 + rr(-0.2, 0.2),
+      col: (x, y) => { const v = nz(x, y) + rr(-0.5, 0.5); return vary(v > 0.7 ? C.hazelL : v > -0.2 ? C.hazel : "#5c4838"); }, dens: (x, y) => 0.7 + 0.3 * Math.abs(Math.sin(x / 70 + y / 50)) }); };
+  bed([[L, 470], [-6, 470], [60, 476], [120, 460], [200, 468], [270, 456], [330, 464], [396, 458], [Rr, 460], [Rr, 466], [396, 470], [330, 474], [260, 480], [170, 492], [80, 504], [-6, 520], [L, 520]]);
+  bed([[L, 612], [-6, 610], [70, 576], [150, 544], [240, 514], [320, 494], [396, 484], [Rr, 480], [Rr, 694], [300, 690], [190, 696], [80, 690], [L, 694]]);
+  hem(g, L, Rr, 692, 34);
+  const W5 = [4.2, 4.4, 4, 3.4, 3.4];
+  POLES.forEach((p, i) => pole(g, ...p, W5[i]));
+  for (const [pi, t0, t1] of [[0, 0.05, 0.75], [1, 0.08, 0.62], [2, 0.1, 0.82], [3, 0.1, 0.9], [4, 0.08, 0.8]]) { const p = POLES[pi], a = along(p, t0), b = along(p, t1); vine(g, a[0], a[1], b[0], b[1], 5); }
+  dynLeaves = [];
+  for (const [pi, t, side, sc, dyn] of LEAVES) {
+    const p = POLES[pi], [x, y] = along(p, t), pa = Math.atan2(p[3] - p[1], p[2] - p[0]), la = pa + side * rr(1.0, 1.5);
+    const stx = x + Math.cos(la) * 6, sty = y + Math.sin(la) * 6, len = 34 * sc * rr(0.9, 1.1), ang = la + rr(-0.2, 0.2), light = Math.sin(la) < 0 ? 1 : -1;
+    stitch(g, x, y, stx, sty, 1.6, C.leafD, { hi: false });
+    if (dyn) dynLeaves.push({ x: stx, y: sty, len, ang, light, seed: (R() * 1e9) >>> 0 });
+    else leaf(g, stx, sty, len, ang, { light });
+  }
+  twine(g, 197, 70, 1.1);
+  potOnCane(g, 344, 152, 1.15);
+  satin(g, poly([[18, 624], [98, 620], [98, 644], [60, 672], [20, 648]]), 58, 644, 46, 1.57, ["#d8c9a6", "#cbb994"], { sp: 2 });
+}
+function build() {
+  const s = Lay.s;
+  let g;
+  [bg, g] = mkc(W, H);
+  setSeed(3); linen(g, 0, 0, W, H);
+  [plain] = mkc(W, H); plain.getContext("2d").drawImage(bg, 0, 0);
+  g.save(); g.translate(Lay.ox, Lay.oy); g.scale(s, s); drawScene(g, Lay.xL, Lay.xR); g.restore();
+  // 生き物・まち針・ビーズなどのスプライト（大きさ別に1回）
+  setSeed(41);
+  const k = s;
+  SPR.pin = sprite(32, k, (g) => pinDraw(g, 0, 0, false));
+  SPR.pinSel = sprite(36, k, (g) => pinDraw(g, 0, 0, true));
+  SPR.knot = sprite(12, k, (g) => knot(g, 0, 0, 2.8, C.silver));
+  SPR.beads = [1.6, 2.1, 2.6, 3.1].map((r) => sprite(10, k, (g) => bead(g, 0, 0, r)));
+  const bugK = { fly: 1.0, moth: 1.15, beetle: 1.05, lady: 0.95, bee: 1.12, wasp: 1.1 };
+  const fns = { fly: flyDraw, moth: mothDraw, beetle: beetleDraw, lady: ladyDraw, bee: beeDraw, wasp: waspDraw };
+  SPR.bug = {};
+  for (const n in fns) SPR.bug[n] = [0, 1].map((f) => sprite(50, k, (g) => { g.scale(bugK[n], bugK[n]); fns[n](g, f); }));
+  SPR.spider = sprite(44, k, (g) => { g.scale(0.85, 0.85); spiderDraw(g); });
+  SPR.cocoon = sprite(26, k, (g) => cocoonDraw(g));
+  for (const L of dynLeaves) { setSeed(L.seed); L.spr = sprite(L.len * 2.6 + 10, k, (g) => leaf(g, 0, 0, L.len, L.ang, { light: L.light })); }
+  // 予告のしつけ糸（通り道ごとに1回作る。ふつうの虫は未晒しの麻色の細い1本どり、スズメバチはレモンと濃灰の2本どり）
+  SPR.baste = ROUTES.map((r, i) => { setSeed(100 + i); const pts = routePts(r, Lay.xL - 40, Lay.xR + 40, 8); return { n: bastePaths(pts, 1.3, { l0: 4, l1: 14, g0: 3, g1: 10 }), w: bastePaths(pts, 2.6, { l0: 5, l1: 14, g0: 3, g1: 9, ply: 1 }) }; });
+  // 画面の部品（名前テープ・糸巻き・針）は画面の大きさのまま
+  setSeed(77);
+  const tp = (r, rot) => { const [c, g] = mkc(r.w + 6, r.h + 6); tape(g, 1, 1, r.w, r.h, { rot }); return c; };
+  SPR.tScore = tp(HUD.score, -0.02); SPR.tTears = tp(HUD.tears, 0.01); SPR.tPause = tp(HUD.pause, 0.02); SPR.tSound = tp(HUD.sound, -0.03);
+  SPR.reel = [0, 0.2, 0.4, 0.6, 0.8, 1].map((a) => { const [c, g] = mkc(56, 56); reel(g, 26, 26, a, 1); return c; });
+  SPR.needle = sprite(44, 1, (g) => needle(g, 0, 0, -0.12));
+  SPR.kneedle = sprite(44, 1, (g) => needle(g, 0, 0, 0));
+  SPR.markOn = sprite(14, 1, (g) => { knot(g, 0, 0, 4.2, C.lemon); g.strokeStyle = C.slate; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-3, -2.5); g.quadraticCurveTo(0, 1, 3, 2.5); g.stroke(); });
+  SPR.markOff = sprite(14, 1, (g) => { g.strokeStyle = C.slate; g.globalAlpha = 0.55; g.lineWidth = 1.2; g.setLineDash([2.2, 1.4]); g.beginPath(); g.arc(0, 0, 4, 0, 7); g.stroke(); });
+  { const [c, g] = mkc(W, 24); const pts = []; for (let x = 8; x <= W - 8; x += 6) pts.push([x, 12 + Math.sin(x / 37) * 0.8]); const P = bastePaths(pts, 1.5, { l0: 5, l1: 10, g0: 3, g1: 7 }); strokeBaste(g, P, C.slate, "#8d9497", 1, 0.3); SPR.day = c; }
+  { const [c, g] = mkc(300, 30); const pts = []; for (let x = 6; x <= 290; x += 6) pts.push([x, 14 + Math.sin(x / 50) * 1.5]); couchStatic(g, pts); SPR.titleLine = c; }
+  const tw = Math.min(W - 32, 360);
+  SPR.tHow = (() => { const [c, g] = mkc(tw + 6, 70); tape(g, 1, 1, tw, 62, { rot: 0.005 }); return c; })();
+  SPR.tStart = (() => { const [c, g] = mkc(232, 56); tape(g, 1, 1, 224, 48, { rot: -0.01 }); return c; })();
+  SPR.tLine = (() => { const [c, g] = mkc(tw + 6, 40); tape(g, 1, 1, tw, 32, { rot: -0.006 }); return c; })();
+  SPR.tBig = (() => { const [c, g] = mkc(tw + 6, 70); tape(g, 1, 1, tw, 60, { rot: 0.008 }); return c; })();
+  SPR.tBan = (() => { const [c, g] = mkc(Math.min(W - 24, 372) + 6, 64); tape(g, 1, 1, Math.min(W - 24, 372), 56, { rot: -0.004 }); return c; })();
+  SPR.tPop = (() => { const [c, g] = mkc(70, 30); tape(g, 1, 1, 62, 24, { rot: 0.02 }); return c; })();
+}
+function couchStatic(g, pts) {
+  const pl = (ox, oy) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + ox, y + oy) : g.moveTo(x + ox, y + oy))); g.stroke(); };
+  g.lineCap = "round"; g.strokeStyle = C.slate; g.globalAlpha = 0.5; g.lineWidth = 3; pl(0.9, 1.5);
+  g.globalAlpha = 1; g.strokeStyle = "#d8dfdd"; g.lineWidth = 2.5; pl(0, 0); g.strokeStyle = "#fff"; g.lineWidth = 1; pl(-0.4, -0.5);
+  for (let i = 2; i < pts.length; i += 3) { const [x, y] = pts[i]; g.strokeStyle = C.slate; g.lineWidth = 1.1; line(g, x, y - 2.4, x + rr(-0.6, 0.6), y + 2.4); }
+  for (let i = 4; i < pts.length; i += 7) bead(g, pts[i][0], pts[i][1] + 1.5, rr(1.6, 2.8));
+}
+
+// ---------- 糸（毎フレーム: 影・本体・光の3回。とめ縫いとビーズの位置は張った時に1回だけ決める） ----------
+function prepThread(T) {
+  if (T._tk) return;
+  let z = T.seed || 1; const r = () => { z ^= z << 13; z >>>= 0; z ^= z >> 17; z ^= z << 5; z >>>= 0; return z / 4294967296; };
+  T._tk = []; for (let d = 4 + r() * 8; d < T.len - 3; d += 13 + r() * 11) T._tk.push([d / T.len, 2 + r() * 0.8, r() - 0.5]);
+  const n = Math.floor(T.len / 30); T._bd = [];
+  for (let i = 0; i < n; i++) T._bd.push({ u: (i + 0.5 + (r() - 0.5) * 0.5) / n, sz: (r() * 4) | 0, ord: r(), gone: false });
+  const ord = T._bd.slice().sort((a, b) => a.ord - b.ord); ord.forEach((b, i) => (b.k = i));
+  T._c = []; for (let i = 0; i <= 16; i++) T._c.push([0, 0]); T._bow = 0;
+}
+function aPos(G, id, v) { const A = G.anchors[id]; if (A.kind === "knot" && A._f === frameNo && A._v === v) return A._p; return [v.ox + A.x * v.s, v.oy + A.y * v.s]; }
+let frameNo = 0;
+function computeWeb(G, v, now, dt) {
+  for (const T of G.threads) {
+    prepThread(T);
+    const A = aPos(G, T.a, v), B = aPos(G, T.b, v);
+    let nC = 0; for (const b of G.bugs) if (b.th === T.id && (b.st === "caught" || b.st === "held" || b.st === "thrash" || b.st === "cocoon")) nC++;
+    const target = nC ? Math.min(22, T.len * 0.1) * (1 + 0.15 * (nC - 1)) : 0;
+    T._bow += (target - T._bow) * Math.min(1, dt * (target > T._bow ? 18 : 5));
+    const e = now - T.vibT, vib = e < 1.4 ? (RM ? 1 : 4) * Math.exp(-e * 4.5) * Math.sin(e * 34) : 0;
+    const sway = G.wind && G.wind.st === 2 && T.len > 120 ? T.len * 0.035 * Math.sin(now * 7 + T.id) : 0;
+    const S = (Math.min(7, T.len * 0.03) + T._bow + vib + sway) * v.s;
+    const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2 + 2 * S;
+    for (let i = 0; i <= 16; i++) { const t = i / 16, u = 1 - t, P = T._c[i]; P[0] = u * u * A[0] + 2 * u * t * mx + t * t * B[0]; P[1] = u * u * A[1] + 2 * u * t * my + t * t * B[1]; }
+    T._A = A; T._B = B; T._mx = mx; T._my = my;
+    for (const K of G.anchors) if (K.kind === "knot" && K.alive && K.parents[0] === T.id) { K._p = ptOn(T, K.u[0]); K._f = frameNo; K._v = v; }
+  }
+}
+function ptOn(T, t) { const u = 1 - t; return [u * u * T._A[0] + 2 * u * t * T._mx + t * t * T._B[0], u * u * T._A[1] + 2 * u * t * T._my + t * t * T._B[1]]; }
+function drawWeb(G, v, now, o = {}) {
+  const lw = 2.5 * Math.max(0.75, Math.min(1.25, v.s));
+  const path = (ox, oy) => { ctx.beginPath(); for (const T of G.threads) { const c = T._c; ctx.moveTo(c[0][0] + ox, c[0][1] + oy); for (let i = 1; i <= 16; i++) ctx.lineTo(c[i][0] + ox, c[i][1] + oy); } };
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = C.slate; ctx.lineWidth = lw * 1.2; path(0.9, 1.5); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.strokeStyle = "#d8dfdd"; ctx.lineWidth = lw; path(0, 0); ctx.stroke();
+  ctx.strokeStyle = "#ffffff"; ctx.globalAlpha = 0.95; ctx.lineWidth = lw * 0.4; path(-0.4, -0.5); ctx.stroke(); ctx.globalAlpha = 1;
+  // とめ縫い（スズメバチの道にかかる糸は、留めがレモンに変わる）
+  const wr = o.threat || null;
+  for (const pass of [0, 1]) {
+    ctx.beginPath(); let any = false;
+    for (const T of G.threads) {
+      if (!!(wr && wr.has(T.id)) !== !!pass) continue; any = true;
+      for (const [u, h, j] of T._tk) {
+        const p = ptOn(T, u), q = ptOn(T, Math.min(1, u + 0.01)), dx = q[0] - p[0], dy = q[1] - p[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, hh = h * Math.max(0.8, v.s) * (pass ? 1.25 : 1);
+        ctx.moveTo(p[0] - nx * hh, p[1] - ny * hh); ctx.lineTo(p[0] + nx * hh + j, p[1] + ny * hh);
+      }
+    }
+    if (any) { ctx.strokeStyle = pass ? C.lemon : C.slate; ctx.lineWidth = pass ? 1.8 : 1.1; ctx.globalAlpha = 0.9; ctx.stroke(); ctx.globalAlpha = 1; }
+  }
+  // 露のビーズ（糸 30px につき最大1粒。時間とともに1粒ずつ増える）
+  for (const T of G.threads) {
+    const vis = o.allBeads ? 99 : Math.floor((now - T.born) / 2.4);
+    for (const b of T._bd) {
+      if (b.gone || b.k >= vis) continue;
+      const p = ptOn(T, b.u), S = SPR.beads[b.sz], d = S.d * (v.s / Lay.s);
+      ctx.drawImage(S.c, p[0] - d / 2, p[1] + 1.4 * v.s - d / 2, d, d);
+    }
+  }
+  const ks = SPR.knot.d * (v.s / Lay.s);
+  for (const K of G.anchors) if (K.kind === "knot" && K.alive && K._f === frameNo && K._v === v) { if (o.selKnot === K.id) continue; ctx.drawImage(SPR.knot.c, K._p[0] - ks / 2, K._p[1] - ks / 2, ks, ks); }
+}
+
+// ---------- 音（最初のタップで鳴らし始める） ----------
+let AC = null, master = null, noiseBuf = null, buzz = null, nextBird = 0;
+function initAudio() {
+  if (AC) { if (AC.state === "suspended") AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : 0.55; master.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { AC = null; }
+}
+function tone(type, f0, f1, dur, vol, delay = 0) {
+  if (!AC || muted) return; const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+function noise(dur, f, q, vol, type = "bandpass", delay = 0, attack = 0.004) {
+  if (!AC || muted) return; const t = AC.currentTime + delay, s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+}
+const snd = {
+  ping(len) { const f = Math.max(210, 1150 - len * 2.3); tone("triangle", f, f * 0.995, 0.55, 0.22); tone("sine", f * 2.01, f * 2, 0.22, 0.05); },
+  boing() { tone("sine", 300, 120, 0.32, 0.28); tone("triangle", 180, 90, 0.38, 0.1, 0.03); },
+  wrap() { for (let i = 0; i < 4; i++) noise(0.04, 3800, 2, 0.07, "bandpass", i * 0.07); tone("sine", 900, 1300, 0.12, 0.05, 0.28); },
+  snap() { noise(0.06, 2600, 3, 0.22); },
+  tear() { noise(0.22, 900, 1, 0.3, "lowpass"); tone("sawtooth", 150, 55, 0.3, 0.09); },
+  bad() { tone("sine", 520, 500, 0.14, 0.12); tone("sine", 390, 370, 0.22, 0.12, 0.13); },
+  thud() { tone("sine", 160, 110, 0.12, 0.14); },
+  wind() { noise(3.6, 420, 0.7, 0.09, "lowpass", 0, 1.2); },
+  bird() { const f = 2600 + Math.random() * 900; tone("sine", f, f * 0.82, 0.08, 0.04); tone("sine", f * 1.05, f * 0.9, 0.07, 0.035, 0.12); },
+  dusk() { [523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.6, 0.09, i * 0.16)); },
+};
+function buzzOn() {
+  if (!AC || buzz) return;
+  const o = AC.createOscillator(), o2 = AC.createOscillator(), f = AC.createBiquadFilter(), g = AC.createGain(), t = AC.currentTime;
+  o.type = "sawtooth"; o.frequency.value = 122; o2.type = "sawtooth"; o2.frequency.value = 127; f.type = "lowpass"; f.frequency.value = 520;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(muted ? 0.0001 : 0.05, t + 2.8);
+  o.connect(f); o2.connect(f); f.connect(g); g.connect(master); o.start(); o2.start(); buzz = { o, o2, g };
+}
+function buzzOff() { if (!buzz) return; const t = AC.currentTime, b = buzz; buzz = null; b.g.gain.cancelScheduledValues(t); b.g.gain.setValueAtTime(Math.max(0.0001, b.g.gain.value), t); b.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4); b.o.stop(t + 0.45); b.o2.stop(t + 0.45); }
+
+// ---------- 遊びの始まりと終わり ----------
+function start() {
+  G = makeGame((Date.now() ^ (Math.random() * 1e9)) >>> 0); G.xs = [Lay.xL - 30, Lay.xR + 30];
+  sel = -1; dragFrom = -1; press = null; parts = []; pops = []; banner = null; paused = false; state = "play"; newBest = false;
+  spider.x = sx(196); spider.y = sy(84);
+}
+function finish() {
+  state = "over"; overT = performance.now() / 1000; buzzOff();
+  if (G.score > best) { best = G.score; newBest = true; try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) { /* 保存できなくても遊べる */ } }
+}
+function say(lines, life = 2.2, key) { if (key) { if (told[key]) return; told[key] = 1; } banner = { lines, life, max: life }; }
+function pop(x, y, str, col = C.slate) { pops.push({ x, y, str, col, life: 1.1 }); }
+const NOLINK = { silk: ["糸が足りない。虫を巻くと糸巻きに戻る"], same: ["同じ支柱どうしは結べない"], short: ["近すぎて糸が渡せない"], full: ["これ以上は張れない。いらない糸は長押しで切る"] };
+function tryLink(a, b) { const r = G.link(a, b); if (r && NOLINK[r]) { say(NOLINK[r], 1.6); snd.thud(); } return !r; }
+function threatSet(G) {
+  if (!G.wasp) return null; const R = ROUTES[G.wasp.ri], s = new Set();
+  for (const T of G.threads) if (routeCrosses(R, G.anchors[T.a], G.anchors[T.b])) s.add(T.id);
+  return s;
+}
+function handleEvents(now) {
+  const v = Lay;
+  for (const e of G.events) {
+    if (e.type === "link") snd.ping(e.len);
+    else if (e.type === "catch") {
+      snd.boing(); const T = G.thread(e.th);
+      if (T && T._bd) { // 露のビーズが片側へ3粒まではじける
+        const side = e.u < 0.5 ? -1 : 1, vis = Math.floor((G.t - T.born) / 2.4);
+        const cand = T._bd.filter((b) => !b.gone && b.k < vis && (b.u - e.u) * side > 0).sort((a, b) => Math.abs(a.u - e.u) - Math.abs(b.u - e.u)).slice(0, 3);
+        for (const b of cand) { b.gone = true; const p = ptOn(T, b.u); parts.push({ k: "bead", x: p[0], y: p[1], vx: side * (60 + Math.random() * 80) * (T._B[0] > T._A[0] ? 1 : -1), vy: -60 - Math.random() * 80, sz: b.sz, life: 0.8, max: 0.8 }); }
+      }
+      if (e.combo >= 2) pop(sx(e.x), sy(e.y) - 22, "まとめ捕り ×2");
+    } else if (e.type === "wrap") { snd.wrap(); pop(sx(e.x), sy(e.y) - 14, "+" + e.pts); }
+    else if (e.type === "cut") {
+      e.by === "player" ? snd.snap() : 0;
+      const ang = Math.atan2(e.by2 - e.ay, e.bx - e.ax), half = Math.min(70, e.len / 2) * v.s, curl = e.by !== "player";
+      parts.push({ k: "end", x: sx(e.ax), y: sy(e.ay), a0: ang, len: half * (curl ? 0.6 : 1), curl, life: 1.2, max: 1.2 });
+      parts.push({ k: "end", x: sx(e.bx), y: sy(e.by2), a0: ang + Math.PI, len: half * (curl ? 0.6 : 1), curl, life: 1.2, max: 1.2 });
+    } else if (e.type === "tear") {
+      snd.tear(); shake = RM ? 0 : 0.3;
+      say(["スズメバチに網を破られた", `糸が${e.n}本切れた　やぶれ ${e.tears}/3`], 2.2);
+      pop(sx(e.x), sy(e.y), "やぶれ", C.slate);
+    } else if (e.type === "lady") { snd.bad(); pop(sx(e.x), sy(e.y) - 16, "−3"); say(["テントウムシは菜園の味方。捕まえると −3"], 2.2, "lady"); }
+    else if (e.type === "bee") { noise(0.5, 300, 2, 0.08); }
+    else if (e.type === "beecut") { snd.snap(); say(["ミツバチは暴れて糸を1本切る"], 2.2, "bee"); }
+    else if (e.type === "break") { snd.snap(); pop(sx(e.x), sy(e.y) - 16, "切られた"); say(["カナブンは結び目のある糸でないと止まらない", "糸を交差させて結び目を作る"], 2.6, "beetle"); }
+    else if (e.type === "escape") pop(sx(e.x), sy(e.y) - 16, "にげた");
+    else if (e.type === "slip" && e.wind) pop(sx(e.x), sy(e.y) - 16, "すり抜けた");
+    else if (e.type === "waspwarn") { buzzOn(); say(["黄と黒の撚り糸はスズメバチの通り道", "かかる糸は長押し（右クリック）で切る"], 3.2, "wasp"); }
+    else if (e.type === "windwarn") { snd.wind(); say(["風が来る。長い糸はゆれて虫を逃がしやすい"], 2.4, "wind"); }
+    else if (e.type === "end") { if (e.reason === "dusk") snd.dusk(); overT = now + (e.reason === "dusk" ? 1.0 : 1.6); }
+  }
+  G.events.length = 0;
+}
+
+// ---------- 入力 ----------
+function inR(r, x, y, pad = 6) { return r && x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad; }
+function toW(x, y) { return [(x - Lay.ox) / Lay.s, (y - Lay.oy) / Lay.s]; }
+let downXY = null;
+cv.addEventListener("pointerdown", (e) => {
+  e.preventDefault(); initAudio(); mouseLike = e.pointerType === "mouse";
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 無くても動く */ }
+  const x = e.clientX, y = e.clientY, now = performance.now() / 1000;
+  if (state === "title") { if (!Lay.land || inR(HUD.start, x, y, 40) || y > H * 0.3) start(); return; }
+  if (state === "over") { if (now - overT > 0.8 && inR(HUD.again, x, y, 14)) start(); return; }
+  if (state !== "play" || G.over) return;
+  if (inR(HUD.pause, x, y)) { paused = !paused; return; }
+  if (inR(HUD.sound, x, y)) { toggleMute(); return; }
+  if (paused) { paused = false; return; }
+  kbOn = false;
+  const [wx, wy] = toW(x, y);
+  if (e.button === 2) { const tid = G.pickThread(wx, wy, 16 / Lay.s); if (tid >= 0) { G.cut(tid, "player"); sel = -1; } return; }
+  const a = G.pickAnchor(wx, wy, 26 / Lay.s);
+  downXY = [x, y];
+  if (a >= 0) {
+    if (sel >= 0 && sel !== a) { tryLink(sel, a); sel = -1; }
+    else if (sel === a) sel = -1;
+    else { sel = a; dragFrom = a; }
+  } else {
+    const tid = G.pickThread(wx, wy, 16 / Lay.s);
+    if (tid >= 0) press = { tid, t0: now, x, y }; else sel = -1;
+  }
+  ptr = [wx, wy];
+}, { passive: false });
+cv.addEventListener("pointermove", (e) => {
+  const x = e.clientX, y = e.clientY; mouseLike = e.pointerType === "mouse";
+  ptr = toW(x, y);
+  if (press && Math.hypot(x - press.x, y - press.y) > 12) press = null;
+});
+const up = (e) => {
+  if (state === "play" && G && dragFrom >= 0) {
+    const [wx, wy] = toW(e.clientX, e.clientY), b = G.pickAnchor(wx, wy, 26 / Lay.s);
+    if (b >= 0 && b !== dragFrom) { tryLink(dragFrom, b); sel = -1; }
+  }
+  dragFrom = -1; press = null; if (e.pointerType !== "mouse") ptr = null;
+};
+cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+function toggleMute() { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.55; }
+function anchorsSorted(by) { return G.anchors.filter((a) => a.alive).sort((a, b) => (by === "x" ? a.x - b.x || a.y - b.y : a.y - b.y || a.x - b.x)); }
+addEventListener("keydown", (e) => {
+  const k = e.key, now = performance.now() / 1000;
+  if ([" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter"].includes(k)) e.preventDefault();
+  initAudio();
+  if (k === "m" || k === "M") { toggleMute(); return; }
+  if (state === "title") { if (k === "Enter" || k === " ") start(); return; }
+  if (state === "over") { if ((k === "Enter" || k === " ") && now - overT > 0.8) start(); return; }
+  if (!G || G.over) return;
+  if (k === "p" || k === "P") { paused = !paused; return; }
+  if (paused) { if (k === "Enter" || k === " " || k === "Escape") paused = false; return; }
+  const cycle = (by, d) => { const L = anchorsSorted(by); if (!L.length) return; let i = L.findIndex((a) => a.id === kbCur); i = i < 0 ? 0 : (i + d + L.length) % L.length; kbCur = L[i].id; kbOn = true; };
+  if (k === "ArrowLeft" || k === "a" || k === "A") cycle("x", -1);
+  else if (k === "ArrowRight" || k === "d" || k === "D") cycle("x", 1);
+  else if (k === "ArrowUp" || k === "w" || k === "W") cycle("y", -1);
+  else if (k === "ArrowDown" || k === "s" || k === "S") cycle("y", 1);
+  else if (k === " " || k === "Enter") {
+    kbOn = true;
+    if (kbCur < 0 || !G.anchors[kbCur].alive) { cycle("x", 0); return; }
+    if (sel < 0) sel = kbCur; else if (sel === kbCur) sel = -1; else { tryLink(sel, kbCur); sel = -1; }
+  } else if (k === "x" || k === "X") {
+    const id = kbCur >= 0 ? kbCur : sel; if (id < 0) return;
+    const ts = G.threads.filter((t) => t.a === id || t.b === id); if (ts.length) { G.cut(ts[ts.length - 1].id, "player"); sel = -1; }
+  } else if (k === "Escape") sel = -1;
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") paused = true; });
+let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+
+// ---------- 描く ----------
+function drawBug(b, now, v) {
+  const S = SPR.bug[b.sp];
+  let x, y, rot;
+  if ((b.st === "caught" || b.st === "held" || b.st === "thrash" || b.st === "cocoon") && G.thread(b.th) && G.thread(b.th)._A) {
+    const p = ptOn(G.thread(b.th), b.u); x = p[0]; y = p[1] + 2 * v.s;
+    rot = b.st === "thrash" ? Math.sin(now * 40) * 0.5 : b.st === "cocoon" ? 0.2 : Math.sin(now * 14 + b.id) * 0.25 * (1 - Math.min(1, (b.wt || 0) / 2));
+  } else {
+    x = sx(b.x); y = sy(b.y);
+    if (b._px !== undefined && (Math.abs(x - b._px) + Math.abs(y - b._py) > 0.3)) b._h = Math.atan2(y - b._py, x - b._px);
+    b._px = x; b._py = y; rot = (b._h ?? (b.dir > 0 ? 0 : Math.PI)) + Math.PI / 2;
+    if (b.st === "flee") rot = -0.3 * b.dir;
+  }
+  const d = S[0].d;
+  ctx.save(); ctx.translate(x, y);
+  if (b.st === "cocoon" || b.st === "drop") {
+    ctx.globalAlpha = Math.min(1, (b.ct ?? 1) / 1); ctx.rotate(rot); ctx.drawImage(SPR.cocoon.c, -SPR.cocoon.d / 2, -SPR.cocoon.d / 2, SPR.cocoon.d, SPR.cocoon.d);
+  } else {
+    ctx.rotate(rot); const f = (b.st === "fly" || b.st === "flee" || b.st === "thrash") ? Math.floor(now * 16 + b.id) & 1 : 0;
+    ctx.drawImage(S[f].c, -d / 2, -d / 2, d, d);
+    if (b.st === "caught") { ctx.globalAlpha = Math.min(1, b.wt / 2); ctx.drawImage(SPR.cocoon.c, -SPR.cocoon.d / 2, -SPR.cocoon.d / 2, SPR.cocoon.d, SPR.cocoon.d); }
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
+function wrap(str, maxW) {
+  const out = []; let cur = "";
+  for (const ch of str) {
+    if ("、。）」".includes(ch) || !cur || ctx.measureText(cur + ch).width <= maxW) { cur += ch; continue; }
+    const k = Math.max(cur.lastIndexOf("、"), cur.lastIndexOf("。"), cur.lastIndexOf("　"));
+    if (k > 0 && k >= cur.length - 7) { out.push(cur.slice(0, k + 1).trim()); cur = cur.slice(k + 1) + ch; } else { out.push(cur); cur = ch; }
+  }
+  if (cur) out.push(cur.trim()); return out;
+}
+// 名前テープに字を書く（幅に合わせて折り返し、テープの高さを伸ばす）
+function tapeBox(x, y, w, lines, font, lh = 21, img = SPR.tBan) {
+  ctx.font = font; const L = []; for (const s of lines) L.push(...wrap(s, w - 22));
+  const h = L.length * lh + 14; ctx.drawImage(img, x - 1, y - 1, w + 6, h + 6);
+  ctx.fillStyle = C.slate; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  L.forEach((s, i) => ctx.fillText(s, x + w / 2 + 1, y + 8 + lh / 2 + i * lh + 1)); return h;
+}
+function tapeText(img, r, lines, font, o = {}) {
+  ctx.drawImage(img, r.x - 1, r.y - 1, img.width / DPR, img.height / DPR);
+  ctx.fillStyle = C.slate; ctx.font = font; ctx.textAlign = o.align || "center"; ctx.textBaseline = "middle";
+  const lh = o.lh || 20, y0 = r.y + r.h / 2 - (lines.length - 1) * lh / 2;
+  lines.forEach((s, i) => ctx.fillText(s, o.align === "left" ? r.x + 14 : r.x + r.w / 2, y0 + i * lh + 1));
+}
+function drawHUD(now) {
+  const p = G ? Math.min(1, G.t / G.dur) : 0, px = 8 + (W - 16) * p;
+  if (px > 9) ctx.drawImage(SPR.day, 0, 0, Math.ceil(px * DPR), SPR.day.height, 0, 0, Math.ceil(px * DPR) / DPR, 24);
+  ctx.drawImage(SPR.needle.c, px - 4, 12 - SPR.needle.d / 2 - 1, SPR.needle.d, SPR.needle.d);
+  const r = HUD.score;
+  ctx.drawImage(SPR.tScore, r.x - 1, r.y - 1, SPR.tScore.width / DPR, SPR.tScore.height / DPR);
+  ctx.fillStyle = C.slate; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.font = `${Lay.land ? 30 : 28}px ${FH}`; const sc = String(G ? G.score : 0); ctx.fillText(sc, r.x + 12, r.y + r.h - 9);
+  const tw = ctx.measureText(sc).width; ctx.font = `15px ${FB}`; ctx.fillText("てん", r.x + 18 + tw, r.y + r.h - 11);
+  const t = HUD.tears; ctx.drawImage(SPR.tTears, t.x - 1, t.y - 1, SPR.tTears.width / DPR, SPR.tTears.height / DPR);
+  ctx.font = `14px ${FB}`; ctx.textBaseline = "middle"; ctx.fillText("やぶれ", t.x + 10, t.y + t.h / 2 + 1);
+  for (let i = 0; i < 3; i++) { const m = G && i < G.tears ? SPR.markOn : SPR.markOff; ctx.drawImage(m.c, t.x + 68 + i * 17 - 7, t.y + t.h / 2 - 7, 14, 14); }
+  const lv = G ? Math.round(G.silk / G.silkMax * 5) : 5, rc = SPR.reel[Math.max(0, Math.min(5, lv))];
+  ctx.drawImage(rc, HUD.reel.x - 26, HUD.reel.y - 26, 56, 56);
+  tapeText(SPR.tPause, HUD.pause, [paused ? "つづける" : "とめる"], `${Lay.land ? 16 : 15}px ${FB}`);
+  tapeText(SPR.tSound, HUD.sound, ["音"], `16px ${FB}`);
+  if (muted) { const s = HUD.sound; ctx.strokeStyle = C.slate; ctx.lineWidth = 1.6; line(ctx, s.x + 8, s.y + s.h - 6, s.x + s.w - 8, s.y + 6); }
+}
+function drawPreviews(now) {
+  const seen = new Map();
+  for (const b of G.bugs) {
+    const isW = b.sp === "wasp";
+    if (!isW && b.st !== "pre" && b.st !== "fly") continue;
+    let a;
+    const flyT = G.t - b.born - b.pre;
+    if (isW) a = b.st === "pre" ? Math.min(1, (G.t - b.born) / 0.3) : b.st === "fly" ? 1 : 0;
+    else a = flyT < 0 ? Math.min(1, (G.t - b.born) / 0.3) : Math.max(0, 1 - flyT / 1.0);
+    if (a <= 0) continue;
+    const key = b.ri * 2 + (isW ? 1 : 0); seen.set(key, Math.max(seen.get(key) || 0, a));
+  }
+  if (!seen.size) return;
+  ctx.save(); ctx.setTransform(DPR * Lay.s, 0, 0, DPR * Lay.s, DPR * Lay.ox, DPR * Lay.oy);
+  for (const [key, a] of seen) { const P = SPR.baste[key >> 1]; if (key & 1) strokeBaste(ctx, P.w, C.lemon, C.slate, a, 0.6); else strokeBaste(ctx, P.n, "#c4ab84", "#e3d6bd", a * 0.95, 0.5); }
+  ctx.restore();
+}
+function drawPlay(now, dt) {
+  const v = Lay;
+  // 風の予告: 葉が傾く
+  const Wd = G.wind, tilt = Wd.st === 1 ? 0.45 * Math.min(1, (G.t - Wd.t0) / 1.5) : Wd.st === 2 ? 0.5 + 0.12 * Math.sin(now * 9) : 0;
+  for (const L of dynLeaves) {
+    L._t = (L._t || 0) + (tilt - (L._t || 0)) * Math.min(1, dt * 6);
+    ctx.save(); ctx.translate(sx(L.x), sy(L.y)); ctx.rotate(L._t * (Math.cos(L.ang) > 0 ? 1 : 0.6)); ctx.drawImage(L.spr.c, -L.spr.d / 2, -L.spr.d / 2, L.spr.d, L.spr.d); ctx.restore();
+  }
+  ctx.font = `15px ${FB}`; ctx.fillStyle = C.slate; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.save(); ctx.translate(sx(26), sy(642)); ctx.rotate(-0.05); ctx.scale(v.s, v.s); ctx.fillText("いんげん", 0, 0); ctx.restore();
+  drawPreviews(now);
+  frameNo++; computeWeb(G, v, now, dt);
+  drawWeb(G, v, now, { threat: threatSet(G), selKnot: sel });
+  // 長押しで切る途中: 中央からほどけていく
+  if (press) {
+    const T = G.thread(press.tid), k = Math.min(1, (performance.now() / 1000 - press.t0) / 0.5);
+    if (T && T._A) { ctx.beginPath(); const p0 = ptOn(T, 0.5 - k * 0.5); ctx.moveTo(p0[0], p0[1]); for (let i = 1; i <= 10; i++) { const p = ptOn(T, 0.5 - k * 0.5 + k * i / 10); ctx.lineTo(p[0], p[1]); } ctx.strokeStyle = C.slate; ctx.globalAlpha = 0.7; ctx.lineWidth = 3.4; ctx.stroke(); ctx.globalAlpha = 1; }
+  }
+  // 選んだまち針から指先へ、仮の糸
+  if (sel >= 0 && G.anchors[sel].alive && ptr && (dragFrom >= 0 || mouseLike)) {
+    const A = aPos(G, sel, v); ctx.strokeStyle = "#eef2f0"; ctx.globalAlpha = 0.6; ctx.lineWidth = 1.3; line(ctx, A[0], A[1], sx(ptr[0]), sy(ptr[1])); ctx.globalAlpha = 1;
+  }
+  for (const b of G.bugs) if (b.st !== "pre") drawBug(b, now, v);
+  // まち針
+  for (const A of G.anchors) {
+    if (!A.alive) continue;
+    if (A.kind === "knot" && A.id !== sel) continue;
+    const p = aPos(G, A.id, v), S = A.id === sel ? SPR.pinSel : SPR.pin;
+    if (A.kind === "knot") { ctx.drawImage(SPR.pinSel.c, p[0] - SPR.pinSel.d / 2, p[1] - SPR.pinSel.d / 2, SPR.pinSel.d, SPR.pinSel.d); continue; }
+    ctx.drawImage(S.c, p[0] + 2 * v.s - S.d / 2, p[1] - S.d / 2, S.d, S.d);
+  }
+  if (kbOn && kbCur >= 0 && G.anchors[kbCur] && G.anchors[kbCur].alive) { const p = aPos(G, kbCur, v); ctx.save(); ctx.translate(p[0] - 20, p[1] - 14); ctx.rotate(0.6); ctx.drawImage(SPR.kneedle.c, -22, -22, 44, 44); ctx.restore(); }
+  // 庭蜘蛛（小さく。寄りの演出はしない）
+  let tx = sx(196), ty = sy(86);
+  const wb = G.bugs.find((b) => b.st === "caught");
+  if (wb && G.thread(wb.th) && G.thread(wb.th)._A) { const p = ptOn(G.thread(wb.th), wb.u); tx = p[0] + 6 * v.s; ty = p[1] - 8 * v.s; }
+  else if (sel >= 0 && G.anchors[sel].alive) { const p = aPos(G, sel, v); tx = p[0] - 10 * v.s; ty = p[1] + 12 * v.s; }
+  const dx = tx - spider.x, dy = ty - spider.y, dd = Math.hypot(dx, dy), stp = Math.min(dd, 420 * v.s * dt);
+  if (dd > 0.5) { spider.x += dx / dd * stp; spider.y += dy / dd * stp; spider.a += (Math.atan2(dy, dx) + Math.PI / 2 - spider.a) * Math.min(1, dt * 8); }
+  ctx.save(); ctx.translate(spider.x, spider.y); ctx.rotate(Math.max(-0.6, Math.min(0.6, spider.a))); ctx.drawImage(SPR.spider.c, -SPR.spider.d / 2, -SPR.spider.d / 2, SPR.spider.d, SPR.spider.d); ctx.restore();
+  drawParts(dt);
+}
+function drawParts(dt) {
+  for (const p of parts) {
+    p.life -= dt; const a = Math.max(0, p.life / p.max);
+    if (p.k === "bead") { p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; const S = SPR.beads[p.sz]; ctx.globalAlpha = a; ctx.drawImage(S.c, p.x - S.d / 2, p.y - S.d / 2, S.d, S.d); }
+    else if (p.k === "end") {
+      const k = 1 - a, e = 1 - Math.pow(1 - Math.min(1, k * 1.6), 3), ang = p.a0 + (Math.PI / 2 - ((p.a0 % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) * 0 + 0, tgt = Math.PI / 2;
+      let d = ((tgt - p.a0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI; const A = p.a0 + d * e;
+      const ex = p.x + Math.cos(A) * p.len * (1 - 0.3 * e), ey = p.y + Math.sin(A) * p.len * (1 - 0.3 * e);
+      ctx.globalAlpha = a; ctx.lineCap = "round";
+      ctx.strokeStyle = C.slate; ctx.globalAlpha = a * 0.45; ctx.lineWidth = 2.6; line(ctx, p.x + 0.9, p.y + 1.5, ex + 0.9, ey + 1.5);
+      ctx.globalAlpha = a; ctx.strokeStyle = "#d8dfdd"; ctx.lineWidth = 2.2; line(ctx, p.x, p.y, ex, ey);
+      if (p.curl) { ctx.beginPath(); ctx.arc(ex + 3, ey, 3.2, Math.PI, Math.PI * 2.6); ctx.stroke(); }
+      void ang;
+    }
+  }
+  ctx.globalAlpha = 1; parts = parts.filter((p) => p.life > 0);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const p of pops) {
+    p.life -= dt; p.y -= 18 * dt; const a = Math.min(1, p.life / 0.3);
+    ctx.globalAlpha = a; ctx.font = `15px ${FB}`; const w = Math.max(40, ctx.measureText(p.str).width + 18);
+    ctx.drawImage(SPR.tPop, p.x - w / 2, p.y - 13, w, 28); ctx.fillStyle = p.col; ctx.fillText(p.str, p.x, p.y + 1);
+  }
+  ctx.globalAlpha = 1; pops = pops.filter((p) => p.life > 0);
+}
+function drawBanner(dt) {
+  if (!banner) return; banner.life -= dt; if (banner.life <= 0) { banner = null; return; }
+  const a = Math.min(1, banner.life / 0.3, (banner.max - banner.life) / 0.15 + 0.2);
+  const w = Lay.land ? Math.min(372, Lay.ox - 28) : Math.min(W - 24, 372), x = Lay.land ? 16 : (W - w) / 2;
+  ctx.globalAlpha = a;
+  if (Lay.land) { ctx.font = `15px ${FB}`; let n = 0; for (const s of banner.lines) n += wrap(s, w - 22).length; tapeBox(x, H - 22 - (n * 21 + 14), w, banner.lines, `15px ${FB}`); }
+  else tapeBox(x, HUD.banner.y, w, banner.lines, `15px ${FB}`);
+  ctx.globalAlpha = 1;
+}
+function drawTitle(now, dt) {
+  if (!demo) { demo = makeGame(5); for (const [a, b] of [[2, 6], [1, 9], [15, 16], [13, 8], [3, 7]]) demo.link(a, b); for (const T of demo.threads) T.born = -60; demo.events.length = 0; }
+  ctx.font = `15px ${FB}`; ctx.fillStyle = C.slate; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.save(); ctx.translate(sx(26), sy(642)); ctx.rotate(-0.05); ctx.scale(Lay.s, Lay.s); ctx.fillText("いんげん", 0, 0); ctx.restore();
+  frameNo++; computeWeb(demo, Lay, now, dt); drawWeb(demo, Lay, now, {});
+  for (const A of demo.anchors) if (A.alive && A.kind === "pin") { const p = aPos(demo, A.id, Lay); ctx.drawImage(SPR.pin.c, p[0] + 2 * Lay.s - SPR.pin.d / 2, p[1] - SPR.pin.d / 2, SPR.pin.d, SPR.pin.d); }
+  ctx.drawImage(SPR.spider.c, sx(186) - SPR.spider.d / 2, sy(300) - SPR.spider.d / 2, SPR.spider.d, SPR.spider.d);
+  const tw = Math.min(W - 32, 360);
+  ctx.fillStyle = C.slate; ctx.textBaseline = "alphabetic";
+  if (!Lay.land) {
+    ctx.textAlign = "center"; ctx.font = `44px ${FH}`; ctx.fillText("朝つゆの網", W / 2, 62);
+    ctx.drawImage(SPR.titleLine, W / 2 - 112, 66, 224, 22);
+    ctx.font = `16px ${FB}`; ctx.fillText("庭の蜘蛛になって、豆の支柱に糸を渡す", W / 2, 104);
+    const hy = Math.min(H - 200, Lay.oy + 545 * Lay.s);
+    HUD.how = { x: (W - tw) / 2, y: hy, w: tw, h: 62 };
+    HUD.start = { x: W / 2 - 112, y: hy + 76, w: 224, h: 48 };
+  } else {
+    const lx = 24; ctx.textAlign = "left"; ctx.font = `40px ${FH}`; ctx.fillText("朝つゆの網", lx, 76);
+    ctx.drawImage(SPR.titleLine, lx, 80, 210, 21);
+    const pw = Math.min(tw, Lay.ox - 30);
+    const h1 = tapeBox(16, 100, pw, ["庭の蜘蛛になって、豆の支柱に糸を渡す"], `15px ${FB}`, 21, SPR.tLine);
+    HUD.how = { x: 16, y: 100 + h1 + 12, w: pw, h: 62 };
+    HUD.start = { x: W - Lay.ox / 2 - 112, y: H / 2 - 24, w: 224, h: 48 };
+  }
+  const how = HUD.how;
+  tapeBox(how.x, how.y, how.w, ["まち針を2つ押すと糸が渡る", "黄と黒の撚り糸の道には張らない"], `${Lay.land ? 14 : 15}px ${FB}`, 22, SPR.tHow);
+  const st = HUD.start; ctx.drawImage(SPR.tStart, st.x - 1, st.y - 1, 232, 56);
+  ctx.font = `19px ${FH}`; ctx.fillText("糸を張りはじめる", st.x + st.w / 2, st.y + st.h / 2 + 1);
+  if (best > 0) { ctx.font = `15px ${FB}`; ctx.fillText(`これまでの一番　${best} てん`, st.x + st.w / 2, st.y + st.h + 22); }
+}
+function drawOver(now, dt) {
+  ctx.drawImage(plain, 0, 0, W, H);
+  const tw = Math.min(W - 32, 360);
+  let v, tx, ty;
+  if (!Lay.land) { const rh = Math.min(H * 0.48, H - 400), rs = Math.min((W - 40) / 390, rh / 692); v = { s: rs, ox: (W - 390 * rs) / 2, oy: 56 }; tx = (W - tw) / 2; ty = 56 + 692 * rs + 14; }
+  else { const rs = Math.min((W * 0.5 - 40) / 390, (H - 70) / 692); v = { s: rs, ox: W * 0.25 - 195 * rs, oy: 52 }; tx = W * 0.5 + Math.max(10, (W * 0.5 - tw) / 2 - 10); ty = 40; }
+  ctx.fillStyle = C.slate; ctx.textAlign = Lay.land ? "left" : "center"; ctx.textBaseline = "alphabetic"; ctx.font = `24px ${FH}`;
+  const head = G.reason === "torn" ? "スズメバチに網を破られた" : G.reason === "empty" ? "糸が尽きた" : "日が暮れた";
+  ctx.fillText(head, Lay.land ? 24 : W / 2, 38);
+  frameNo++; computeWeb(G, v, now, dt); drawWeb(G, v, now, { allBeads: true });
+  const cs = SPR.cocoon.d * v.s / Lay.s;
+  for (const b of G.bugs) if ((b.st === "cocoon" || b.st === "caught") && G.thread(b.th)) { const p = ptOn(G.thread(b.th), b.u); ctx.drawImage(SPR.cocoon.c, p[0] - cs / 2, p[1] - cs / 2 + 2, cs, cs); }
+  const d = new Date(), S = G.stats;
+  const rows = [
+    [`${d.getMonth() + 1}月${d.getDate()}日の網`, 32, `16px ${FB}`],
+    [`ハエ ${S.fly}匹　ガ ${S.moth}匹　カナブン ${S.beetle}匹`, 32, `15px ${FB}`],
+    [`${G.score}`, 60, `40px ${FH}`],
+    [newBest ? `自己ベストを更新　${best} てん` : `自己ベスト　${best} てん`, 32, `15px ${FB}`],
+  ];
+  let y = ty;
+  for (const [s, h, f] of rows) {
+    const img = h > 40 ? SPR.tBig : SPR.tLine; ctx.drawImage(img, tx - 1, y - 1, tw + 6, h + 8);
+    ctx.fillStyle = C.slate; ctx.font = f; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    if (h > 40) { const w = ctx.measureText(s).width; ctx.fillText(s, tx + tw / 2 - 14, y + h / 2 + 2); ctx.font = `16px ${FB}`; ctx.fillText("てん", tx + tw / 2 + w / 2 + 4, y + h / 2 + 8); }
+    else ctx.fillText(s, tx + tw / 2, y + h / 2 + 1);
+    y += h + 8;
+  }
+  HUD.again = { x: tx + tw / 2 - 112, y: y + 6, w: 224, h: 48 };
+  const a = HUD.again; ctx.drawImage(SPR.tStart, a.x - 1, a.y - 1, 232, 56);
+  ctx.font = `19px ${FH}`; ctx.fillText("もう一回", a.x + a.w / 2, a.y + a.h / 2 + 1);
+}
+function frame(ms) {
+  const now = ms / 1000, dt = Math.min(0.05, Math.max(0, now - (lastNow || now))); lastNow = now;
+  fpsLog.push(ms); if (fpsLog.length > 240) fpsLog.shift();
+  if (state === "play" && !paused) {
+    if (!G.over) { G.step(dt); simNow += dt; }
+    if (press && now - press.t0 >= 0.5) { G.cut(press.tid, "player"); press = null; sel = -1; }
+    handleEvents(now);
+    if (G.wasp && !buzz) buzzOn(); else if (!G.wasp && buzz) buzzOff();
+    if (AC && now > nextBird) { if (nextBird) snd.bird(); nextBird = now + 7 + Math.random() * 6; }
+    if (G.over && now > overT) finish();
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (state === "over") { drawOver(G.t, dt); requestAnimationFrame(frame); return; }
+  let shx = 0; if (shake > 0) { shake -= dt; shx = Math.sin(now * 70) * 3 * shake / 0.3; }
+  ctx.setTransform(DPR, 0, 0, DPR, DPR * shx, 0);
+  ctx.drawImage(bg, 0, 0, W, H);
+  if (state === "title") drawTitle(now, dt);
+  else { drawPlay(G.t, paused ? 0 : dt); drawHUD(now); drawBanner(paused ? 0 : dt); }
+  if (state === "play" && paused) {
+    const w = Math.min(W - 40, 300), x = (W - w) / 2, y = H / 2 - 30;
+    ctx.drawImage(SPR.tBan, x, y, w + 6, 62); ctx.fillStyle = C.slate; ctx.font = `16px ${FB}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("とめています", x + w / 2, y + 19); ctx.fillText("押すと、つづきから", x + w / 2, y + 40);
+  }
+  requestAnimationFrame(frame);
+}
+layout();
+if (document.fonts && document.fonts.load) { Promise.all([document.fonts.load(`40px "RocknRoll One"`), document.fonts.load(`16px Yomogi`)]).catch(() => {}); }
+requestAnimationFrame(frame);
+window.__game = { get G() { return G; }, get state() { return state; }, start, fps() { const n = fpsLog.length; return n > 10 ? ((n - 1) * 1000) / (fpsLog[n - 1] - fpsLog[0]) : 0; }, layout };
+</script>
+</body>
+</html>
