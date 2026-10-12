@@ -12,7 +12,7 @@
 
 構想書: `docs/product/nanashi/business-plan.md`。**世界設定の正本は Claude Docs の「ナナシ県 世界観バイブル」**（写し `docs/nanashi/canon/world-bible.md`）。町と SNS はこれに合わせる。
 - 町の実装との対応: `docs/nanashi/world-bible.md`／正本にない設定（未承認の提案）: `docs/nanashi/proposals.md`
-- SNS の4アカウント（ナナシ県庁・ナナシ放送・スーパーまるやす・ナナシくん）: `docs/nanashi/sns-accounts.md`。書いている人は町の住人（西村ハル・丸山保・戸田由佳・三浦勝・佐藤恵・北村課長を配役）
+- SNS の3アカウント（ナナシくん｜ナナシ県庁・ナナシ放送・スーパーまるやす）: `docs/nanashi/sns-accounts.md`。書いている人は町の住人（西村ハル・丸山保・戸田由佳・三浦勝・佐藤恵・北村課長を配役）
 - 過去ログを作る: `node tools/nanashi_pastlog.mjs --days 21 --check` → `data/arg/pastlog/`（見本 `docs/nanashi/sns-sample-week/`）。リスク: `docs/nanashi/arg-risks.md`
 
 ## 動かし方

@@ -8,9 +8,11 @@ import { randomLook } from './looks.js';
 import { GIVEN_F, GIVEN_M } from './lore.js';
 
 export const PERSONAS = {
+  // 県庁のアカウントは、ナナシくんのアカウントを兼ねる（2026-10-12 オーナー判断）。
+  // 県庁のお知らせ（観光課の佐藤）と、ナナシくんの出演の一言（写真が主役）を同じアカウントから出す
   kencho: {
-    handle: '@nanashi_pref', label: 'ナナシ県庁', writer: 'sato',
-    profile: 'ナナシ県庁の公式アカウントです（担当: 観光課）。イベント、工事、制度のお知らせ。※フィクションです。',
+    handle: '@nanashi_kun', label: 'ナナシくん｜ナナシ県庁', writer: 'sato',
+    profile: 'ナナシ県庁の公式アカウントです。県のPRキャラ、ナナシくんの出演の写真と、イベント・工事・制度のお知らせ（担当: 観光課）。※フィクションです。',
   },
   housou: {
     handle: '@nns_nanashi', label: 'ナナシ放送', writer: 'toda',
@@ -19,10 +21,6 @@ export const PERSONAS = {
   maruyasu: {
     handle: '@maruyasu_honten', label: 'スーパーまるやす', writer: 'maruyama',
     profile: 'スーパーまるやす本店です。特売、入荷、季節の品を店長がお知らせします。※フィクションです。',
-  },
-  nanashikun: {
-    handle: '@nanashi_kun', label: 'ナナシくん', writer: 'sato',
-    profile: 'ナナシ県のPRキャラ、ナナシくんです（観光課）。※フィクションです。',
   },
 };
 
@@ -164,9 +162,9 @@ export class PersonaHub {
       if (ev) this.#post('kencho', `【ナナシ県庁】${ev.text}。`);
     });
 
-    // ---- ナナシくん（観光課の持ち回り。週数回。一言だけ、写真が主役） ----
+    // ---- ナナシくん（県庁のアカウントから。観光課の持ち回り。週数回。一言だけ、写真が主役） ----
     const kun = this.#nanashikun(date, wd, today);
-    if (kun && at(kun.at * 60 + J(7, 20))) once('n', () => this.#post('nanashikun', kun.text, { photoNote: '写真が主役（出演の写真を添える）' }));
+    if (kun && at(kun.at * 60 + J(7, 20))) once('n', () => this.#post('kencho', kun.text, { kind: 'nanashikun', photoNote: '写真が主役（ナナシくんの出演の写真を添える）' }));
   }
 
   // まるやす: 季節の品と曜日の特売（正本の「追加された設定」の値段と時刻）

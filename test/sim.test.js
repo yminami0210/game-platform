@@ -223,7 +223,7 @@ test('見た目は部品の組み合わせで台帳に残り、店・家の詳�
   assert.equal(av.look.hair, 'bun'); assert.equal(av.look.body, 'tall'); assert.notEqual(av.look.extra, 'bogus');
 });
 
-test('SNS は正本の4アカウント（県庁・ナナシ放送・まるやす・ナナシくん）で、正本の文体を守る（トークン 0）', async () => {
+test('SNS は3アカウント（県庁＝ナナシくん・ナナシ放送・まるやす）で、正本の文体を守る（トークン 0）', async () => {
   const { weatherOf } = await import('../server/personas.js');
   const { cfg, chronicle } = setup();
   // 2026-10-01（木）から 2026-10-14 まで（正本の 10 月の出来事がある期間）
@@ -233,14 +233,15 @@ test('SNS は正本の4アカウント（県庁・ナナシ放送・まるやす
   chronicle.listeners.add((type, p) => type === 'sns' && p.persona && posts.push(p));
   run(sim, 1440 * 14, 0.25, 8);
   const by = (id) => posts.filter((p) => p.persona === id);
-  for (const id of ['kencho', 'housou', 'maruyasu', 'nanashikun']) assert.ok(by(id).length >= 2, `${id} が投稿していない`);
+  for (const id of ['kencho', 'housou', 'maruyasu']) assert.ok(by(id).length >= 2, `${id} が投稿していない`);
+  assert.equal(new Set(posts.map((p) => p.persona)).size, 3, 'ナナシくんは県庁のアカウントから出す');
   assert.equal(by('maruyasu').length, 14, 'まるやすは毎日1回');
   // お天気には日付・最高／最低気温・降水確率・風速・時刻が必ず入る
   for (const p of by('housou').filter((p) => p.text.includes('お天気'))) assert.match(p.text, /\d+月\d+日（.）.*最高-?\d+℃／最低-?\d+℃、降水確率\d+%.*\d+時.*\d+m\/s/);
   // 正本の出来事が正しい日に出る（10月12日は県民駅伝、10月1日はナナシくんの衣替え）
   const dayOf = (p) => new Date(Date.UTC(2026, 2, 30) + (p.day - 1) * 86400000).getUTCDate();
   assert.ok(by('maruyasu').some((p) => dayOf(p) === 12 && p.text.includes('県民駅伝')));
-  assert.ok(by('nanashikun').some((p) => dayOf(p) === 1 && p.text.includes('衣替え')));
+  assert.ok(by('kencho').some((p) => p.kind === 'nanashikun' && dayOf(p) === 1 && p.text.includes('衣替え')));
   // 絵文字・ハッシュタグ・「なぜか」「不思議と」は使わない。実在の都道府県名も出さない
   for (const p of posts) {
     assert.doesNotMatch(p.text, /[\u{1F300}-\u{1FAFF}]|#|なぜか|不思議と|どこか/u, p.text);
