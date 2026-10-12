@@ -49,7 +49,7 @@ async function draw() {
   // --- 2 糸と露 ---
   text(g, "糸と露", 40, 530, HEAD(24), C.slate);
   // 生垣の切れ端を下に敷いて、暗い地の上での見え方を確かめる
-  const strip = (x, y, w, h) => { g.save(); g.beginPath(); g.rect(x, y, w, h); g.fillStyle = C.yew; g.fill(); g.clip(); for (let i = 0; i < (w * h) / 1400; i++) clump(g, rr(x, x + w), rr(y, y + h), rr(20, 34), rr(16, 26), C.yew, C.yewL); g.restore(); };
+  const strip = (x, y, w, h) => { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); for (const [cx, r] of [[120, 90], [330, 70], [520, 100], [700, 60], [820, 85], [430, 40]]) clump(g, x + cx - 40, y + h * rr(0.35, 0.75), r, r * 0.85, mix(C.yewL, darken(C.yew, 0.12), Math.min(1, r / 90)), C.yewL); g.restore(); };
   strip(40, 548, 820, 230);
   // 短い糸・長い糸（露は長さに応じて不揃い）
   pin(g, 70, 590); pin(g, 200, 584); let p1 = curvePts(70, 590, 200, 584, 4); couch(g, p1); beadsOn(g, p1, 18, 1.5, 3);
@@ -66,17 +66,17 @@ async function draw() {
   pin(g, 520, 716); couch(g, curvePts(520, 716, 430, 722, 3)); frayed(g, 430, 722, -1);
   wasp(g, 396, 690, 1.3, -1.6);
   // しつけ糸の予告（ふつう＝銀灰の細い運針／スズメバチ＝レモンの太い運針）
-  baste(g, [[560, 690], [860, 684]], "#c3ccca", 1.4, { l0: 6, l1: 10, g0: 6, g1: 11, shA: 0.5 });
-  baste(g, [[560, 738], [860, 726]], C.lemon, 2.1, { l0: 8, l1: 17, g0: 6, g1: 12, shA: 0.6 });
+  baste(g, sPath(560, 690, 860, 684, 6), "#e1e6e3", 1.8, { l0: 5, l1: 13, g0: 3, g1: 9, shA: 0.55 });
+  baste(g, sPath(560, 740, 860, 728, 7), C.lemon, 2.6, { l0: 6, l1: 14, g0: 3, g1: 9, shA: 0.6, ply: C.slate });
   tape(g, 40, 790, 820, 64);
   text(g, "上: 短い糸と長い糸、交点の結び目、ハエがかかってしなった糸（露は片側に3粒だけはじける）", 56, 815, BODY(15), C.slate);
-  text(g, "下: 巻き終えた虫、スズメバチが食い破った糸の端、虫の通り道の予告（ふつう／スズメバチ）", 56, 840, BODY(15), C.slate);
+  text(g, "下: 巻き終えた虫、スズメバチが食い破った糸の端、虫の通り道の予告（銀灰1本どり／スズメバチは2本どり）", 56, 840, BODY(15), C.slate);
 
   // --- 3 生き物（脚は短い2針、毛・爪・複眼は描かない） ---
   text(g, "生き物", 40, 900, HEAD(24), C.slate);
   const cr = [["庭蜘蛛", spider, 1.8], ["ハエ", fly, 2.2], ["ガ", moth, 1.8], ["カナブン", beetle, 1.9], ["テントウムシ", ladybird, 2], ["ミツバチ", bee, 1.9], ["スズメバチ", wasp, 1.9]];
   cr.forEach(([n, f, s], i) => { const x = 90 + i * 120; f(g, x, 966, s, 0); text(g, n, x, 1036, BODY(16), C.slate, { align: "center" }); });
-  text(g, "ミツバチは丸い結び玉の琥珀と焦げ茶、スズメバチは細い腰ととがった腹のレモンと濃灰（形と色の両方で見分ける）", 40, 1066, BODY(15), "#3d4549");
+  text(g, "ミツバチは丸い琥珀の胴に太い帯2本、スズメバチはくびれととがった腹に帯3本（形・帯の数・色で見分ける）", 40, 1066, BODY(15), "#3d4549");
 
   // --- 4 画面の部品 ---
   text(g, "画面の部品", 40, 1118, HEAD(24), C.slate);
@@ -89,6 +89,7 @@ async function draw() {
   pin(g, 680, 1150); pin(g, 720, 1150, true); text(g, "かけ所／選んだ所", 660, 1196, BODY(14), C.slate);
   tape(g, 790, 1136, 70, 32); text(g, "とめる", 801, 1158, BODY(16), C.slate);
   // --- 5 文字 ---
+  hem(g, W, 1310, 30);
   text(g, "文字", 40, 1252, HEAD(24), C.slate);
   text(g, "RocknRoll One  題と点数 0123456789", 120, 1252, HEAD(20), C.slate);
   text(g, "Yomogi  説明と名前テープ。糸をかけ所からかけ所へ渡す", 120, 1284, BODY(18), C.slate);

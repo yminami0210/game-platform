@@ -3,107 +3,98 @@
 <meta name="viewport" content="width=390,initial-scale=1">
 <title>朝つゆの網 代表場面</title>
 <link href="https://fonts.googleapis.com/css2?family=RocknRoll+One&family=Yomogi&display=swap" rel="stylesheet">
-<style>html,body{margin:0;background:#c9c2ab}canvas{display:block}</style>
+<style>html,body{margin:0;background:#c3c9bd}canvas{display:block}</style>
 </head><body>
 <canvas id="c"></canvas>
 <script src="stitch.js"></script>
 <script>
-// 代表場面: 昼前（ひと日の4割）。支柱のあいだに銀糸を5本渡し、交わった所に結び目ができている。
+// 代表場面（修正版）: 昼前（ひと日の4割）。支柱のあいだに銀糸を5本渡し、交わった所に結び目ができている。
 // ガが1本の糸にかかって糸が弓なりにしなり、露のビーズが片側へはじけた瞬間。
-// 右から、スズメバチの通り道がレモン色のしつけ糸で予告され、いちばん上の糸がその上にかかっている（危ない）。
+// 右から、スズメバチの通り道が「レモンと濃灰の2本どり」のしつけ糸で予告され、上の糸がその上にかかっている（危ない）。
+// 刺繍の布であることを見せる: 麻の織り目、刺していない所、輪郭だけの株、下の端の折り返しとまつり縫い。
 const W = 390, H = 844;
 async function draw() {
   await document.fonts.load('40px "RocknRoll One"'); await document.fonts.load('16px "Yomogi"');
-  const g = makeCanvas("c", W, H); setSeed(10);
+  const g = makeCanvas("c", W, H); setSeed(12);
   linen(g, W, H);
-  // 空: 布の地を残し、雲だけを刺す（雲は輪郭を茎の運針で縁取り、中は横長の針を密に）。雲の外は上ほど青い種まき刺し
-  for (const [cx, cy, rx, ry] of [[70, 128, 84, 18], [292, 188, 90, 15]]) {
-    const cl = (g) => { g.beginPath(); g.moveTo(cx - rx, cy + ry * 0.6); for (let i = 0; i <= 6; i++) { const t = i / 6, x = cx - rx + t * 2 * rx; g.quadraticCurveTo(x - rx / 6, cy - ry * rr(0.9, 1.6), x, cy - ry * rr(0.2, 0.6)); } g.lineTo(cx + rx, cy + ry * 0.6); g.closePath(); };
-    fill(g, cl, { box: [cx - rx, cy - ry * 1.6, cx + rx, cy + ry], per: 3.2, ang: 0, jit: 0.07, l0: 8, l1: 16, w0: 1.8, w1: 2.3, col: (x, y) => vary(y < cy - ry * 0.1 ? "#f1f3ee" : pick([C.sky1, "#dfe5df"])), shA: 0.14 });
-    g.save(); cl(g); g.strokeStyle = "#9fb0ae"; g.lineWidth = 1.3; g.setLineDash([4, 1.3]); g.stroke(); g.restore();
+  // 雲は1つだけ（チェーンステッチの輪郭＋中に間を空けた数本の針。麻が透ける。端で切らない）
+  { const cx = 262, cy = 150, pts = [];
+    for (let i = 0; i <= 40; i++) { const a = i / 40 * Math.PI * 2, bump = 1 + 0.16 * Math.sin(a * 5 + 1) + 0.08 * Math.sin(a * 3), ry = Math.sin(a) > 0 ? 15 : 24; pts.push([cx + Math.cos(a) * 66 * bump, cy + Math.sin(a) * ry * bump + (Math.sin(a) > 0 ? Math.sin(a * 4) * 3 : 0)]); }
+    chain(g, pts, "#a9b8b6");
+    for (const [x, y, l] of [[222, 142, 30], [246, 132, 44], [270, 152, 36], [236, 160, 22], [292, 140, 26]]) stitch(g, x, y, x + l, y + rr(-1.5, 1.5), 2, "#eef1ec", { shA: 0.18 });
   }
-  // イチイの生垣: 地を生垣の色で塗り、丸いこんもりを不揃いに重ねる（株元から扇に刺す。かたまりごとに明暗が違う）
-  const hedgeTop = [[-6, 262], [396, 262], [396, 600], [-6, 600]];
-  g.save(); poly(hedgeTop)(g); g.fillStyle = C.yew; g.fill(); g.restore();
-  const cl = [];
-  for (let i = 0; i < 70; i++) cl.push([rr(-30, 420), rr(250, 570), rr(28, 50), rr(24, 40)]);
-  for (let i = 0; i < 9; i++) cl.push([-20 + i * 50 + rr(-12, 12), 262 + rr(-12, 6), rr(36, 52), rr(26, 36)]);
-  cl.sort((a, b) => a[1] - b[1]);
-  for (const [x, y, rx, ry] of cl) { const k = (y - 250) / 320; clump(g, x, y, rx, ry, darken(C.yew, 0.06 + k * 0.1), k < 0.25 ? "#62723f" : R() < 0.6 ? C.yewL : "#566638"); }
-  // 芝の小道（生垣と畑のあいだ。短い縦の針で、生垣と明るさを変える）
-  const path = [[-6, 566], [120, 560], [260, 568], [396, 558], [396, 618], [-6, 626]];
-  g.save(); poly(path)(g); g.fillStyle = "#6f8443"; g.fill(); g.restore();
-  fill(g, poly(path), { box: [-6, 550, 396, 630], per: 6, ang: -1.45, jit: 0.35, l0: 4, l1: 8, w0: 1.6, w1: 2.1, col: ["#7f9450", "#93a65c", "#6a7f3e"], shA: 0.25 });
-  // 土: 掘り返した土の短い針。向きと色は大きなまだら（ゆっくり変わる）で変え、粒をそろえない。畝の筋は2本だけ
-  const soil = [[-6, 612], [70, 604], [150, 616], [230, 602], [310, 614], [396, 606], [396, 850], [-6, 850]];
-  g.save(); g.globalAlpha = 0.5; g.translate(0, -3); poly(soil)(g); g.fillStyle = C.slate; g.fill(); g.restore();
-  g.save(); poly(soil)(g); g.fillStyle = C.hazelD; g.fill(); g.restore();
+  // 生垣の稜線（1本の不揃いな線。横一列にそろえない）
+  const ridge = [[-6, 318], [30, 300], [62, 312], [96, 276], [140, 290], [168, 262], [214, 272], [246, 300], [282, 284], [318, 252], [352, 270], [396, 262]];
+  // 生垣: こんもりは15個。奥は大きく暗く、手前は小さく明るい。2つは輪郭だけ、間に麻の地が残る
+  const bush = [
+    [190, 380, 92, 84, 0], [46, 384, 74, 70, 0], [340, 350, 84, 82, 0], [112, 304, 36, 26, 1], [262, 300, 30, 22, 1],
+    [118, 470, 56, 48, 0], [272, 462, 62, 52, 0], [380, 456, 34, 40, 0], [10, 470, 30, 36, 0],
+    [200, 518, 46, 34, 0], [60, 540, 32, 26, 0], [332, 532, 40, 30, 0], [146, 552, 24, 20, 0], [250, 560, 22, 18, 0], [368, 572, 20, 16, 0],
+  ];
+  for (const [x, y, rx, ry, out] of bush) {
+    const k = Math.min(1, Math.max(0, (rx - 20) / 72));
+    clump(g, x, y, rx, ry, out ? C.yew : mix(C.yewL, darken(C.yew, 0.12), k), out ? C.yewL : (k > 0.5 ? C.yewL : "#6f8048"), { outlineOnly: !!out });
+  }
+  // 芝の小道（左下で広く、右奥へ細くなる斜めの道。縁は針目の不揃いな線）
+  const pathTop = [[-6, 640], [80, 624], [170, 612], [260, 600], [330, 594], [396, 590]], pathBot = [[396, 604], [320, 614], [240, 634], [150, 664], [70, 696], [-6, 730]];
+  const pathP = poly([...pathTop, ...pathBot]);
+  g.save(); pathP(g); g.globalAlpha = 0.5; g.fillStyle = "#6f8443"; g.fill(); g.restore();
+  fill(g, pathP, { box: [-6, 585, 396, 735], per: 5, ang: -1.45, jit: 0.35, l0: 4, l1: 9, w0: 1.7, w1: 2.2, col: ["#7f9450", "#93a65c", "#6a7f3e"], shA: 0.22 });
+  chain(g, pathTop, "#5c7036", { s: 0.8 }); chain(g, pathBot, "#5c7036", { s: 0.8 });
+  // 畝（小道の上と下の2枚。下地は薄く、短い針の向きと色をゆっくり変える）
   const nz = (x, y) => Math.sin(x / 53 + y / 31) + Math.sin(x / 23 - y / 41 + 2) * 0.6;
-  fill(g, poly(soil), { box: [-6, 598, 396, 850], per: 7, l0: 4, l1: 9, w0: 2, w1: 2.6, shA: 0.3,
-    angf: (x, y) => nz(x, y) * 0.5 + rr(-0.2, 0.2), col: (x, y) => { const v = nz(x, y) + rr(-0.5, 0.5); return vary(v > 0.7 ? C.hazelL : v > -0.2 ? C.hazel : "#5c4838"); },
-    dens: (x, y) => 0.55 + 0.4 * Math.abs(Math.sin(x / 70 + y / 50)) });
-  for (const [y0, tilt] of [[668, -6], [752, 9]]) {
-    const pts = []; for (let x = -6; x <= 400; x += 14) pts.push([x, y0 + tilt * x / 400 + Math.sin(x / 47) * 3]);
-    baste(g, pts, darken(C.hazelD, 0.25), 2.4, { l0: 10, l1: 18, g0: 0, g1: 2, shA: 0.2 });
-    for (let i = 0; i < 9; i++) { const x = rr(0, W); knot(g, x, y0 + tilt * x / 400 - rr(4, 8), rr(2, 3.2), pick([C.hazel, C.hazelL])); }
-  }
+  const bed = (pts) => { const P = poly(pts); g.save(); P(g); g.globalAlpha = 0.6; g.fillStyle = C.hazelD; g.fill(); g.restore();
+    fill(g, P, { box: [-6, 560, 396, 820], per: 6, l0: 4, l1: 10, w0: 2, w1: 2.6, shA: 0.25, angf: (x, y) => nz(x, y) * 0.5 + rr(-0.2, 0.2),
+      col: (x, y) => { const v = nz(x, y) + rr(-0.5, 0.5); return vary(v > 0.7 ? C.hazelL : v > -0.2 ? C.hazel : "#5c4838"); }, dens: (x, y) => 0.7 + 0.3 * Math.abs(Math.sin(x / 70 + y / 50)) }); };
+  bed([[-6, 590], [60, 596], [120, 580], [200, 588], [270, 576], [330, 584], [396, 578], [396, 590], [330, 594], [260, 600], [170, 612], [80, 624], [-6, 640]]);
+  bed([[-6, 730], [70, 696], [150, 664], [240, 634], [320, 614], [396, 604], [396, 806], [300, 800], [190, 808], [80, 802], [-6, 808]]);
+  // 布の下の端（折り返しとまつり縫い）
+  hem(g, W, 812, 32);
   // ハシバミの支柱（三本組みの「ウィグワム」＋右に1本。上で麻ひもで縛る）
-  const top = [196, 156];
-  const poles = [[52, 744, top[0] - 4, top[1] - 10, 4.2], [330, 750, top[0] + 6, top[1] - 12, 4.4], [160, 780, top[0] + 2, top[1] - 16, 4], [372, 660, 342, 236, 3.4]];
+  const top = [196, 196];
+  const poles = [[56, 760, top[0] - 4, top[1] - 10, 4.2], [330, 770, top[0] + 6, top[1] - 12, 4.4], [168, 792, top[0] + 2, top[1] - 16, 4], [372, 640, 344, 276, 3.4]];
   for (const p of poles) pole(g, ...p);
-  // つると葉（三つ葉で、支柱に巻きつく。葉の大きさ・向きをそろえない）
   const along = (p, t) => [p[0] + (p[2] - p[0]) * t, p[1] + (p[3] - p[1]) * t];
-  for (const [pi, t0, t1] of [[0, 0.05, 0.75], [1, 0.08, 0.62], [2, 0.1, 0.82], [3, 0.1, 0.9]]) {
-    const p = poles[pi], a = along(p, t0), b = along(p, t1); vine(g, a[0], a[1], b[0], b[1], 5);
-  }
-  for (const [pi, t, side, s] of [[0, 0.1, -1, 1.15], [0, 0.27, 1, 1], [0, 0.45, -1, 1.05], [0, 0.63, -1, 0.9], [0, 0.8, 1, 0.75], [1, 0.12, 1, 1.15], [1, 0.33, 1, 1], [1, 0.52, -1, 0.95], [1, 0.7, 1, 0.8],
-    [2, 0.12, 1, 1.05], [2, 0.6, -1, 0.85], [2, 0.76, 1, 0.75], [3, 0.2, 1, 1], [3, 0.46, -1, 0.95], [3, 0.72, 1, 0.85], [0, 0.18, 1, 0.75], [1, 0.22, -1, 0.7]]) {
+  for (const [pi, t0, t1] of [[0, 0.05, 0.75], [1, 0.08, 0.62], [2, 0.1, 0.82], [3, 0.1, 0.9]]) { const p = poles[pi], a = along(p, t0), b = along(p, t1); vine(g, a[0], a[1], b[0], b[1], 5); }
+  for (const [pi, t, side, s] of [[0, 0.1, -1, 1.15], [0, 0.3, 1, 1], [0, 0.5, -1, 1.05], [0, 0.68, -1, 0.9], [1, 0.12, 1, 1.15], [1, 0.34, 1, 1], [1, 0.55, -1, 0.95],
+    [2, 0.14, 1, 1.05], [2, 0.66, -1, 0.85], [3, 0.2, 1, 1], [3, 0.5, -1, 0.95], [3, 0.78, 1, 0.85], [1, 0.74, 1, 0.75]]) {
     const p = poles[pi], [x, y] = along(p, t), pa = Math.atan2(p[3] - p[1], p[2] - p[0]), la = pa + side * rr(1.0, 1.5);
     const sx = x + Math.cos(la) * 6, sy = y + Math.sin(la) * 6;
     stitch(g, x, y, sx, sy, 1.6, C.leafD, { hi: false });
     leaf(g, sx, sy, 34 * s * rr(0.9, 1.1), la + rr(-0.2, 0.2), { light: Math.sin(la) < 0 ? 1 : -1 });
   }
   twine(g, top[0] + 1, top[1] - 2, 1.1);
-  // 伏せた素焼きの鉢（右の支柱の頭）とじょうろ
-  potOnCane(g, 342, 230, 1.15);
-  wateringCan(g, 304, 806, 0.95);
+  potOnCane(g, 344, 270, 1.15);
   // 植え付けの木札（手で書いた品種名）
-  satin(g, poly([[16, 770], [96, 766], [96, 790], [58, 818], [18, 794]]), 56, 790, 46, 1.57, ["#d8c9a6", "#cbb994"], { sp: 2 });
-  text(g, "いんげん", 24, 786, '15px "Yomogi", sans-serif', C.slate, { rot: -0.05 });
+  satin(g, poly([[18, 744], [98, 740], [98, 764], [60, 792], [20, 768]]), 58, 764, 46, 1.57, ["#d8c9a6", "#cbb994"], { sp: 2 });
+  text(g, "いんげん", 26, 760, '15px "Yomogi", sans-serif', C.slate, { rot: -0.05 });
 
-  // しつけ糸（虫の通り道の予告）: ふつうの虫は銀灰、スズメバチはレモン（太く・長い針目）
-  baste(g, [[-10, 404], [80, 396], [170, 404], [260, 392], [400, 400]], "#c3ccca", 1.4, { l0: 6, l1: 10, g0: 6, g1: 11, shA: 0.5 });
-  baste(g, [[400, 262], [300, 276], [200, 300], [100, 336], [-10, 380]], C.lemon, 2.1, { l0: 8, l1: 17, g0: 6, g1: 12, shA: 0.6 });
+  // しつけ糸（虫の通り道の予告）: ふつうの虫は銀灰の1本どり、スズメバチはレモンと濃灰の2本どり。ゆるい S 字で1針ずつ
+  baste(g, sPath(-10, 440, 400, 430, 9), "#e1e6e3", 1.8, { l0: 5, l1: 13, g0: 3, g1: 9, shA: 0.55 });
+  baste(g, sPath(400, 300, -10, 400, 12), C.lemon, 2.6, { l0: 6, l1: 14, g0: 3, g1: 9, shA: 0.6, ply: C.slate });
 
   // 張った銀糸（とめ縫い）。交わった所に結び目（銀の結び玉）
-  const threads = [[[140, 420], [262, 552], 5], [[118, 556], [240, 392], 4], [[86, 612], [296, 606], 7], [[148, 330], [244, 336], 3]];
+  const threads = [[[140, 460], [262, 592], 5], [[118, 596], [240, 432], 4], [[96, 652], [300, 640], 8], [[150, 352], [248, 362], 3]];
   const P = threads.map(([a, b, sag]) => curvePts(a[0], a[1], b[0], b[1], sag));
   for (const pts of P) couch(g, pts);
-  // ガがかかってしなった糸（たるみ大）。露はかかった側でだけはじけ、反対側には乗ったまま
-  const bow = curvePts(104, 488, 262, 480, 34); couch(g, bow); P.push(bow);
+  const bow = curvePts(104, 528, 262, 520, 34); couch(g, bow); P.push(bow);
   for (const pts of P.slice(0, 4)) beadsOn(g, pts, 17, 1.5, 3.1);
   beadsOn(g, bow.slice(0, 9), 14, 1.6, 3);
-  bead(g, 222, 474, 2.2); bead(g, 233, 462, 1.6); bead(g, 214, 456, 1.3);
+  bead(g, 222, 514, 2.2); bead(g, 233, 502, 1.6); bead(g, 214, 496, 1.3);
   for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) for (const [x, y] of crossings(P[i], P[j])) knot(g, x, y, 2.8, C.silver);
-  // かかったガ（しなった糸の底）
-  moth(g, 196, 520, 1.25, 0.2);
-  // 庭蜘蛛（交点で待つ）
-  spider(g, 166, 446, 1.15, -0.55);
-  // 巻き終えたハエ（下の糸）
-  wrapped(g, 244, 614, 0.9);
-  // まち針（糸をかけられる所）。1つは選んだ状態
-  for (const [x, y] of [[104, 488], [262, 480], [140, 420], [262, 552], [118, 556], [240, 392], [86, 612], [296, 606], [148, 330], [244, 336], [352, 380], [62, 704], [196, 210]]) pin(g, x, y, false);
-  pin(g, 336, 214, true);
-  // 飛んでいる虫: ハエ（銀灰のしつけ糸の上）、てんとう虫（葉の上）、右端から入るスズメバチ
-  fly(g, 54, 398, 1, 1.5);
-  ladybird(g, 74, 560, 0.95, 0.4);
-  wasp(g, 366, 270, 1.15, -1.75);
-  bee(g, 70, 226, 1, 1.3);
+  moth(g, 196, 560, 1.25, 0.2);
+  spider(g, 168, 488, 1.15, -0.55);
+  wrapped(g, 248, 652, 0.9);
+  for (const [x, y] of [[104, 528], [262, 520], [140, 460], [262, 592], [118, 596], [240, 432], [96, 652], [300, 640], [150, 352], [248, 362], [352, 420], [66, 714], [196, 250]]) pin(g, x, y, false);
+  pin(g, 338, 254, true);
+  fly(g, 44, 438, 1.05, 1.5);
+  ladybird(g, 84, 604, 0.95, 0.4);
+  wasp(g, 368, 306, 1.15, -1.82);
+  bee(g, 70, 238, 1.15, 1.2);
 
   // --- 上の縁: 1日の進み（運針で縫い進む針）と名前テープの点数・糸巻き ---
   const hemY = 12;
-  baste(g, [[6, hemY], [150, hemY + 1]], C.slate, 1.5, { l0: 6, l1: 9, g0: 4, g1: 6, shA: 0.3 });
-  baste(g, [[166, hemY + 1], [386, hemY]], "#a99f88", 1, { l0: 2, l1: 3, g0: 9, g1: 12, shA: 0.15 });
+  baste(g, [[6, hemY], [80, hemY + 1], [150, hemY]], C.slate, 1.5, { l0: 5, l1: 10, g0: 3, g1: 7, shA: 0.3 });
   needle(g, 160, hemY, -0.12);
   tape(g, 12, 28, 118, 40, { rot: -0.02 });
   text(g, "38", 24, 60, '30px "RocknRoll One", sans-serif', C.slate, { rot: -0.02 });

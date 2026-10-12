@@ -52,11 +52,16 @@ function line(g, a, b, c, d) { g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.
 
 // 麻布の地（刺していない所だけ見える。織り目は格子にせず、不揃いな短い節で）
 function linen(g, w, h) {
+  // 麻の織り目: 縦糸・横糸の節（太さの違う短い糸）を両方向に。格子にはそろえず、節の長さ・濃さはばらばら
   g.fillStyle = C.linen; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < w * h / 55; i++) {
-    const x = rr(0, w), y = rr(0, h), l = rr(1.5, 5), v = R() < 0.5;
-    g.strokeStyle = R() < 0.5 ? lighten(C.linen, 0.18) : darken(C.linen, 0.1); g.globalAlpha = rr(0.35, 0.8); g.lineWidth = rr(0.6, 1.2);
-    line(g, x, y, v ? x : x + l, v ? y + l : y);
+  for (let i = 0; i < w * h / 26; i++) {
+    const x = rr(0, w), y = rr(0, h), v = R() < 0.5, l = rr(3, 10);
+    g.strokeStyle = R() < 0.55 ? lighten(C.linen, rr(0.12, 0.3)) : darken(C.linen, rr(0.06, 0.14)); g.globalAlpha = rr(0.3, 0.7); g.lineWidth = rr(0.6, 1.1);
+    line(g, x, y, v ? x + rr(-0.3, 0.3) : x + l, v ? y + l : y + rr(-0.3, 0.3));
+  }
+  for (let i = 0; i < w * h / 900; i++) { // 太い節（スラブ）
+    const x = rr(0, w), y = rr(0, h), v = R() < 0.5, l = rr(10, 26);
+    g.strokeStyle = lighten(C.linen, 0.3); g.globalAlpha = 0.7; g.lineWidth = rr(1.2, 1.8); line(g, x, y, v ? x : x + l, v ? y + l : y);
   }
   g.globalAlpha = 1;
 }
@@ -105,9 +110,9 @@ function curvePts(x1, y1, x2, y2, sag, n = 24) {
 function couch(g, pts, o = {}) {
   const pl = (ox, oy) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x + ox, y + oy) : g.moveTo(x + ox, y + oy))); g.stroke(); };
   g.lineCap = "round"; g.lineJoin = "round";
-  g.strokeStyle = C.slate; g.globalAlpha = 0.45; g.lineWidth = 2.6; pl(0.9, 1.5);
-  g.globalAlpha = 1; g.strokeStyle = o.col ?? "#cfd6d4"; g.lineWidth = 2.2; pl(0, 0);
-  g.strokeStyle = "#ffffff"; g.globalAlpha = 0.85; g.lineWidth = 0.8; pl(-0.4, -0.5); g.globalAlpha = 1;
+  g.strokeStyle = C.slate; g.globalAlpha = 0.5; g.lineWidth = 3; pl(0.9, 1.5);
+  g.globalAlpha = 1; g.strokeStyle = o.col ?? "#d8dfdd"; g.lineWidth = 2.5; pl(0, 0);
+  g.strokeStyle = "#ffffff"; g.globalAlpha = 0.95; g.lineWidth = 1; pl(-0.4, -0.5); g.globalAlpha = 1;
   // とめ縫い（墨の小さな横留め。間隔は不揃い）
   let acc = rr(4, 12), next = rr(13, 22);
   for (let i = 1; i < pts.length; i++) {
@@ -138,15 +143,54 @@ function beadsOn(g, pts, every = 18, r0 = 1.5, r1 = 3) {
 }
 // しつけ糸（虫の通り道の予告。粗い運針で、針目の長さも間隔もばらばら）
 function baste(g, pts, col, w = 1.6, o = {}) {
+  // 1針ずつ（setLineDash を使わない）: 長さ・間隔・傾きをばらし、両端を細く（針穴に入る）、下に影
   const segs = []; let tot = 0;
   for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); tot += d; }
   const at = (s) => { let i = 0; while (i < segs.length - 1 && s > segs[i]) { s -= segs[i]; i++; } const t = Math.min(1, s / segs[i]); return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t]; };
-  let s = rr(0, 6);
+  let s = rr(0, 6); g.lineCap = "round";
   while (s < tot) {
-    const l = rr(o.l0 ?? 7, o.l1 ?? 13), a = at(s), b = at(Math.min(tot, s + l));
-    stitch(g, a[0], a[1], b[0], b[1], w, col, { shA: o.shA ?? 0.4, hi: false });
-    s += l + rr(o.g0 ?? 5, o.g1 ?? 10);
+    const l = rr(o.l0 ?? 5, o.l1 ?? 14), a = at(s), b0 = at(Math.min(tot, s + l));
+    const ang = Math.atan2(b0[1] - a[1], b0[0] - a[0]) + rr(-0.07, 0.07), L = Math.hypot(b0[0] - a[0], b0[1] - a[1]);
+    const b = [a[0] + Math.cos(ang) * L, a[1] + Math.sin(ang) * L];
+    const P = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    g.strokeStyle = C.slate; g.globalAlpha = o.shA ?? 0.45; g.lineWidth = w * 0.9; line(g, a[0] + 0.8, a[1] + 0.8, b[0] + 0.8, b[1] + 0.8);
+    g.globalAlpha = 1; g.strokeStyle = col; g.lineWidth = w * 0.5; line(g, a[0], a[1], b[0], b[1]);
+    let [m1, m2] = [P(0.18), P(0.82)]; g.lineWidth = w; line(g, m1[0], m1[1], m2[0], m2[1]);
+    if (o.ply) { // 2本どり: もう1色が本体のまわりを撚る（3〜4回交差）
+      const nx = -Math.sin(ang), ny = Math.cos(ang), turns = Math.max(2, Math.round(L / 4));
+      g.strokeStyle = o.ply; g.lineWidth = w * 0.42; g.beginPath();
+      for (let k = 0; k <= 12; k++) { const t = 0.1 + 0.8 * k / 12, q = Math.sin(t * turns * Math.PI) * w * 0.4, [x, y] = P(t); k ? g.lineTo(x + nx * q, y + ny * q) : g.moveTo(x + nx * q, y + ny * q); }
+      g.stroke();
+    } else { g.strokeStyle = lighten(col[0] === "#" ? col : C.silver, 0.4); g.globalAlpha = 0.5; g.lineWidth = Math.max(0.5, w * 0.3); m1 = P(0.3); m2 = P(0.7); line(g, m1[0] - 0.3, m1[1] - 0.4, m2[0] - 0.3, m2[1] - 0.4); g.globalAlpha = 1; }
+    s += l + rr(o.g0 ?? 3, o.g1 ?? 9);
   }
+}
+// ゆるい S 字の通り道（予告のしつけ糸の下書き）
+function sPath(x1, y1, x2, y2, amp = 10, n = 30) {
+  const pts = [], nx = -(y2 - y1), ny = x2 - x1, d = Math.hypot(nx, ny);
+  for (let i = 0; i <= n; i++) { const t = i / n, q = Math.sin(t * Math.PI * 2) * amp; pts.push([x1 + (x2 - x1) * t + nx / d * q, y1 + (y2 - y1) * t + ny / d * q]); }
+  return pts;
+}
+// ステムステッチ（輪郭の運針。斜めの短い針を半分ずつ重ねる。長さ・傾きは少しずつ違う）
+function chain(g, pts, col, o = {}) {
+  const sc = o.s ?? 1;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], d = Math.hypot(bx - ax, by - ay); if (!d) continue;
+    const ux = (bx - ax) / d, uy = (by - ay) / d, nx = -uy, ny = ux;
+    for (let t = 0; t < d; t += rr(2.8, 3.8) * sc) {
+      const x = ax + ux * t, y = ay + uy * t, L = rr(5.5, 7.5) * sc, k = rr(0.9, 1.5) * sc;
+      stitch(g, x - nx * k * 0.5, y - ny * k * 0.5, x + ux * L + nx * k * 0.5, y + uy * L + ny * k * 0.5, 1.7 * sc, vary(col), { shA: 0.3 });
+    }
+  }
+}
+// 布の端（折り返しとまつり縫い）
+function hem(g, w, y, h) {
+  g.fillStyle = C.slate; g.globalAlpha = 0.35; g.fillRect(0, y - 2, w, 3); g.globalAlpha = 1;
+  g.fillStyle = darken(C.linen, 0.07); g.fillRect(0, y, w, h);
+  for (let i = 0; i < w * h / 40; i++) { const x = rr(0, w), yy = rr(y, y + h); g.strokeStyle = lighten(C.linen, 0.15); g.globalAlpha = 0.6; g.lineWidth = 0.8; line(g, x, yy, x + rr(3, 8), yy); }
+  g.globalAlpha = 1;
+  let x = rr(2, 8);
+  while (x < w) { const dx = rr(4, 7); stitch(g, x, y + rr(3, 5), x + dx, y - rr(3, 5), 1.3, "#8a8f86", { shA: 0.35 }); x += rr(9, 15); }
 }
 // ハシバミの支柱（長さ方向のサテン＋皮目の短い横針）
 function pole(g, x1, y1, x2, y2, w) {
@@ -251,15 +295,16 @@ function pin(g, x, y, sel = false) {
 // --- 生き物（どれも小さく、刺繍の形で。写実的な脚・毛・複眼は描かない） ---
 // 庭蜘蛛: 丸い腹（サテン）に白い結び玉の十字、短い脚8本は2針ずつ（毛・爪・目は描かない）
 function spider(g, x, y, s = 1, rot = 0) {
+  // 脚は短く太い2針（ほぼまっすぐ、膝を作らない）。脚の届く範囲は胴の長さの1.3倍以内
   g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
-  const legs = [[-1, -6, -12, -12, -15, -4], [-1, -3, -14, -4, -18, 4], [-1, 0, -13, 4, -15, 12], [-1, 3, -9, 9, -10, 16]];
+  const legs = [[-2, -7, -8, -12, -10, -17], [-3, -4, -10, -6, -14, -7], [-3, -1, -10, 1, -14, 3], [-2, 2, -8, 6, -10, 11]];
   for (const [ax, ay, bx, by, cx, cy] of legs) for (const m of [1, -1]) {
-    stitch(g, ax * m, ay, bx * m + rr(-0.6, 0.6), by + rr(-0.6, 0.6), 2, C.spiderL, { shA: 0.55, hi: false });
-    stitch(g, bx * m, by, cx * m + rr(-0.8, 0.8), cy + rr(-0.6, 0.6), 1.8, C.spiderL, { shA: 0.55, hi: false });
+    stitch(g, ax * m, ay, bx * m + rr(-0.4, 0.4), by + rr(-0.4, 0.4), 2.6, C.spiderL, { shA: 0.5, hi: false });
+    stitch(g, bx * m, by, cx * m + rr(-0.5, 0.5), cy + rr(-0.5, 0.5), 2.3, C.spiderL, { shA: 0.5, hi: false });
   }
-  satin(g, ell(0, -6, 5, 5.5), 0, -6, 7, 1.57, [C.spiderD], { sp: 1.6, ew: 1 });
-  satin(g, ell(0, 8, 9, 10.5, 0.05), 0, 8, 12, 0.4, [C.spider, C.spiderD], { sp: 1.8 });
-  for (const [kx, ky] of [[0, 2], [0, 7.5], [0.4, 13], [-4.5, 7], [4.5, 7.8]]) knot(g, kx, ky, 1.6, "#f2efe6");
+  satin(g, ell(0, -5, 5.5, 5.5), 0, -5, 7, 1.57, [C.spiderD], { sp: 1.6, ew: 1 });
+  satin(g, ell(0, 8, 9.5, 10.5, 0.05), 0, 8, 12, 0.4, [C.spider, C.spiderD], { sp: 1.8 });
+  for (const [kx, ky] of [[0, 2.5], [0, 8], [0.4, 13.5], [-4.5, 7.5], [4.5, 8.2]]) knot(g, kx, ky, 1.7, "#f2efe6");
   g.restore();
 }
 function fly(g, x, y, s = 1, rot = 0) {
@@ -300,10 +345,15 @@ function ladybird(g, x, y, s = 1, rot = 0) {
 }
 // ミツバチ: 丸い体、毛は描かず「結び玉の群れ」でふっくら。色は琥珀と焦げ茶（レモンは使わない）
 function bee(g, x, y, s = 1, rot = 0) {
+  // ミツバチ: 丸い1つの胴（琥珀のサテン）に焦げ茶の太い帯2本、大きめの線の羽2枚。粒の群れにしない
   g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
-  for (const m of [1, -1]) { g.save(); ell(m * 6, -7, 6, 4, m * -0.6)(g); g.fillStyle = "rgba(225,232,232,0.6)"; g.fill(); g.strokeStyle = "#8d9a9c"; g.lineWidth = 1; g.setLineDash([2.4, 1]); g.stroke(); g.restore(); }
-  for (let i = 0; i < 26; i++) { const a = rr(0, 6.28), q = rr(0, 1) ** 0.6 * 8; knot(g, Math.cos(a) * q, 2 + Math.sin(a) * q * 1.05, rr(1.5, 2.1), Math.sin(a) * q > 2.5 || Math.sin(a) * q < -4.5 ? C.beeD : C.bee); }
-  knot(g, 0, -8, 3, C.beeD);
+  for (const m of [1, -1]) { g.save(); ell(m * 8, -7, 8, 5.5, m * -0.6)(g); g.fillStyle = "rgba(232,238,236,0.7)"; g.fill(); g.strokeStyle = "#7d8a8c"; g.lineWidth = 1.2; g.setLineDash([2.6, 1]); g.stroke(); g.restore(); }
+  const body = ell(0, 2, 7.5, 8.5);
+  satin(g, body, 0, 2, 10, 0.1, [C.bee, lighten(C.bee, 0.1)], { sp: 1.7, edge: C.beeD, ew: 1.1 });
+  g.save(); body(g); g.clip();
+  for (const [yy, h] of [[0, 3.2], [5.5, 3.6]]) { g.fillStyle = C.beeD; g.beginPath(); g.moveTo(-9, yy); g.quadraticCurveTo(0, yy + 1.5, 9, yy); g.lineTo(9, yy + h); g.quadraticCurveTo(0, yy + h + 1.5, -9, yy + h); g.fill(); }
+  g.restore();
+  satin(g, ell(0, -7.5, 3.6, 3.2), 0, -7.5, 5, 0, [C.beeD], { sp: 1.3, ew: 0.8 });
   g.restore();
 }
 // スズメバチ: 細い腰ととがった腹。帯は幅がそろわない3本。羽は線だけ。針は描かない
@@ -335,18 +385,6 @@ function potOnCane(g, x, y, s = 1) {
   satin(g, poly([[-15, 0], [15, 0], [15, 6], [-15, 6]]), 0, 3, 16, 0, [lighten(C.pot, 0.1), C.pot], { sp: 1.8 });
   g.restore();
 }
-function wateringCan(g, x, y, s = 1) {
-  g.save(); g.translate(x, y); g.scale(s, s);
-  satin(g, poly([[22, -2], [54, -44], [57, -41], [26, 2]]), 40, -20, 30, -0.92, [C.zinc, C.zincL], { sp: 1.7 });
-  satin(g, ell(58, -44, 5, 7, -0.9), 58, -44, 8, 0.6, [C.zincL], { sp: 1.4 });
-  const B = poly([[-22, -34], [22, -36], [24, 6], [-24, 8]]);
-  g.save(); g.globalAlpha = 0.4; g.translate(2, 3); B(g); g.fillStyle = C.slate; g.fill(); g.restore();
-  satin(g, B, 0, -14, 30, 1.57, [C.zinc, C.zincD, C.zincL], { sp: 2 });
-  for (const yy of [-24, -6]) stitch(g, -22, yy, 22, yy - 1, 1.6, C.zincD, { hi: false });
-  g.strokeStyle = C.zincD; g.lineWidth = 3; g.beginPath(); g.moveTo(-14, -35); g.quadraticCurveTo(0, -56, 16, -36); g.stroke();
-  g.strokeStyle = C.zincL; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-13, -36); g.quadraticCurveTo(0, -55, 15, -37); g.stroke();
-  g.restore();
-}
 // 布の上に画像を作る共通処理（DPR 2）
 function makeCanvas(id, w, h, dpr = 2) {
   const c = document.getElementById(id); c.width = w * dpr; c.height = h * dpr; c.style.width = w + "px"; c.style.height = h + "px";
@@ -364,15 +402,21 @@ function crossings(A, B) {
   return out;
 }
 // 生垣のかたまり（上が明るく下が暗い、丸いこんもり。かたまりごとに針の向きを変える）
-function clump(g, cx, cy, rx, ry, base, light) {
-  const P = (g) => { g.beginPath(); for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, q = rr(0.9, 1.06); g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); } g.closePath(); };
-  g.save(); g.globalAlpha = 0.3; g.translate(1.5, 3.5); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
-  g.save(); P(g); g.fillStyle = base; g.fill(); g.restore();
-  // 針は株元（下の中央）から扇に広がる向き。上の縁ほど明るい色
-  const bx = cx + rr(-rx * 0.2, rx * 0.2), by = cy + ry * 1.3;
-  fill(g, P, { box: [cx - rx, cy - ry, cx + rx, cy + ry], per: 4, ang: 0, jit: 0, l0: 5, l1: 10, w0: 1.9, w1: 2.5, shA: 0.12,
-    col: (x, y) => { const t = (y - (cy - ry)) / (2 * ry) + rr(-0.15, 0.15); return vary(t < 0.3 ? light : t < 0.75 ? base : darken(base, 0.08)); },
-    angf: (x, y) => Math.atan2(y - by, x - bx) + rr(-0.15, 0.15) });
+function clump(g, cx, cy, rx, ry, base, light, o = {}) {
+  const P = (g) => { g.beginPath(); for (let i = 0; i <= 16; i++) { const a = i / 16 * Math.PI * 2, q = rr(0.9, 1.07); g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); } g.closePath(); };
+  if (!o.outlineOnly) {
+    g.save(); g.globalAlpha = 0.3; g.translate(1.5, 3.5); P(g); g.fillStyle = C.slate; g.fill(); g.restore();
+    // 下地は薄く（麻が針目の間から少し見える）。針は株元から扇に、長さは大きい株ほど長く
+    g.save(); P(g); g.globalAlpha = 0.55; g.fillStyle = base; g.fill(); g.restore();
+    const bx = cx + rr(-rx * 0.2, rx * 0.2), by = cy + ry * 1.3, k = Math.max(1, rx / 40);
+    fill(g, P, { box: [cx - rx, cy - ry, cx + rx, cy + ry], per: 5.5 * k, ang: 0, jit: 0, l0: 6 * k, l1: 12 * k, w0: 2, w1: 2.6, shA: 0.16,
+      col: (x, y) => { const t = (y - (cy - ry)) / (2 * ry) + rr(-0.15, 0.15); return vary(t < 0.28 ? light : t < 0.75 ? base : darken(base, 0.1)); },
+      angf: (x, y) => Math.atan2(y - by, x - bx) + rr(-0.12, 0.12) });
+  }
+  // 輪郭は返し縫い（上半分だけ、または輪郭だけの株は一周）
+  g.save(); g.beginPath(); for (let i = 0; i <= 16; i++) { const a = (o.outlineOnly ? i / 16 * 2 : 1 + i / 16) * Math.PI, q = rr(0.95, 1.04); g.lineTo(cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q); }
+  g.strokeStyle = o.outlineOnly ? C.yew : darken(base, 0.3); g.lineWidth = 1.6; g.setLineDash([4.5, 1.6]); g.stroke(); g.restore();
+  if (o.outlineOnly) for (let i = 0; i < 9; i++) { const a = rr(Math.PI * 1.1, Math.PI * 1.9), q = rr(0.4, 0.8); stitch(g, cx + Math.cos(a) * rx * q, cy + Math.sin(a) * ry * q + 8, cx + Math.cos(a) * rx * q * 1.15, cy + Math.sin(a) * ry * q, 1.8, C.yewL, { shA: 0.2 }); }
 }
 // 豆のつる（茎の運針で支柱に巻きつく）
 function vine(g, x1, y1, x2, y2, amp = 7, col = C.leafD) {
