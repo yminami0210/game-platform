@@ -15,5 +15,12 @@ if ! up; then
 fi
 up && echo "OmniRoute: $OMNI" || echo "OmniRoute に接続できません。テンプレートの文章で動きます" >&2
 
+PORT="${PORT:-8787}"
+if lsof -tiTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "ポート $PORT はもう使われています（ナナシ県がすでに起動中かもしれません）: http://localhost:$PORT" >&2
+  echo "止めるには: lsof -tiTCP:$PORT -sTCP:LISTEN | xargs kill" >&2
+  exit 1
+fi
+
 export NANASHI_LLM_MODE=omniroute
 exec node server/index.js
