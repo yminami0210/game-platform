@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ひと刷けの骨</title>
+<meta name="description" content="すり減っていく1本の刷毛で頁岩の板をこすり、ひびをよけて化石の骨を掘り出すミニゲーム">
+<link href="https://fonts.googleapis.com/css2?family=Hina+Mincho&family=Murecho:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--lino:#7a3c2e;--ink:#1d2731;--paper:#d6cdb2;--brass:#b08d3c}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#7a3c2e;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+body{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;font-family:"Murecho","Hiragino Sans","Yu Gothic",sans-serif;color:var(--ink)}
+canvas#c,canvas#bg{position:fixed;left:0;top:0;display:block;touch-action:none}
+.ov{position:fixed;inset:0;display:none;pointer-events:none}
+.ov.show{display:block}
+.ov>*{pointer-events:auto}
+.label{position:absolute;background:var(--paper) var(--ptex);box-shadow:4px 5px 0 rgba(38,14,10,.42);padding:16px 18px 14px;box-sizing:border-box}
+.label::before{content:"";position:absolute;inset:7px;border:1.6px solid rgba(29,39,49,.82);pointer-events:none}
+.label::after{content:"";position:absolute;inset:10.5px 10px 10px 11px;border:.6px solid rgba(29,39,49,.8);pointer-events:none}
+h1{margin:6px 0 8px;font:400 40px/1.15 "Hina Mincho","Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.04em}
+.how{margin:0 0 4px;font-size:14px;line-height:1.6;font-weight:500;word-break:auto-phrase}
+.small{margin:8px 0 0;font-size:12px;line-height:1.5;font-weight:500}
+.tagbtn{position:absolute;border:0;padding:0;background:none;cursor:pointer;font:inherit;color:var(--ink);touch-action:manipulation}
+.tagbtn .sh,.tagbtn .face{position:absolute;inset:0;clip-path:polygon(10px 0,100% 1px,99.5% 100%,10px 99%,0 calc(100% - 10px),0 10px)}
+.tagbtn .sh{background:rgba(38,14,10,.45);transform:translate(3px,4px)}
+.tagbtn .face{background:var(--paper) var(--ptex);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding-left:40px;text-align:left}
+.tagbtn .face::before{content:"";position:absolute;left:10px;top:calc(50% - 6px);width:12px;height:12px;border-radius:50%;background:var(--brass);box-shadow:inset 0 0 0 3px #b08d3c,inset 0 0 0 6px #6e5420}
+.tagbtn b{font-size:21px;font-weight:700;line-height:1.2}
+.tagbtn small{font-size:12px;font-weight:500;opacity:.85}
+.tagbtn:active .face,.tagbtn.on .face{transform:translate(2px,3px)}
+.tagbtn:focus-visible{outline:3px solid #efeee6;outline-offset:4px}
+.num{font:400 44px/1.1 "Hina Mincho","Hiragino Mincho ProN","Yu Mincho",serif;font-variant-numeric:tabular-nums;margin:2px 0 4px}
+.k{font-size:13px;font-weight:500}
+.row{font-size:14px;font-weight:500;line-height:1.55;font-variant-numeric:tabular-nums}
+#title .label{transform:rotate(-1.2deg)}
+#result .label{transform:rotate(.8deg)}
+#pause .label{transform:rotate(-.6deg)}
+.P #title .label{left:16px;bottom:112px;width:calc(100% - 32px);max-width:360px}
+.P #bStart{left:calc(50% - 90px);bottom:34px;width:180px;height:64px;transform:rotate(1.5deg)}
+.L #title .label{left:14px;top:14px;width:300px;padding:12px 14px 10px}
+.L h1{font-size:32px;margin:2px 0 6px}
+.L .how{font-size:13px;line-height:1.5}
+.L #bStart{right:40px;bottom:40px;width:180px;height:64px;transform:rotate(1.5deg)}
+.P #result .label{left:16px;bottom:118px;width:calc(100% - 32px);max-width:360px}
+.P #bAgain{left:calc(50% - 90px);bottom:30px;width:180px;height:64px;transform:rotate(-1.2deg)}
+.L #result .label{right:24px;top:16px;width:260px}
+.L #bAgain{right:60px;bottom:26px;width:180px;height:64px;transform:rotate(-1.2deg)}
+#pause .label{left:calc(50% - 130px);top:calc(50% - 60px);width:260px;text-align:center}
+@media (prefers-reduced-motion:reduce){.tagbtn .face{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="c" aria-label="作業台の上の頁岩の板"></canvas>
+<div id="title" class="ov show">
+  <div class="label">
+    <h1>ひと刷けの骨</h1>
+    <p class="how">板をこすって化石の骨を出す。白い線の内側はひび、こすると割れる。</p>
+    <p class="how">骨が明るくなったら上へ払って収める。ただの石は下へ払って捨てる。</p>
+    <p class="small">刷毛の毛が尽きたら終わり。ベスト <span id="tBest">まだ無し</span><br>PC: ドラッグでこする。↑ か Enter で収める、↓ か Backspace で捨てる</p>
+  </div>
+  <button class="tagbtn" id="bStart"><span class="sh"></span><span class="face"><b>はじめる</b><small>Enter でも始まる</small></span></button>
+</div>
+<div id="result" class="ov">
+  <div class="label">
+    <div class="k">得点</div>
+    <div class="num" id="rScore">0</div>
+    <div class="row" id="rDetail"></div>
+    <div class="row" id="rBest"></div>
+  </div>
+  <button class="tagbtn" id="bAgain"><span class="sh"></span><span class="face"><b>もう一回</b><small>新しい刷毛で</small></span></button>
+</div>
+<div id="pause" class="ov">
+  <div class="label"><div class="row" style="font-size:16px;font-weight:700">一時停止</div><div class="row">P か Esc で続ける</div></div>
+</div>
+<script>
+/*SIM-BEGIN*/
+var SIM = (function () {
+"use strict";
+var SW = 300, SH = 380, CELL = 5, GW = 60, GH = 76, BR = 12, CRW = 13, STEP = 2.5, VMAX = 650;
+var P = { budget: 22000, kanpinHair: 0.04, kanpinCap: 0.2, stage: [35, 75, 115], brk: 150, strokeCap: 100, scrUnit: 50, enter: 0.32, leave: 0.42, worn: 1.1, ready: 0.8 };
+var SPECIES = ["ながくびとかげ", "よろいうお"], PARTS = ["頭", "胴", "尾"];
+
+// ---------- 乱数・ノイズ（シード固定） ----------
+var _s = 1;
+function setSeed(s) { _s = (s >>> 0) || 1; }
+function rnd() { _s = (_s + 0x6D2B79F5) >>> 0; var t = _s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+function rr(a, b) { return a + rnd() * (b - a); }
+function mulberry(a) { a = a >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hash2(i, j, s) { var h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(s, 982451653)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
+function vnoise(x, y, s) { var i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j; var u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy); var a = hash2(i, j, s), b = hash2(i + 1, j, s), c = hash2(i, j + 1, s), d = hash2(i + 1, j + 1, s); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
+function fbm(x, y, s, o) { o = o || 4; var t = 0, a = 0.5, f = 1, n = 0; for (var k = 0; k < o; k++) { t += a * vnoise(x * f, y * f, s + k * 31); n += a; a *= 0.5; f *= 2.03; } return t / n; }
+
+// ---------- 形 ----------
+function resample(pts, step) { var out = [pts[0]]; for (var i = 1; i < pts.length; i++) { var ax = pts[i - 1][0], ay = pts[i - 1][1], bx = pts[i][0], by = pts[i][1]; var L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.round(L / step)); for (var k = 1; k <= n; k++) out.push([ax + (bx - ax) * k / n, ay + (by - ay) * k / n]); } return out; }
+function chipped(pts, step, amp, bigChance, big) {
+  if (bigChance === undefined) bigChance = 0.08; if (big === undefined) big = 6;
+  var r = resample(pts.concat([pts[0]]), step); r.pop(); var cx = 0, cy = 0; r.forEach(function (p) { cx += p[0]; cy += p[1]; }); cx /= r.length; cy /= r.length;
+  return r.map(function (p) { var dx = cx - p[0], dy = cy - p[1], L = Math.hypot(dx, dy) || 1; var m = rr(0, amp); if (rnd() < bigChance) m += rr(big * 0.5, big); return [p[0] + dx / L * m + rr(-0.6, 0.6), p[1] + dy / L * m + rr(-0.6, 0.6)]; });
+}
+function ribbon(pts, ws) {
+  var L = [], R = [];
+  for (var i = 0; i < pts.length; i++) {
+    var a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; var nx = -(b[1] - a[1]), ny = b[0] - a[0]; var n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n;
+    var w = (typeof ws === "function" ? ws(i / (pts.length - 1), i) : ws[i]) / 2;
+    L.push([pts[i][0] + nx * w, pts[i][1] + ny * w]); R.push([pts[i][0] - nx * w, pts[i][1] - ny * w]);
+  }
+  return L.concat(R.reverse());
+}
+function quad(p0, p1, p2, n) { var o = []; for (var i = 0; i <= n; i++) { var t = i / n, u = 1 - t; o.push([u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0], u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]]); } return o; }
+function cubic(p0, p1, p2, p3, n) { var o = []; for (var i = 0; i <= n; i++) { var t = i / n, u = 1 - t; o.push([u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]); } return o; }
+function rot(pts, cx, cy, a) { var c = Math.cos(a), s = Math.sin(a); return pts.map(function (p) { return [cx + p[0] * c - p[1] * s, cy + p[0] * s + p[1] * c]; }); }
+function pip(x, y, poly) { var ins = false; for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) { var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) ins = !ins; } return ins; }
+function distPL(x, y, pts) { var best = 1e9; for (var i = 1; i < pts.length; i++) { var ax = pts[i - 1][0], ay = pts[i - 1][1], bx = pts[i][0], by = pts[i][1], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1; var t = ((x - ax) * dx + (y - ay) * dy) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t; var qx = ax + dx * t - x, qy = ay + dy * t - y, d = qx * qx + qy * qy; if (d < best) best = d; } return Math.sqrt(best); }
+
+// ---------- 骨の部品 ----------
+// 椎骨: 糸巻きの椎体＋尾の側へ大きく傾いた1本の幅広の棘（傾き 30° 前後、長さ ±25%）
+function vertebra(cx, cy, ang, len, hgt, seed, flip) {
+  setSeed(seed); var L = len / 2, H = hgt / 2, k = rr(0.74, 0.82), i, a;
+  var body = [];
+  for (i = 0; i <= 14; i++) { var t = i / 14; body.push([-L + t * len, -H * (1 - (1 - k) * Math.sin(Math.PI * t))]); }
+  for (i = 0; i <= 6; i++) { a = -Math.PI / 2 + i / 6 * Math.PI; body.push([L + Math.cos(a) * rr(1.6, 2.4), Math.sin(a) * H]); }
+  for (i = 14; i >= 0; i--) { var t2 = i / 14; body.push([-L + t2 * len, H * (1 - (1 - k) * Math.sin(Math.PI * t2))]); }
+  for (i = 0; i <= 6; i++) { a = Math.PI / 2 + i / 6 * Math.PI; body.push([-L + Math.cos(a) * rr(1.2, 2), Math.sin(a) * H]); }
+  var sp = hgt * rr(0.75, 1.25), bw = len * rr(0.5, 0.56), tw = len * rr(0.34, 0.4), base = -H * k + 3, top = -H * k - sp;
+  var lean = sp * rr(0.66, 0.86) / 0.7;
+  var spine = [[-bw / 2 + lean * 0.15, base], [-tw / 2 + lean * 0.85, top + tw * 0.5]];
+  var chipAt = (rnd() * 7) | 0;
+  for (i = 0; i <= 8; i++) { a = Math.PI + i / 8 * Math.PI; var r = tw / 2 * (i === chipAt ? 0.72 : 1); spine.push([lean * 0.85 + Math.cos(a) * r, top + tw / 2 + Math.sin(a) * r * 0.9]); }
+  spine.push([tw / 2 + lean * 0.85, top + tw * 0.5], [bw / 2 + lean * 0.15, base]);
+  var f = function (p) { return rot(p.map(function (q) { return [q[0], q[1] * flip]; }), cx, cy, ang); };
+  var v = [f(body), f(spine)];
+  v.ends = [[cx + Math.cos(ang) * (L + 0.5), cy + Math.sin(ang) * (L + 0.5), ang, H * 0.78], [cx - Math.cos(ang) * (L - 0.5), cy - Math.sin(ang) * (L - 0.5), ang, H * 0.78]];
+  return v;
+}
+function rib(p0, p1, p2, w0, seed, brk, shift) {
+  setSeed(seed); var pts = quad(p0, p1, p2, 26).map(function (p, i) { return [p[0] + (vnoise(i * 0.4, seed, 3) - 0.5) * 1.4, p[1] + (vnoise(i * 0.4, seed, 7) - 0.5) * 1.4]; });
+  var w = function (t) { return w0 * (1 - Math.pow(t, 0.8) * 0.66) * (t < 0.08 ? 0.75 + t * 3 : 1); };
+  var hx = pts[1][0], hy = pts[1][1], knob = []; for (var i = 0; i < 10; i++) { var a = i / 10 * Math.PI * 2; knob.push([hx + Math.cos(a) * w0 * 0.75 * rr(0.85, 1.1), hy + Math.sin(a) * w0 * 0.6]); }
+  var jag = function (poly) { var n = poly.length / 2, A = poly[n - 1], B = poly[n], dx = pts[pts.length - 1][0] - pts[pts.length - 3][0], dy = pts[pts.length - 1][1] - pts[pts.length - 3][1], dl = Math.hypot(dx, dy) || 1; var m = [(A[0] + B[0]) / 2 + (A[0] - B[0]) * rr(-0.3, 0.3) + dx / dl * rr(-3, 1.5), (A[1] + B[1]) / 2 + (A[1] - B[1]) * rr(-0.3, 0.3) + dy / dl * rr(-3, 1.5)]; poly.splice(n, 0, m); return poly; };
+  if (!(brk > 0)) return [jag(ribbon(pts, w)), knob];
+  var n = Math.round(brk * 26), a1 = pts.slice(0, n + 1), b1 = pts.slice(n).map(function (p) { return [p[0] + shift[0], p[1] + shift[1]]; });
+  return [ribbon(a1, function (t) { return w(t * brk); }), ribbon(b1, function (t) { return w(brk + t * (1 - brk)); }), knob];
+}
+function scute(cx, cy, r, ang, seed) { setSeed(seed); var n = 5 + (rnd() * 3 | 0), p = []; for (var i = 0; i < n; i++) { var a = i / n * Math.PI * 2 + rr(-0.2, 0.2); var r2 = r * rr(0.7, 1.1); p.push([Math.cos(a) * r2 * 1.3, Math.sin(a) * r2]); } return rot(chipped(p, 3, 0.6, 0, 0), cx, cy, ang); }
+function rod(p0, p1, p2, w0, w1, seed) { setSeed(seed); var pts = quad(p0, p1, p2, 12).map(function (p, i) { return [p[0] + rr(-0.5, 0.5), p[1] + rr(-0.5, 0.5)]; }); return ribbon(pts, function (t) { return w0 + (w1 - w0) * t; }); }
+function blob(cx, cy, rx, ry, ang, seed) { setSeed(seed); var p = []; for (var i = 0; i < 12; i++) { var a = i / 12 * Math.PI * 2; p.push([Math.cos(a) * rx * rr(0.85, 1.1), Math.sin(a) * ry * rr(0.85, 1.1)]); } return rot(chipped(p, 4, 0.8, 0.1, 2), cx, cy, ang); }
+
+// 背骨: 斜めでゆるく反った曲線（縦から 20〜40°）。間隔・大きさを少しずつ変え、1つは外れてずれる
+function chain(P0, P1, P2, P3, n, len0, len1, hgt0, hgt1, flip, seed, detach) {
+  var sp = cubic(P0, P1, P2, P3, 300), arc = [0], i;
+  for (i = 1; i <= 300; i++) arc.push(arc[i - 1] + Math.hypot(sp[i][0] - sp[i - 1][0], sp[i][1] - sp[i - 1][1]));
+  var at = function (d) { var j = 0; while (j < 300 && arc[j] < d) j++; var a = sp[Math.max(0, j - 2)], b = sp[Math.min(300, j + 2)]; return [sp[j][0], sp[j][1], Math.atan2(b[1] - a[1], b[0] - a[0])]; };
+  var out = { parts: [], ends: [], pits: [], cents: [] }, d = 4;
+  for (i = 0; i < n; i++) {
+    setSeed(seed + i * 7); var f = n > 1 ? i / (n - 1) : 0, len = (len0 + (len1 - len0) * f) * rr(0.88, 1.12), hgt = (hgt0 + (hgt1 - hgt0) * f) * rr(0.9, 1.1), gap = rr(1.2, 4.8);
+    if (d + len > arc[300]) break;
+    var q = at(d + len / 2), x = q[0], y = q[1], a = q[2];
+    if (i === detach) { x += Math.sin(a) * 12 * flip; y -= Math.cos(a) * 12 * flip; a += 0.55; d += 7; }
+    var v = vertebra(x, y, a, len, hgt, seed + 100 + i, flip);
+    out.parts.push(v[0], v[1]); out.ends.push(v.ends[0], v.ends[1]); out.cents.push([x, y, a, hgt, len]);
+    setSeed(seed + 200 + i); if (rnd() < 0.6) out.pits.push([x + rr(-len * 0.2, len * 0.2), y + rr(-2, 2), rr(0.9, 1.6)]);
+    d += len + gap;
+  }
+  return out;
+}
+// 肋骨: 腹側から尾の側へ斜めに。1本ずつ角度を ±10° 以上ずらす
+function ribsFrom(g, cents, list, flip, seed, wmul) {
+  var alt = 1;
+  list.forEach(function (r, k) {
+    var c = cents[r[0]]; if (!c) return; setSeed(seed + k * 13);
+    var x = c[0], y = c[1], a = c[2], hgt = c[3], tx = Math.cos(a), ty = Math.sin(a), vx = -Math.sin(a) * flip, vy = Math.cos(a) * flip; // 腹側
+    var th = (r[3] || 34) * Math.PI / 180 + alt * rr(6, 11) * Math.PI / 180; alt = -alt;
+    var dx = vx * Math.cos(th) + tx * Math.sin(th), dy = vy * Math.cos(th) + ty * Math.sin(th), L = r[1] * rr(0.9, 1.1), bend = rr(0.6, 1.3);
+    var p0 = [x + vx * hgt * 0.42 + tx * 2, y + vy * hgt * 0.42 + ty * 2], p2 = [p0[0] + dx * L, p0[1] + dy * L], p1 = [p0[0] + dx * L * 0.52 - tx * L * 0.14 * bend, p0[1] + dy * L * 0.52 - ty * L * 0.14 * bend];
+    var pr = rib(p0, p1, p2, r[2] * wmul, seed + 50 + k, r[4] || -1, [rr(3, 6), rr(-6, -3)]);
+    pr.forEach(function (p) { g.parts.push(p); });
+  });
+}
+function genPart(sp, part, seed, wmul) {
+  var g = { parts: [], ends: [], pits: [] }, c, i;
+  var add = function (o) { g.parts.push.apply(g.parts, o.parts); g.ends.push.apply(g.ends, o.ends); g.pits.push.apply(g.pits, o.pits); };
+  setSeed(seed);
+  if (sp === 0 && part === 1) { // ながくびとかげの胴
+    c = chain([52, 28], [100, 118], [150, 232], [238, 334], 10, 38, 30, 26, 21, -1, seed, 8); add(c);
+    setSeed(seed + 1); var b1 = rnd() < 0.5 ? 1 : 3, b2 = 5;
+    ribsFrom(g, c.cents, [[0, 72, 9.6], [1, 94, 10.4, 34, b1 === 1 ? 0.55 : -1], [2, 106, 10.8], [3, 102, 10.4, 34, b1 === 3 ? 0.6 : -1], [4, 92, 9.8], [5, 80, 9.2, 34, 0.5], [6, 64, 8.4]], -1, seed + 400, wmul);
+    var cs = c.cents[2] || c.cents[0]; setSeed(seed + 9);
+    g.parts.push.apply(g.parts, rib([cs[0] - 46, cs[1] + 70], [cs[0] - 20, cs[1] + 34], [cs[0] + 18, cs[1] + 44], 8.6 * wmul, seed + 90)); // 外れた肋骨
+    for (i = 0; i < 3; i++) { setSeed(seed + 60 + i); var bx = rr(150, 230), by = rr(200, 260), ba = rr(0, 3); g.parts.push(rod([bx, by], [bx + Math.cos(ba) * 10, by + Math.sin(ba) * 10 + 3], [bx + Math.cos(ba) * 22, by + Math.sin(ba) * 22], 3.8 * wmul, 1.8 * wmul, seed + 70 + i)); }
+  } else if (sp === 0 && part === 2) { // ながくびとかげの尾
+    c = chain([70, 24], [30, 150], [236, 176], [196, 352], 14, 32, 12, 23, 9, -1, seed, 11); add(c);
+    c.cents.forEach(function (q, k) { if (k > 9 || k === 11) return; setSeed(seed + 500 + k); var a = q[2], vx = -Math.sin(a), vy = Math.cos(a), tx = Math.cos(a), ty = Math.sin(a); vx = -vx; vy = -vy; var th = (48 + (k % 2 ? 1 : -1) * rr(6, 11)) * Math.PI / 180, dx = vx * Math.cos(th) + tx * Math.sin(th), dy = vy * Math.cos(th) + ty * Math.sin(th), L = q[3] * rr(1.1, 1.45), p0 = [q[0] + vx * q[3] * 0.45, q[1] + vy * q[3] * 0.45]; g.parts.push(rod(p0, [p0[0] + dx * L * 0.5 - tx * 2, p0[1] + dy * L * 0.5 - ty * 2], [p0[0] + dx * L, p0[1] + dy * L], 5 * wmul, 2 * wmul, seed + 520 + k)); });
+  } else if (sp === 0 && part === 0) { // ながくびとかげの頭（横向きの下あご＋首の骨）
+    var jaw = [[11, 44], [16, 41], [30, 40], [42, 37], [48, 30], [53, 31], [56, 38], [57, 47], [52, 50], [36, 50], [20, 49], [12, 48]].map(function (p) { return [30 + (p[0] - 11) * 3.6, 50 + (p[1] - 30) * 3.6]; });
+    var ja = 0.42; setSeed(seed + 3);
+    g.parts.push(rot(chipped(jaw.map(function (p) { return [p[0] - 120, p[1] - 110]; }), 5, 1, 0.05, 3), 120, 110, ja));
+    [[14, 3.2, 3.4], [18.5, 4.6, 3.8], [22.6, 1.6, 2.6], [27, 4.2, 4.2], [33, 2.8, 3.4], [39.5, 2.2, 3]].forEach(function (t, k) { setSeed(seed + 30 + k); var x = 30 + (t[0] - 11) * 3.6 + rr(-2, 2), y = 50 + (41.5 - (t[0] - 14) * 0.08 - 30) * 3.6, h = t[1] * 3.6 * rr(0.6, 1.2), w = t[2] * 3.2 * rr(0.85, 1.2), lean = rr(-0.5, 0.15) * h; var tp = []; for (var s = 0; s <= 6; s++) { var u = s / 6, sh = Math.sin(Math.PI * Math.min(1, u * rr(0.95, 1.1))); tp.push([x - w / 2 + w * u + lean * sh, y + 2 - h * sh]); } tp.push([x + w / 2, y + 4], [x - w / 2, y + 4]); g.parts.push(rot(tp.map(function (p) { return [p[0] - 120, p[1] - 110]; }), 120, 110, ja)); });
+    g.pits.push([120 + 60, 120 + 52, 3], [110, 135, 1.6]);
+    c = chain([214, 196], [226, 236], [214, 290], [238, 340], 4, 34, 30, 23, 20, -1, seed + 7, -1); add(c);
+    g.parts.push(rod([40, 230], [80, 262], [130, 268], 6.5 * wmul, 3 * wmul, seed + 80)); // 舌骨
+    g.parts.push(blob(70, 300, 14, 9, 0.4, seed + 81)); // 外れた方形骨
+  } else if (sp === 1 && part === 0) { // よろいうおの頭（頭の鱗板と鰓ぶた）
+    [[-52, -26, 21], [-22, -36, 19], [8, -30, 17], [-40, 6, 23], [-6, -2, 22], [26, 6, 17], [-18, 32, 20], [14, 36, 15]].forEach(function (s, k) { var sc = scute(120 + s[0] * 1.15, 120 + s[1] * 1.15, s[2] * 0.98, 0.3 + k * 0.4, seed + k); g.parts.push(sc); setSeed(seed + 40 + k); for (var j = 0; j < 3; j++) g.pits.push([120 + s[0] * 1.15 + rr(-6, 6), 120 + s[1] * 1.15 + rr(-5, 5), rr(0.9, 1.5)]); });
+    g.parts.push(blob(186, 170, 34, 27, 0.5, seed + 20));
+    g.parts.push(rod([50, 190], [110, 222], [170, 228], 10 * wmul, 5 * wmul, seed + 21));
+    c = chain([222, 230], [236, 260], [232, 300], [250, 344], 3, 28, 26, 19, 18, -1, seed + 9, -1); add(c);
+  } else if (sp === 1 && part === 1) { // よろいうおの胴（鱗板の列＋背骨＋細い肋骨）
+    c = chain([60, 40], [84, 150], [146, 250], [226, 328], 11, 27, 23, 18, 15, -1, seed, 9); add(c);
+    c.cents.forEach(function (q, k) { if (k % 1 !== 0 || k > 9) return; var a = q[2], nx = Math.sin(a), ny = -Math.cos(a); g.parts.push(scute(q[0] - nx * 34 + Math.cos(a) * 4, q[1] - ny * 34 + Math.sin(a) * 4, 12 + (k % 3) * 2, a + 0.4, seed + 300 + k)); });
+    ribsFrom(g, c.cents, [[0, 46, 5.6], [1, 54, 6], [2, 58, 6], [3, 56, 6, 38, 0.55], [4, 52, 5.8], [5, 48, 5.6], [6, 42, 5.2], [7, 36, 5]], -1, seed + 400, wmul);
+  } else { // よろいうおの尾（背骨＋扇の鰭条）
+    c = chain([66, 26], [96, 130], [160, 210], [176, 262], 10, 26, 11, 18, 8, -1, seed, 7); add(c);
+    var lc = c.cents[c.cents.length - 1], la = lc[2];
+    for (i = 0; i < 8; i++) { setSeed(seed + 600 + i); var aa = la + (i / 7 - 0.5) * 1.5 + rr(-0.06, 0.06), L = rr(56, 84), x0 = lc[0] + Math.cos(la) * 6, y0 = lc[1] + Math.sin(la) * 6; g.parts.push(rod([x0, y0], [x0 + Math.cos(aa) * L * 0.5 + rr(-3, 3), y0 + Math.sin(aa) * L * 0.5 + rr(-3, 3)], [x0 + Math.cos(aa) * L, y0 + Math.sin(aa) * L], 3.8 * wmul, 1.3 * wmul, seed + 620 + i)); }
+    [2, 4].forEach(function (k) { var q = c.cents[k]; if (q) g.parts.push(scute(q[0] - Math.sin(q[2]) * 28, q[1] + Math.cos(q[2]) * 28, 12, q[2], seed + 700 + k)); });
+  }
+  return g;
+}
+// 板の中へ収める（大きさ・左右反転・少しの回転）
+function fitGeo(g, sc, seed) {
+  setSeed(seed); var all = [], i;
+  g.parts.forEach(function (p) { all.push.apply(all, p); });
+  var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; all.forEach(function (p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+  var bw = x1 - x0, bh = y1 - y0, s = Math.min(1, 244 / bw, 300 / bh) * sc, mir = rnd() < 0.5 ? -1 : 1, ra = rr(-0.06, 0.06), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  var fw = bw * s, fh = bh * s, tx = SW / 2 + rr(-1, 1) * Math.max(0, (248 - fw) / 2), ty = SH / 2 + 4 + rr(-1, 1) * Math.max(0, (306 - fh) / 2);
+  var c = Math.cos(ra), sn = Math.sin(ra);
+  var T = function (x, y) { var X = (x - cx) * s * mir, Y = (y - cy) * s; return [tx + X * c - Y * sn, ty + X * sn + Y * c]; };
+  var out = { parts: g.parts.map(function (p) { return p.map(function (q) { return T(q[0], q[1]); }); }), ends: g.ends.map(function (e) { var q = T(e[0], e[1]); return [q[0], q[1], (mir < 0 ? Math.PI - e[2] : e[2]) + ra, e[3] * s]; }), pits: g.pits.map(function (e) { var q = T(e[0], e[1]); return [q[0], q[1], e[2] * Math.max(0.8, s)]; }) };
+  var bb = [1e9, 1e9, -1e9, -1e9]; out.parts.forEach(function (p) { p.forEach(function (q) { bb[0] = Math.min(bb[0], q[0]); bb[1] = Math.min(bb[1], q[1]); bb[2] = Math.max(bb[2], q[0]); bb[3] = Math.max(bb[3], q[1]); }); });
+  out.bbox = bb; return out;
+}
+function crackPath(x, y, ang, len, seed, rough) {
+  setSeed(seed); var pts = [[x, y]], a = ang, cx = x, cy = y, d = 0;
+  while (d < len) { var st = rr(3, 9); a += rr(-rough, rough) + (ang - a) * 0.25; cx += Math.cos(a) * st; cy += Math.sin(a) * st; d += st; pts.push([cx, cy]); }
+  return pts;
+}
+
+// ---------- 板 ----------
+function makeSlab(n, spec, seed) {
+  setSeed(seed); var i, j;
+  var sl = { n: n, spec: spec, fake: !!spec.fake, seed: seed, dry: n >= 10 && rnd() < (n >= 16 ? 0.75 : 0.5), ang: -rr(0.052, 0.105) };
+  var base = [[14, 12], [292, 6], [296, 120], [290, 368], [160, 376], [8, 364], [4, 170]].map(function (p) { return [p[0] + rr(-6, 6), p[1] + rr(-6, 6)]; });
+  sl.outline = chipped(base, 9, 2.2, 0.12, 7);
+  var sc = Math.max(0.74, 1 - 0.022 * (n - 1)), wmul = Math.max(0.78, 1 - 0.018 * (n - 1));
+  var gseed = (seed * 7 + 13) >>> 0;
+  sl.geo = fitGeo(genPart(spec.species, spec.part, gseed, wmul), sc, gseed + 5);
+  var N = GW * GH; sl.expAt = new Int32Array(N); sl.bone = new Uint8Array(N); sl.dug = new Float32Array(N); sl.lost = new Uint8Array(N); sl.inSlab = new Uint8Array(N);
+  for (j = 0; j < GH; j++) for (i = 0; i < GW; i++) if (pip(i * CELL + 2.5, j * CELL + 2.5, sl.outline)) sl.inSlab[j * GW + i] = 1;
+  if (!sl.fake) {
+    sl.geo.parts.forEach(function (p) {
+      var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; p.forEach(function (q) { x0 = Math.min(x0, q[0]); y0 = Math.min(y0, q[1]); x1 = Math.max(x1, q[0]); y1 = Math.max(y1, q[1]); });
+      for (var cj = Math.max(0, Math.floor(y0 / CELL)); cj <= Math.min(GH - 1, Math.floor(y1 / CELL)); cj++) for (var ci = Math.max(0, Math.floor(x0 / CELL)); ci <= Math.min(GW - 1, Math.floor(x1 / CELL)); ci++) {
+        var id = cj * GW + ci; if (sl.bone[id] || !sl.inSlab[id]) continue;
+        if (pip(ci * CELL + 1.25, cj * CELL + 1.25, p) || pip(ci * CELL + 3.75, cj * CELL + 1.25, p) || pip(ci * CELL + 1.25, cj * CELL + 3.75, p) || pip(ci * CELL + 3.75, cj * CELL + 3.75, p)) sl.bone[id] = 1;
+      }
+    });
+  }
+  sl.boneTotal = 0; for (i = 0; i < N; i++) sl.boneTotal += sl.bone[i];
+  sl.exposed = 0; sl.scratches = 0; sl.scratchAcc = 0; sl.touched = false; sl.breaks = 0; sl.ready = false; sl.lostPolys = [];
+  // ひび（触ってはいけない線）: 板の縁から骨の近くへ。骨の1割以上を通れなくしない
+  var ncr = n <= 2 ? 1 : n <= 6 ? 2 : 3, boneCells = []; for (i = 0; i < N; i++) if (sl.bone[i]) boneCells.push(i);
+  sl.cracks = [];
+  var ol = resample(sl.outline.concat([sl.outline[0]]), 6);
+  for (var k = 0; k < ncr; k++) {
+    for (var tr = 0; tr < 40; tr++) {
+      setSeed(seed + k * 101 + tr * 7 + 3);
+      var o = ol[(rnd() * ol.length) | 0], tx, ty;
+      if (boneCells.length && rnd() < 0.85) { var cid = boneCells[(rnd() * boneCells.length) | 0]; tx = (cid % GW) * CELL + rr(-34, 34); ty = ((cid / GW) | 0) * CELL + rr(-34, 34); } else { tx = rr(70, 230); ty = rr(70, 310); }
+      var a = Math.atan2(ty - o[1], tx - o[0]), dist = Math.hypot(ty - o[1], tx - o[0]), len = Math.min(150, dist + rr(5, 30));
+      if (len < 64) continue;
+      var pts = crackPath(o[0] + Math.cos(a) * 3, o[1] + Math.sin(a) * 3, a, len, seed + k * 13 + tr, 0.45);
+      if (!pts.every(function (p) { return pip(p[0], p[1], sl.outline) || Math.hypot(p[0] - o[0], p[1] - o[1]) < 12; })) continue;
+      var near = 0, zone = 0; for (i = 0; i < boneCells.length; i++) { var cc = boneCells[i], d = distPL((cc % GW) * CELL + 2.5, ((cc / GW) | 0) * CELL + 2.5, pts); if (d < 10) near++; if (d < CRW + 4) zone++; }
+      if (boneCells.length && (near > boneCells.length * 0.08 || zone > boneCells.length * 0.2)) continue;
+      var clash = sl.cracks.some(function (c) { return pts.some(function (p) { return distPL(p[0], p[1], c.pts) < 44; }); });
+      if (clash) continue;
+      if (sl.n <= 1 && boneCells.length && zone === 0 && tr < 25) continue; // 1枚目も骨の近くを通す
+      setSeed(seed + k * 31 + 1); var bi = 4 + ((rnd() * (pts.length - 8)) | 0);
+      sl.cracks.push({ pts: pts, br: [[pts[bi][0], pts[bi][1], a + (rnd() < 0.5 ? 1 : -1) * rr(0.7, 1.2), rr(14, 26), 3]], stress: 0, stage: 0, broken: false, active: true, seed: seed + k * 17 });
+      break;
+    }
+  }
+  return sl;
+}
+
+// ---------- こする道の計画（タイトルの見本と自動プレイで使う。見えている物だけを使う） ----------
+function zoneDist(sl) {
+  var N = GW * GH, zd = new Float32Array(N), i; for (i = 0; i < N; i++) { var d = 1e9; for (var k = 0; k < sl.cracks.length; k++) { var c = sl.cracks[k]; if (!c.active) continue; d = Math.min(d, distPL((i % GW) * CELL + 2.5, ((i / GW) | 0) * CELL + 2.5, c.pts)); } zd[i] = d; }
+  sl.zd = zd; sl.zdVer = sl.breaks; return zd;
+}
+function safePt(sl, x, y, m) { for (var k = 0; k < sl.cracks.length; k++) { var c = sl.cracks[k]; if (c.active && distPL(x, y, c.pts) <= CRW + m) return false; } var ci = Math.floor(x / CELL), cj = Math.floor(y / CELL); if (ci < 0 || cj < 0 || ci >= GW || cj >= GH) return false; var id = cj * GW + ci; return !!sl.inSlab[id] && !sl.lost[id]; }
+function segSafe(sl, x0, y0, x1, y1, m) { var L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(L / 3)); for (var i = 0; i <= n; i++) if (!safePt(sl, x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, m)) return false; return true; }
+function planNext(sl, x, y, o) {
+  if (!sl.zd || sl.zdVer !== sl.breaks) zoneDist(sl);
+  var best = -1, bd = 1e18, N = GW * GH, lim = CRW + (o.margin || 0);
+  for (var i = 0; i < N; i++) {
+    if (!sl.bone[i] || sl.lost[i] || sl.dug[i] >= 1 || (sl.skip && sl.skip[i])) continue; if (!o.all && sl.zd[i] <= lim) continue;
+    var cx = (i % GW) * CELL + 2.5, cy = ((i / GW) | 0) * CELL + 2.5; if (o.region && !o.region(cx, cy)) continue;
+    var d = (cx - x) * (cx - x) + (cy - y) * (cy - y); if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) return null;
+  var tx = (best % GW) * CELL + 2.5, ty = ((best / GW) | 0) * CELL + 2.5, d0 = Math.sqrt(bd);
+  if (d0 < 6) {
+    var a0 = d0 > 0.01 ? Math.atan2(ty - y, tx - x) : 0, ok = false;
+    for (var k = 0; k < 8 && !ok; k++) { var a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 4, px = x + Math.cos(a) * 9, py = y + Math.sin(a) * 9; if (o.all || safePt(sl, px, py, o.margin || 0)) { tx = px; ty = py; ok = true; } }
+    if (!ok) { sl.skip = sl.skip || new Uint8Array(N); sl.skip[best] = 1; return planNext(sl, x, y, o); }
+  }
+  var lift = d0 > 34 || (!o.all && !segSafe(sl, x, y, tx, ty, o.margin || 0));
+  if (!lift) return { x: tx, y: ty, d: d0, lift: false };
+  // 持ち上げて置き直すときは、その骨の上を通り抜けるように手前から押し始める
+  var cx0 = (best % GW) * CELL + 2.5, cy0 = ((best / GW) | 0) * CELL + 2.5, b0 = Math.atan2(cy0 - y, cx0 - x);
+  for (var q = 0; q < 8; q++) { var aa = b0 + (q % 2 ? 1 : -1) * Math.ceil(q / 2) * Math.PI / 4, sx = cx0 - Math.cos(aa) * 7, sy = cy0 - Math.sin(aa) * 7, ex = cx0 + Math.cos(aa) * 7, ey = cy0 + Math.sin(aa) * 7; if (o.all || (safePt(sl, sx, sy, o.margin || 0) && safePt(sl, ex, ey, o.margin || 0))) return { x: ex, y: ey, sx: sx, sy: sy, d: d0, lift: true }; }
+  sl.skip = sl.skip || new Uint8Array(N); sl.skip[best] = 1; return planNext(sl, x, y, o);
+}
+
+function create(seed) {
+  var R = mulberry(seed || 1);
+  var st = { lastBreak: -9, stampNo: 0, t: 0, hair: 1, back: 0, score: 0, n: 0, slab: null, phase: "idle", anim: 0, down: false, bx: 0, by: 0, tx: 0, ty: 0, acc: 0, speed: 0,
+    strokeStress: [0, 0, 0], strokeBroke: false, strokeStamps: 0, strokes: 0, events: [], stamps: [], deck: [], setNo: 0, sets: {}, setsDone: 0, collected: [], breaks: 0, kanpin: 0, leaveKind: "", lastFake: true, best: { pts: 0, t: 0 } };
+  function refill() {
+    var sp = R() < 0.5 ? 0 : 1, parts = [0, 1, 2]; for (var i = 2; i > 0; i--) { var j = (R() * (i + 1)) | 0, t = parts[i]; parts[i] = parts[j]; parts[j] = t; }
+    st.setNo++; st.sets[st.setNo] = { species: sp, got: [null, null, null], done: false, no: st.setNo };
+    parts.forEach(function (p) {
+      if (st.n + st.deck.length > 0 && !st.lastFake && R() < 0.28) { st.deck.push({ fake: true, species: R() < 0.5 ? 0 : 1, part: (R() * 3) | 0 }); st.lastFake = true; }
+      st.deck.push({ species: sp, part: p, setNo: st.setNo }); st.lastFake = false;
+    });
+  }
+  function newSlab() {
+    if (!st.deck.length) refill();
+    var spec = st.deck.shift(); st.n++;
+    st.slab = makeSlab(st.n, spec, (R() * 4294967295) >>> 0);
+    st.phase = "enter"; st.anim = 0; st.down = false;
+    st.events.push({ type: "slab", n: st.n });
+  }
+  function pct(sl) { return sl.boneTotal ? sl.exposed / sl.boneTotal : 0; }
+  function stamp(x, y, ux, uy) {
+    var sl = st.slab, ci = Math.floor(x / CELL), cj = Math.floor(y / CELL);
+    if (ci < 0 || cj < 0 || ci >= GW || cj >= GH) return;
+    var id0 = cj * GW + ci; if (!sl.inSlab[id0] || sl.lost[id0]) return;
+    st.hair -= STEP / P.budget; st.strokeStamps++;
+    st.stampNo++; var centerBone = sl.bone[id0] && sl.dug[id0] >= 1 && st.stampNo - sl.expAt[id0] > 12;
+    st.stamps.push(x, y, ux, uy);
+    var gain = STEP / (0.9 * BR) * (sl.dry ? 0.55 : 1), total = 0, re = 0, i0 = Math.max(0, Math.floor((x - BR) / CELL)), i1 = Math.min(GW - 1, Math.floor((x + BR) / CELL)), j0 = Math.max(0, Math.floor((y - BR) / CELL)), j1 = Math.min(GH - 1, Math.floor((y + BR) / CELL));
+    for (var j = j0; j <= j1; j++) for (var i = i0; i <= i1; i++) {
+      var dx = i * CELL + 2.5 - x, dy = j * CELL + 2.5 - y; if (dx * dx + dy * dy > BR * BR) continue;
+      var id = j * GW + i; if (!sl.inSlab[id] || sl.lost[id]) continue; total++;
+      var pre = sl.dug[id];
+      if (pre >= 1) { if (sl.bone[id]) re++; continue; }
+      var nd = pre + gain; if (nd >= 1) { nd = 1; sl.expAt[id] = st.stampNo; if (sl.bone[id]) sl.exposed++; } sl.dug[id] = nd;
+    }
+    // 出ている骨の上を刷毛の真ん中でこすり続けると引っかき傷
+    if (centerBone) { sl.scratchAcc += STEP; if (sl.scratchAcc >= P.scrUnit) { sl.scratchAcc -= P.scrUnit; sl.scratches++; st.events.push({ type: "scratch", x: x, y: y, ux: ux, uy: uy, n: sl.scratches }); } }
+    // ひび
+    for (var k = 0; k < sl.cracks.length; k++) {
+      var c = sl.cracks[k]; if (!c.active) continue;
+      if (distPL(x, y, c.pts) > CRW) continue;
+      sl.touched = true; var add = Math.min(STEP, P.strokeCap - st.strokeStress[k]); if (add <= 0) { st.events.push({ type: "strain", k: k }); continue; }
+      c.stress += add; st.strokeStress[k] += add;
+      var stg = c.stress >= P.stage[2] ? 3 : c.stress >= P.stage[1] ? 2 : c.stress >= P.stage[0] ? 1 : 0;
+      if (stg > c.stage) { c.stage = stg; st.events.push({ type: "stage", k: k, stage: stg, x: x, y: y }); }
+      if (c.stress >= P.brk && !st.strokeBroke && st.t - st.lastBreak > 1.5) { st.strokeBroke = true; st.lastBreak = st.t; breakCrack(k); }
+    }
+    if (!sl.fake && !sl.ready && pct(sl) >= P.ready) { sl.ready = true; st.events.push({ type: "ready" }); }
+  }
+  function breakCrack(k) {
+    var sl = st.slab, c = sl.cracks[k], p = c.pts, A = p[0], B = p[p.length - 1], a0 = Math.atan2(p[1][1] - A[1], p[1][0] - A[0]), m = p.length, a1 = Math.atan2(B[1] - p[m - 2][1], B[0] - p[m - 2][0]);
+    var ext = [[A[0] - Math.cos(a0) * 500, A[1] - Math.sin(a0) * 500]].concat(p, [[B[0] + Math.cos(a1) * 500, B[1] + Math.sin(a1) * 500]]);
+    var E0 = ext[0], E1 = ext[ext.length - 1], dx = E1[0] - E0[0], dy = E1[1] - E0[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L * 1500, ny = dx / L * 1500;
+    var polyA = ext.concat([[E1[0] + nx, E1[1] + ny], [E0[0] + nx, E0[1] + ny]]), polyB = ext.concat([[E1[0] - nx, E1[1] - ny], [E0[0] - nx, E0[1] - ny]]);
+    var ca = 0, cb = 0, i, N = GW * GH; for (i = 0; i < N; i++) { if (!sl.inSlab[i] || sl.lost[i]) continue; if (pip((i % GW) * CELL + 2.5, ((i / GW) | 0) * CELL + 2.5, polyA)) ca++; else cb++; }
+    var poly = ca <= cb ? polyA : polyB;
+    for (i = 0; i < N; i++) { if (!sl.inSlab[i] || sl.lost[i]) continue; if (pip((i % GW) * CELL + 2.5, ((i / GW) | 0) * CELL + 2.5, poly)) { sl.lost[i] = 1; if (sl.bone[i] && sl.dug[i] >= 1) sl.exposed--; } }
+    c.broken = true; c.active = false; c.stage = 4;
+    sl.cracks.forEach(function (o) { if (o !== c && o.active) { var mid = o.pts[o.pts.length >> 1]; if (pip(mid[0], mid[1], poly)) o.active = false; } });
+    sl.breaks++; st.breaks++; sl.lostPolys.push(poly);
+    var lostBone = 0; for (i = 0; i < N; i++) if (sl.lost[i] && sl.bone[i]) lostBone++;
+    st.events.push({ type: "break", k: k, poly: poly, lostBone: sl.boneTotal ? lostBone / sl.boneTotal : 0 });
+    if (sl.ready && pct(sl) < P.ready) sl.ready = false;
+  }
+  function judge(sl) {
+    if (sl.fake) return { fake: true, pts: 0, pct: 0 };
+    var p = pct(sl), ok = p >= P.ready, pts = Math.max(0, Math.round(p * 100 + Math.max(0, p - P.ready) * 200) - sl.scratches * 5); // 8割で80点、9割で110点、全部で140点
+    if (!ok) pts = Math.round(pts * 0.5);
+    var kan = ok && sl.scratches === 0 && !sl.touched && !sl.breaks;
+    return { pct: p, ok: ok, pts: pts, scratches: sl.scratches, kanpin: kan, breaks: sl.breaks };
+  }
+  function collect(auto) {
+    if (!(st.phase === "play" || st.phase === "enter" || auto)) return false;
+    var sl = st.slab, r = judge(sl); r.n = sl.n; r.spec = sl.spec; r.t = st.t;
+    var gain = r.pts;
+    if (r.kanpin) { gain += 50; st.kanpin++; var h = Math.min(P.kanpinHair, P.kanpinCap - st.back); if (h > 0 && !auto) { st.hair = Math.min(1, st.hair + h); st.back += h; r.hairBack = h; } }
+    if (!sl.fake && r.ok && sl.spec.setNo) {
+      var set = st.sets[sl.spec.setNo]; set.got[sl.spec.part] = { pct: r.pct, kanpin: r.kanpin, n: sl.n };
+      if (!set.done && set.got.every(function (x) { return x; })) { var avg = (set.got[0].pct + set.got[1].pct + set.got[2].pct) / 3; set.done = true; r.setBonus = Math.round((200 + 50 * st.setsDone) * Math.min(1, Math.max(0.2, (avg - 0.7) / 0.3)) / 10) * 10; st.setsDone++; set.plate = st.setsDone; gain += r.setBonus; r.plate = st.setsDone; r.setAvg = avg; }
+    }
+    r.gain = gain; st.score += gain; st.collected.push(r);
+    if (gain > st.best.pts) st.best = { pts: gain, t: st.t };
+    st.events.push({ type: "collect", r: r, auto: !!auto });
+    st.down = false; st.leaveKind = "up";
+    if (!auto) { st.phase = "leave"; st.anim = 0; }
+    return true;
+  }
+  function discard() {
+    if (!(st.phase === "play" || st.phase === "enter")) return false;
+    var sl = st.slab; st.events.push({ type: "discard", fake: sl.fake, n: sl.n });
+    if (!sl.fake) st.collected.push({ discardedReal: true, n: sl.n, pts: 0, gain: 0, spec: sl.spec, t: st.t });
+    st.down = false; st.leaveKind = "down"; st.phase = "leave"; st.anim = 0; return true;
+  }
+  function worn() {
+    st.down = false; var sl = st.slab;
+    if (sl && !sl.fake && sl.ready) collect(true);
+    st.phase = "worn"; st.anim = 0; st.events.push({ type: "worn" });
+  }
+  var api = {
+    st: st, P: P,
+    start: function () { newSlab(); },
+    press: function (x, y) { if (!(st.phase === "play" || st.phase === "enter")) return false; st.down = true; st.bx = st.tx = x; st.by = st.ty = y; st.acc = 0; st.strokeStress = [0, 0, 0]; st.strokeBroke = false; st.strokeStamps = 0; st.strokes++; return true; },
+    move: function (x, y) { st.tx = x; st.ty = y; },
+    release: function () { if (st.down) { st.down = false; st.events.push({ type: "strokeEnd", stamps: st.strokeStamps, x: st.bx, y: st.by }); } },
+    collect: function () { return collect(false); },
+    discard: discard,
+    pct: function () { return st.slab ? pct(st.slab) : 0; },
+    step: function (dt) {
+      if (st.phase === "idle" || st.phase === "over") return;
+      st.t += dt; st.speed = 0;
+      if (st.phase === "enter") { st.anim += dt; if (st.anim >= P.enter) st.phase = "play"; }
+      if (st.phase === "leave") { st.anim += dt; if (st.anim >= P.leave) { if (st.hair <= 0) { st.phase = "worn"; st.anim = P.worn; } else newSlab(); } return; }
+      if (st.phase === "worn") { st.anim += dt; if (st.anim >= P.worn) { st.phase = "over"; st.events.push({ type: "over", score: st.score, t: st.t }); } return; }
+      if (!st.down) { st.bx = st.tx; st.by = st.ty; return; }
+      var dx = st.tx - st.bx, dy = st.ty - st.by, d = Math.hypot(dx, dy), m = Math.min(d, VMAX * dt); if (m <= 1e-6) return;
+      var ux = dx / d, uy = dy / d, moved = 0; st.speed = m / dt;
+      while (moved < m - 1e-9) {
+        var s = Math.min(STEP - st.acc, m - moved); st.bx += ux * s; st.by += uy * s; moved += s; st.acc += s;
+        if (st.acc >= STEP - 1e-9) { st.acc = 0; stamp(st.bx, st.by, ux, uy); if (st.hair <= 0) { st.events.push({ type: "strokeEnd", stamps: st.strokeStamps, x: st.bx, y: st.by }); worn(); break; } if (st.phase !== "play" && st.phase !== "enter") break; }
+      }
+    }
+  };
+  return api;
+}
+return { create: create, makeSlab: makeSlab, planNext: planNext, safePt: safePt, SW: SW, SH: SH, CELL: CELL, GW: GW, GH: GH, BR: BR, CRW: CRW, VMAX: VMAX, STEP: STEP, P: P, SPECIES: SPECIES, PARTS: PARTS, distPL: distPL, pip: pip, resample: resample, chipped: chipped, ribbon: ribbon, rot: rot, quad: quad, setSeed: setSeed, rnd: rnd, rr: rr, hash2: hash2, vnoise: vnoise, fbm: fbm, crackPath: crackPath };
+})();
+if (typeof module !== "undefined") module.exports = SIM;
+/*SIM-END*/
+</script>
+<script>
+"use strict";
+(function () {
+const { SW, SH, setSeed, rnd, rr, hash2, vnoise, fbm, resample, chipped, ribbon, rot, quad, crackPath } = SIM;
+const C = { shale: "#4b5859", crust: "#707a76", dust: "#a9b0a6", bone: "#b9732e", boneDeep: "#5e3418", boneLight: "#dfa968", lino: "#7a3c2e", wax: "#efeee6", ink: "#1d2731", paper: "#d6cdb2", pine: "#c9ad7c", tin: "#97a0a0", bristle: "#d8c8a0" };
+const FM = '"Hina Mincho","Hiragino Mincho ProN","Yu Mincho",serif', FG = '"Murecho","Hiragino Sans","Yu Gothic",sans-serif';
+const cv = document.getElementById("c"), ctx = cv.getContext("2d"), bgc = document.getElementById("bg"), bctx = bgc.getContext("2d");
+let dpr = Math.min(2, window.devicePixelRatio || 1), VW = 390, VH = 844, land = false;
+function sstep(a, b, x) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+function rgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function mixc(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+function css(c, a = 1) { return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`; }
+
+// ---------- キャンバス（DPR は層ごとに切り替える） ----------
+let DPR = 2;
+function makeCanvas(w, h) { const c = document.createElement("canvas"); c.width = Math.max(1, Math.ceil(w * DPR)); c.height = Math.max(1, Math.ceil(h * DPR)); const g = c.getContext("2d"); g.setTransform(DPR, 0, 0, DPR, 0, 0); g.W = w; g.H = h; g.R = DPR; return g; }
+function blit(dst, src, x = 0, y = 0) { dst.drawImage(src.canvas, x, y, src.W, src.H); }
+function clearG(g) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, g.canvas.width, g.canvas.height); g.restore(); }
+function pixelTex(w, h, fn) {
+  const g = makeCanvas(w, h), W = g.canvas.width, H = g.canvas.height, im = g.createImageData(W, H), d = im.data, R = g.R;
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) { const c = fn(px / R, py / R, px, py); const k = (py * W + px) * 4; d[k] = c[0]; d[k + 1] = c[1]; d[k + 2] = c[2]; d[k + 3] = (c[3] === undefined ? 1 : c[3]) * 255; }
+  g.putImageData(im, 0, 0); return g;
+}
+function tint(maskG, col, a = 1) { const g = makeCanvas(maskG.W, maskG.H); blit(g, maskG); g.globalCompositeOperation = "source-in"; g.fillStyle = col; g.globalAlpha = a; g.fillRect(0, 0, g.W, g.H); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; return g; }
+function rim(maskG, dx, dy) { const g = makeCanvas(maskG.W, maskG.H); blit(g, maskG); g.globalCompositeOperation = "destination-out"; blit(g, maskG, dx, dy); g.globalCompositeOperation = "source-over"; return g; }
+function spread(maskG, r, n = 10) { const g = makeCanvas(maskG.W, maskG.H); for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; blit(g, maskG, Math.cos(a) * r, Math.sin(a) * r); } return g; }
+function pathOf(pts, close = true) { const p = new Path2D(); pts.forEach(([x, y], i) => i ? p.lineTo(x, y) : p.moveTo(x, y)); if (close) p.closePath(); return p; }
+
+// ---------- 質感（起動時に1回だけ） ----------
+function shaleTex(w, h, seed, ang) {
+  const A = rgb("#404c4d"), Bc = rgb("#55615f"), Lm = rgb("#6c7773"), F = rgb("#b9beb4"), sn = Math.sin(ang), cs = Math.cos(ang);
+  setSeed(seed * 7 + 1); const bands = []; let u = h * rr(0.12, 0.22); const n = 3;
+  for (let k = 0; k < n; k++) { bands.push([u, rr(3, 13), rr(0.5, 1), rnd() < 0.7 ? 1 : -1]); u += h * rr(0.14, 0.42); }
+  return pixelTex(w, h, (x, y, px, py) => {
+    const uu = -x * sn + y * cs + 14 * (fbm(x * 0.008, y * 0.004, seed + 2, 2) - 0.5), v = x * cs + y * sn;
+    let c = mixc(A, Bc, sstep(0.3, 0.75, fbm(x * 0.007, y * 0.007, seed, 4)));
+    for (let k = 0; k < bands.length; k++) { const [u0, bw, st, sg] = bands[k], d = Math.abs(uu - u0) / bw; if (d > 1.6) continue; const fade = sstep(0.4, 0.62, fbm(v * 0.008 + k * 13, k * 7.3, seed + 4, 3)) * st, amt = Math.max(0, 1 - d * d) * fade; c = mixc(c, sg > 0 ? Lm : A, amt * 0.6); }
+    const pits = fbm(x * 0.09, y * 0.09, seed + 13, 2); c = mixc(c, A, sstep(0.7, 0.8, pits) * 0.4);
+    if (hash2(px, py, seed) > 0.9975 && fbm(x * 0.02, y * 0.02, seed + 21, 2) > 0.52) c = mixc(c, F, 0.7);
+    const g = (hash2(px, py, seed + 1) - 0.5) * (6 + 10 * fbm(x * 0.03, y * 0.03, seed + 3, 2)); return [c[0] + g, c[1] + g, c[2] + g, 1];
+  });
+}
+function crustTex(w, h, seed, ang) {
+  const A = rgb("#636d69"), Bc = rgb(C.crust), Lt = rgb("#8f978f"), Dk = rgb("#4c5653"), sn = Math.sin(ang), cs = Math.cos(ang);
+  return pixelTex(w, h, (x, y, px, py) => {
+    const u = -x * sn + y * cs + 12 * fbm(x * 0.008, y * 0.008, seed + 2, 3), v = x * cs + y * sn;
+    let c = mixc(A, Bc, sstep(0.28, 0.72, fbm(u * 0.012, v * 0.008, seed, 4)));
+    const st = fbm(u * 0.32, v * 0.012, seed + 6, 3); c = mixc(c, Lt, sstep(0.62, 0.78, st) * 0.1 * sstep(0.4, 0.65, fbm(v * 0.012, u * 0.02, seed + 7, 2)));
+    const pit = fbm(x * 0.2, y * 0.2, seed + 8, 2); c = mixc(c, Dk, sstep(0.76, 0.84, pit) * 0.8);
+    const g = (hash2(px, py, seed) - 0.5) * (6 + 14 * sstep(0.35, 0.7, fbm(x * 0.015, y * 0.015, seed + 11, 2))); return [c[0] + g, c[1] + g, c[2] + g * 0.95, 1];
+  });
+}
+function boneTexGen(w, h, seed) {
+  const B = rgb(C.bone), D = rgb(C.boneDeep), Lt = rgb(C.boneLight);
+  return pixelTex(w, h, (x, y, px, py) => {
+    const m = fbm(x * 0.05, y * 0.05, seed, 3), m2 = fbm(x * 0.018, y * 0.018, seed + 5, 2), pore = vnoise(x * 0.45, y * 0.45, seed + 9);
+    let c = mixc(B, D, sstep(0.5, 0.8, m) * 0.55); c = mixc(c, Lt, sstep(0.48, 0.22, m) * 0.45); c = mixc(c, mixc(B, D, 0.6), sstep(0.5, 0.78, m2) * 0.5);
+    c = mixc(c, D, sstep(0.7, 0.8, pore) * 0.55);
+    const g = hash2(px, py, seed) - 0.5; return [c[0] + g * 16, c[1] + g * 13, c[2] + g * 9, 1];
+  });
+}
+function linoTex(w, h, seed) {
+  const B = rgb(C.lino), D = rgb("#5e2b21"), Lt = rgb("#a2614a"), Wn = rgb("#8d5242");
+  return pixelTex(w, h, (x, y, px, py) => {
+    const a = 0.55, xr = x * Math.cos(a) - y * Math.sin(a), yr = x * Math.sin(a) + y * Math.cos(a);
+    const wx = xr + 60 * fbm(x * 0.006, y * 0.006, seed + 1, 2), wy = yr + 60 * fbm(x * 0.006, y * 0.006, seed + 2, 2);
+    let c = mixc(B, D, sstep(0.42, 0.7, fbm(x * 0.005, y * 0.005, seed + 3, 3)) * 0.8);
+    const m = fbm(wx * 0.006, wy * 0.022, seed + 4, 4), vein = 1 - Math.min(1, Math.abs(m - 0.5) * 16);
+    c = mixc(c, Lt, vein * 0.6 * sstep(0.3, 0.6, fbm(x * 0.008, y * 0.008, seed + 5, 2)));
+    c = mixc(c, Wn, sstep(0.55, 0.75, fbm(x * 0.004, y * 0.01, seed + 6, 2)) * 0.45);
+    const g = (hash2(px, py, seed) - 0.5) * (5 + 12 * vnoise(x * 0.05, y * 0.05, seed + 7)); return [c[0] + g, c[1] + g * 0.8, c[2] + g * 0.7, 1];
+  });
+}
+function paperTex(w, h, seed) { const P = rgb(C.paper), D = rgb("#bfb393"); return pixelTex(w, h, (x, y, px, py) => { let c = mixc(P, D, sstep(0.5, 0.8, fbm(x * 0.03, y * 0.03, seed, 3)) * 0.5); const fib = fbm(x * 0.4, y * 0.06, seed + 3, 2); c = mixc(c, D, sstep(0.62, 0.7, fib) * 0.35); const n = (hash2(px, py, seed) - 0.5) * 10; return [c[0] + n, c[1] + n, c[2] + n * 0.8, 1]; }); }
+function tagShape(w, h, notch = 9) { return chipped([[notch, 0], [w, 0], [w, h], [notch, h], [0, h - notch], [0, notch]], 6, 0.5, 0.02, 1.5); }
+
+// 毛の束のスタンプ（不透明・2値。4種類を回す）。乾いた板は毛がまばら
+function bristleStamps(width, n, density, seedBase) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    setSeed(seedBase + k); const s = makeCanvas(width + 8, 14);
+    s.fillStyle = "#000";
+    for (let i = 0; i < width * density; i++) { const x = 4 + rr(0, width), lenY = rr(2, 9) * (1 - Math.pow(Math.abs(x - 4 - width / 2) / (width / 2), 3) * 0.7); s.fillRect(Math.round(x * 2) / 2, Math.round((7 - lenY / 2 + rr(-1.5, 1.5)) * 2) / 2, rr(1, 1.6), lenY); }
+    out.push(s);
+  }
+  return out;
+}
+
+// ---------- ダーマト（グリース鉛筆） ----------
+function wax(g, pts, width, seed, col = C.wax, press = 1) {
+  setSeed(seed); const r = resample(pts, 0.7), c = css(rgb(col), 1); g.fillStyle = c;
+  for (let i = 1; i < r.length; i++) {
+    const [ax, ay] = r[i - 1], [bx, by] = r[i]; let nx = -(by - ay), ny = bx - ax; const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n;
+    const t = i / r.length, pr = press * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, t * 1.3 + 0.1))) * (0.75 + 0.5 * vnoise(i * 0.05, 3, seed));
+    const skip = vnoise(i * 0.045, 7, seed) + (hash2(i, 5, seed) - 0.5) * 0.08; if (skip < 0.07) continue;
+    const ww = width * (0.7 + 0.5 * pr); g.globalAlpha = Math.min(1, 0.35 + pr * 0.6);
+    for (let k = -ww / 2; k <= ww / 2; k += 0.5) { const x = bx + nx * k, y = by + ny * k; if (hash2(Math.round(x * 2), Math.round(y * 2), seed) < 0.42 - pr * 0.32) continue; g.fillRect(x, y, 0.75, 0.75); }
+  }
+  g.globalAlpha = 1;
+}
+const GLYPH = {
+  "0": [[[5.5, 0.2], [2, 2.4], [0.3, 9.5], [1.3, 16.4], [5, 19], [8.7, 16.6], [9.9, 9.4], [8.7, 2.6], [5.2, 0], [3.4, 0.9], [2.4, 2.2]]],
+  "1": [[[2, 3], [5, 0], [5, 19]]],
+  "2": [[[0.5, 4], [3, 0.5], [7, 0.5], [9.5, 4], [8, 9], [0.5, 19], [10, 18.5]]],
+  "3": [[[0.5, 2], [5, 0], [9, 3], [7.5, 8], [4, 9.5], [8, 11], [10, 14.5], [7, 19], [2, 18.8], [0, 16]]],
+  "4": [[[7.5, 19], [7.5, 0], [0, 13], [10, 13]]],
+  "5": [[[9, 0.5], [1.5, 0.5], [1, 8.5], [5, 7.5], [9, 9.5], [10, 14], [7, 19], [2, 18.8], [0, 16]]],
+  "6": [[[8.5, 1], [4, 0.5], [1, 6], [0, 13], [2, 18.5], [6.5, 19], [9.5, 15], [8.5, 10], [4.5, 9.5], [1, 12.5]]],
+  "7": [[[0, 1.5], [3, 0.6], [10, 0.4], [7, 7], [4.5, 13], [3.5, 19]], [[3.5, 9.5], [9, 9]]],
+  "8": [[[5, 9.5], [1.5, 7], [1.5, 2.5], [5, 0], [8.5, 2.5], [8.5, 7], [5, 9.5], [0.5, 13], [1.5, 18], [5, 19], [9, 17.5], [9.5, 13], [5, 9.5]]],
+  "9": [[[9, 7], [6, 9.5], [2, 8.5], [0.5, 4], [3, 0.3], [7, 0.5], [9.5, 4.5], [9, 12], [7, 18], [3, 19], [1, 17]]],
+};
+function waxText(g, str, x, y, sc, seed, ang = 0) { let ox = 0; for (const ch of str) { for (const s of (GLYPH[ch] || [])) wax(g, rot(s.map(([a, b]) => [(a + ox) * sc, b * sc]), x, y, ang), 2.4, seed + ox * 3, C.wax, 1.1); ox += 13; } }
+
+// ---------- ひび ----------
+function drawCrack(g, pts, seed, grow, branches) {
+  setSeed(seed); const n = pts.length, use = pts.slice(0, Math.max(2, Math.round(n * (0.72 + 0.28 * grow))));
+  const w = (t, i) => (0.9 + 2.4 * grow) * (0.55 + 0.9 * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.7 + 0.6 * vnoise(i * 0.3, 1, seed)));
+  g.fillStyle = css(rgb("#9aa39c"), 0.85); g.fill(pathOf(ribbon(use.map(([x, y]) => [x - 1.2, y - 1.3]), (t, i) => w(t, i) + 1.4)));
+  g.fillStyle = "#141b1d"; g.fill(pathOf(ribbon(use, w)));
+  for (const b of branches) { const bp = crackPath(b[0], b[1], b[2], b[3] * (0.6 + 0.6 * grow), seed + b[4], 0.7); g.fillStyle = css(rgb("#9aa39c"), 0.7); g.fill(pathOf(ribbon(bp.map(([x, y]) => [x - 1, y - 1]), (t) => (1 - t) * (1.4 + grow) + 0.6))); g.fillStyle = "#141b1d"; g.fill(pathOf(ribbon(bp, (t) => (1 - t) * (1.1 + grow * 1.6) + 0.3))); }
+  setSeed(seed + 5); const flakes = Math.round(2 + grow * 10);
+  for (let k = 0; k < flakes; k++) {
+    const i = 1 + (rnd() * (use.length - 2) | 0), [x, y] = use[i], s = rr(2, 4 + grow * 4), side = rnd() < 0.5 ? -1 : 1, a = rr(0, 6.28);
+    const p = [[0, 0], [s, rr(-1, 1)], [s * rr(0.5, 0.9), s * rr(0.5, 0.9)], [rr(-1, 1), s * rr(0.4, 0.8)]].map(([px, py]) => [x + side * 2.5 + px * Math.cos(a) - py * Math.sin(a), y + side * 2 + px * Math.sin(a) + py * Math.cos(a)]);
+    g.fillStyle = "rgba(20,27,29,0.55)"; g.fill(pathOf(p.map(([px, py]) => [px + 0.8, py + 1])));
+    g.fillStyle = rnd() < 0.5 ? "#8c958f" : "#a7aea6"; g.fill(pathOf(p));
+  }
+}
+function sideLine(pts, d, t0, t1, smooth = 6) { const s = [], r = pts.slice(Math.round(pts.length * t0), Math.max(Math.round(pts.length * t0) + 2, Math.round(pts.length * t1))); for (let i = 0; i < r.length; i++) { const a = r[Math.max(0, i - smooth)], b = r[Math.min(r.length - 1, i + smooth)]; let nx = -(b[1] - a[1]), ny = b[0] - a[0]; const n = Math.hypot(nx, ny) || 1; s.push([r[i][0] + nx / n * d, r[i][1] + ny / n * d]); } return s.filter((_, i) => i % 3 === 0 || i === s.length - 1); }
+
+// ---------- 刷毛（毛の残り = 絵の長さ） ----------
+function brush(g, x, y, ang, remain, seed, sc = 1) {
+  setSeed(seed); g.save(); g.translate(x, y); g.rotate(ang); g.scale(sc, sc);
+  const handle = chipped([[0, -7], [118, -9], [140, -11], [140, 11], [118, 9], [0, 7], [-6, 4], [-8, 0], [-6, -4]], 4, 0.4, 0, 0);
+  g.fillStyle = "rgba(30,14,10,0.35)"; g.fill(pathOf(handle.map(([a, b]) => [a + 3, b + 4])));
+  g.fillStyle = C.pine; g.fill(pathOf(handle));
+  for (let i = 0; i < 9; i++) { const yy = rr(-6, 6); g.strokeStyle = `rgba(120,86,48,${rr(0.15, 0.4)})`; g.lineWidth = rr(0.4, 0.9); g.beginPath(); g.moveTo(rr(-4, 20), yy); g.bezierCurveTo(50, yy + rr(-2, 2), 90, yy + rr(-2, 2), 138, yy * 1.3 + rr(-1, 1)); g.stroke(); }
+  g.fillStyle = "rgba(90,58,34,0.22)"; g.beginPath(); g.ellipse(70, 0, 34, 6.5, 0, 0, 7); g.fill();
+  g.fillStyle = "rgba(255,240,210,0.35)"; g.fillRect(4, -6, 120, 1.6);
+  g.fillStyle = "#2a2018"; g.beginPath(); g.ellipse(10, 0, 2.6, 2.1, 0, 0, 7); g.fill();
+  g.fillStyle = C.tin; g.fill(pathOf([[138, -12], [176, -13.5], [178, 13.5], [138, 12]]));
+  g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(139, -11, 37, 3);
+  g.fillStyle = "rgba(30,36,40,0.35)"; g.fillRect(139, 8, 38, 4.5);
+  for (const cx of [146, 151]) { g.strokeStyle = "rgba(40,46,50,0.55)"; g.lineWidth = 0.9; g.beginPath(); g.moveTo(cx, -12); g.lineTo(cx + 0.5, 12); g.stroke(); }
+  g.fillStyle = "rgba(40,46,50,0.4)"; g.beginPath(); g.ellipse(166, -4, 4, 2, 0.2, 0, 7); g.fill();
+  const full = 74, len = 3 + full * Math.max(0, remain), Bc = rgb(C.bristle), Dk = rgb("#7b8580");
+  for (let i = 0; i < 90; i++) {
+    const yy = -12 + 24 * (i / 89) + rr(-0.5, 0.5), wear = vnoise(i * 0.18, 2, seed) * 0.45 + rr(0, 0.12), l = len * (1 - wear * (0.35 + 0.65 * (1 - remain) + 0.2)), sp = yy * (1 + l / 120) + rr(-1.5, 1.5);
+    g.strokeStyle = css(mixc(Bc, [176, 160, 122], rnd() * 0.6), 1); g.lineWidth = rr(0.6, 1.1); g.beginPath(); g.moveTo(176, yy); g.quadraticCurveTo(176 + l * 0.6, yy + (sp - yy) * 0.4, 176 + l, sp); g.stroke();
+    g.strokeStyle = css(Dk, rr(0.4, 0.8)); g.beginPath(); g.moveTo(176 + l * rr(0.7, 0.85), yy + (sp - yy) * 0.75); g.lineTo(176 + l, sp); g.stroke();
+  }
+  g.restore();
+}
+// ゴム印（鉄紺の版を 1.5px ずらした二重、インクのかすれ）
+function stampText(g, txt, x, y, font, seed, col = C.ink, a = 0.9) {
+  setSeed(seed); g.save(); g.font = font; const tw = g.measureText(txt).width;
+  const s = makeCanvas(tw + 16, 50); s.font = font; s.textBaseline = "alphabetic"; s.fillStyle = col; s.fillText(txt, 8, 38);
+  s.globalCompositeOperation = "destination-out"; for (let i = 0; i < 70 + tw * 2; i++) { s.fillStyle = `rgba(0,0,0,${rr(0.3, 0.9)})`; s.fillRect(rr(0, tw + 16), rr(4, 46), rr(0.6, 2.4), rr(0.6, 1.8)); }
+  g.globalAlpha = a * 0.35; g.drawImage(s.canvas, x - 8 + 1.6, y - 38 + 1.2, s.W, s.H); g.globalAlpha = a; g.drawImage(s.canvas, x - 8, y - 38, s.W, s.H); g.restore();
+}
+
+// ======================= ゲーム =======================
+let sim = null, state = "title", paused = false, best = 0;
+const bestKey = "fossil_brush_best";
+try { best = +localStorage.getItem(bestKey) || 0; } catch (e) { best = 0; }
+const PAD = 30; // 質感の作り置きの余白（板ごとにずらして使う）
+let TEX = null, PT = null;
+let SL = { cx: 195, cy: 400, sc: 1.2 };
+let LD = null; // 板の層の座標（傾きと倍率を焼き込んだ、画面と同じ向きの層）
+let L = null;  // いまの板の層
+let bgDirty = true, fgDirty = true, brushC = null, brushHair = -1;
+const fx = { slips: [], piece: null, grains: [], shake: 0 };
+const kb = { on: false, x: SW / 2, y: SH / 2, keys: {}, space: false, last: -9 };
+
+function texInit() {
+  DPR = Math.min(1.5, dpr);
+  TEX = { shale: shaleTex(SW + PAD * 2, SH + PAD * 2, 23, 0.03), crust: crustTex(SW + PAD * 2, SH + PAD * 2, 31, 0.03), bone: boneTexGen(SW + PAD * 2, SH + PAD * 2, 61) };
+}
+function paperInit() {
+  DPR = dpr;
+  PT = { tray: paperTex(176, 96, 15), label: paperTex(162, 88, 18), tagA: paperTex(176, 62, 51), tagB: paperTex(176, 62, 52), slip: paperTex(190, 40, 19), big: paperTex(300, 260, 23),
+    cot: [0, 1, 2].map((k) => pixelTex(50, 58, (x, y) => { const f = fbm(x * 0.12, y * 0.12, 200 + k, 3), w = fbm(x * 0.5, y * 0.5, 210 + k, 2); const v = 220 + f * 14 + (w - 0.5) * 6; return [v, v - 2, v - 9, 1]; })) };
+  try { DPR = 1; const p = paperTex(220, 160, 77); document.documentElement.style.setProperty("--ptex", `url(${p.canvas.toDataURL()})`); } catch (e) {}
+  DPR = dpr;
+}
+
+// ---------- 板の層（画面の向きで作り置き。毎フレームは等倍の drawImage だけ） ----------
+function layerSpace(ang) {
+  const R = SL.sc * dpr, c = Math.cos(ang), s = Math.sin(ang), m = 30;
+  const hw = (Math.abs(c) * SW + Math.abs(s) * SH) / 2 * SL.sc + m, hh = (Math.abs(s) * SW + Math.abs(c) * SH) / 2 * SL.sc + m;
+  const w = Math.ceil(hw * 2 * dpr), h = Math.ceil(hh * 2 * dpr), a = R * c, b = R * s, cc = -R * s, d = R * c;
+  return { w, h, ang, R, m: [a, b, cc, d, w / 2 - (a * SW / 2 + cc * SH / 2), h / 2 - (b * SW / 2 + d * SH / 2)] };
+}
+function mkL() { const c = document.createElement("canvas"); c.width = LD.w; c.height = LD.h; const g = c.getContext("2d"); g.setTransform(...LD.m); g.W = SW; g.H = SH; return g; }
+function devOff(dx, dy) { return [LD.m[0] * dx + LD.m[2] * dy, LD.m[1] * dx + LD.m[3] * dy]; }
+function cp(dst, src, dx = 0, dy = 0, op, alpha) { dst.save(); dst.setTransform(1, 0, 0, 1, 0, 0); if (op) dst.globalCompositeOperation = op; if (alpha !== undefined) dst.globalAlpha = alpha; const o = devOff(dx, dy); dst.drawImage(src.canvas, o[0], o[1]); dst.restore(); }
+function fillAll(g, col, op, a = 1) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = op; g.globalAlpha = a; g.fillStyle = col; g.fillRect(0, 0, g.canvas.width, g.canvas.height); g.restore(); }
+function tintL(src, col, a = 1) { const g = mkL(); cp(g, src); fillAll(g, col, "source-in", a); return g; }
+function rimL(src, dx, dy) { const g = mkL(); cp(g, src); cp(g, src, dx, dy, "destination-out"); return g; }
+function spreadL(src, r, n = 10) { const g = mkL(); for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; cp(g, src, Math.cos(a) * r, Math.sin(a) * r); } return g; }
+function cutPoly(g, poly) { g.save(); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000"; g.fill(pathOf(poly)); g.restore(); }
+
+function buildSlab(sl) {
+  LD = layerSpace(sl.ang); DPR = LD.R;
+  const geo = sl.geo, lay = { sl, path: pathOf(sl.outline), brightLv: 0 };
+  setSeed(sl.seed); const ox = rr(0, PAD * 2), oy = rr(0, PAD * 2), ox2 = rr(0, PAD * 2), oy2 = rr(0, PAD * 2), ox3 = rr(0, PAD * 2), oy3 = rr(0, PAD * 2);
+  const mask = mkL(); mask.fillStyle = "#fff"; for (const p of geo.parts) mask.fill(pathOf(p)); lay.mask = mask;
+  // ① 掘った後の層: 頁岩＋骨のまわりのにじみ（1.5px）＋骨
+  const S = mkL(); S.save(); S.clip(lay.path); S.drawImage(TEX.shale.canvas, -ox, -oy, TEX.shale.W, TEX.shale.H);
+  const B = mkL();
+  if (!sl.fake) {
+    cp(S, tintL(spreadL(mask, 1.5, 10), "#2c3637", 0.6));
+    cp(B, mask); B.save(); B.globalCompositeOperation = "source-in"; B.drawImage(TEX.bone.canvas, -ox3, -oy3, TEX.bone.W, TEX.bone.H); B.restore();
+    cp(B, tintL(rimL(mask, 4.5, 5), C.boneDeep, 0.35)); cp(B, tintL(rimL(mask, 2, 2.4), C.boneDeep, 0.8)); cp(B, tintL(rimL(mask, -2.6, -3), C.boneLight, 0.35)); cp(B, tintL(rimL(mask, -1.1, -1.3), "#f0c389", 0.85));
+    setSeed(sl.seed + 3);
+    for (const [x, y, r] of geo.pits) { B.fillStyle = css(rgb(C.boneDeep), 0.9); B.beginPath(); B.ellipse(x, y, r, r * rr(0.6, 0.9), rr(0, 3), 0, 7); B.fill(); B.fillStyle = css(rgb(C.boneLight), 0.7); B.beginPath(); B.ellipse(x + r * 0.3, y + r * 0.7, r * 0.7, r * 0.3, 0.3, 0, 7); B.fill(); }
+    for (const [x, y, a, r] of geo.ends) { B.save(); B.translate(x, y); B.rotate(a); B.fillStyle = "rgba(70,36,14,0.9)"; B.beginPath(); B.ellipse(0, 0, 1.6, r, 0, 0, 7); B.fill(); B.fillStyle = "rgba(240,195,137,0.5)"; B.beginPath(); B.ellipse(-1.6, -r * 0.2, 0.7, r * 0.6, 0, 0, 7); B.fill(); B.restore(); }
+    cp(B, mask, 0, 0, "destination-in");
+    cp(S, B);
+    lay.bright = tintL(mask, "#f6c98a", 1); cp(lay.bright, tintL(rimL(mask, -1.4, -1.6), "#fff0d0", 1));
+  } else {
+    setSeed(sl.seed + 4); for (let k = 0; k < 5; k++) { S.fillStyle = `rgba(70,62,50,${rr(0.05, 0.1)})`; S.beginPath(); S.ellipse(rr(60, 240), rr(70, 310), rr(14, 40), rr(8, 22), rr(0, 3), 0, 7); S.fill(); }
+  }
+  S.restore(); lay.S = S; lay.B = B;
+  // ② 上の層（風化面）＋こする前の骨の影。本物は浮き彫り（左上に明るい縁・右下に暗い縁、2.2px）、ただの石は灰色がにじむだけ
+  const crust = mkL(); crust.save(); crust.clip(lay.path); crust.drawImage(TEX.crust.canvas, -ox2, -oy2, TEX.crust.W, TEX.crust.H);
+  if (sl.dry) { crust.fillStyle = "rgba(176,170,146,0.3)"; crust.fillRect(0, 0, SW, SH); setSeed(sl.seed + 8); for (let k = 0; k < 900; k++) { crust.fillStyle = rnd() < 0.5 ? "rgba(196,192,172,0.5)" : "rgba(84,92,86,0.4)"; crust.fillRect(rr(0, SW), rr(0, SH), rr(0.6, 1.4), rr(0.6, 1.2)); } }
+  crust.restore();
+  if (!sl.fake) { cp(crust, tintL(mask, "#6b5d48", 0.1), 0, 0, "source-atop"); cp(crust, tintL(rimL(mask, 2.2, 2.2), "#98a199", 1), 0, 0, "source-atop"); cp(crust, tintL(rimL(mask, -2.2, -2.2), "#4d5856", 1), 0, 0, "source-atop"); }
+  else { cp(crust, tintL(spreadL(mask, 5, 14), "#5c6461", 0.1), 0, 0, "source-atop"); cp(crust, tintL(spreadL(mask, 2.5, 10), "#5c6461", 0.12), 0, 0, "source-atop"); }
+  lay.crust = crust;
+  lay.crustR = mkL(); lay.dust = mkL(); lay.scr = mkL(); lay.crk = mkL(); lay.under = mkL(); lay.shE = mkL(); lay.tmp = mkL();
+  lay.stamps = sl.dry ? bristleStamps(26, 4, 1.25, 950) : bristleStamps(26, 4, 2.4, 900);
+  lay.strokePts = []; lay.stampN = 0;
+  L = lay; redrawCracks(); rebuildEdges();
+}
+function rebuildUnder() {
+  const g = L.under; clearG(g);
+  const off = [[10, 13, "rgba(38,14,10,0.30)"], [5, 7, "rgba(38,14,10,0.35)"], [4, 6, "#283233"], [2.8, 3.8, "#56615f"], [1.6, 2.2, "#353f40"]];
+  for (const [x, y, c] of off) { g.save(); g.translate(x, y); g.fillStyle = c; g.fill(L.path); g.restore(); }
+  g.save(); g.clip(L.path); cp(g, L.S); cp(g, L.scr);
+  if (L.bright && L.brightLv > 0) cp(g, L.bright, 0, 0, undefined, 0.28 * L.brightLv);
+  cp(g, L.shE); g.restore();
+  for (const poly of L.sl.lostPolys) cutPoly(g, poly);
+  fgDirty = true;
+}
+function redrawCracks() {
+  const g = L.crk, sl = L.sl; clearG(g);
+  sl.cracks.forEach((c) => {
+    if (c.broken) return;
+    drawCrack(g, c.pts, c.seed, Math.min(1, c.stage / 3), c.br);
+    wax(g, sideLine(c.pts, SIM.CRW, 0.02, 1), 2.4, c.seed + 3, C.wax, 0.95);
+    wax(g, sideLine(c.pts, -SIM.CRW, 0.04, 1), 2.4, c.seed + 4, C.wax, 0.85);
+  });
+  const ns = String(sl.n).padStart(2, "0"); waxText(g, ns, 28, 24, 0.95, sl.seed % 97, -0.06);
+  const e = mkL(); e.fill(L.path); cp(g, tintL(rimL(e, 1.6, 1.8), "#9aa29a", 0.75));
+  for (const poly of sl.lostPolys) cutPoly(g, poly);
+  fgDirty = true;
+}
+// 削った穴の縁の厚み（一筆終わったときだけ作り直す）: 左上の縁から落ちる硬い影＋右下側の明るい欠け面
+function rebuildEdges() {
+  const { shE, crustR, crust, tmp, dust } = L;
+  clearG(shE); cp(shE, crust, 2.5, 2.5); cp(shE, crust, 0, 0, "destination-out"); fillAll(shE, "#3a4546", "source-in");
+  clearG(tmp); cp(tmp, crust); cp(tmp, crust, 1.8, 1.8, "destination-out"); fillAll(tmp, "#8a938e", "source-in");
+  clearG(crustR); cp(crustR, crust); cp(crustR, tmp); cp(crustR, dust);
+  rebuildUnder();
+}
+function stampLayer(g, s, x, y, a) { g.save(); g.globalCompositeOperation = "destination-out"; g.translate(x, y); g.rotate(a); g.drawImage(s.canvas, -s.W / 2, -s.H / 2, s.W, s.H); g.restore(); }
+function addGrains(x, y, ux, uy, cnt, spreadMul = 1) {
+  const nx = -uy, ny = ux, Lt = rgb(C.dust), Lt2 = rgb("#c4c8bd");
+  for (let k = 0; k < cnt; k++) {
+    const side = Math.random() < 0.5 ? -1 : 1, d = (SIM.BR + 1 + Math.abs(Math.random() * 6 - 2)) * spreadMul, px = x + nx * d * side + (Math.random() - 0.5) * 3, py = y + ny * d * side + (Math.random() - 0.5) * 3, s = 0.6 + Math.random() * 1.6;
+    if (!SIM.pip(px, py, L.sl.outline)) continue;
+    const col = css(Math.random() < 0.6 ? Lt : Lt2, 0.8 + Math.random() * 0.2), q = [px + s, py + (Math.random() - 0.5) * 0.6, px + s * (0.4 + Math.random() * 0.6), py + s * (0.6 + Math.random() * 0.4)];
+    for (const g of [L.dust, L.crustR]) { g.fillStyle = "rgba(35,44,46,0.45)"; g.fillRect(px + 0.6, py + 0.7, s, s * 0.8); g.fillStyle = col; g.beginPath(); g.moveTo(px, py); g.lineTo(q[0], q[1]); g.lineTo(q[2], q[3]); g.closePath(); g.fill(); }
+  }
+}
+function applyStamps() {
+  const a = sim.st.stamps; if (!a.length) return; if (!L) { a.length = 0; return; }
+  for (let i = 0; i < a.length; i += 4) {
+    const x = a[i], y = a[i + 1], ux = a[i + 2], uy = a[i + 3], ang = Math.atan2(uy, ux) + Math.PI / 2, s = L.stamps[(L.stampN++) & 3];
+    stampLayer(L.crust, s, x, y, ang); stampLayer(L.crustR, s, x, y, ang); stampLayer(L.dust, s, x, y, ang);
+    if (L.stampN % 6 === 0) addGrains(x, y, ux, uy, 1 + (Math.random() < 0.4 ? 1 : 0));
+    if (L.strokePts.length < 600 && L.stampN % 2 === 0) L.strokePts.push([x, y, ux, uy]);
+  }
+  a.length = 0; fgDirty = true;
+}
+function strokeEnd() {
+  if (!L) return;
+  const p = L.strokePts;
+  if (p.length > 2) {
+    const g = L.S; setSeed(L.stampN); g.save(); g.clip(L.path);
+    for (let k = 0; k < 5; k++) { const off = rr(-11, 11); g.strokeStyle = `rgba(140,152,146,${rr(0.08, 0.14)})`; g.lineWidth = rr(0.4, 0.8); g.beginPath(); let on = false; for (let i = 1; i < p.length; i++) { const [x, y, ux, uy] = p[i]; if (vnoise(i * 0.3, k, 5) < 0.45) { on = false; continue; } const X = x - uy * off, Y = y + ux * off; on ? g.lineTo(X, Y) : g.moveTo(X, Y); on = true; } g.stroke(); }
+    if (L.B) cp(g, L.B, 0, 0); // 骨の上に毛の跡を残さない
+    g.restore();
+    const q = p[p.length - 1]; addGrains(q[0] + q[2] * 6, q[1] + q[3] * 6, q[2], q[3], 10, 0.55); addGrains(q[0], q[1], q[2], q[3], 6);
+    sfx.sand();
+  }
+  L.strokePts = []; rebuildEdges();
+}
+function scratchAt(ev) {
+  const g = L.scr; setSeed(ev.n * 31 + 7);
+  g.fillStyle = "rgba(112,104,92,0.13)"; g.beginPath(); g.ellipse(ev.x, ev.y, 11, 7, Math.atan2(ev.uy, ev.ux), 0, 7); g.fill();
+  for (let k = 0; k < 3; k++) { const ox = ev.x + rr(-8, 8), oy = ev.y + rr(-6, 6), a = Math.atan2(ev.uy, ev.ux) + rr(-0.2, 0.2), l = rr(6, 14); g.strokeStyle = `rgba(246,226,190,${rr(0.4, 0.7)})`; g.lineWidth = rr(0.4, 0.7); g.beginPath(); g.moveTo(ox, oy); g.quadraticCurveTo(ox + Math.cos(a) * l * 0.5 + rr(-1, 1), oy + Math.sin(a) * l * 0.5 + rr(-1, 1), ox + Math.cos(a) * l, oy + Math.sin(a) * l); g.stroke(); }
+  cp(g, L.mask, 0, 0, "destination-in"); rebuildUnder();
+}
+function thumbOf(sl) {
+  if (!L || L.sl !== sl || sl.fake) return null;
+  const b = sl.geo.bbox, cs = [[b[0], b[1]], [b[2], b[1]], [b[0], b[3]], [b[2], b[3]]].map(([x, y]) => [LD.m[0] * x + LD.m[2] * y + LD.m[4], LD.m[1] * x + LD.m[3] * y + LD.m[5]]);
+  const x0 = Math.max(0, Math.min(...cs.map((c) => c[0])) - 6) | 0, y0 = Math.max(0, Math.min(...cs.map((c) => c[1])) - 6) | 0, x1 = Math.min(LD.w, Math.max(...cs.map((c) => c[0])) + 6) | 0, y1 = Math.min(LD.h, Math.max(...cs.map((c) => c[1])) + 6) | 0;
+  const w = Math.max(2, x1 - x0), h = Math.max(2, y1 - y0), c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d");
+  g.drawImage(L.B.canvas, -x0, -y0); g.drawImage(L.scr.canvas, -x0, -y0); g.globalCompositeOperation = "destination-out"; g.drawImage(L.crust.canvas, -x0, -y0);
+  return { canvas: c, W: w, H: h };
+}
+
+// ---------- 配置 ----------
+function layout() {
+  VW = window.innerWidth; VH = window.innerHeight; dpr = Math.min(2, window.devicePixelRatio || 1);
+  for (const c of [cv, bgc]) { c.width = Math.round(VW * dpr); c.height = Math.round(VH * dpr); c.style.width = VW + "px"; c.style.height = VH + "px"; }
+  land = VW > VH * 1.15; document.body.className = land ? "L" : "P";
+  if (!land) {
+    const ox = Math.max(0, (VW - 390) / 2), top = 124, bot = VH - 152, aw = Math.min(VW - 40, 520), ah = bot - top;
+    SL = { cx: VW / 2, cy: top + ah / 2 + 4, sc: Math.max(0.6, Math.min(aw / SW, ah / SH)) };
+    const ew = Math.min(390, VW), w1 = Math.min(162, (ew - 46) / 2), w2 = Math.min(172, (ew - 46) / 2);
+    SL.tray = { x: ox + 14, y: 16, a: -0.025 }; SL.label = { x: ox + Math.min(214, ew - 170), y: 18, a: 0.03 };
+    SL.brush = { x: ox + 26, y: VH - 136, a: -0.08, s: 1 };
+    SL.tags = [{ id: "discard", x: ox + 14, y: VH - 86, w: w1, h: 62, a: -0.035, main: "すてる", sub: "板を下へ払う" }, { id: "collect", x: ox + ew - 14 - w2, y: VH - 92, w: w2, h: 62, a: 0.025, main: "おさめる", sub: "板を上へ払う" }];
+    SL.slip = { x: ox + Math.max(150, ew - 198), y: 112 };
+  } else {
+    const lw = 200, rw = 214, aw = VW - lw - rw, ah = VH - 16;
+    SL = { cx: lw + aw / 2, cy: VH / 2 + 2, sc: Math.max(0.5, Math.min(aw / SW, ah / SH)) };
+    SL.tray = { x: 12, y: 12, a: -0.025 }; SL.label = { x: 20, y: 122, a: 0.03 };
+    SL.brush = { x: VW - rw + 8, y: 46, a: -0.06, s: 0.74 };
+    SL.tags = [{ id: "collect", x: VW - rw + 22, y: VH - 168, w: 172, h: 60, a: 0.025, main: "おさめる", sub: "板を上へ払う" }, { id: "discard", x: VW - rw + 18, y: VH - 88, w: 172, h: 60, a: -0.03, main: "すてる", sub: "板を下へ払う" }];
+    SL.slip = { x: 14, y: 222 };
+  }
+  DPR = 1; const lt = linoTex(Math.ceil(VW), Math.ceil(VH), 41); DPR = dpr;
+  const lc = makeCanvas(VW, VH); blit(lc, lt);
+  setSeed(5); const sy = land ? VH * 0.82 : VH - 172; lc.strokeStyle = "rgba(40,16,12,0.55)"; lc.lineWidth = 1.1; lc.beginPath(); lc.moveTo(-5, sy + 14); lc.lineTo(VW * 0.36, sy + 4); lc.lineTo(VW + 5, sy - 18); lc.stroke();
+  lc.strokeStyle = "rgba(170,110,90,0.35)"; lc.lineWidth = 0.7; lc.beginPath(); lc.moveTo(-5, sy + 15.4); lc.lineTo(VW * 0.36, sy + 5.4); lc.lineTo(VW + 5, sy - 16.6); lc.stroke();
+  SL.lino = lc; bgDirty = true; fgDirty = true; brushHair = -1;
+  if (sim && sim.st.slab) rebuildFromGrid(sim.st.slab);
+}
+// 画面サイズが変わったとき: 層を作り直し、掘った所は格子から抜き直す
+function rebuildFromGrid(sl) {
+  const lv = L && L.sl === sl ? L.brightLv : 0; buildSlab(sl); L.brightLv = lv;
+  const g = L.crust; g.save(); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
+  for (let i = 0; i < SIM.GW * SIM.GH; i++) if (sl.dug[i] >= 1) g.fillRect((i % SIM.GW) * SIM.CELL - 0.6, ((i / SIM.GW) | 0) * SIM.CELL - 0.6, SIM.CELL + 1.2, SIM.CELL + 1.2);
+  g.restore();
+  for (const poly of sl.lostPolys) for (const k of ["S", "B", "crust", "dust", "scr"]) cutPoly(L[k], poly);
+  redrawCracks(); rebuildEdges();
+}
+
+// ---------- 表示 ----------
+function drawBG() {
+  const g = bctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.drawImage(SL.lino.canvas, 0, 0, VW, VH); DPR = dpr;
+  if (state === "result") { drawResultTray(g); bgDirty = false; return; }
+  if (state === "play") { drawTray(g); drawLabel(g); for (const t of SL.tags) drawTag(g, t); }
+  bgDirty = false;
+}
+function drawTray(g) {
+  const T = SL.tray; g.save(); g.translate(T.x, T.y); g.rotate(T.a);
+  setSeed(3); const ts = chipped([[0, 0], [176, 0], [176, 96], [0, 96]], 8, 0.4, 0, 0);
+  g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(ts.map(([x, y]) => [x + 4, y + 5])));
+  g.save(); g.clip(pathOf(ts)); blit(g, PT.tray); g.fillStyle = "rgba(90,74,44,0.25)"; g.fillRect(0, 0, 176, 4); g.fillRect(0, 0, 4, 96); g.restore();
+  const set = curSet();
+  for (let k = 0; k < 3; k++) {
+    const x0 = 8 + k * 55; setSeed(260 + k); const cs = chipped([[0, 0], [50, 0], [50, 58], [0, 58]], 5, 1.6, 0.1, 3);
+    g.save(); g.translate(x0, 8); g.fillStyle = "rgba(80,66,40,0.35)"; g.fill(pathOf(cs.map(([a, b]) => [a + 1.5, b + 2]))); g.save(); g.clip(pathOf(cs)); blit(g, PT.cot[k]); g.restore();
+    for (let f = 0; f < 7; f++) { const [fx0, fy0] = cs[(rnd() * cs.length) | 0], a = rr(0, 6.28), l = rr(3, 7); g.strokeStyle = "rgba(232,229,218,0.85)"; g.lineWidth = 0.5; g.beginPath(); g.moveTo(fx0, fy0); g.quadraticCurveTo(fx0 + Math.cos(a) * l * 0.6 + rr(-2, 2), fy0 + Math.sin(a) * l * 0.6 + rr(-2, 2), fx0 + Math.cos(a) * l, fy0 + Math.sin(a) * l); g.stroke(); }
+    const th = set && set.thumbs && set.thumbs[k];
+    if (th) { const s = Math.min(46 / th.W, 54 / th.H), w = th.W * s, h = th.H * s; g.drawImage(th.canvas, 25 - w / 2, 29 - h / 2, w, h); if (set.got[k] && set.got[k].kanpin) stampText(g, "完品", 6, 54, `700 13px ${FG}`, 40 + k, C.ink, 0.85); }
+    g.restore();
+    if (k < 2) { g.fillStyle = "rgba(60,44,20,0.5)"; g.fillRect(x0 + 52, 4, 1.4, 88); }
+  }
+  g.fillStyle = C.ink; g.font = `700 12px ${FG}`; g.textAlign = "center"; g.fillText("頭", 33, 85); g.fillText("胴", 88, 85); g.fillText("尾", 143, 85); g.textAlign = "left";
+  const sl = sim && sim.st.slab;
+  if (sl && !sl.fake && set && sl.spec.setNo === set.no) { const cx = 33 + sl.spec.part * 55; g.strokeStyle = "rgba(29,39,49,0.85)"; g.lineWidth = 1.3; g.beginPath(); setSeed(4 + sl.n); for (let i = 0; i <= 30; i++) { const a = -1.2 + i / 30 * 6.9, r = 10 + i * 0.06 + rr(-0.4, 0.4); const x = cx + Math.cos(a) * r * 1.15, y = 80 + Math.sin(a) * r * 0.9; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+  if (set && set.plate) stampText(g, `図版 第${set.plate}`, 26, 60, `400 26px ${FM}`, 70 + set.plate, C.ink, 0.88);
+  g.restore();
+}
+function drawLabel(g) {
+  const Lb = SL.label, st = sim ? sim.st : null; g.save(); g.translate(Lb.x, Lb.y); g.rotate(Lb.a);
+  setSeed(9); const ls = chipped([[0, 0], [162, 0], [162, 88], [0, 88]], 9, 0.4, 0, 0);
+  g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(ls.map(([x, y]) => [x + 3, y + 4])));
+  g.save(); g.clip(pathOf(ls)); blit(g, PT.label); g.restore();
+  g.strokeStyle = "rgba(29,39,49,0.8)"; g.lineWidth = 1.6; g.strokeRect(7.5, 7, 147, 74); g.lineWidth = 0.6; g.strokeRect(10.8, 10.4, 141, 67);
+  g.fillStyle = C.ink; g.font = `500 12px ${FG}`; g.textAlign = "left"; g.fillText("得点", 18, 29); g.textAlign = "right"; g.fillText(`ベスト ${best.toLocaleString()}`, 146, 29); g.textAlign = "left";
+  g.font = `34px ${FM}`; g.fillText((st ? st.score : 0).toLocaleString(), 18, 68);
+  g.fillStyle = "rgba(29,39,49,0.9)"; g.fillRect(18, 35, 126, 0.7);
+  if (!AU.on) { g.font = `500 12px ${FG}`; g.textAlign = "right"; g.fillText("音なし", 146, 72); g.textAlign = "left"; }
+  g.restore();
+}
+let pressedTag = null;
+function drawTag(g, t) {
+  const on = pressedTag === t.id; g.save(); g.translate(t.x + (on ? 2 : 0), t.y + (on ? 3 : 0)); g.rotate(t.a);
+  setSeed(t.id === "collect" ? 52 : 51); const ts = tagShape(t.w, t.h, 10);
+  if (!on) { g.fillStyle = "rgba(38,14,10,0.45)"; g.fill(pathOf(ts.map(([p, q]) => [p + 3, q + 4]))); }
+  g.save(); g.clip(pathOf(ts)); blit(g, t.id === "collect" ? PT.tagB : PT.tagA); g.restore();
+  g.fillStyle = "#b08d3c"; g.beginPath(); g.arc(16, t.h / 2, 6, 0, 7); g.fill(); g.fillStyle = "#6e5420"; g.beginPath(); g.arc(16.6, t.h / 2 + 0.6, 3, 0, 7); g.fill(); g.fillStyle = C.lino; g.beginPath(); g.arc(16, t.h / 2, 2.6, 0, 7); g.fill();
+  g.strokeStyle = "rgba(215,205,180,0.9)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(16, t.h / 2); g.bezierCurveTo(-10, t.h / 2 + rr(4, 10), -14, t.h + 6, -2 + rr(-6, 6), t.h + 20); g.stroke();
+  g.fillStyle = C.ink; g.textAlign = "left"; g.font = `700 21px ${FG}`; g.fillText(t.main, 34, t.h / 2 + 2);
+  g.font = `500 12px ${FG}`; g.fillStyle = "rgba(29,39,49,0.85)"; g.fillText(t.sub, 35, t.h / 2 + 20);
+  g.restore();
+}
+function curSet() {
+  if (!sim) return null; const st = sim.st, sl = st.slab;
+  for (const k in st.sets) { const s = st.sets[k]; if (s.done && st.t - s.doneT < 2.6) return s; }
+  if (sl && !sl.fake && sl.spec.setNo && st.sets[sl.spec.setNo]) return st.sets[sl.spec.setNo];
+  let n = 0; for (const k in st.sets) n = Math.max(n, +k); return st.sets[n] || null;
+}
+function brushCache(hair) {
+  const B = SL.brush; DPR = dpr; if (!brushC) brushC = makeCanvas(VW, 70);
+  if (brushC.W !== VW) brushC = makeCanvas(VW, 70);
+  clearG(brushC); brush(brushC, B.x, 34, B.a, Math.max(0, hair), 3, B.s); brushHair = hair; fgDirty = true;
+}
+function slabOffset() {
+  const st = sim.st; let x = 0, y = 0, al = 1;
+  if (st.phase === "enter") { const t = Math.min(1, st.anim / sim.P.enter), e = 1 - Math.pow(1 - t, 3); x = (1 - e) * VW * 0.6; y = -(1 - e) * 50; al = Math.min(1, 0.3 + t); }
+  else if (st.phase === "leave") { const t = Math.min(1, st.anim / sim.P.leave); if (st.leaveKind === "up") { y = -t * t * VH * 0.8; al = 1 - t * 0.8; } else { x = t * 24; y = t * t * VH * 0.9; al = 1 - t * 0.4; } }
+  else if (st.phase === "worn" || st.phase === "over") { al = 1 - Math.min(1, st.anim / sim.P.worn) * 0.35; }
+  if (fx.shake > 0) { x += (Math.random() - 0.5) * 4; y += (Math.random() - 0.5) * 3; }
+  return { x, y, al };
+}
+function drawFG() {
+  const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+  if (state !== "result" && L && sim) {
+    const o = slabOffset(), ty = state === "title" && !land ? -Math.max(0, Math.min(110, SL.cy - SH * SL.sc / 2 - 50)) : 0, X = Math.round((SL.cx + o.x) * dpr - LD.w / 2), Y = Math.round((SL.cy + o.y + ty) * dpr - LD.h / 2);
+    g.globalAlpha = o.al; g.drawImage(L.under.canvas, X, Y); g.drawImage(L.crustR.canvas, X, Y); g.drawImage(L.crk.canvas, X, Y); g.globalAlpha = 1;
+    if (fx.piece) { const p = fx.piece, t = p.t / 0.8; g.globalAlpha = Math.max(0, 1 - t * t); g.drawImage(p.c.canvas, Math.round(X + p.dx * t * 60 * dpr), Math.round(Y + (t * t * 240 + t * 20) * dpr)); g.globalAlpha = 1; }
+    const st = sim.st;
+    if (kb.on && state === "play" && st.phase === "play" && performance.now() / 1000 - kb.last < 4) {
+      g.setTransform(...LD.m); g.translate(X / 1, 0); g.setTransform(LD.m[0], LD.m[1], LD.m[2], LD.m[3], LD.m[4] + X, LD.m[5] + Y);
+      g.strokeStyle = st.down ? "rgba(239,238,230,0.95)" : "rgba(29,39,49,0.85)"; g.lineWidth = 1.8; g.beginPath(); g.ellipse(st.down ? st.bx : kb.x, st.down ? st.by : kb.y, SIM.BR + 1, SIM.BR + 1, 0, 0, 7); g.stroke();
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+  }
+  if (state === "play" || state === "title") { if (brushC) g.drawImage(brushC.canvas, 0, Math.round((SL.brush.y - 34) * dpr)); }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  for (const q of fx.grains) { g.fillStyle = q.c; g.fillRect(q.x, q.y, q.s, q.s * 0.8); }
+  for (const s of fx.slips) {
+    const t = s.t, a = t < 0.15 ? t / 0.15 : t > s.life - 0.4 ? Math.max(0, (s.life - t) / 0.4) : 1;
+    g.save(); g.globalAlpha = a; g.translate(SL.slip.x, SL.slip.y + s.slot * 46 - (1 - Math.min(1, t / 0.15)) * 6); g.rotate(-0.02 + s.slot * 0.015);
+    g.fillStyle = "rgba(38,14,10,0.4)"; g.fillRect(3, 4, s.w, 38); g.drawImage(PT.slip.canvas, 0, 0, s.w, 38);
+    g.fillStyle = C.ink; g.textAlign = "left"; g.font = `700 13px ${FG}`; g.fillText(s.a, 9, 17, s.big ? s.w - 70 : s.w - 16); g.font = `500 12px ${FG}`; g.fillText(s.b, 9, 33, s.w - 16);
+    if (s.big) { g.font = `400 22px ${FM}`; g.textAlign = "right"; g.fillText(s.big, s.w - 7, 21); }
+    g.restore();
+  }
+  fgDirty = false;
+}
+function drawResultTray(g) {
+  const st = sim.st, sets = Object.values(st.sets).filter((s) => s.got.some((x) => x));
+  const rows = sets.slice(-6);
+  const area = land ? { x: 16, y: 14, w: VW - 316, h: VH - 28 } : { x: 14, y: 16, w: VW - 28, h: VH - 330 };
+  const cw = Math.min(124, (area.w - 30) / 3), ch = Math.max(40, Math.min(cw * 1.0, (area.h - 46) / Math.max(1, rows.length) - 8));
+  const tw = cw * 3 + 22, th = Math.max(96, 36 + rows.length * (ch + 8) + 10);
+  g.save(); g.translate(area.x + (area.w - tw) / 2, area.y); g.rotate(-0.012);
+  g.fillStyle = "rgba(38,14,10,0.42)"; g.fillRect(5, 6, tw, th); g.drawImage(PT.big.canvas, 0, 0, tw, th);
+  g.fillStyle = "rgba(90,74,44,0.25)"; g.fillRect(0, 0, tw, 4); g.fillRect(0, 0, 4, th);
+  g.fillStyle = C.ink; g.font = `700 14px ${FG}`; g.textAlign = "left"; g.fillText("今日の標本トレー", 12, 24);
+  if (!rows.length) { g.font = `500 13px ${FG}`; g.fillText("収めた骨はまだ無い", 12, 60); }
+  rows.forEach((s, r) => {
+    const y = 36 + r * (ch + 8);
+    for (let k = 0; k < 3; k++) {
+      const x = 11 + k * cw; g.save(); g.translate(x, y); g.drawImage(PT.cot[k].canvas, 0, 0, cw - 5, ch);
+      const t2 = s.thumbs && s.thumbs[k];
+      if (t2) { const sc = Math.min((cw - 11) / t2.W, (ch - 6) / t2.H), w = t2.W * sc, h = t2.H * sc; g.drawImage(t2.canvas, (cw - 5 - w) / 2, (ch - h) / 2, w, h); }
+      else { g.fillStyle = "rgba(29,39,49,0.6)"; g.font = `500 12px ${FG}`; g.textAlign = "center"; g.fillText(SIM.PARTS[k], (cw - 5) / 2, ch / 2 + 4); g.textAlign = "left"; }
+      if (s.got[k] && s.got[k].kanpin) stampText(g, "完品", 4, ch - 4, `700 13px ${FG}`, 90 + r * 3 + k, C.ink, 0.85);
+      g.restore();
+    }
+    if (s.done) stampText(g, `図版 第${s.plate}`, 11 + cw * 0.95, y + ch * 0.62, `400 26px ${FM}`, 120 + r, C.ink, 0.86);
+  });
+  g.restore();
+}
+
+// ---------- 音（Web Audio、最初のタップで鳴らし始める） ----------
+const AU = { ctx: null, on: true, master: null, noise: null, scrub: null, scrubF: null, tick: 0, alt: false };
+function auInit() {
+  if (AU.ctx) { if (AU.ctx.state === "suspended") AU.ctx.resume(); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const a = new AC(); AU.ctx = a;
+    AU.master = a.createGain(); AU.master.gain.value = AU.on ? 0.9 : 0; AU.master.connect(a.destination);
+    const len = a.sampleRate * 1.5, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0); let b = 0; for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b = 0.6 * b + 0.4 * w; d[i] = b; } AU.noise = buf;
+    const src = a.createBufferSource(); src.buffer = buf; src.loop = true; const f = a.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 2400; f.Q.value = 0.7; const g = a.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(AU.master); src.start(); AU.scrub = g; AU.scrubF = f;
+  } catch (e) { AU.ctx = null; }
+}
+function tone(freq, dur, type = "sine", gain = 0.2, slide = 0, delay = 0) {
+  const a = AU.ctx; if (!a || !AU.on) return; const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(AU.master); o.start(t); o.stop(t + dur + 0.02);
+}
+function burst(dur, type, freq, gain, q = 0.8, delay = 0) {
+  const a = AU.ctx; if (!a || !AU.on || !AU.noise) return; const t = a.currentTime + delay, s = a.createBufferSource(); s.buffer = AU.noise; const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s.connect(f); f.connect(g); g.connect(AU.master); s.start(t, Math.random() * 1.2); s.stop(t + dur + 0.02);
+}
+const sfx = {
+  ready() { tone(1180, 0.2, "triangle", 0.28, 980); tone(2360, 0.09, "sine", 0.07); },
+  stage(s) { burst(0.05, "highpass", 3200, 0.32); tone(110 - s * 12, 0.22 + s * 0.05, "sawtooth", 0.05 + s * 0.02, 70); },
+  brk() { burst(0.55, "lowpass", 900, 0.55); tone(64, 0.32, "sine", 0.45, 40); burst(0.14, "bandpass", 2600, 0.3, 1, 0.03); },
+  ton() { tone(150, 0.16, "sine", 0.4, 70); burst(0.035, "lowpass", 1300, 0.25); },
+  set() { tone(150, 0.16, "sine", 0.4, 70, 0.12); tone(784, 0.5, "triangle", 0.12, 0, 0.2); tone(988, 0.6, "triangle", 0.1, 0, 0.28); },
+  drop() { burst(0.28, "lowpass", 520, 0.3); tone(118, 0.22, "triangle", 0.18, 60); },
+  scratch() { tone(3300, 0.06, "sine", 0.045, 2700); },
+  sand() { burst(0.18, "highpass", 5200, 0.05); },
+  worn() { tone(330, 0.5, "triangle", 0.14, 160); burst(0.6, "highpass", 3000, 0.06); },
+  tick(alt) { burst(0.012, "bandpass", alt ? 2100 : 2700, 0.06, 4); },
+};
+function audioFrame(dt) {
+  if (!AU.ctx || !AU.scrub) return; const st = sim && sim.st, a = AU.ctx;
+  const sp = st && st.down && state === "play" && !paused ? st.speed : 0, tgt = AU.on ? Math.min(0.24, sp / SIM.VMAX * 0.3) : 0;
+  AU.scrub.gain.setTargetAtTime(tgt, a.currentTime, 0.03); AU.scrubF.frequency.setTargetAtTime(L && L.sl.dry ? 1700 : 2500, a.currentTime, 0.1);
+  if (state === "play" && !paused) { AU.tick += dt; if (AU.tick >= 1) { AU.tick -= 1; AU.alt = !AU.alt; sfx.tick(AU.alt); } }
+}
+
+// ---------- 出来事 ----------
+function slip(a, b, big, life = 2.2) {
+  fx.slips = fx.slips.filter((s) => s.t < s.life); const used = fx.slips.map((s) => s.slot); let slot = 0; while (used.includes(slot) && slot < 2) slot++;
+  if (used.includes(slot)) { fx.slips.shift(); }
+  fx.slips.push({ a, b, big, t: 0, life, slot, w: land ? 178 : 186 });
+}
+function handleEvents() {
+  const evs = sim.st.events; if (!evs.length) return;
+  for (const e of evs) {
+    if (e.type === "slab") { buildSlab(sim.st.slab); bgDirty = true; }
+    else if (e.type === "strokeEnd") { applyStamps(); strokeEnd(); }
+    else if (e.type === "scratch") { applyStamps(); scratchAt(e); sfx.scratch(); }
+    else if (e.type === "stage") { redrawCracks(); sfx.stage(e.stage); fx.shake = 0.1 + e.stage * 0.05; }
+    else if (e.type === "break") { applyStamps(); breakFx(e); sfx.brk(); fx.shake = 0.3; slip("板が割れた", `骨の ${Math.round(e.lostBone * 100)}% が欠けて落ちた`, "", 2.6); }
+    else if (e.type === "ready") { sfx.ready(); L.brightT = 0; }
+    else if (e.type === "collect") {
+      const r = e.r, sl = sim.st.slab;
+      if (r.fake) slip("ただの石だった", "骨は入っていない", "0", 2);
+      else {
+        const set = sim.st.sets[sl.spec.setNo]; const th = thumbOf(sl);
+        if (set && r.ok) { set.thumbs = set.thumbs || []; set.thumbs[sl.spec.part] = th; }
+        slip(r.ok ? (r.kanpin ? `板 ${sl.n}　完品 +50` : `板 ${sl.n}`) : `板 ${sl.n}　8割に届かず`, `見えた ${Math.round(r.pct * 100)}%　傷 ${r.scratches}${r.ok ? "" : "　点は半分"}`, "+" + (r.gain - (r.setBonus || 0)), 2.4);
+        if (r.hairBack) slip("完品で毛が少し戻った", "傷なし、ひびに触れず", "", 2);
+        if (r.setBonus) { set.doneT = sim.st.t; slip("1体そろった", `${SIM.SPECIES[set.species]}、図版 第${r.plate}`, "+" + r.setBonus, 3); sfx.set(); }
+      }
+      sfx.ton(); bgDirty = true;
+    }
+    else if (e.type === "discard") { sfx.drop(); slip(e.fake ? "ただの石を捨てた" : "本物を捨てた", e.fake ? "刷毛の毛を節約" : "この板は 0 点", "", 1.8); }
+    else if (e.type === "worn") { sfx.worn(); slip("刷毛の毛が尽きた", "今日の作業はここまで", "", 2); }
+    else if (e.type === "over") { endGame(); }
+  }
+  evs.length = 0; fgDirty = true;
+}
+function breakFx(e) {
+  const c = mkL(); c.save(); c.clip(pathOf(e.poly)); cp(c, L.under); cp(c, L.crustR); cp(c, L.crk); c.restore();
+  for (const k of ["S", "B", "crust", "dust", "scr"]) cutPoly(L[k], e.poly);
+  const ck = L.sl.cracks[e.k], mid = ck.pts[ck.pts.length >> 1];
+  fx.piece = { c, t: 0, dx: mid[0] < SW / 2 ? -1 : 1 };
+  redrawCracks(); rebuildEdges();
+  const a = L.sl.ang, cx = SL.cx + ((mid[0] - SW / 2) * Math.cos(a) - (mid[1] - SH / 2) * Math.sin(a)) * SL.sc, cy = SL.cy + ((mid[0] - SW / 2) * Math.sin(a) + (mid[1] - SH / 2) * Math.cos(a)) * SL.sc;
+  for (let i = 0; i < 36; i++) fx.grains.push({ x: cx + (Math.random() - 0.5) * 60, y: cy + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 140, vy: -Math.random() * 140, s: 1 + Math.random() * 2.4, c: Math.random() < 0.6 ? C.dust : "#56615f", life: 0.9 });
+}
+function updateFx(dt) {
+  let act = false;
+  for (const s of fx.slips) s.t += dt; const n0 = fx.slips.length; fx.slips = fx.slips.filter((s) => s.t < s.life); if (n0) act = true;
+  if (fx.piece) { fx.piece.t += dt; act = true; if (fx.piece.t > 0.8) fx.piece = null; }
+  for (const q of fx.grains) { q.vy += 600 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; } if (fx.grains.length) act = true; fx.grains = fx.grains.filter((q) => q.life > 0);
+  if (L && L.sl.ready && L.brightLv < 1) { L.brightT = (L.brightT || 0) + dt; const lv = L.brightT > 0.24 ? 1 : L.brightT > 0.12 ? 0.66 : 0.33; if (lv !== L.brightLv) { L.brightLv = lv; rebuildUnder(); } }
+  if (L && !L.sl.ready && L.brightLv > 0) { L.brightLv = 0; L.brightT = 0; rebuildUnder(); }
+  if (fx.shake > 0) { fx.shake -= dt; act = true; }
+  if (act) fgDirty = true;
+}
+
+// ---------- 進行 ----------
+function hideOv() { for (const id of ["title", "result", "pause"]) document.getElementById(id).classList.remove("show"); }
+function startGame() {
+  auInit();
+  sim = SIM.create((Math.random() * 4294967295) >>> 0); sim.start(); state = "play"; paused = false;
+  fx.slips = []; fx.piece = null; fx.grains = []; hideOv();
+  handleEvents(); bgDirty = true; brushHair = -1;
+}
+function endGame() {
+  state = "result"; const st = sim.st;
+  const nb = st.score > best && st.score > 0; if (nb) { best = st.score; try { localStorage.setItem(bestKey, String(best)); } catch (e) {} }
+  document.getElementById("rScore").textContent = st.score.toLocaleString();
+  const ok = st.collected.filter((r) => r.ok).length;
+  document.getElementById("rDetail").innerHTML = `収めた骨 ${ok} 枚、そろった骨格 ${st.setsDone} 体<br>完品 ${st.kanpin} 枚、割れた板 ${st.breaks} 枚`;
+  document.getElementById("rBest").textContent = nb ? "ベストを更新した" : `ベスト ${best.toLocaleString()}`;
+  document.getElementById("result").classList.add("show"); bgDirty = true; fgDirty = true; fx.slips = []; fx.grains = []; fx.piece = null;
+  if (usedKeys) setTimeout(() => { try { document.getElementById("bAgain").focus({ preventScroll: true }); } catch (e) {} }, 50);
+}
+function doCollect() { if (state !== "play" || paused || !sim) return false; const ok = sim.collect(); handleEvents(); return ok; }
+function doDiscard() { if (state !== "play" || paused || !sim) return false; const ok = sim.discard(); handleEvents(); return ok; }
+
+// ---------- 入力 ----------
+function toLocal(x, y) { const dx = x - SL.cx, dy = y - SL.cy, a = -(L ? L.sl.ang : 0), c = Math.cos(a), s = Math.sin(a); return { x: (dx * c - dy * s) / SL.sc + SW / 2, y: (dx * s + dy * c) / SL.sc + SH / 2 }; }
+function toScreen(x, y) { const a = L ? L.sl.ang : 0, dx = (x - SW / 2) * SL.sc, dy = (y - SH / 2) * SL.sc; return { x: SL.cx + dx * Math.cos(a) - dy * Math.sin(a), y: SL.cy + dx * Math.sin(a) + dy * Math.cos(a) }; }
+function onSlab(x, y, m = 6) { if (!L) return false; const p = toLocal(x, y), mm = m / SL.sc; if (p.x < -mm || p.y < -mm || p.x > SW + mm || p.y > SH + mm) return false; if (SIM.pip(p.x, p.y, L.sl.outline)) return true; return mm > 0 && SIM.distPL(p.x, p.y, L.sl.outline.concat([L.sl.outline[0]])) < mm; }
+function slabBox() { const hw = SW / 2 * SL.sc, hh = SH / 2 * SL.sc; return { x0: SL.cx - hw, x1: SL.cx + hw, y0: SL.cy - hh, y1: SL.cy + hh }; }
+function inBand(x, y) { const b = slabBox(); return x > b.x0 - 10 && x < b.x1 + 10 && ((y < b.y0 + 4 && y > b.y0 - 46) || (y > b.y1 - 4 && y < b.y1 + 46)); }
+function hitTag(x, y) { if (state !== "play") return null; for (const t of SL.tags) { const dx = x - t.x, dy = y - t.y, c = Math.cos(-t.a), s = Math.sin(-t.a), lx = dx * c - dy * s, ly = dx * s + dy * c; if (lx > -6 && lx < t.w + 6 && ly > -6 && ly < t.h + 6) return t.id; } return null; }
+let G = null;
+const STAT = { flick: 0, flickNo: 0, tag: 0, scrubStart: 0 };
+cv.addEventListener("pointerdown", (e) => {
+  e.preventDefault(); auInit();
+  if (state !== "play" || paused || G) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (er) {}
+  const x = e.clientX, y = e.clientY, now = performance.now(), tg = hitTag(x, y);
+  if (tg) { G = { id: e.pointerId, kind: "tag", tag: tg }; pressedTag = tg; bgDirty = true; return; }
+  if (onSlab(x, y)) { G = { id: e.pointerId, kind: "scrub" }; const p = toLocal(x, y); sim.press(p.x, p.y); STAT.scrubStart++; kb.on = false; return; }
+  if (inBand(x, y)) { G = { id: e.pointerId, kind: "flick", pts: [[x, y, now]], x0: x, y0: y }; return; }
+  G = { id: e.pointerId, kind: "idle" };
+}, { passive: false });
+cv.addEventListener("pointermove", (e) => {
+  if (!G || e.pointerId !== G.id) return; e.preventDefault();
+  const x = e.clientX, y = e.clientY;
+  if (G.kind === "scrub") { const p = toLocal(x, y); if (sim.st.down) sim.move(p.x, p.y); else sim.press(p.x, p.y); }
+  else if (G.kind === "idle") { if (onSlab(x, y, 0)) { G.kind = "scrub"; const p = toLocal(x, y); sim.press(p.x, p.y); STAT.scrubStart++; } }
+  else if (G.kind === "flick") { G.pts.push([x, y, performance.now()]); if (G.pts.length > 40) G.pts.shift(); }
+  else if (G.kind === "tag") { const t = hitTag(x, y), want = t === G.tag ? G.tag : null; if (want !== pressedTag) { pressedTag = want; bgDirty = true; } }
+}, { passive: false });
+function endPointer(e, cancel) {
+  if (!G || e.pointerId !== G.id) return; e.preventDefault();
+  const x = e.clientX, y = e.clientY, now = performance.now();
+  if (G.kind === "scrub") sim.release();
+  else if (G.kind === "tag") { const t = hitTag(x, y); pressedTag = null; bgDirty = true; if (!cancel && t === G.tag) { STAT.tag++; if (G.tag === "collect") doCollect(); else doDiscard(); } }
+  else if (G.kind === "flick" && !cancel) {
+    // 払い: 板の外の帯から始めた素早い指の動きだけ。離す直前の速さで決める（止めてから離したら何もしない）
+    G.pts.push([x, y, now]); const rec = G.pts.filter((p) => now - p[2] <= 90), a = rec[0], dy = y - G.y0, dx = x - G.x0;
+    const vy = rec.length > 1 && now - a[2] > 8 ? (y - a[1]) / (now - a[2]) : 0;
+    if (Math.abs(dy) > 46 && Math.abs(dy) > Math.abs(dx) * 1.2 && Math.abs(vy) > 0.45 && Math.sign(vy) === Math.sign(dy)) { STAT.flick++; if (dy < 0) doCollect(); else doDiscard(); } else STAT.flickNo++;
+  }
+  G = null;
+}
+cv.addEventListener("pointerup", (e) => endPointer(e, false), { passive: false });
+cv.addEventListener("pointercancel", (e) => endPointer(e, true), { passive: false });
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => { if (e.target === cv) e.preventDefault(); }, { passive: false });
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
+function togglePause(v) { if (state !== "play") return; paused = v === undefined ? !paused : v; if (paused && sim) { sim.release(); G = null; } document.getElementById("pause").classList.toggle("show", paused); }
+let usedKeys = false;
+window.addEventListener("keydown", (e) => {
+  const k = e.key; auInit(); usedKeys = true;
+  if (k === "m" || k === "M") { AU.on = !AU.on; if (AU.master) AU.master.gain.value = AU.on ? 0.9 : 0; bgDirty = true; return; }
+  if (state === "title" || state === "result") { if (k === "Enter" || k === " ") { e.preventDefault(); if (!e.repeat) startGame(); } return; }
+  if (k === "p" || k === "P" || k === "Escape") { togglePause(); return; }
+  if (paused) return;
+  if (k === "Enter" || k === "ArrowUp") { e.preventDefault(); if (!e.repeat) doCollect(); return; }
+  if (k === "Backspace" || k === "ArrowDown") { e.preventDefault(); if (!e.repeat) doDiscard(); return; }
+  const kk = k.toLowerCase();
+  if (kk.length === 1 && "wasd".includes(kk)) { kb.keys[kk] = true; kb.on = true; kb.last = performance.now() / 1000; fgDirty = true; e.preventDefault(); return; }
+  if (k === " ") { e.preventDefault(); if (!kb.space) { kb.space = true; kb.on = true; kb.last = performance.now() / 1000; sim.press(kb.x, kb.y); } }
+});
+window.addEventListener("keyup", (e) => {
+  const kk = e.key.toLowerCase(); if (kk.length === 1 && "wasd".includes(kk)) kb.keys[kk] = false;
+  if (e.key === " " && kb.space) { kb.space = false; if (sim && state === "play") sim.release(); }
+});
+function kbdUpdate(dt) {
+  if (!kb.on) return; const v = 280 * dt; let mx = 0, my = 0;
+  if (kb.keys.a) mx -= 1; if (kb.keys.d) mx += 1; if (kb.keys.w) my -= 1; if (kb.keys.s) my += 1;
+  if (mx || my) { const l = Math.hypot(mx, my); kb.x = Math.max(4, Math.min(SW - 4, kb.x + mx / l * v)); kb.y = Math.max(4, Math.min(SH - 4, kb.y + my / l * v)); kb.last = performance.now() / 1000; if (sim.st.down) sim.move(kb.x, kb.y); fgDirty = true; }
+}
+document.getElementById("bStart").addEventListener("click", () => startGame());
+document.getElementById("bAgain").addEventListener("click", () => startGame());
+document.addEventListener("visibilitychange", () => { if (document.hidden) togglePause(true); });
+window.addEventListener("resize", () => { clearTimeout(window.__rz); window.__rz = setTimeout(layout, 120); });
+
+// ---------- タイトルの見本（骨に沿った軌跡でこすって、上半分ほど掘った板） ----------
+function demo() {
+  sim = SIM.create(20261013); const st = sim.st;
+  st.deck = [{ species: 0, part: 1, setNo: 1 }]; st.sets[1] = { species: 0, got: [null, null, null], done: false, no: 1 }; st.setNo = 1; st.n = 6;
+  sim.start(); st.phase = "play"; st.events.length = 0;
+  const sl = st.slab, b = sl.geo.bbox, yMid = b[1] + (b[3] - b[1]) * 0.56;
+  buildSlab(sl);
+  setSeed(11); let x = b[0], y = b[1], strokes = 0, guard = 0;
+  while (strokes < 40 && guard++ < 4000) {
+    const w = SIM.planNext(sl, x, y, { margin: 4, region: (cx, cy) => cy < yMid + (cx - b[0]) * 0.25 });
+    if (!w) break;
+    if (w.lift || !st.down) { if (st.down) { sim.release(); handleDemo(); strokes++; } sim.press(w.x + rr(-3, 3), w.y + rr(-3, 3)); }
+    sim.move(w.x + rr(-2, 2), w.y + rr(-2, 2));
+    for (let i = 0; i < 20 && Math.hypot(st.bx - st.tx, st.by - st.ty) > 0.01; i++) { sim.step(1 / 60); applyStamps(); }
+    x = st.bx; y = st.by;
+    if (L.strokePts.length > 70) { sim.release(); handleDemo(); strokes++; sim.press(x, y); }
+  }
+  if (st.down) { sim.release(); handleDemo(); }
+  st.hair = 0.55; brushHair = -1;
+  function handleDemo() { applyStamps(); st.events.length = 0; strokeEnd(); }
+}
+
+// ---------- ループ ----------
+let last = performance.now(); const fpsA = [];
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  fpsA.push(dt); if (fpsA.length > 90) fpsA.shift();
+  if (state === "play" && !paused && !window.__freeze) {
+    kbdUpdate(dt); const ph = sim.st.phase; sim.step(dt); handleEvents(); applyStamps();
+    if (ph !== "play" || sim.st.phase !== "play") fgDirty = true;
+  }
+  updateFx(dt); audioFrame(dt);
+  if (sim && (state === "play" || state === "title") && Math.abs(sim.st.hair - brushHair) > 0.008) brushCache(sim.st.hair);
+  if (state === "play" && sim) { const cs = curSet(); if (cs !== frame.cs) { frame.cs = cs; bgDirty = true; } }
+  if (bgDirty) drawBG();
+  if (fgDirty) drawFG();
+}
+window.__fb = { get sim() { return sim; }, get state() { return state; }, fps: () => 1 / (fpsA.reduce((a, b) => a + b, 0) / Math.max(1, fpsA.length)), stat: STAT, toLocal, toScreen, SL: () => SL, start: startGame, onSlab, inBand, slabBox, hitTag, frameDraw: () => { bgDirty = true; fgDirty = true; },
+  dbg: (spec, n, dig) => { sim = SIM.create(n * 977 + 5); const st = sim.st; st.deck = [spec]; st.sets[1] = { species: spec.species, got: [null, null, null], done: false, no: 1 }; st.setNo = 1; st.n = n - 1; sim.start(); st.phase = "play"; st.events.length = 0; const sl = st.slab; if (dig) for (let i = 0; i < sl.dug.length; i++) if (dig === 1 || (i % SIM.GW) < SIM.GW * dig) sl.dug[i] = 1; state = "play"; hideOv(); rebuildFromGrid(sl); bgDirty = true; fgDirty = true; brushHair = -1; return { cracks: sl.cracks.length, bone: sl.boneTotal, fake: sl.fake, dry: sl.dry }; } };
+
+// ---------- 起動 ----------
+texInit(); paperInit(); layout(); demo();
+try { document.getElementById("tBest").textContent = best ? best.toLocaleString() : "まだ無し"; } catch (e) {}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { bgDirty = true; fgDirty = true; });
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => { bgDirty = true; fgDirty = true; });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
