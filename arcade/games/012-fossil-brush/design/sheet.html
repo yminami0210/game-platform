@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=900,initial-scale=1">
+<title>ひと刷けの骨 見本帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Hina+Mincho&family=Murecho:wght@500;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#7a3c2e}canvas{display:block}</style>
+</head><body>
+<canvas id="c"></canvas>
+<script src="shale.js"></script>
+<script>
+// 見本帳: 色（素材のかけらで）・骨の部品・見分け（骨／ひび／石目／影）・ひびの段階・こすりの段階・刷毛・文字
+const W = 900, H = 1790;
+let g;
+const F = { h: '700 17px "Murecho", sans-serif', s: '500 13px "Murecho", sans-serif', b: '700 13px "Murecho", sans-serif' };
+function head(txt, x, y) { g.fillStyle = C.wax; g.font = F.h; g.textAlign = "left"; g.fillText(txt, x, y); }
+function slip(x, y, w, h, lines, seed, a = 0) { // 藁半紙の紙片に説明
+  g.save(); g.translate(x, y); g.rotate(a); const sh = chipped([[0, 0], [w, 0], [w, h], [0, h]], 8, 0.5, 0.03, 1.5); const t = paperTex(w, h, seed);
+  g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(sh.map(([p, q]) => [p + 2, q + 3]))); g.save(); g.clip(pathOf(sh)); g.drawImage(t.canvas, 0, 0, w, h); g.restore();
+  g.fillStyle = C.ink; lines.forEach(([txt, font], i) => { g.font = font || F.s; g.fillText(txt, 8, 18 + i * 17); }); g.restore();
+}
+// 頁岩の板の見本（欠けた縁・厚み・影）。inside(S) で中身を描く。crust: 上の層を重ねて scrapes で削る
+function panel(x, y, w, h, seed, inside, opt = {}) {
+  setSeed(seed); const shape = chipped([[0, 0], [w, rr(-4, 4)], [w + rr(-3, 3), h], [rr(-3, 3), h]], 7, 1.6, 0.12, 5);
+  g.save(); g.translate(x, y);
+  g.fillStyle = "rgba(38,14,10,0.32)"; g.fill(pathOf(shape.map(([p, q]) => [p + 8, q + 10])));
+  g.fillStyle = "#283233"; g.fill(pathOf(shape.map(([p, q]) => [p + 3.5, q + 5])));
+  g.fillStyle = "#353f40"; g.fill(pathOf(shape.map(([p, q]) => [p + 1.4, q + 2])));
+  const S = makeCanvas(w + 10, h + 10); blit(S, shaleTex(w + 10, h + 10, seed, opt.ang || -0.05));
+  inside(S);
+  S.globalCompositeOperation = "destination-in"; S.fill(pathOf(shape)); S.globalCompositeOperation = "source-over";
+  const e = makeCanvas(w + 10, h + 10); e.fill(pathOf(shape)); blit(S, tint(rim(e, 1.4, 1.6), "#9aa29a", 0.7));
+  g.drawImage(S.canvas, 0, 0, S.W, S.H); g.restore();
+}
+function boneSet(w, h, parts) { const m = boneMask(w, h, parts); return [m, boneLayer(m, 61 + parts.length)]; }
+function putBones(S, m, L) { blit(S, tint(spread(m, 2.4), "#263031", 0.6)); blit(S, L); }
+function crustOver(S, m, seed, strokes, ghost = "real") {
+  const cr = crustTex(S.W, S.H, seed, -0.05);
+  cr.globalCompositeOperation = "source-atop";
+  if (ghost === "real") { blit(cr, tint(spread(m, 2.2, 10), "#5b5448", 0.22)); blit(cr, tint(m, "#6b5d48", 0.38)); }
+  if (ghost === "fake") { blit(cr, tint(spread(m, 6, 14), "#575f5c", 0.10)); blit(cr, tint(spread(m, 3, 10), "#5d6461", 0.12)); }
+  cr.globalCompositeOperation = "source-over";
+  const st = bristleStamps(22); for (const [p, s] of strokes) scrape(cr, st, p, s);
+  const sh = makeCanvas(S.W, S.H); blit(sh, cr, 2, 2.6); sh.globalCompositeOperation = "destination-out"; blit(sh, cr); blit(S, tint(sh, "#1b2324", 0.55));
+  blit(S, cr); for (const [p, s] of strokes) dustPiles(S, p, 22, seed + p.length, s * 0.35);
+}
+const zig = (x, y, a, len, wid, n, j) => { setSeed(j); const o = []; const tx = Math.cos(a), ty = Math.sin(a), nx = -ty, ny = tx; for (let i = 0; i <= n; i++) { const s = (i % 2 ? 1 : -1) * len / 2 * rr(0.75, 1.05), q = -wid / 2 + wid * i / n + rr(-2, 2); o.push([x + tx * s + nx * q, y + ty * s + ny * q]); } return o; };
+
+async function draw() {
+  await Promise.all([document.fonts.load('60px "Hina Mincho"'), document.fonts.load(F.h), document.fonts.load(F.s)]);
+  g = mountCanvas("c", W, H);
+  blit(g, linoTex(W, H, 44));
+
+  // ---- 題 ----
+  g.save(); g.translate(30, 26); g.rotate(-0.012);
+  { const w = 500, h = 118, sh = tagShape(w, h, 14), t = paperTex(w, h, 3); g.fillStyle = "rgba(38,14,10,0.45)"; g.fill(pathOf(sh.map(([p, q]) => [p + 3, q + 5]))); g.save(); g.clip(pathOf(sh)); g.drawImage(t.canvas, 0, 0, w, h); g.restore();
+    g.fillStyle = "#b08d3c"; g.beginPath(); g.arc(24, h / 2, 8, 0, 7); g.fill(); g.fillStyle = C.lino; g.beginPath(); g.arc(24, h / 2, 3.6, 0, 7); g.fill();
+    g.fillStyle = C.ink; g.font = '58px "Hina Mincho", serif'; g.fillText("ひと刷けの骨", 52, 72); g.font = F.s; g.fillText("夜の標本整理室で、油頁岩の板から化石を刷き出す", 54, 100); }
+  g.restore();
+  slip(560, 34, 310, 96, [["借りてくる物", F.b], ["標本整理室の作業台（弁柄のリノリウム）、"], ["油頁岩の板と飴色の化石骨、ダーマトの白い印、"], ["藁半紙の札・標本トレー・鉄紺のゴム印"]], 7, 0.015);
+
+  // ---- 色（素材のかけら）----
+  head("色は、作業台に並ぶ物そのものから", 30, 186);
+  const chips = [
+    ["油頁岩の青鈍", C.shale, "掘った後の板", (S) => { }],
+    ["風化した上の層", C.crust, "こする前の面", (S) => { blit(S, crustTex(S.W, S.H, 5, -0.05)); }],
+    ["化石骨の飴色", C.bone, "主役。骨だけ", null],
+    ["弁柄のリノリウム", C.lino, "作業台", null],
+    ["ダーマトの白", C.wax, "ひびの印・番号", (S) => { wax(S, [[12, 60], [40, 48], [70, 52], [96, 36]], 3, 2); wax(S, [[14, 82], [44, 70], [80, 74], [100, 62]], 3, 3); }],
+    ["鉄紺", C.ink, "墨・文字", null],
+    ["藁半紙", C.paper, "札・ラベル", null],
+  ];
+  chips.forEach(([name, hex, role, inside], i) => {
+    const x = 30 + i * 122, y = 206;
+    if (inside) panel(x, y, 108, 108, 60 + i, inside);
+    else if (name === "化石骨の飴色") { const pr = rib([10, 70], [50, 20], [100, 40], 22, 77, -1); const [m, L] = boneSet(120, 120, [...pr]); g.save(); g.translate(x, y); blit(g, tint(spread(m, 3), "rgba(38,14,10,1)", 0.3), 4, 6); g.drawImage(L.canvas, 0, 0, 120, 120); g.restore(); }
+    else if (name === "弁柄のリノリウム") { g.save(); g.translate(x, y + 6); const sh = chipped([[0, 0], [104, 0], [104, 98], [0, 98]], 12, 0.3, 0, 0); g.fillStyle = "rgba(30,10,6,0.45)"; g.fill(pathOf(sh.map(([p, q]) => [p + 3, q + 4]))); const t = linoTex(104, 98, 9); g.save(); g.clip(pathOf(sh)); g.drawImage(t.canvas, 0, 0, 104, 98); g.restore(); g.strokeStyle = "rgba(200,140,110,0.5)"; g.lineWidth = 1; g.stroke(pathOf(sh.slice(0, 2), false)); g.restore(); }
+    else if (name === "鉄紺") { g.save(); g.translate(x, y + 8); const t = paperTex(104, 94, 11); g.drawImage(t.canvas, 0, 0, 104, 94); stampText(g, "標", 22, 74, '62px "Hina Mincho", serif', 4); g.restore(); }
+    else { g.save(); g.translate(x + 4, y + 2); g.rotate(0.03); const t = paperTex(100, 104, 12), sh = tagShape(100, 104, 12); g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(sh.map(([p, q]) => [p + 2, q + 3]))); g.save(); g.clip(pathOf(sh)); g.drawImage(t.canvas, 0, 0, 100, 104); g.restore(); g.restore(); }
+    slip(x, y + 122, 112, 58, [[name, F.b], [hex], [role]], 20 + i, (i % 2 ? 0.01 : -0.01));
+  });
+
+  // ---- 骨の部品 ----
+  head("骨の部品（架空の「ながくびとかげ」「よろいうお」）。輪郭線は引かず、陰と明るい縁で形を出す", 30, 432);
+  panel(30, 448, 840, 214, 90, (S) => {
+    const parts = [];
+    [[50, 130, -0.06], [104, 127, 0.02], [156, 129, 0.08], [222, 140, 0.4]].forEach(([x, y, a], i) => parts.push(...vertebra(x, y, a, 50 - i * 2, 32 - i, 610 + i, 1)));
+    parts.push(...rib([300, 60], [370, 40], [420, 150], 12, 620));
+    parts.push(...rib([440, 50], [500, 60], [520, 170], 11, 621, 0.5, [8, 4]));
+    setSeed(630); for (let k = 0; k < 3; k++) { const x = 560 + k * 18, y = 70 + k * 30; parts.push(ribbon(quad([x, y], [x + 18, y + 8], [x + 40, y + 6], 8), (t) => 5 * (1 - t * 0.5))); }
+    [[690, 70, 26, 0.2], [742, 84, 22, -0.3], [716, 124, 24, 0.5], [770, 140, 18, 0.1], [666, 136, 20, -0.6]].forEach(([x, y, r, a], k) => parts.push(...scute(x, y, r, a, 640 + k)));
+    const [m, L] = boneSet(S.W, S.H, parts);
+    // よろいうおの鱗板の粒（盛り上がり）
+    setSeed(650); for (let k = 0; k < 90; k++) { const x = rr(640, 800), y = rr(46, 170); L.fillStyle = "rgba(240,195,137,0.7)"; L.beginPath(); L.arc(x - 0.5, y - 0.5, rr(1, 2), 0, 7); L.fill(); L.fillStyle = "rgba(94,52,24,0.6)"; L.beginPath(); L.arc(x + 0.8, y + 0.9, rr(0.8, 1.6), 0, 7); L.fill(); }
+    L.globalCompositeOperation = "destination-in"; blit(L, m); L.globalCompositeOperation = "source-over";
+    putBones(S, m, L);
+  });
+  [["椎骨: 糸巻きの椎体＋幅のある棘", 40, 672, 250], ["肋骨: 根元にこぶ。折れはずらす", 300, 672, 230], ["腹肋: 細い棒", 545, 672, 96], ["鱗板: 角ばった板＋粒", 650, 672, 190]].forEach(([t, x, y, w], i) => slip(x, y, w, 30, [[t]], 30 + i, i % 2 ? 0.008 : -0.008));
+
+  // ---- 見分け ----
+  head("見分け: 骨・ひび・石目・影を、色と縁の硬さで分ける", 30, 744);
+  const pw = 200, ph = 160, py = 760;
+  panel(30, py, pw, ph, 101, (S) => { const [m, L] = boneSet(S.W, S.H, [...vertebra(70, 104, 0.1, 50, 32, 701, 1), ...rib([96, 76], [150, 60], [186, 120], 11, 702)]); putBones(S, m, L); });
+  panel(250, py, pw, ph, 102, (S) => { const c = crackPath(10, 120, -0.45, 200, 12, 0.5); drawCrack(S, c, 12, 0.25, [[c[12][0], c[12][1], 0.6, 22, 4]]); });
+  panel(470, py, pw, ph, 103, (S) => { blit(S, shaleTex(S.W, S.H, 140, -0.2)); }, { ang: -0.2 });
+  panel(690, py, pw, ph, 104, (S) => { const mk = (ox) => vertebra(ox, 96, 0.1, 42, 28, 705, 1); const [m1] = boneSet(S.W, S.H, mk(52)); const [m2] = boneSet(S.W, S.H, mk(150));
+    const cr = crustTex(S.W, S.H, 14, -0.05); cr.globalCompositeOperation = "source-atop"; blit(cr, tint(spread(m1, 2.2, 10), "#5b5448", 0.22)); blit(cr, tint(m1, "#6b5d48", 0.38)); blit(cr, tint(spread(m2, 6, 14), "#575f5c", 0.10)); blit(cr, tint(spread(m2, 3, 10), "#5d6461", 0.12)); cr.globalCompositeOperation = "source-over"; blit(S, cr); });
+  [["骨: 飴色。縁が硬く右下に陰", 30], ["ひび: 黒い裂け目＋欠けた唇", 250], ["石目: ぼやけた帯。線にしない", 470], ["影: 左＝本物（茶がかって縁がはっきり）／右＝ただの石（灰で、にじむ）", 690]].forEach(([t, x], i) => slip(x, py + ph + 12, pw, i === 3 ? 48 : 30, i === 3 ? [["影 左: 本物（茶・縁が出る）"], ["影 右: ただの石（灰・にじむ）"]] : [[t]], 40 + i, i % 2 ? 0.01 : -0.01));
+
+  // ---- ひびの段階 ----
+  head("ひび: こするたびに伸びて太る（ゲージは出さない）", 30, 1006);
+  const cy = 1022, ch = 140;
+  [[0, "入ったばかり"], [0.5, "伸びた（剥がれが出る）"], [0.95, "割れる寸前"], [-1, "割れた（割れた側の骨は失う）"]].forEach(([gr, label], i) => {
+    const x = 30 + i * 220;
+    if (gr >= 0) panel(x, cy, pw, ch, 120 + i, (S) => { const c = crackPath(14, 100, -0.3, 190, 20, 0.5); const u = drawCrack(S, c, 20, gr, gr > 0.3 ? [[c[10][0], c[10][1], 0.7, 20, 4]] : []); const side = (d) => c.filter((_, k) => k % 3 === 0).map(([px, py2], k, arr) => { const a = arr[Math.max(0, k - 2)], b = arr[Math.min(arr.length - 1, k + 2)]; let nx = -(b[1] - a[1]), ny = b[0] - a[0]; const n = Math.hypot(nx, ny) || 1; return [px + nx / n * d, py2 + ny / n * d]; }); wax(S, side(13).slice(1, -1), 2.4, 30 + i); wax(S, side(-13).slice(2), 2.4, 40 + i, C.wax, 0.85); });
+    else {
+      // 割れた: 2枚に分かれて少し開く。割れ口は明るい新しい面
+      setSeed(130); const c = crackPath(-4, 104, -0.3, 214, 20, 0.5);
+      const top = [[0, 0], [pw, 0], ...c.slice().reverse().filter(([px]) => px <= pw + 4).map(([px, py2]) => [Math.min(pw, Math.max(0, px)), py2])].reverse();
+      const A = [[0, 0], [pw, 0], [pw, c[c.length - 1][1]], ...c.slice().reverse().map(([px, py2]) => [Math.min(pw, Math.max(0, px)), py2])];
+      const B = [...c.map(([px, py2]) => [Math.min(pw, Math.max(0, px)), py2]), [pw, ch], [0, ch]];
+      g.save(); g.translate(x, cy);
+      for (const [poly, dx, dy, sd] of [[A, -3, -5, 131], [B, 4, 6, 132]]) {
+        const P = chipped(poly, 8, 1.2, 0.05, 3).map(([px, py2]) => [px + dx, py2 + dy]);
+        g.fillStyle = "rgba(38,14,10,0.32)"; g.fill(pathOf(P.map(([p, q]) => [p + 8, q + 10]))); g.fillStyle = "#283233"; g.fill(pathOf(P.map(([p, q]) => [p + 3.5, q + 5])));
+        const S = makeCanvas(pw + 20, ch + 20); blit(S, shaleTex(pw + 20, ch + 20, sd, -0.05)); S.globalCompositeOperation = "destination-in"; S.fill(pathOf(P)); S.globalCompositeOperation = "source-over";
+        const e = makeCanvas(pw + 20, ch + 20); e.fill(pathOf(P)); blit(S, tint(rim(e, 1.4, 1.6), "#9aa29a", 0.7)); blit(S, tint(rim(e, -2, -2.5), "#141b1d", 0.6)); g.drawImage(S.canvas, 0, 0, S.W, S.H);
+      }
+      setSeed(133); for (let k = 0; k < 40; k++) { const [px, py2] = c[(rnd() * c.length) | 0]; g.fillStyle = css(rgb(C.dust), rr(0.6, 1)); g.fillRect(px + rr(-6, 6), py2 + rr(-2, 8), rr(0.8, 2), rr(0.8, 1.6)); }
+      g.restore();
+    }
+    slip(x, cy + ch + 14, pw, 30, [[label]], 50 + i, i % 2 ? 0.01 : -0.012);
+  });
+
+  // ---- こすりの段階 ----
+  head("こする: 上の層がはがれ、粉は筋の脇と終わりに寄る", 30, 1246);
+  const sy = 1262, sh2 = 140;
+  const vb = () => [...vertebra(80, 92, 0.15, 48, 30, 801, 1), ...rib([104, 96], [150, 46], [186, 110], 11, 802)];
+  [["こする前（骨の影だけ）", []], ["こすった（骨が出る）", [[zig(100, 80, 0.4, 120, 90, 14, 61), 0.85], [zig(140, 70, -0.3, 90, 60, 9, 62), 0.8]]], ["こすりすぎ（傷・くすみ）", "over"], ["8割を超えた（ひと段明るく）", "ready"]].forEach(([label, st], i) => {
+    const x = 30 + i * 220;
+    panel(x, sy, pw, sh2, 140 + i, (S) => {
+      const [m, L] = boneSet(S.W, S.H, vb());
+      if (st === "over" || st === "ready") {
+        if (st === "over") { setSeed(9); const sc = makeCanvas(S.W, S.H); sc.fillStyle = "rgba(120,110,96,0.4)"; sc.fillRect(0, 0, S.W, S.H); for (let k = 0; k < 26; k++) { const ox = rr(50, 120), oy = rr(54, 110), a = 0.5 + rr(-0.2, 0.2), l = rr(8, 22); sc.strokeStyle = `rgba(246,226,190,${rr(0.5, 0.9)})`; sc.lineWidth = rr(0.4, 0.8); sc.beginPath(); sc.moveTo(ox, oy); sc.lineTo(ox + Math.cos(a) * l, oy + Math.sin(a) * l); sc.stroke(); } sc.globalCompositeOperation = "destination-in"; blit(sc, m); blit(L, sc); }
+        if (st === "ready") { const lift = tint(m, "#e9b877", 0.28); blit(L, lift); blit(L, tint(rim(m, -1.6, -1.8), "#f6d7a6", 0.9)); }
+        putBones(S, m, L);
+        crustOver(S, m, 150 + i, [[zig(100, 80, 0.4, 150, 110, 18, 71), 0.95], [zig(120, 70, -0.3, 140, 100, 14, 72), 0.95], [zig(150, 90, 1.0, 120, 100, 14, 73), 0.9]]);
+      } else { putBones(S, m, L); crustOver(S, m, 150 + i, st); }
+    });
+    slip(x, sy + sh2 + 14, pw, 30, [[label]], 60 + i, i % 2 ? 0.01 : -0.012);
+  });
+
+  // ---- 刷毛 ----
+  head("刷毛: 毛の長さがそのまま残り", 30, 1486);
+  brush(g, 40, 1512, -0.03, 1.0, 3); brush(g, 330, 1520, 0.02, 0.5, 3); brush(g, 610, 1512, -0.04, 0.06, 3);
+
+  // ---- 文字 ----
+  head("文字: 見出し・点数・番号は Hina Mincho、説明とボタンは Murecho（2書体まで）", 30, 1600);
+  g.save(); g.translate(30, 1618); g.rotate(-0.01);
+  { const w = 430, h = 150, t = paperTex(w, h, 81), shp = chipped([[0, 0], [w, 0], [w, h], [0, h]], 9, 0.4, 0, 0); g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(shp.map(([p, q]) => [p + 3, q + 4]))); g.save(); g.clip(pathOf(shp)); g.drawImage(t.canvas, 0, 0, w, h); g.restore();
+    g.strokeStyle = "rgba(29,39,49,0.8)"; g.lineWidth = 1.6; g.strokeRect(8, 8, w - 16, h - 16); g.lineWidth = 0.6; g.strokeRect(11.4, 11.6, w - 22.6, h - 22.4);
+    g.fillStyle = C.ink; g.font = '44px "Hina Mincho", serif'; g.fillText("1,284", 24, 66); g.font = '26px "Hina Mincho", serif'; g.fillText("図版 第七", 200, 60); g.fillText("0123456789", 24, 110);
+    g.font = F.s; g.fillText("Hina Mincho 44 / 26（22px 未満では使わない）", 24, 132); }
+  g.restore();
+  g.save(); g.translate(486, 1618); g.rotate(0.012);
+  { const w = 384, h = 150, t = paperTex(w, h, 82), shp = chipped([[0, 0], [w, 0], [w, h], [0, h]], 9, 0.4, 0, 0); g.fillStyle = "rgba(38,14,10,0.4)"; g.fill(pathOf(shp.map(([p, q]) => [p + 3, q + 4]))); g.save(); g.clip(pathOf(shp)); g.drawImage(t.canvas, 0, 0, w, h); g.restore();
+    g.fillStyle = C.ink; g.font = '700 21px "Murecho", sans-serif'; g.fillText("おさめる　すてる", 18, 36);
+    g.font = '500 15px "Murecho", sans-serif'; g.fillText("板の上を指でこする。白い線の内側はこすらない。", 18, 66); g.fillText("骨が八割見えたら、板を上へ払っておさめる。", 18, 88);
+    g.font = F.s; g.fillText("Murecho 700 21 / 500 15 / 500 13（12px 未満は使わない）", 18, 112);
+    stampText(g, "完品", 300, 40, '30px "Hina Mincho", serif', 6, "#1d2731", 0.85); }
+  g.restore();
+}
+draw().then(() => { window.__done = true; });
+</script>
+</body></html>
