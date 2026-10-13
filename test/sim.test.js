@@ -159,7 +159,9 @@ test('omniroute モード: 上限回数を超えたらテンプレートに落�
     assert.equal(opts.headers.authorization, undefined);
     const body = JSON.parse(opts.body);
     assert.equal(body.model, roles.writer, 'role:writer は omni_models.json の writer に置き換わる');
-    assert.ok(body.max_tokens <= 220);
+    // Gemini Flash は考える分も max_tokens を使う。600 は上限で、実際の消費は使った分だけ（1日の予算で止まる）
+    assert.ok(body.max_tokens <= 600);
+    assert.equal(body.reasoning_effort, "low");
     return { ok: true, json: async () => ({ choices: [{ message: { content: 'LLM の投稿' } }], usage: { total_tokens: 90 } }) };
   };
   const ex = new Executor(cfg, { dataDir: dir, fetchImpl });
