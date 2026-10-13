@@ -96,6 +96,7 @@ claude.ai の Artifact にしてあります（非公開。開けるのはオー
 ```bash
 omniroute serve --daemon --no-open   # 127.0.0.1:20128 で待ち受け（~/.omniroute/.env の OMNIROUTE_SERVER_HOST=127.0.0.1）。キー不要
 NANASHI_LLM_MODE=omniroute npm start
+# または、OmniRoute の起動確認つきで: npm run start:omni
 ```
 
 - モデルは `nanashi.config.json` の `llm.omniroute.model`。既定の `role:writer` は、会社共通の役割表 `tools/omni_models.json` の writer を使う

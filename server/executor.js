@@ -124,12 +124,16 @@ export class Executor {
         model: resolveModel(o.model),
         max_tokens: task === 'newspaper' ? o.maxTokens * 3 : o.maxTokens,
         temperature: o.temperature,
+        // Gemini の Flash 系は考える分も max_tokens を使うので、短い文章では考えを浅くさせる
+        ...(o.reasoningEffort ? { reasoning_effort: o.reasoningEffort } : {}),
         messages: [{ role: 'user', content: prompt }],
       }),
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) throw new Error(`OmniRoute HTTP ${res.status}`);
     const j = await res.json();
+    // 上限で切れた文章は使わない（テンプレートに落とす）
+    if (j.choices?.[0]?.finish_reason === 'length') throw new Error('OmniRoute の返答が max_tokens で切れました');
     const text = j.choices?.[0]?.message?.content?.trim();
     const tokens = j.usage?.total_tokens ?? Math.ceil((prompt.length + (text || '').length) / 2);
     return { text, via: 'omniroute', tokens };

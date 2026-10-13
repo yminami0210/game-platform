@@ -9,8 +9,9 @@
     "omniroute": {
       "baseUrl": "http://127.0.0.1:20128/v1",
       "model": "role:writer",
-      "maxTokens": 220,
-      "temperature": 0.8
+      "maxTokens": 600,
+      "temperature": 0.8,
+      "reasoningEffort": "low"
     },
     "claudeCode": {
       "baseUrl": "http://127.0.0.1:20128",

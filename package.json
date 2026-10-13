@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node server/index.js",
+    "start:omni": "bash scripts/start-omni.sh",
     "test": "node --test test/*.test.js"
   },
   "engines": {
