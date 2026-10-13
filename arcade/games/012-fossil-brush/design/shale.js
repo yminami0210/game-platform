@@ -79,24 +79,33 @@ function rot(pts, cx, cy, a) { const c = Math.cos(a), s = Math.sin(a); return pt
 // ---------- 骨の部品（架空の生き物「ながくびとかげ」「よろいうお」） ----------
 // 椎骨: 糸巻き形の椎体＋傾いた棘突起＋前後の小さな突起。1個ずつ形を変える
 function vertebra(cx, cy, ang, len, hgt, seed, flip = 1) {
-  setSeed(seed); const L = len / 2, H = hgt / 2, k = rr(0.7, 0.8), lean = rr(-0.1, 0.18) * len;
-  // 椎体: 上下がくびれ、両端がふくらむ糸巻き
-  const body = []; for (let i = 0; i <= 12; i++) { const t = i / 12, x = -L + t * len, pinch = 1 - (1 - k) * Math.sin(Math.PI * t); body.push([x, -H * pinch]); }
-  body.push([L + rr(1, 2.5), -H * 0.45], [L + rr(1.5, 3), H * 0.1], [L + rr(1, 2.5), H * 0.55]);
-  for (let i = 12; i >= 0; i--) { const t = i / 12, x = -L + t * len, pinch = 1 - (1 - k) * Math.sin(Math.PI * t); body.push([x, H * pinch]); }
-  body.push([-L + rr(1.5, 3), H * 0.4], [-L + rr(2, 3.5), 0], [-L + rr(1.5, 3), -H * 0.4]);
-  // 神経弓＋棘突起: 椎体の上の台形から立つ、幅のある板。上の端は丸く、角が1つ欠ける
-  const sp = hgt * rr(0.8, 1.05), bw = len * rr(0.72, 0.82), tw = len * rr(0.34, 0.44), top = -H * k - sp;
-  const spine = [[-bw / 2, -H * k + 2], [-bw / 2 + 3, -H * k - sp * 0.22], [-tw / 2 + lean, top + 5], [-tw / 2 + lean + 3.5, top + rr(0, 1)], [tw / 2 + lean - 4, top - rr(0.5, 2)], [tw / 2 + lean, top + rr(3, 6)], [bw / 2 - 3, -H * k - sp * 0.25], [bw / 2 + rr(2, 4), -H * k - sp * 0.12], [bw / 2, -H * k + 2]];
+  setSeed(seed); const L = len / 2, H = hgt / 2, k = rr(0.74, 0.82), lean = rr(0.18, 0.26) * len; // 棘は尾の側へ傾く
+  // 椎体: 左右の端が少し広がった短い円柱（上下の辺はなめらかにくびれる。尖った角を作らない）
+  const body = [];
+  for (let i = 0; i <= 14; i++) { const t = i / 14, x = -L + t * len, pinch = 1 - (1 - k) * Math.sin(Math.PI * t); body.push([x, -H * pinch]); }
+  for (let i = 0; i <= 6; i++) { const a = -Math.PI / 2 + i / 6 * Math.PI; body.push([L + Math.cos(a) * rr(1.6, 2.4), Math.sin(a) * H]); }
+  for (let i = 14; i >= 0; i--) { const t = i / 14, x = -L + t * len, pinch = 1 - (1 - k) * Math.sin(Math.PI * t); body.push([x, H * pinch]); }
+  for (let i = 0; i <= 6; i++) { const a = Math.PI / 2 + i / 6 * Math.PI; body.push([-L + Math.cos(a) * rr(1.2, 2), Math.sin(a) * H]); }
+  // 棘: 1本の幅広い板。先は丸く、丸い角が1つだけ欠ける
+  const sp = hgt * rr(0.95, 1.15), bw = len * rr(0.5, 0.56), tw = len * rr(0.34, 0.4), base = -H * k + 3, top = -H * k - sp;
+  const spine = [[-bw / 2 + lean * 0.15, base], [-tw / 2 + lean * 0.85, top + tw * 0.5]];
+  const chipAt = (rnd() * 7) | 0;
+  for (let i = 0; i <= 8; i++) { const a = Math.PI + i / 8 * Math.PI, r = tw / 2 * (i === chipAt ? 0.72 : 1); spine.push([lean + Math.cos(a) * r, top + tw / 2 + Math.sin(a) * r * 0.9]); }
+  spine.push([tw / 2 + lean * 0.85, top + tw * 0.5], [bw / 2 + lean * 0.15, base]);
   const f = (p) => rot(p.map(([x, y]) => [x, y * flip]), cx, cy, ang);
-  return [f(chipped(body, 3, 0.35, 0.03, 1.5)), f(chipped(spine, 3, 0.4, 0.05, 2))];
+  const v = [f(body), f(spine)];
+  v.ends = [[cx + Math.cos(ang) * (L + 0.5), cy + Math.sin(ang) * (L + 0.5)], [cx - Math.cos(ang) * (L - 0.5), cy - Math.sin(ang) * (L - 0.5)]].map((p) => [...p, ang, H * 0.78]);
+  return v;
 }
+// 関節面: 椎体の両端に暗い細い楕円（骨の層に描く）
+function vertebraEnds(L, list) { for (const [x, y, a, r] of list) { L.save(); L.translate(x, y); L.rotate(a); L.fillStyle = "rgba(70,36,14,0.9)"; L.beginPath(); L.ellipse(0, 0, 1.6, r, 0, 0, 7); L.fill(); L.fillStyle = "rgba(240,195,137,0.5)"; L.beginPath(); L.ellipse(-1.6, -r * 0.2, 0.7, r * 0.6, 0, 0, 7); L.fill(); L.restore(); } }
 // 肋骨: 先へ細くなる弓なりの帯。折れていれば2本に分けてずらす
 function rib(p0, p1, p2, w0, seed, brk = -1, shift = [0, 0]) {
   setSeed(seed); const pts = quad(p0, p1, p2, 26).map(([x, y], i) => [x + (vnoise(i * 0.4, seed, 3) - 0.5) * 1.4, y + (vnoise(i * 0.4, seed, 7) - 0.5) * 1.4]);
-  const w = (t) => w0 * (1 - t * 0.72) * (t < 0.08 ? 0.75 + t * 3 : 1);
+  const w = (t) => w0 * (1 - Math.pow(t, 0.8) * 0.66) * (t < 0.08 ? 0.75 + t * 3 : 1);
   const [hx, hy] = pts[1], knob = []; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; knob.push([hx + Math.cos(a) * w0 * 0.75 * rr(0.85, 1.1), hy + Math.sin(a) * w0 * 0.6]); }
-  if (brk < 0) return [ribbon(pts, w), knob];
+  const jag = (poly) => { const n = poly.length / 2, A = poly[n - 1], B = poly[n], dx = pts[pts.length - 1][0] - pts[pts.length - 3][0], dy = pts[pts.length - 1][1] - pts[pts.length - 3][1], dl = Math.hypot(dx, dy) || 1; const m = [(A[0] + B[0]) / 2 + (A[0] - B[0]) * rr(-0.3, 0.3) + dx / dl * rr(-3, 1.5), (A[1] + B[1]) / 2 + (A[1] - B[1]) * rr(-0.3, 0.3) + dy / dl * rr(-3, 1.5)]; poly.splice(n, 0, m); return poly; };
+  if (brk < 0) return [jag(ribbon(pts, w)), knob];
   const n = Math.round(brk * 26), a = pts.slice(0, n + 1), b = pts.slice(n).map(([x, y]) => [x + shift[0], y + shift[1]]);
   return [ribbon(a, (t) => w(t * brk)), ribbon(b, (t) => w(brk + t * (1 - brk))), knob];
 }
@@ -129,14 +138,17 @@ function boneLayer(mask, seed, pits = []) {
 
 // ---------- 母岩 ----------
 // 掘った後の母岩: 青鈍の層理（不揃いな幅・明るさ）＋ごくまばらな雲母
-function shaleTex(w, h, seed, ang) {
-  const A = rgb("#3c4849"), Bc = rgb("#5a6664"), Lm = rgb("#7d8883"), F = rgb("#b9beb4"), sn = Math.sin(ang), cs = Math.cos(ang);
+function shaleTex(w, h, seed, ang, nb) {
+  const A = rgb("#404c4d"), Bc = rgb("#55615f"), Lm = rgb("#6f7a76"), F = rgb("#b9beb4"), sn = Math.sin(ang), cs = Math.cos(ang);
+  setSeed(seed * 7 + 1); const n = nb || (2 + (rnd() < 0.5 ? 1 : 0)), bands = [];
+  let u = h * rr(0.1, 0.25); for (let k = 0; k < n; k++) { bands.push([u, rr(3, 14), rr(0.5, 1), rnd() < 0.7 ? 1 : -1]); u += h * rr(0.18, 0.5); }
   return pixelTex(w, h, (x, y, px, py) => {
-    const u = -x * sn + y * cs + 14 * fbm(x * 0.012, y * 0.012, seed + 2, 3), v = x * cs + y * sn;
-    const band = fbm(u * 0.035, v * 0.002, seed, 4); let c = mixc(A, Bc, sstep(0.3, 0.72, band));
-    const thin = fbm(u * 0.11, v * 0.018, seed + 9, 3); c = mixc(c, Lm, sstep(0.68, 0.76, thin) * 0.3 * sstep(0.4, 0.7, fbm(v * 0.02, u * 0.01, seed + 4, 3)));
-    const pits = fbm(x * 0.09, y * 0.09, seed + 13, 2); c = mixc(c, A, sstep(0.68, 0.8, pits) * 0.5);
-    const n = hash2(px, py, seed); if (n > 0.9975 && fbm(x * 0.02, y * 0.02, seed + 21, 2) > 0.52) c = mixc(c, F, 0.7);
+    const uu = -x * sn + y * cs + 7 * (fbm(x * 0.008, y * 0.004, seed + 2, 2) - 0.5) * 2, v = x * cs + y * sn;
+    let c = mixc(A, Bc, sstep(0.3, 0.75, fbm(x * 0.007, y * 0.007, seed, 4)));
+    for (let k = 0; k < bands.length; k++) { const [u0, bw, st, sg] = bands[k], d = Math.abs(uu - u0) / bw; if (d > 1.6) continue;
+      const fade = sstep(0.38, 0.62, fbm(v * 0.008 + k * 13, k * 7.3, seed + 4, 3)) * st, amt = Math.max(0, 1 - d * d) * fade; c = mixc(c, sg > 0 ? Lm : A, amt * 0.7); }
+    const pits = fbm(x * 0.09, y * 0.09, seed + 13, 2); c = mixc(c, A, sstep(0.7, 0.8, pits) * 0.4);
+    const nn = hash2(px, py, seed); if (nn > 0.9975 && fbm(x * 0.02, y * 0.02, seed + 21, 2) > 0.52) c = mixc(c, F, 0.7);
     const g = (hash2(px, py, seed + 1) - 0.5) * (6 + 10 * fbm(x * 0.03, y * 0.03, seed + 3, 2)); return [c[0] + g, c[1] + g, c[2] + g, 1];
   });
 }
@@ -145,8 +157,8 @@ function crustTex(w, h, seed, ang) {
   const A = rgb("#636d69"), Bc = rgb(C.crust), Lt = rgb("#8f978f"), Dk = rgb("#4c5653"), sn = Math.sin(ang), cs = Math.cos(ang);
   return pixelTex(w, h, (x, y, px, py) => {
     const u = -x * sn + y * cs + 12 * fbm(x * 0.008, y * 0.008, seed + 2, 3), v = x * cs + y * sn;
-    let c = mixc(A, Bc, sstep(0.28, 0.72, fbm(u * 0.025, v * 0.004, seed, 4)));
-    const st = fbm(u * 0.32, v * 0.012, seed + 6, 3); c = mixc(c, Lt, sstep(0.6, 0.78, st) * 0.22 * sstep(0.4, 0.65, fbm(v * 0.012, u * 0.02, seed + 7, 2)));
+    let c = mixc(A, Bc, sstep(0.28, 0.72, fbm(u * 0.012, v * 0.008, seed, 4)));
+    const st = fbm(u * 0.32, v * 0.012, seed + 6, 3); c = mixc(c, Lt, sstep(0.62, 0.78, st) * 0.1 * sstep(0.4, 0.65, fbm(v * 0.012, u * 0.02, seed + 7, 2)));
     const pit = fbm(x * 0.2, y * 0.2, seed + 8, 2); c = mixc(c, Dk, sstep(0.76, 0.84, pit) * 0.8);
     const g = (hash2(px, py, seed) - 0.5) * (6 + 14 * sstep(0.35, 0.7, fbm(x * 0.015, y * 0.015, seed + 11, 2))); return [c[0] + g, c[1] + g, c[2] + g * 0.95, 1];
   });
@@ -160,7 +172,7 @@ function flakeSteps(g, cx, cy, rw, rh, ang, n, seed) {
     const low = rnd() < 0.6; g.fillStyle = low ? "rgba(70,80,77,0.22)" : "rgba(150,158,150,0.14)"; g.fill(pathOf(p));
     // 段の縁は一辺の一部だけ（低い段は上側が暗い崖、高い段は上側が明るい）
     const i0 = (rnd() * p.length * 0.3) | 0, edge = p.slice(i0, i0 + Math.max(3, (p.length * rr(0.2, 0.4)) | 0));
-    g.strokeStyle = low ? "rgba(38,46,46,0.55)" : "rgba(178,185,175,0.5)"; g.lineWidth = rr(0.8, 1.3); g.stroke(pathOf(edge, false));
+    g.strokeStyle = "rgba(170,178,168,0.45)"; g.lineWidth = rr(0.8, 1.3); g.stroke(pathOf(edge, false));
   }
 }
 // 作業台: 弁柄のリノリウム。ゆがんだ大理石模様（筋は斜め・途切れる）、すり減った明るい所、細かい傷
@@ -183,7 +195,7 @@ function bristleStamps(width, n = 4) {
   const out = [];
   for (let k = 0; k < n; k++) {
     setSeed(900 + k); const s = makeCanvas(width + 8, 14);
-    for (let i = 0; i < width * 2.2; i++) { const x = 4 + rr(0, width), lenY = rr(2, 9) * (1 - Math.pow(Math.abs(x - 4 - width / 2) / (width / 2), 3) * 0.7); s.fillStyle = `rgba(0,0,0,${rr(0.15, 0.55)})`; s.fillRect(x, 7 - lenY / 2 + rr(-1.5, 1.5), rr(0.6, 1.4), lenY); }
+    for (let i = 0; i < width * 2.2; i++) { const x = 4 + rr(0, width), lenY = rr(2, 9) * (1 - Math.pow(Math.abs(x - 4 - width / 2) / (width / 2), 3) * 0.7); s.fillStyle = "#000"; s.fillRect(Math.round(x * 2) / 2, Math.round((7 - lenY / 2 + rr(-1.5, 1.5)) * 2) / 2, rr(1, 1.6), lenY); }
     out.push(s);
   }
   return out;
@@ -201,7 +213,7 @@ function scrape(layer, stamps, pts, strength = 0.5, step = 2.2) {
 function brushTracks(g, pts, width, seed) {
   setSeed(seed); const r = resample(pts, 3);
   for (let k = 0; k < width * 0.22; k++) {
-    const off = rr(-width / 2, width / 2), lt = rnd() < 0.5; g.strokeStyle = lt ? "rgba(140,152,146,0.14)" : "rgba(30,40,42,0.16)"; g.lineWidth = rr(0.4, 0.9); g.beginPath();
+    const off = rr(-width / 2, width / 2), lt = rnd() < 0.5; g.strokeStyle = lt ? "rgba(140,152,146,0.14)" : "rgba(120,132,128,0.10)"; g.lineWidth = rr(0.4, 0.9); g.beginPath();
     let started = false; for (let i = 1; i < r.length; i++) { const [ax, ay] = r[i - 1], [bx, by] = r[i]; let nx = -(by - ay), ny = bx - ax; const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n; if (vnoise(i * 0.15, k, seed) < 0.45) { started = false; continue; } const x = bx + nx * off, y = by + ny * off; started ? g.lineTo(x, y) : g.moveTo(x, y); started = true; }
     g.stroke();
   }
@@ -304,3 +316,22 @@ function stampText(g, txt, x, y, font, seed, col = C.ink, a = 0.9) {
   s.globalCompositeOperation = "destination-out"; for (let i = 0; i < 260; i++) { s.fillStyle = `rgba(0,0,0,${rr(0.3, 0.9)})`; s.fillRect(x + rr(-4, g.measureText(txt).width + 4), y + rr(-30, 6), rr(0.6, 2.4), rr(0.6, 1.8)); }
   g.globalAlpha = a * 0.35; blit(g, s, 1.6, 1.2); g.globalAlpha = a; blit(g, s); g.restore();
 }
+
+// こする前の骨の影 = 浮き彫り（左上に明るい縁・右下に暗い縁。ぼかさない。茶は alpha 0.1）
+function ghostRelief(crust, mask) {
+  crust.save(); crust.globalCompositeOperation = "source-atop";
+  blit(crust, tint(mask, "#6b5d48", 0.1));
+  blit(crust, tint(rim(mask, 1.6, 1.6), "#8d968f", 1));
+  blit(crust, tint(rim(mask, -1.6, -1.6), "#545e5c", 1));
+  crust.restore();
+}
+// ただの石の模様: 灰色で、縁がにじむ（ずらし重ねの作り置き）。浮き彫りは無い
+function ghostFake(crust, mask) { crust.save(); crust.globalCompositeOperation = "source-atop"; blit(crust, tint(spread(mask, 5, 14), "#5f6764", 0.06)); blit(crust, tint(spread(mask, 2.5, 10), "#5f6764", 0.08)); crust.restore(); }
+// 削った穴の縁の厚み: 穴の右下側に明るい欠け面、左上側の縁から穴へ落ちる硬い影（一筆ごとに作り直す）
+function crustEdges(S, crust) {
+  const sh = makeCanvas(crust.W, crust.H); blit(sh, crust, 2.5, 2.5); sh.globalCompositeOperation = "destination-out"; blit(sh, crust); blit(S, tint(sh, "#3a4546", 1));
+  blit(S, crust);
+  blit(S, tint(rim(crust, 1.8, 1.8), "#8a938e", 1));
+}
+// 骨のまわりの暗いにじみ（骨の縁から 1.5px だけ）
+function boneHalo(S, mask) { blit(S, tint(spread(mask, 1.5, 10), "#2c3637", 0.6)); }

@@ -31,17 +31,16 @@ function panel(x, y, w, h, seed, inside, opt = {}) {
   const e = makeCanvas(w + 10, h + 10); e.fill(pathOf(shape)); blit(S, tint(rim(e, 1.4, 1.6), "#9aa29a", 0.7));
   g.drawImage(S.canvas, 0, 0, S.W, S.H); g.restore();
 }
+function vChain(x, y, a, n, len, hgt, seed, out, ends, flip = -1, bend = 0.06) { for (let i = 0; i < n; i++) { const l = len - i * 1.5, vv = vertebra(x, y, a, l, hgt - i, seed + i, flip); vv.c = [x, y, a, hgt - i]; out.push(...vv); ends.push(...vv.ends); if (out.cs) out.cs.push(vv.c); x += Math.cos(a) * (l + 2); y += Math.sin(a) * (l + 2); a += bend; } }
 function boneSet(w, h, parts) { const m = boneMask(w, h, parts); return [m, boneLayer(m, 61 + parts.length)]; }
-function putBones(S, m, L) { blit(S, tint(spread(m, 2.4), "#263031", 0.6)); blit(S, L); }
+function putBones(S, m, L) { boneHalo(S, m); blit(S, L); }
 function crustOver(S, m, seed, strokes, ghost = "real") {
   const cr = crustTex(S.W, S.H, seed, -0.05);
   cr.globalCompositeOperation = "source-atop";
-  if (ghost === "real") { blit(cr, tint(spread(m, 2.2, 10), "#5b5448", 0.22)); blit(cr, tint(m, "#6b5d48", 0.38)); }
-  if (ghost === "fake") { blit(cr, tint(spread(m, 6, 14), "#575f5c", 0.10)); blit(cr, tint(spread(m, 3, 10), "#5d6461", 0.12)); }
   cr.globalCompositeOperation = "source-over";
-  const st = bristleStamps(22); for (const [p, s] of strokes) scrape(cr, st, p, s);
-  const sh = makeCanvas(S.W, S.H); blit(sh, cr, 2, 2.6); sh.globalCompositeOperation = "destination-out"; blit(sh, cr); blit(S, tint(sh, "#1b2324", 0.55));
-  blit(S, cr); for (const [p, s] of strokes) dustPiles(S, p, 22, seed + p.length, s * 0.35);
+  if (ghost === "real") ghostRelief(cr, m); if (ghost === "fake") ghostFake(cr, m);
+  const st = bristleStamps(22); for (const [p, s] of strokes) scrape(cr, st, p, 1);
+  crustEdges(S, cr); for (const [p, s] of strokes) dustPiles(S, p, 22, seed + p.length, s * 0.35);
 }
 const zig = (x, y, a, len, wid, n, j) => { setSeed(j); const o = []; const tx = Math.cos(a), ty = Math.sin(a), nx = -ty, ny = tx; for (let i = 0; i <= n; i++) { const s = (i % 2 ? 1 : -1) * len / 2 * rr(0.75, 1.05), q = -wid / 2 + wid * i / n + rr(-2, 2); o.push([x + tx * s + nx * q, y + ty * s + ny * q]); } return o; };
 
@@ -82,8 +81,8 @@ async function draw() {
   // ---- 骨の部品 ----
   head("骨の部品（架空の「ながくびとかげ」「よろいうお」）。輪郭線は引かず、陰と明るい縁で形を出す", 30, 432);
   panel(30, 448, 840, 214, 90, (S) => {
-    const parts = [];
-    [[50, 130, -0.06], [104, 127, 0.02], [156, 129, 0.08], [222, 140, 0.4]].forEach(([x, y, a], i) => parts.push(...vertebra(x, y, a, 50 - i * 2, 32 - i, 610 + i, 1)));
+    const parts = [], ends = [];
+    parts.cs = []; vChain(40, 104, 0.35, 4, 44, 28, 610, parts, ends, -1, -0.12); parts.cs.forEach(([x, y, a, h], k) => { if (k === 3) return; const nx = Math.sin(a), ny = -Math.cos(a), tx = Math.cos(a), ty = Math.sin(a), L = 70 - k * 8; parts.push(...rib([x + nx * h * 0.42 + tx * 6, y + ny * h * 0.42 + ty * 6], [x + nx * L * 0.5 + tx * 14, y + ny * L * 0.5 + ty * 14], [x + nx * L - tx * 20, y + ny * L - ty * 20], 9, 615 + k)); });
     parts.push(...rib([300, 60], [370, 40], [420, 150], 12, 620));
     parts.push(...rib([440, 50], [500, 60], [520, 170], 11, 621, 0.5, [8, 4]));
     setSeed(630); for (let k = 0; k < 3; k++) { const x = 560 + k * 18, y = 70 + k * 30; parts.push(ribbon(quad([x, y], [x + 18, y + 8], [x + 40, y + 6], 8), (t) => 5 * (1 - t * 0.5))); }
@@ -91,20 +90,20 @@ async function draw() {
     const [m, L] = boneSet(S.W, S.H, parts);
     // よろいうおの鱗板の粒（盛り上がり）
     setSeed(650); for (let k = 0; k < 90; k++) { const x = rr(640, 800), y = rr(46, 170); L.fillStyle = "rgba(240,195,137,0.7)"; L.beginPath(); L.arc(x - 0.5, y - 0.5, rr(1, 2), 0, 7); L.fill(); L.fillStyle = "rgba(94,52,24,0.6)"; L.beginPath(); L.arc(x + 0.8, y + 0.9, rr(0.8, 1.6), 0, 7); L.fill(); }
-    L.globalCompositeOperation = "destination-in"; blit(L, m); L.globalCompositeOperation = "source-over";
+    vertebraEnds(L, ends); L.globalCompositeOperation = "destination-in"; blit(L, m); L.globalCompositeOperation = "source-over";
     putBones(S, m, L);
   });
-  [["椎骨: 糸巻きの椎体＋幅のある棘", 40, 672, 250], ["肋骨: 根元にこぶ。折れはずらす", 300, 672, 230], ["腹肋: 細い棒", 545, 672, 96], ["鱗板: 角ばった板＋粒", 650, 672, 190]].forEach(([t, x, y, w], i) => slip(x, y, w, 30, [[t]], 30 + i, i % 2 ? 0.008 : -0.008));
+  [["椎骨: 糸巻き＋丸い棘。2個以上つなぐ", 40, 672, 250], ["肋骨: 根元にこぶ。折れはずらす", 300, 672, 230], ["腹肋: 細い棒", 545, 672, 96], ["鱗板: 角ばった板＋粒", 650, 672, 190]].forEach(([t, x, y, w], i) => slip(x, y, w, 30, [[t]], 30 + i, i % 2 ? 0.008 : -0.008));
 
   // ---- 見分け ----
   head("見分け: 骨・ひび・石目・影を、色と縁の硬さで分ける", 30, 744);
   const pw = 200, ph = 160, py = 760;
-  panel(30, py, pw, ph, 101, (S) => { const [m, L] = boneSet(S.W, S.H, [...vertebra(70, 104, 0.1, 50, 32, 701, 1), ...rib([96, 76], [150, 60], [186, 120], 11, 702)]); putBones(S, m, L); });
+  panel(30, py, pw, ph, 101, (S) => { const pa = [], en = []; vChain(30, 50, 0.6, 2, 42, 27, 701, pa, en, -1, -0.15); pa.push(...rib([62, 52], [120, 40], [180, 74], 10, 702)); const [m, L] = boneSet(S.W, S.H, pa); vertebraEnds(L, en); L.globalCompositeOperation = "destination-in"; blit(L, m); L.globalCompositeOperation = "source-over"; putBones(S, m, L); });
   panel(250, py, pw, ph, 102, (S) => { const c = crackPath(10, 120, -0.45, 200, 12, 0.5); drawCrack(S, c, 12, 0.25, [[c[12][0], c[12][1], 0.6, 22, 4]]); });
   panel(470, py, pw, ph, 103, (S) => { blit(S, shaleTex(S.W, S.H, 140, -0.2)); }, { ang: -0.2 });
-  panel(690, py, pw, ph, 104, (S) => { const mk = (ox) => vertebra(ox, 96, 0.1, 42, 28, 705, 1); const [m1] = boneSet(S.W, S.H, mk(52)); const [m2] = boneSet(S.W, S.H, mk(150));
-    const cr = crustTex(S.W, S.H, 14, -0.05); cr.globalCompositeOperation = "source-atop"; blit(cr, tint(spread(m1, 2.2, 10), "#5b5448", 0.22)); blit(cr, tint(m1, "#6b5d48", 0.38)); blit(cr, tint(spread(m2, 6, 14), "#575f5c", 0.10)); blit(cr, tint(spread(m2, 3, 10), "#5d6461", 0.12)); cr.globalCompositeOperation = "source-over"; blit(S, cr); });
-  [["骨: 飴色。縁が硬く右下に陰", 30], ["ひび: 黒い裂け目＋欠けた唇", 250], ["石目: ぼやけた帯。線にしない", 470], ["影: 左＝本物（茶がかって縁がはっきり）／右＝ただの石（灰で、にじむ）", 690]].forEach(([t, x], i) => slip(x, py + ph + 12, pw, i === 3 ? 48 : 30, i === 3 ? [["影 左: 本物（茶・縁が出る）"], ["影 右: ただの石（灰・にじむ）"]] : [[t]], 40 + i, i % 2 ? 0.01 : -0.01));
+  panel(690, py, pw, ph, 104, (S) => { const p1 = [], p2 = [], e = []; vChain(16, 52, 0.75, 2, 36, 23, 705, p1, e, -1, -0.15); vChain(112, 52, 0.75, 2, 36, 23, 705, p2, e, -1, -0.15); const [m1] = boneSet(S.W, S.H, p1); const [m2] = boneSet(S.W, S.H, p2);
+    const cr = crustTex(S.W, S.H, 14, -0.05); ghostRelief(cr, m1); ghostFake(cr, m2); blit(S, cr); });
+  [["骨: 飴色。縁が硬く右下に陰", 30], ["ひび: 黒い裂け目＋欠けた唇", 250], ["石目: ぼやけた帯。線にしない", 470], ["影: 左＝本物（茶がかって縁がはっきり）／右＝ただの石（灰で、にじむ）", 690]].forEach(([t, x], i) => slip(x, py + ph + 12, pw, i === 3 ? 48 : 30, i === 3 ? [["影 左: 本物（浮き彫りの縁）"], ["影 右: ただの石（にじむだけ）"]] : [[t]], 40 + i, i % 2 ? 0.01 : -0.01));
 
   // ---- ひびの段階 ----
   head("ひび: こするたびに伸びて太る（ゲージは出さない）", 30, 1006);
@@ -119,9 +118,9 @@ async function draw() {
       const A = [[0, 0], [pw, 0], [pw, c[c.length - 1][1]], ...c.slice().reverse().map(([px, py2]) => [Math.min(pw, Math.max(0, px)), py2])];
       const B = [...c.map(([px, py2]) => [Math.min(pw, Math.max(0, px)), py2]), [pw, ch], [0, ch]];
       g.save(); g.translate(x, cy);
-      for (const [poly, dx, dy, sd] of [[A, -3, -5, 131], [B, 4, 6, 132]]) {
-        const P = chipped(poly, 8, 1.2, 0.05, 3).map(([px, py2]) => [px + dx, py2 + dy]);
-        g.fillStyle = "rgba(38,14,10,0.32)"; g.fill(pathOf(P.map(([p, q]) => [p + 8, q + 10]))); g.fillStyle = "#283233"; g.fill(pathOf(P.map(([p, q]) => [p + 3.5, q + 5])));
+      for (const [poly, dx, dy, sd, ra] of [[A, -2, -4, 131, 0], [B, 2, 3, 132, 0.055]]) {
+        const P = rot(chipped(poly, 8, 1.2, 0.05, 3).map(([px, py2]) => [px, py2 - ch]), 0, ch, ra).map(([px, py2]) => [px + dx, py2 + dy]);
+        g.fillStyle = "rgba(24,8,6,0.5)"; g.fill(pathOf(P.map(([p, q]) => [p + 5, q + 8]))); g.fillStyle = "#141b1d"; g.fill(pathOf(P.map(([p, q]) => [p + 1.5, q + 4]))); g.fillStyle = "#283233"; g.fill(pathOf(P.map(([p, q]) => [p + 3.5, q + 5.5])));
         const S = makeCanvas(pw + 20, ch + 20); blit(S, shaleTex(pw + 20, ch + 20, sd, -0.05)); S.globalCompositeOperation = "destination-in"; S.fill(pathOf(P)); S.globalCompositeOperation = "source-over";
         const e = makeCanvas(pw + 20, ch + 20); e.fill(pathOf(P)); blit(S, tint(rim(e, 1.4, 1.6), "#9aa29a", 0.7)); blit(S, tint(rim(e, -2, -2.5), "#141b1d", 0.6)); g.drawImage(S.canvas, 0, 0, S.W, S.H);
       }
@@ -134,11 +133,11 @@ async function draw() {
   // ---- こすりの段階 ----
   head("こする: 上の層がはがれ、粉は筋の脇と終わりに寄る", 30, 1246);
   const sy = 1262, sh2 = 140;
-  const vb = () => [...vertebra(80, 92, 0.15, 48, 30, 801, 1), ...rib([104, 96], [150, 46], [186, 110], 11, 802)];
+  const vb = () => { const pa = [], en = []; vChain(34, 46, 0.6, 2, 42, 27, 801, pa, en, -1, -0.15); pa.push(...rib([66, 50], [124, 38], [184, 72], 10, 802)); pa.ends = en; return pa; };
   [["こする前（骨の影だけ）", []], ["こすった（骨が出る）", [[zig(100, 80, 0.4, 120, 90, 14, 61), 0.85], [zig(140, 70, -0.3, 90, 60, 9, 62), 0.8]]], ["こすりすぎ（傷・くすみ）", "over"], ["8割を超えた（ひと段明るく）", "ready"]].forEach(([label, st], i) => {
     const x = 30 + i * 220;
     panel(x, sy, pw, sh2, 140 + i, (S) => {
-      const [m, L] = boneSet(S.W, S.H, vb());
+      const vbp = vb(); const [m, L] = boneSet(S.W, S.H, vbp); vertebraEnds(L, vbp.ends); L.globalCompositeOperation = 'destination-in'; blit(L, m); L.globalCompositeOperation = 'source-over';
       if (st === "over" || st === "ready") {
         if (st === "over") { setSeed(9); const sc = makeCanvas(S.W, S.H); sc.fillStyle = "rgba(120,110,96,0.4)"; sc.fillRect(0, 0, S.W, S.H); for (let k = 0; k < 26; k++) { const ox = rr(50, 120), oy = rr(54, 110), a = 0.5 + rr(-0.2, 0.2), l = rr(8, 22); sc.strokeStyle = `rgba(246,226,190,${rr(0.5, 0.9)})`; sc.lineWidth = rr(0.4, 0.8); sc.beginPath(); sc.moveTo(ox, oy); sc.lineTo(ox + Math.cos(a) * l, oy + Math.sin(a) * l); sc.stroke(); } sc.globalCompositeOperation = "destination-in"; blit(sc, m); blit(L, sc); }
         if (st === "ready") { const lift = tint(m, "#e9b877", 0.28); blit(L, lift); blit(L, tint(rim(m, -1.6, -1.8), "#f6d7a6", 0.9)); }

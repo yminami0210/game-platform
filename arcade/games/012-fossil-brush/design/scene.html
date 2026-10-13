@@ -37,7 +37,7 @@ async function draw() {
 
   // ---- 骨の形 ----
   const sp = quad([92, 212], [92, 540], [330, 600], 200);
-  const parts = [], pits = [], vcent = [];
+  const parts = [], pits = [], vcent = [], ends = [];
   const pick = (t) => { const i = Math.round(t * 200), a = sp[Math.max(0, i - 1)], b = sp[Math.min(200, i + 1)]; return [sp[i], Math.atan2(b[1] - a[1], b[0] - a[0])]; };
   const arc = [0]; for (let i = 1; i <= 200; i++) arc.push(arc[i - 1] + Math.hypot(sp[i][0] - sp[i - 1][0], sp[i][1] - sp[i - 1][1]));
   const atLen = (d) => { let i = 0; while (i < 200 && arc[i] < d) i++; return i / 200; };
@@ -47,7 +47,7 @@ async function draw() {
     let [[x, y], a] = pick(atLen(d + len / 2));
     if (i === 9) { x += 8; y += 14; a += 0.4; d += 8; } // ずれて外れた椎骨
     vcent.push([x, y, a, hgt]);
-    parts.push(...vertebra(x, y, a, len, hgt, 300 + i, -1));
+    { const vv = vertebra(x, y, a, len, hgt, 300 + i, -1); parts.push(...vv); ends.push(...vv.ends); }
     setSeed(400 + i); pits.push([x + rr(-8, 8), y + rr(-3, 3), rr(0.9, 1.7)]);
     d += len + 3 + (i === 4 ? 6 : 0);
   }
@@ -63,8 +63,8 @@ async function draw() {
   const mask = boneMask(W, H, parts);
   const bones = boneLayer(mask, 61, pits);
   // 椎骨どうしの関節のすき間（椎体の端に暗い線。少し曲げる）
-  { const jt = makeCanvas(W, H); vcent.forEach(([x, y, a, hgt], i) => { const len = 46 - i * 1.5, tx = Math.cos(a), ty = Math.sin(a), nx = -ty, ny = tx; for (const e of [-1, 1]) { const ex = x + tx * (len / 2 + e * 0.5) * e, ey = y + ty * (len / 2 + e * 0.5) * e; jt.strokeStyle = 'rgba(60,30,12,0.95)'; jt.lineWidth = 1.6; jt.beginPath(); jt.moveTo(ex - nx * hgt * 0.5, ey - ny * hgt * 0.5); jt.quadraticCurveTo(ex + tx * 2 * e, ey + ty * 2 * e, ex + nx * hgt * 0.5, ey + ny * hgt * 0.5); jt.stroke(); } });
-    jt.globalCompositeOperation = 'destination-in'; blit(jt, mask); blit(bones, jt); }
+  vertebraEnds(bones, ends);
+
   // こすりすぎた椎骨（2つ目）: 細い明るい引っかき傷と、くすみ
   { const [x, y] = vcent[1]; const sc = makeCanvas(W, H); setSeed(88); sc.fillStyle = "rgba(120,110,96,0.35)"; sc.beginPath(); sc.ellipse(x, y, 20, 15, 0.8, 0, 7); sc.fill();
     for (let k = 0; k < 14; k++) { const ox = x + rr(-14, 10), oy = y + rr(-10, 10), a = 0.55 + rr(-0.15, 0.15), l = rr(8, 20); sc.strokeStyle = `rgba(246,226,190,${rr(0.5, 0.9)})`; sc.lineWidth = rr(0.4, 0.8); sc.beginPath(); sc.moveTo(ox, oy); sc.lineTo(ox + Math.cos(a) * l, oy + Math.sin(a) * l); sc.stroke(); }
@@ -81,16 +81,15 @@ async function draw() {
     [zig(196, 226, 0.1, 90, 44, 7, 7), 0.45], [zig(262, 352, 0.6, 70, 50, 7, 8), 0.26], [zig(250, 430, -0.3, 60, 40, 6, 9), 0.3],
   ];
   for (const [p, s] of strokes) brushTracks(S, p, 26, 70 + p.length);
-  blit(S, tint(spread(mask, 2.6), "#263031", 0.6));
+  boneHalo(S, mask);
   blit(S, bones);
   // 上の層（こする前の面）＋骨の影
   const crust = crustTex(W, H, 31, ang);
-  flakeSteps(crust, 200, 400, 150, 210, ang, 16, 33);
-  { crust.globalCompositeOperation = "source-atop"; blit(crust, tint(spread(mask, 2.2, 10), "#5b5448", 0.22)); blit(crust, tint(mask, "#6b5d48", 0.38)); crust.globalCompositeOperation = "source-over"; }
+  ghostRelief(crust, mask);
   const stamps = bristleStamps(26);
-  for (const [p, s] of strokes) scrape(crust, stamps, p, Math.min(0.95, s * 1.5));
-  { const sh = makeCanvas(W, H); blit(sh, crust, 2, 2.6); sh.globalCompositeOperation = 'destination-out'; blit(sh, crust); const t2 = tint(sh, '#1b2324', 0.55); blit(S, t2); }
-  blit(S, crust);
+  for (const [p, s] of strokes) scrape(crust, stamps, p, 1);
+
+  crustEdges(S, crust);
   for (const [p, s] of strokes) dustPiles(S, p, 26, 90 + p.length, s * 0.32);
   // ひび
   const crA = crackPath(36, 560, -0.38, 158, 7, 0.45);
@@ -124,8 +123,8 @@ async function draw() {
   g.save(); g.clip(pathOf(trayShape)); g.drawImage(tray.canvas, 0, 0, 176, 96);
   g.fillStyle = "rgba(90,74,44,0.25)"; g.fillRect(0, 0, 176, 4); g.fillRect(0, 0, 4, 96);
   for (let k = 0; k < 3; k++) { const x0 = 8 + k * 55; // 区画の綿
-    const cot = pixelTex(50, 58, (x, y, px, py) => { const f = fbm(x * 0.12, y * 0.12, 200 + k, 4), w = fbm(x * 0.5, y * 0.5, 210 + k, 2); const v = 206 + f * 40 + (w - 0.5) * 18; return [v, v - 2, v - 9, 1]; });
-    const cs = chipped([[0, 0], [50, 0], [50, 58], [0, 58]], 5, 1.6, 0.1, 3); g.save(); g.translate(x0, 8); g.fillStyle = "rgba(80,66,40,0.35)"; g.fill(pathOf(cs.map(([a, b]) => [a + 1.5, b + 2]))); g.clip(pathOf(cs)); g.drawImage(cot.canvas, 0, 0, 50, 58); g.restore();
+    const cot = pixelTex(50, 58, (x, y, px, py) => { const f = fbm(x * 0.12, y * 0.12, 200 + k, 4), w = fbm(x * 0.5, y * 0.5, 210 + k, 2); const v = 216 + f * 20 + (w - 0.5) * 9; return [v, v - 2, v - 9, 1]; });
+    const cs = chipped([[0, 0], [50, 0], [50, 58], [0, 58]], 5, 1.6, 0.1, 3); g.save(); g.translate(x0, 8); g.fillStyle = "rgba(80,66,40,0.35)"; g.fill(pathOf(cs.map(([a, b]) => [a + 1.5, b + 2]))); g.save(); g.clip(pathOf(cs)); g.drawImage(cot.canvas, 0, 0, 50, 58); g.restore(); setSeed(260 + k); for (let f = 0; f < 9; f++) { const [fx, fy] = cs[(rnd() * cs.length) | 0], a = rr(0, 6.28), l = rr(3, 7); g.strokeStyle = 'rgba(232,229,218,0.85)'; g.lineWidth = 0.5; g.beginPath(); g.moveTo(fx, fy); g.quadraticCurveTo(fx + Math.cos(a) * l * 0.6 + rr(-2, 2), fy + Math.sin(a) * l * 0.6 + rr(-2, 2), fx + Math.cos(a) * l, fy + Math.sin(a) * l); g.stroke(); } g.restore();
     if (k < 2) { g.fillStyle = "rgba(60,44,20,0.5)"; g.fillRect(x0 + 52, 4, 1.4, 88); }
   }
   // 収めた「頭」のかけら: 歯の並ぶあごの骨
