@@ -31,6 +31,7 @@
 
   <nav id="cams">
     <button data-cam="all">全景</button>
+    <button type="button" id="camWalk">街を歩く</button>
     <button type="button" id="camAvatar" hidden>自分の目線</button>
     <button type="button" id="adminBtn" title="建物を動かす・建てる・壊す">管理</button>
   </nav>
@@ -123,9 +124,13 @@
     <canvas id="insideView"></canvas>
   </section>
   <section id="fp" class="overlay" hidden aria-label="目線">
-    <div class="ovHead"><img id="fpFace" alt="" width="36" height="36"><b id="fpTitle"></b><span id="fpSub" class="muted"></span><span class="sp"></span><button type="button" id="fpClose">戻る</button></div>
+    <div class="ovHead"><img id="fpFace" alt="" width="36" height="36"><b id="fpTitle"></b><span id="fpSub" class="muted"></span><span class="sp"></span><button type="button" id="fpWalk">ここから歩く</button><button type="button" id="fpClose">戻る</button></div>
     <canvas id="fpView"></canvas>
-    <p class="ovHint">左右になぞると見回せます。人をタップすると詳しく見られます</p>
+    <div id="walkPad" hidden aria-label="歩く">
+      <button type="button" data-mv="tl" aria-label="左を向く">↺</button><button type="button" data-mv="f" aria-label="前へ">▲</button><button type="button" data-mv="tr" aria-label="右を向く">↻</button>
+      <button type="button" data-mv="l" aria-label="左へ">◀</button><button type="button" data-mv="b" aria-label="後ろへ">▼</button><button type="button" data-mv="r" aria-label="右へ">▶</button>
+    </div>
+    <p class="ovHint" id="fpHint">左右になぞると見回せます。人をタップすると詳しく見られます</p>
   </section>
   <div id="mg" class="overlay mg" hidden></div>
   <div id="loading">ナナシ県へ向かっています…</div>

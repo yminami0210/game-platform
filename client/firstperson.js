@@ -160,14 +160,43 @@ export function createFirstPerson({ canvas, seed = 7 }) {
   const end = () => (drag = null);
   canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
 
+  // ---- 自分で歩く（ストリートビューのように、前後・左右に動く） ----
+  let free = null; // { x, z, bob }
+  const input = { f: 0, s: 0, t: 0 }; // 前後（+前）・左右（+右）・向き（+右回り）
+  const WALK = 4.5, TURN = 1.6; // m/秒、ラジアン/秒
+  const blocked = (x, z) => {
+    if (Math.abs(x) > HALF + 30 || z < -HALF - 30 || z > RIVER_Z[1] + 40) return true;
+    if (z > RIVER_Z[0] - 1 && z < RIVER_Z[1] + 1 && !(Math.abs(x) < 4 || Math.abs(x + 180) < 4)) return true; // 川は橋だけ渡れる
+    return boxes.some((it) => !it.flat && Math.abs(x - it.f.x) < it.f.hx + 0.6 && Math.abs(z - it.f.z) < it.f.hz + 0.6);
+  };
+  function stepFree(dt) {
+    yaw += input.t * TURN * dt;
+    const a = yaw + look, cx = Math.cos(a), cz = Math.sin(a);
+    const dx = (cx * input.f - cz * input.s) * WALK * dt, dz = (cz * input.f + cx * input.s) * WALK * dt;
+    if (!dx && !dz) return;
+    // 壁にぶつかったら、壁に沿ってすべる
+    if (!blocked(free.x + dx, free.z + dz)) { free.x += dx; free.z += dz; }
+    else if (!blocked(free.x + dx, free.z)) free.x += dx;
+    else if (!blocked(free.x, free.z + dz)) free.z += dz;
+    free.bob += Math.hypot(dx, dz) * 2.2;
+  }
+
   function draw(dt, minute) {
-    if (!who || !layout || !fit()) return;
-    // その人の位置と向き（歩いている向き。止まっているときは前の向きのまま）
-    const mx = who.tx - who.x, mz = who.tz - who.z;
-    if (Math.hypot(mx, mz) > 0.02) { const want = Math.atan2(mz, mx); let dd = want - yaw; while (dd > Math.PI) dd -= Math.PI * 2; while (dd < -Math.PI) dd += Math.PI * 2; yaw += dd * Math.min(1, dt * 3); }
-    const a = yaw + look;
-    fx = Math.cos(a); fz = Math.sin(a); rx = -fz; rz = fx;
-    cam = { x: who.x - fx * 0.4, z: who.z - fz * 0.4, y: who.info.age < 13 ? 1.1 : 1.55 };
+    if ((!who && !free) || !layout || !fit()) return;
+    let a;
+    if (free) {
+      stepFree(dt);
+      a = yaw + look;
+      fx = Math.cos(a); fz = Math.sin(a); rx = -fz; rz = fx;
+      cam = { x: free.x, z: free.z, y: 1.55 + Math.sin(free.bob) * 0.03 };
+    } else {
+      // その人の位置と向き（歩いている向き。止まっているときは前の向きのまま）
+      const mx = who.tx - who.x, mz = who.tz - who.z;
+      if (Math.hypot(mx, mz) > 0.02) { const want = Math.atan2(mz, mx); let dd = want - yaw; while (dd > Math.PI) dd -= Math.PI * 2; while (dd < -Math.PI) dd += Math.PI * 2; yaw += dd * Math.min(1, dt * 3); }
+      a = yaw + look;
+      fx = Math.cos(a); fz = Math.sin(a); rx = -fz; rz = fx;
+      cam = { x: who.x - fx * 0.4, z: who.z - fz * 0.4, y: who.info.age < 13 ? 1.1 : 1.55 };
+    }
     hits = [];
     // 空（時刻で色を変える）
     const sky = g.createLinearGradient(0, 0, 0, H * 0.5);
@@ -228,7 +257,39 @@ export function createFirstPerson({ canvas, seed = 7 }) {
   return {
     setLayout,
     setPeople(list) { people = list; },
-    follow(c) { if (c !== who) { who = c; look = 0; if (c) yaw = Math.atan2(c.tz - c.z || 1, c.tx - c.x || 0); } },
+    follow(c) { free = null; if (c !== who) { who = c; look = 0; if (c) yaw = Math.atan2(c.tz - c.z || 1, c.tx - c.x || 0); } },
+    // 自分で歩く。x, z から、向き dir（ラジアン。-π/2 が北）で始める
+    walk(x, z, dir = -Math.PI / 2) {
+      who = null; look = 0; yaw = dir;
+      if (blocked(x, z)) for (let r = 1; r < 40 && blocked(x, z); r++) { if (!blocked(x, z - r)) { z -= r; break; } if (!blocked(x, z + r)) { z += r; break; } }
+      free = { x, z, bob: 0 };
+    },
+    // いまの位置と向き（「この人の目線から歩く」で引き継ぐ）
+    get pose() { return { x: cam.x, z: cam.z, dir: yaw + look }; },
+    get walking() { return !!free; },
+    input,
+    // 目の前の建物（タップした方向にまっすぐ見て、最初に当たる建物）
+    pickBuilding(e) {
+      const r = canvas.getBoundingClientRect();
+      const ang = yaw + look + Math.atan((e.clientX - r.left - W / 2) / F);
+      const cx = Math.cos(ang), cz = Math.sin(ang);
+      for (let t = 1; t < 150; t += 0.5) {
+        const x = cam.x + cx * t, z = cam.z + cz * t;
+        const hit = boxes.find((it) => Math.abs(x - it.f.x) < it.f.hx && Math.abs(z - it.f.z) < it.f.hz);
+        if (hit) return hit.flat && t > 30 ? null : hit.b.id;
+      }
+      return null;
+    },
+    // いちばん近い施設（「〇〇の前」と画面に出す）
+    nearPlace() {
+      let best = null, bd = 40;
+      for (const it of boxes) {
+        if (!it.b.name) continue;
+        const d = Math.hypot(Math.max(0, Math.abs(cam.x - it.f.x) - it.f.hx), Math.max(0, Math.abs(cam.z - it.f.z) - it.f.hz));
+        if (d < bd) { bd = d; best = it.b.name; }
+      }
+      return best;
+    },
     get who() { return who; },
     setNight(n) { night = n; },
     draw,

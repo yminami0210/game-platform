@@ -1,8 +1,8 @@
 // 記録係の共通部分（ファイルシステムに依存しない）。Node 版とブラウザ版がこれを継承し、保存先だけを変える。
 export class ChronicleCore {
-  constructor({ sns = [] } = {}) {
-    this.recent = [];   // 画面表示用の直近ログ
-    this.day = [];      // 当日の重要ログ（新聞の素材）
+  constructor({ sns = [], recent = [], day = [] } = {}) {
+    this.recent = recent.slice(-120); // 画面表示用の直近ログ（開き直しても残す）
+    this.day = day;                   // 当日の重要ログ（新聞の素材）
     this.sns = sns.slice(-50);
     this.listeners = new Set();
   }

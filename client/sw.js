@@ -1,5 +1,5 @@
 // オフライン用のサービスワーカー。画面とライブラリはキャッシュし、サーバーの API・SSE は素通しにする。
-const CACHE = 'nanashi-v7';
+const CACHE = 'nanashi-v8';
 const SHELL = ['./', './index.html', './style.css', './main.js', './town.js', './backend.js', './admin.js', './view3d.js', './map2d.js', './portrait.js', './interior.js', './firstperson.js', './minigames.js', './manifest.webmanifest',
   './shared/world.js', './shared/lore.js', './shared/sim.js', './shared/templates.js', './shared/chronicle-core.js', './shared/api.js', './shared/looks.js', './shared/personas.js',
   './vendor/three/build/three.module.js', './vendor/three/examples/jsm/controls/OrbitControls.js', './icons/icon-192.png'];

@@ -12,7 +12,11 @@ function loadJsonl(p) {
 export class Chronicle extends ChronicleCore {
   constructor(dir = DATA) {
     for (const d of ['logs', 'snapshots', 'sns', 'news', 'photos']) fs.mkdirSync(path.join(dir, d), { recursive: true });
-    super({ sns: loadJsonl(path.join(dir, 'sns/posts.jsonl')) });
+    // 開き直しても町のログが消えないように、いちばん新しい日のログから直近の分を読み戻す
+    fs.mkdirSync(path.join(dir, 'logs'), { recursive: true });
+    const lastLog = fs.readdirSync(path.join(dir, 'logs')).filter((f) => f.endsWith('.jsonl')).sort().pop();
+    const logs = lastLog ? loadJsonl(path.join(dir, 'logs', lastLog)) : [];
+    super({ sns: loadJsonl(path.join(dir, 'sns/posts.jsonl')), recent: logs.filter((e) => (e.importance ?? 0) >= 1), day: logs.filter((e) => (e.importance ?? 0) >= 2) });
     this.dir = dir;
     const news = fs.readdirSync(path.join(dir, 'news')).filter((f) => f.endsWith('.md')).sort().pop();
     if (news) this.news = { file: news, markdown: fs.readFileSync(path.join(dir, 'news', news), 'utf8') };

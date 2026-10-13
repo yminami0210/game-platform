@@ -45,17 +45,18 @@ function serverBackend(init) {
   };
 }
 
-const KEY = { state: 'nanashi.local.state', sns: 'nanashi.local.sns', news: 'nanashi.local.news', photos: 'nanashi.local.photos' };
+const KEY = { state: 'nanashi.local.state', sns: 'nanashi.local.sns', news: 'nanashi.local.news', photos: 'nanashi.local.photos', logs: 'nanashi.local.logs' };
 
 async function localBackend(q) {
   const [{ Simulation }, { ChronicleCore }, { createApi }, { templates }, { realMinutes }] = await Promise.all([
     import('./shared/sim.js'), import('./shared/chronicle-core.js'), import('./shared/api.js'), import('./shared/templates.js'), import('./shared/world.js'),
   ]);
 
-  // 保存先は localStorage。容量が小さいので、残すのは住民名簿・SNS 50 件・最新の新聞・写真 6 枚だけ
+  // 保存先は localStorage。容量が小さいので、残すのは住民名簿・町のログ 120 件・SNS 50 件・最新の新聞・写真 6 枚だけ
   class LocalChronicle extends ChronicleCore {
     constructor() {
-      super({ sns: ls.get(KEY.sns) || [] });
+      const logs = ls.get(KEY.logs) || {};
+      super({ sns: ls.get(KEY.sns) || [], recent: logs.recent || [], day: logs.day || [] });
       this.news = ls.get(KEY.news);
       this.photos = new Map(ls.get(KEY.photos) || []);
     }
@@ -96,10 +97,11 @@ async function localBackend(q) {
   }, 100);
   setInterval(() => { dispatch('frame', sim.frame()); dispatch('clock', api.clock()); }, 300);
   let resetting = false;
-  const save = () => !resetting && ls.set(KEY.state, sim.serialize());
+  const save = () => { if (resetting) return; ls.set(KEY.state, sim.serialize()); ls.set(KEY.logs, { recent: chronicle.recent, day: chronicle.day }); };
   setInterval(save, 30000);
   addEventListener('pagehide', save);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && save());
+  addEventListener('pagehide', save);
 
   const later = (fn) => async (...a) => fn(...a);
   return {

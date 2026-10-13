@@ -894,6 +894,7 @@ export class Simulation {
   // アプリを閉じていたあいだを飛ばす: 時刻を合わせ、全員をその時刻にいるはずの場所へ置き直す
   jumpTo(target) {
     const prevDay = this.day;
+    const from = this.minutes;
     this.minutes = target;
     if (this.day !== prevDay) { this.lastDay = this.day; this.#daily(this.day - 1); }
     this.lastHour = this.hour;
@@ -905,6 +906,10 @@ export class Simulation {
       if (c.role === 'human') continue;
       this.#placeAtStart(c);
     }
+    // 閉じていたあいだのことは、記録がないとログに残しておく（ログが途切れて見えないように）
+    const span = target - from;
+    const when = span >= 1440 ? `${dateLabel(Math.floor(from / 1440) + 1)} ${this.timeLabel(from)}から` : `${this.timeLabel(from)}〜${this.timeLabel(target)}`;
+    this.chronicle.log({ day: this.day, time: this.timeLabel(), text: `${when}は画面を閉じていたため、町の記録はありません（住人は今の時刻の暮らしに戻りました）`, importance: 1, kind: 'gap' });
   }
 
   tick(dtReal, gameMinutesPerSecond = 1) {

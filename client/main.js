@@ -71,6 +71,7 @@ function setCam(name) { closeOverlays(); view.setCam(name, null); }
 setCam('all');
 $('#cams').addEventListener('click', (e) => e.target.dataset.cam && setCam(e.target.dataset.cam));
 $('#camAvatar').addEventListener('click', () => myAvatar() && openFirstPerson(myAvatar().info.id));
+$('#camWalk').addEventListener('click', () => openWalk(30, 0, -Math.PI / 2)); // 中ノ町駅の前から、県庁のほう（北）を向いて
 const admin = setupAdmin({ view, canvas, be, getLayout: () => layout, toast });
 
 // ---- 人（CP）。見た目は住民台帳の部品の組み合わせ（server/looks.js） ----
@@ -304,19 +305,52 @@ function openFirstPerson(id) {
   fpv.setPeople([...cps.values()]);
   fpv.follow(c);
   $('#fp').hidden = false;
-  $('#fpFace').src = portraitUrl(c.look, 72);
+  $('#fpFace').src = portraitUrl(c.look, 72); $('#fpFace').hidden = false;
   $('#fpTitle').textContent = `${c.info.name}の目線`;
   $('#fpSub').textContent = '';
+  $('#fpWalk').hidden = false; $('#walkPad').hidden = true;
+  $('#fpHint').textContent = '左右になぞると見回せます。人をタップすると詳しく見られます';
 }
+// ---- 街を歩く（ストリートビューのように前後・左右に動く） ----
+function openWalk(x, z, dir) {
+  $('#card').hidden = true;
+  closeInside();
+  fpv.setPeople([...cps.values()]);
+  fpv.walk(x, z, dir);
+  $('#fp').hidden = false;
+  $('#fpFace').src = myAvatar() ? portraitUrl(myAvatar().look, 72) : '';
+  $('#fpFace').hidden = !myAvatar();
+  $('#fpTitle').textContent = '街を歩く';
+  $('#fpWalk').hidden = true; $('#walkPad').hidden = false;
+  $('#fpHint').textContent = MOBILE ? '▲▼◀▶で歩く。なぞって見回す。建物や人をタップ' : '▲▼◀▶ か W A S D で歩く、← → か Q E で向きを変える。なぞって見回す。建物や人をクリック';
+}
+$('#fpWalk').addEventListener('click', () => { const p = fpv.pose; openWalk(p.x, p.z, p.dir); });
+const MOVE = { f: ['f', 1], b: ['f', -1], l: ['s', -1], r: ['s', 1], tl: ['t', -1], tr: ['t', 1] };
+const hold = (btn, on) => { const [k, v] = MOVE[btn.dataset.mv] || []; if (!k) return; fpv.input[k] = on ? v : 0; btn.classList.toggle('on', on); };
+$('#walkPad').addEventListener('pointerdown', (e) => { const b = e.target.closest('button'); if (b) { e.preventDefault(); b.setPointerCapture?.(e.pointerId); hold(b, true); } });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('#walkPad').addEventListener(ev, (e) => { const b = e.target.closest('button'); if (b) hold(b, false); });
+const KEYS = { KeyW: ['f', 1], ArrowUp: ['f', 1], KeyS: ['f', -1], ArrowDown: ['f', -1], KeyA: ['s', -1], KeyD: ['s', 1], ArrowLeft: ['t', -1], KeyQ: ['t', -1], ArrowRight: ['t', 1], KeyE: ['t', 1] };
+for (const [ev, on] of [['keydown', true], ['keyup', false]]) addEventListener(ev, (e) => {
+  if ($('#fp').hidden || !fpv.walking || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) return;
+  const m = KEYS[e.code];
+  if (!m) return;
+  e.preventDefault();
+  fpv.input[m[0]] = on ? m[1] : 0;
+});
+setInterval(() => { if (!$('#fp').hidden && fpv.walking) { const n = fpv.nearPlace(); $('#fpSub').textContent = n ? `${n}の近く` : ''; } }, 500);
 let fpDownAt = null;
 $('#fpView').addEventListener('pointerdown', (e) => (fpDownAt = [e.clientX, e.clientY]));
 $('#fpView').addEventListener('pointerup', (e) => {
   if (!fpDownAt || Math.hypot(e.clientX - fpDownAt[0], e.clientY - fpDownAt[1]) > 10) return;
   const id = fpv.pick(e);
-  if (id) showCp(id);
+  if (id) return showCp(id);
+  if (!fpv.walking) return;
+  const bid = fpv.pickBuilding(e); // 歩いているときは、目の前の建物の詳細も出す
+  if (bid && layout.places.some((p) => p.id === bid)) showPlace(bid === 'office' ? 'kencho' : bid);
+  else if (bid && layout.houses.some((h) => h.id === bid)) showHouse(bid);
 });
 $('#fpClose').addEventListener('click', () => closeOverlays());
-function closeFp() { $('#fp').hidden = true; fpv.follow(null); }
+function closeFp() { $('#fp').hidden = true; fpv.follow(null); Object.assign(fpv.input, { f: 0, s: 0, t: 0 }); }
 function closeInside() { $('#inside').hidden = true; insideOpen = null; }
 function closeOverlays() { closeFp(); closeInside(); }
 
@@ -552,4 +586,4 @@ if (viewNote) toast(viewNote);
 // ホーム画面に追加したときのオフライン用（https か localhost のときだけ）
 if ('serviceWorker' in navigator && isSecureContext && !window.NANASHI_STANDALONE) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
-window.__nanashi = { minute: () => gameMinuteNow(), cps, setCam, openSheet, showCp, showPlace, showHouse, openInside, openFirstPerson, useShop, get layout() { return layout; }, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用
+window.__nanashi = { minute: () => gameMinuteNow(), cps, setCam, openSheet, showCp, showPlace, showHouse, openInside, openFirstPerson, openWalk, fpv, useShop, get layout() { return layout; }, mode: be.mode, view: view.mode, debug: view.debug }; // デバッグ用
