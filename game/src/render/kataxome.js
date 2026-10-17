@@ -21,7 +21,11 @@ export const MOTIF = {
   },
   yagasuri(x, y, p) { const w = p / 2, s = Math.floor(x / w), lx = mod(x, w); return mod(y + Math.abs(lx - (w - 1) / 2) * (s % 2 ? 1 : -1) + s * 3, p) < 1.5; },
   uroko(x, y, p) { const h = p / 2, r = Math.floor(y / h), lx = mod(x + (r % 2) * h, p), ly = mod(y, h); return Math.abs(lx - h) <= ly * (h / h) - 1 && (r + Math.floor((x + (r % 2) * h) / p)) % 2 === 0; },
-  kebi(x, y) { return hash(x, y >> 1, 91) < 0.13 || (hash(x >> 1, y, 92) < 0.05); }, // ビロードの毛足（短い明暗の斑）
+  kebi(x, y) { // ビロードの毛足: 面単位の2段（毛足の帯／平らな帯）＋向きのそろった3pxの斜めの刻みを行ごとに半歩ずらす
+    const band = Math.floor((y + (Math.floor(x / 64) % 2) * 12) / 24) % 2; if (band) return false;
+    const r = Math.floor(y / 5), lx = mod(x + (r % 2) * 5, 10), ly = mod(y, 5);
+    return ly < 3 && lx === 2 - ly;
+  },
   chidori(x, y, p) {
     const cw = p + 4, ch = Math.round(p * 0.7), r = Math.floor(y / ch), lx = mod(x + (r % 2) * (cw >> 1), cw), ly = mod(y, ch);
     return ly < 4 && lx < 7 && CHIDORI[ly][lx] === '#';
@@ -182,7 +186,10 @@ export function drawGroundTile(g, th, tx, ty, x, y, tileAt, isGround, patch) {
     const ex = hash(tx, ty, 13) < 0.5 ? 1 : 0;
     g.fillStyle = th.ear[1]; g.fillRect(x, y + 1, TS, 4);
     g.fillStyle = th.ear[0]; g.fillRect(x + ex, y, TS - ex, 3);
-    nukeH(g, x + (left ? 0 : 2), x + TS - (right ? 0 : 2), y + 5, K.ki, tx * 13 + ty, 0.25);
+    // 抜け線は面の継ぎ目・端の近くだけ（全幅に並べない）。つりを多めに
+    const seamL = !left || patch(tx - 1, ty) !== pid, seamR = !right || patch(tx + 1, ty) !== pid;
+    if (seamL) nukeH(g, x + (left ? 0 : 2), x + 8, y + 5, K.ki, tx * 13 + ty, 0.45);
+    if (seamR) nukeH(g, x + 8, x + TS - (right ? 0 : 2), y + 5, K.ki, tx * 17 + ty, 0.45);
     if (hash(tx, ty, 14) < 0.2) { g.fillStyle = th.ground[pid]; g.fillRect(x + 4 + Math.floor(hash(tx, ty, 15) * 8), y + 1, 2, 1); } // 耳の織りむら
   }
 }
