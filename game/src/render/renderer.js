@@ -3,7 +3,7 @@
 import { T } from '../core/level.js';
 import { solidAt } from '../core/stage.js';
 import { PAL, bake } from './sprites.js';
-import { THEMES } from './themes.js';
+import { K, THEMES } from './themes.js';
 import { buildBackground, drawGroundTile } from './kataxome.js';
 
 const TS = 16;
@@ -615,7 +615,7 @@ export function createRenderer(canvas, view, opts = {}) {
   function drawTenaga(b, t) {
     const fy = b.floorY;
     for (const a of b.arms) { // 糸腕の予告: 水面の波紋
-      g.fillStyle = Math.floor(t * 12) % 2 ? PAL.n : PAL.N;
+      g.fillStyle = Math.floor(t * 12) % 2 ? PAL.a : PAL.A;
       g.fillRect(Math.round(a.x - 2), fy - 3, a.w + 4, 3);
     }
     if (b.swirl) {
@@ -626,19 +626,19 @@ export function createRenderer(canvas, view, opts = {}) {
     const blink = (b.mode === 'hurt' && Math.floor(t * 10) % 2) || (b.mode === 'defeat' && Math.floor(t * 8) % 2);
     if (blink) g.globalAlpha = 0.45;
     const x = Math.round(b.x), y = Math.round(b.y), w = b.w, h = Math.min(b.h, fy - y);
-    g.fillStyle = PAL.N; g.fillRect(x + 2, y, w - 4, h); g.fillRect(x, y + 3, w, h - 3);
-    g.fillStyle = PAL.n; for (let i = 4; i < w - 2; i += 6) g.fillRect(x + i, y + 2, 2, h - 2); // 糸の巻き目
-    g.fillStyle = PAL.m; const ex = b.face > 0 ? x + w - 11 : x + 6; g.fillRect(ex, y + 5, 3, 3); g.fillRect(ex + 3, y + 5, 2, 3);
+    g.fillStyle = PAL.A; g.fillRect(x + 2, y, w - 4, h); g.fillRect(x, y + 3, w, h - 3);
+    g.fillStyle = PAL.a; for (let i = 4; i < w - 2; i += 6) g.fillRect(x + i, y + 2, 2, h - 2); // 糸の巻き目
+    g.fillStyle = PAL.n; const ex = b.face > 0 ? x + w - 11 : x + 6; g.fillRect(ex, y + 5, 3, 3); g.fillRect(ex + 3, y + 5, 2, 3);
     g.globalAlpha = 1;
   }
 
   function drawShot(o) {
     if (o.kind === 'arm') { // 糸腕: 縦に伸びる太い糸
-      g.fillStyle = PAL.N; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h);
-      g.fillStyle = PAL.n; for (let i = 0; i < o.h; i += 6) g.fillRect(Math.round(o.x), Math.round(o.y + i), o.w, 2);
+      g.fillStyle = PAL.A; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h);
+      g.fillStyle = PAL.a; for (let i = 0; i < o.h; i += 6) g.fillRect(Math.round(o.x), Math.round(o.y + i), o.w, 2);
       return;
     }
-    if (o.kind === 'jar') { g.fillStyle = PAL.N; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h); g.fillStyle = PAL.n; g.fillRect(Math.round(o.x) + 2, Math.round(o.y), o.w - 4, 2); return; }
+    if (o.kind === 'jar') { g.fillStyle = PAL.A; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h); g.fillStyle = PAL.a; g.fillRect(Math.round(o.x) + 2, Math.round(o.y), o.w - 4, 2); return; }
     if (o.kind === 'pin') { if (pdraw(pf('shot.pin'), o.x + o.w / 2, o.y + o.h, { rot: Math.atan2(o.vy, o.vx), cy: o.h / 2 })) return; }
     else if (o.kind === 'dust') { if (pdraw(pf('shot.dust'), o.x + o.w / 2, o.y + o.h)) return; }
     if (o.kind === 'pin') {

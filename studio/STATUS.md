@@ -65,3 +65,4 @@
 - 進行中: エンジンの複数ワールド対応（T1 worlds.json・T2 river テーマ・T3 流れる布）＝Claude coder／ワールド2の設計・ステージ下書き＝OmniRoute
 - 済 T1: worlds.json（1〜8）、main.js がワールドを読み替え、砦クリアで次のワールドへ（world2.json が無ければ従来のエンディング）。prog.world／prog.worldAt を追加（既存セーブ互換）
 - 済 T2: テーマ river と文様 kanzemizu（観世水）を追加。ステージ JSON の "theme": "river" で使える
+- 済 B1/B2: boss.js をボス種類で切替（"boss": "keba"|"tenaga"、未指定は theme river→tenaga／他→keba。level.js が "boss" を渡していないため要追記）。渦のテナガ（糸腕叩きつけ→頭を踏む／渦で横押し／腕4本＋藍がめ）、仮描画は renderer.js。2-F.json（1-F 地形の流用、要差し替え）。clearbot 1-F・2-F OK
