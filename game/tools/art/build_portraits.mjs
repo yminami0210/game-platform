@@ -76,11 +76,12 @@ function nuiba(ctx){ctx.translate(64,144);ctx.scale(1.82,1.82);
  // 眼鏡（頭の上）: 縹の糸の輪。光る線は入れない
  ctx.save();ctx.lineWidth=0.7;ctx.strokeStyle='#5683a3';ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=4;ctx.shadowOffsetY=0.6;[[-5,-60.5],[5,-60.5]].forEach(([x,y])=>{ctx.beginPath();ctx.ellipse(x,y,3.2,2.6,0,0,7);ctx.stroke();});
  ctx.beginPath();ctx.moveTo(-1.8,-60.8);ctx.quadraticCurveTo(0,-61.8,1.8,-60.8);ctx.stroke();ctx.restore();
- // 顔: 笑って閉じた目（消炭の弧）、茜の眉、短い口
- threadLine(ctx,[[-8.2,-50.6],[-6,-52.4],[-3.8,-50.6]],K.c,0.7,491);threadLine(ctx,[[3.8,-50.6],[6,-52.4],[8.2,-50.6]],K.c,0.7,493);
+ // 顔: ツギと同じ刺繍の語彙（C 半月の系統）。細い横長の半月の目に重い上まぶた、目尻の小じわは生成りの短い糸、口は一文字に片側の玉止め。頬の色面は入れない
+ satin(ctx,-6,-50.9,1.75,0.62,0,K.c,491,'moon');satin(ctx,6,-50.9,1.75,0.62,0,K.c,493,'moon');
+ strandLine(ctx,[[-8.3,-51.3],[-6,-52.05],[-3.8,-51.4]],'#7a5e18',0.42,494,true,false);strandLine(ctx,[[3.8,-51.4],[6,-52.05],[8.3,-51.3]],'#7a5e18',0.42,496,false,true);
+ strandLine(ctx,[[-8.6,-50.3],[-9.1,-49.9],[-9.5,-49.4]],'#b3a478',0.28,502);strandLine(ctx,[[8.6,-50.3],[9.1,-49.9],[9.5,-49.4]],'#b3a478',0.28,503);
  strandLine(ctx,[[-8.4,-54.8],[-6.2,-55.4],[-4.2,-54.9]],K.k,0.45,495);strandLine(ctx,[[4.2,-54.9],[6.2,-55.4],[8.4,-54.8]],K.k,0.45,497);
- strandLine(ctx,[[-1.6,-46.6],[0,-45.9],[1.6,-46.6]],'#a8382c',0.45,499);
- [[-9.2,-46.5],[9.2,-46.5]].forEach(([x,y])=>{ctx.save();ctx.clip(head);ctx.fillStyle=rg(ctx,x,y,0.2,3.4,[[0,'rgba(90,70,40,.22)'],[1,'rgba(90,70,40,0)']]);ctx.beginPath();ctx.arc(x,y,3.4,0,7);ctx.fill();ctx.restore();});
+ strandLine(ctx,[[-1.7,-46.3],[0,-46.25],[1.7,-46.4]],'#a8382c',0.4,499,false,true);
  stitch(ctx,[[-11,-43.4],[0,-41.8],[11,-43.4]],'#b3a478',{seed:501,dmin:1.3,dmax:2,w:.32});}
 
 // 虫食いのクイスキ: ヒロズコガの筒の巣の外套（縹の色相で錆びた色）、本当に透ける虫食い穴、3本指、短い足4本
