@@ -70,3 +70,4 @@
 - 済 B1/B2: boss.js をボス種類で切替（"boss": "keba"|"tenaga"、未指定は theme river→tenaga／他→keba。level.js が "boss" を渡していないため要追記）。渦のテナガ（糸腕叩きつけ→頭を踏む／渦で横押し／腕4本＋藍がめ）、仮描画は renderer.js。2-F.json（1-F 地形の流用、要差し替え）。clearbot 1-F・2-F OK
 - 22:55 ワールド2: 2-1〜2-4・2-S・2-F（テナガ）あり、clearbot は 2-2 以外 OK（2-2 は x≈261 付近で詰まる→要修正）。ワールド3: 3-1〜3-S 全 OK（テーマ cloud は未実装→既定の見た目）。ワールド4〜8: OmniRoute 無料枠の上限（HTTP 4xx）で一部のみ下書き。未作成分は studio/omni/依頼/ に依頼文あり、再実行で作れる
 - 2026-10-17 gs-coder: 背景テーマ6種（cloud/loom/night/snow/palace/abyss）追加。新文様 kasumi/koshi/kikko/amime/uzu、吊り物 shuttles/andon/threads
+- 23:08 下書き済み: 4-1・4-2・5-2・6-1・7-3（clearbot OK）、7-S（x≈268 で詰まる）。index.json 未登録（各ワールドがそろってから登録）。OmniRoute 無料枠が上限、残り 4-3〜8-4 は studio/omni/依頼/ の依頼文で再実行
