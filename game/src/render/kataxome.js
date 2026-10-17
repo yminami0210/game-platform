@@ -34,6 +34,19 @@ export const MOTIF = {
     const a = Math.atan2(ly - cy, lx - cx) + Math.PI; // 0..2π
     return d < h * 0.3 && Math.abs(d - (a / (Math.PI * 2)) * h * 0.3) < 0.6;
   },
+  kasumi(x, y, p) { // 霞: ずれた横長の帯（雲は丸めず霞の帯で描く）
+    const r = Math.floor(y / 4), lx = mod(x + Math.floor(hash(r, 9, 91) * p), p * 2); return mod(y, 4) === 0 && lx < p * 1.2;
+  },
+  koshi(x, y, p) { const a = mod(x, p), b = mod(y, p); return a === 0 || b === 0 || (mod(x, p * 2) === p && b < p); }, // 格子（障子・機の経糸）
+  kikko(x, y, p) { // 亀甲（錦の地）
+    const h = p / 2, r = Math.floor(y / h), lx = mod(x + (r % 2) * h, p), ly = mod(y, h);
+    return ly === 0 && Math.abs(lx - h) < h * 0.5 || Math.abs(Math.abs(lx - h) - h * 0.5 - ly * 0.5) < 0.6;
+  },
+  amime(x, y, p) { const h = p >> 1, lx = mod(x, p), ly = mod(y, h); return Math.abs(Math.abs(lx - h) - ly) < 0.6; }, // 編み目（メリヤスのV）
+  uzu(x, y, p) { // 渦: ほどけた糸の巻き
+    const lx = mod(x, p) - p / 2, ly = mod(y, p) - p / 2, d = Math.hypot(lx, ly), a = Math.atan2(ly, lx) + Math.PI;
+    return d < p * 0.48 && Math.abs(mod(d - a / (Math.PI * 2) * p * 0.16, p * 0.16)) < 0.7;
+  },
   chidori(x, y, p) {
     const cw = p + 4, ch = Math.round(p * 0.7), r = Math.floor(y / ch), lx = mod(x + (r % 2) * (cw >> 1), cw), ly = mod(y, ch);
     return ly < 4 && lx < 7 && CHIDORI[ly][lx] === '#';
@@ -153,6 +166,22 @@ function hanger(g, th, x, py, line, i, big) {
       g.fillStyle = K.kak; g.fillRect(x + 1, py - 22 - t, 5, 5);
       g.fillStyle = K.ka; g.fillRect(x, py - 23 - t, 5, 5);
       g.fillStyle = K.kaa; g.fillRect(x + 1, py - 23 - t, 2, 1);
+      break; }
+    case 'shuttles': if (i % 2) break; // 竿に掛けた杼（舟形）と糸
+      g.fillStyle = shade; g.fillRect(x - 2, py + 2, 12, 3);
+      g.fillStyle = wood; g.fillRect(x - 1, py + 1, 10, 3); g.fillRect(x + 1, py, 6, 1);
+      g.fillStyle = line; g.fillRect(x + 3, py + 2, 2, 1); g.fillRect(x + 4, py + 4, 1, 4);
+      break;
+    case 'andon': if (i % 3) break; { // 竿に提げた行灯（角形、刈安の灯り）
+      g.fillStyle = shade; g.fillRect(x + 2, py, 1, 3);
+      g.fillStyle = shade; g.fillRect(x - 1, py + 3, 9, 12);
+      g.fillStyle = K.kaa; g.fillRect(x, py + 4, 7, 10);
+      g.fillStyle = K.ka; g.fillRect(x + 3, py + 4, 1, 10); g.fillRect(x, py + 9, 7, 1);
+      break; }
+    case 'threads': { // 竿から垂れるほどけた糸
+      const t = 6 + Math.floor(hash(i, 7, 83) * 12);
+      g.fillStyle = line;
+      for (let k = 0; k < t; k++) g.fillRect(x + 2 + (Math.floor(k / 3) % 2), py + k, 1, 1);
       break; }
   }
 }
