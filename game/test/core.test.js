@@ -93,3 +93,14 @@ test('ワールドの解放: 3までは無料、4以降は解放の記録が要�
   assert.ok(!worldUnlocked(4, prog));
   assert.ok(worldUnlocked(4, { ...prog, unlocks: { 4: true } }));
 });
+
+test('流れる布（< >）に乗ると流され、clearbot も流れに逆らってゴールできる', async () => {
+  const rows = ['#..................#', '#..................#', '#.P..............G.#', '#>>>>>>>>><<<<<<<<<#'];
+  const L = parseLevel({ rows });
+  const s = createStage(L, tuning);
+  const x0 = s.p.x;
+  for (let i = 0; i < 60; i++) step(s, {});
+  assert.ok(s.p.x > x0 + 20, `右へ流される（${x0} → ${s.p.x}）`);
+  const { solve } = await import('../tools/clearbot.mjs');
+  assert.ok(solve(L, { target: { kind: 'goal' }, maxNodes: 60000 }).ok, '左向きの布を越えてゴール');
+});

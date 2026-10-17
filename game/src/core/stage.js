@@ -77,7 +77,7 @@ export function clone(s) {
 }
 
 // ---- タイル ----
-const isSolidTile = t => t === T.GROUND || t === T.BLOCK || t === T.BOX_POWER || t === T.BOX_COIN || t === T.BOX_USED || t === T.CRUMBLE;
+const isSolidTile = t => t === T.GROUND || t === T.BLOCK || t === T.BOX_POWER || t === T.BOX_COIN || t === T.BOX_USED || t === T.CRUMBLE || t === T.BELT_L || t === T.BELT_R;
 export function tileAt(s, tx, ty) {
   const L = s.level;
   if (tx < 0 || tx >= L.w) return T.GROUND; // 左右の端は壁
@@ -230,6 +230,11 @@ function runPlayerPhysics(s, input, dt, auto) {
     const m = s.movers[p.ride];
     moveX(s, p, m.dx, null);
     p.y = m.y - p.h;
+  }
+  // 流れる布（'<' '>'）: 足の中心の下が布なら、その向きに流される
+  if (p.onGround) {
+    const bt = tileAt(s, Math.floor((p.x + p.w / 2) / TS), Math.floor((p.y + p.h + 1) / TS));
+    if (bt === T.BELT_L || bt === T.BELT_R) moveX(s, p, (bt === T.BELT_R ? 1 : -1) * (s.tuning.belt?.speed ?? 60) * dt, solidEntities(s));
   }
   const dir = auto ? Math.sign(p.vx) : (input.r && !input.l ? 1 : input.l && !input.r ? -1 : 0);
   const run = input.b;

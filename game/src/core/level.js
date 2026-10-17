@@ -3,13 +3,13 @@
 
 export const T = {
   EMPTY: 0, GROUND: 1, BLOCK: 2, ONEWAY: 3, SPIKE: 4, BOX_POWER: 5, BOX_COIN: 6, BOX_USED: 7,
-  CRUMBLE: 8, FAKE: 9, RED: 10, BLUE: 11, HIDDEN: 12, COIN: 13,
+  CRUMBLE: 8, FAKE: 9, RED: 10, BLUE: 11, HIDDEN: 12, COIN: 13, BELT_L: 14, BELT_R: 15,
 };
 
 const TILE_CHARS = {
   '.': T.EMPTY, ' ': T.EMPTY, '#': T.GROUND, '%': T.BLOCK, '-': T.ONEWAY, '^': T.SPIKE,
   'B': T.BOX_POWER, 'b': T.BOX_COIN, 'x': T.CRUMBLE, 'f': T.FAKE, 'r': T.RED, 'u': T.BLUE,
-  'h': T.HIDDEN, 'o': T.COIN,
+  'h': T.HIDDEN, 'o': T.COIN, '<': T.BELT_L, '>': T.BELT_R, // 流れる布（乗ると左右に流される）
 };
 
 const ENEMY_CHARS = { '1': 'iga', '2': 'kona', '3': 'choki', '4': 'hari', '5': 'tsumu', '6': 'yubi', '7': 'kedama' };
