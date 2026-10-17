@@ -63,3 +63,4 @@
 ## 並行開発（2026-10-17夜、オーナー指示: 8-4 まで想定、23:30 まで連続実行、1タスクごとに保存）
 - 済: OmniRoute で 1-2(+3)・1-3(+2)・1-4(+2) 区画追加、全ステージ clearbot OK。ボット探索上限 40万に。release ゲート再計測中
 - 進行中: エンジンの複数ワールド対応（T1 worlds.json・T2 river テーマ・T3 流れる布）＝Claude coder／ワールド2の設計・ステージ下書き＝OmniRoute
+- 済 T1: worlds.json（1〜8）、main.js がワールドを読み替え、砦クリアで次のワールドへ（world2.json が無ければ従来のエンディング）。prog.world／prog.worldAt を追加（既存セーブ互換）
