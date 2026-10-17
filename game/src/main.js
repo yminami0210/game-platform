@@ -89,7 +89,7 @@ const hideAll = () => ['title', 'story', 'tsuzuku', 'maptotal', 'mapcard', 'hud'
 
 // ---- 立ち絵 ----
 function setPortrait(id, who) {
-  const el = $(id), src = who && portraits[who];
+  const el = $(id), src = who && portraits[who]?.file;
   if (!src) { el.hidden = true; return; }
   if (!el.src.endsWith(src)) el.src = src;
   el.hidden = false;
@@ -98,13 +98,13 @@ let portraitTimer = 0;
 function slidePortrait(who, side = 'left', secs = 2.2) {
   const el = $('stage-portrait');
   if (!portraits[who]) return;
-  el.src = portraits[who]; el.hidden = false;
+  el.src = portraits[who].file; el.hidden = false;
   el.className = `portrait ${side} off-${side}`;
   requestAnimationFrame(() => requestAnimationFrame(() => { el.className = `portrait ${side}`; }));
   clearTimeout(portraitTimer);
   portraitTimer = setTimeout(() => { el.className = `portrait ${side} off-${side}`; }, secs * 1000);
 }
-const STORY_PORTRAIT = { tsugi: 'tsugi', knot: 'tsugi-happy', nuiba: 'tsugi-worried', unravel: 'tsugi-worried', hand: 'nuiba', drift: 'tsugi' };
+const STORY_PORTRAIT = { tsugi: 'tsugi', knot: 'tsugi-resolve', nuiba: 'tsugi-surprised', unravel: 'tsugi-surprised', hand: 'nuiba', drift: 'tsugi' };
 
 // ---- 場面 ----
 let scene = 'title';
