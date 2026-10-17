@@ -5,3 +5,4 @@ node_modules/
 studio/playtests/**/*.png
 studio/.gate/
 game/tools/art/.tmp/
+game/package-lock.json

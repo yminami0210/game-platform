@@ -136,7 +136,8 @@ const LIST = [
 ];
 const html = `<!doctype html><meta charset=utf-8><body style="margin:0"><canvas id=c></canvas><script>${lib}\n${draw}
 function drawSheetGround(ctx,cx,y,rx){ctx.save();ctx.fillStyle='rgba(20,36,60,.30)';for(let i=0;i<3;i++){const w=Math.round(rx*2*Math.sqrt(1-Math.pow(i/3,2)));ctx.fillRect(Math.round(cx-w/2),y+i-1,w,1);}ctx.restore();}
-window.render=function(code){const c=document.getElementById('c');c.width=W*S;c.height=H*S;const ctx=c.getContext('2d');ctx.save();ctx.scale(S,S);(new Function('ctx',code))(ctx);ctx.restore();return c.toDataURL('image/png');};
+window.P={${LIST.map(([k,,c])=>JSON.stringify(k)+':function(ctx){'+c+'}').join(',')}};
+window.render=function(code){const c=document.getElementById('c');c.width=W*S;c.height=H*S;const ctx=c.getContext('2d');ctx.save();ctx.scale(S,S);window.P[code](ctx);ctx.restore();return c.toDataURL('image/png');};
 window.sheet=function(urls,names){return new Promise(res=>{const cw=W*S/2,ch=H*S/2;const s=document.createElement('canvas');s.width=cw*urls.length;s.height=ch+40;const c=s.getContext('2d');
  c.fillStyle='#2a4263';c.fillRect(0,0,s.width,s.height);let n=0;urls.forEach((u,i)=>{const im=new Image();im.onload=()=>{c.fillStyle='#34517a';c.fillRect(i*cw+4,4,cw-8,ch-8);c.drawImage(im,i*cw,0,cw,ch);c.fillStyle='#ebdfc3';c.font='16px monospace';c.fillText(names[i],i*cw+10,ch+26);if(++n===urls.length)res(s.toDataURL('image/png'));};im.src=u;});});};
 </script>`;
@@ -151,7 +152,7 @@ const out = join(ROOT, 'game/assets/portraits'); mkdirSync(out, { recursive: tru
 const png = d => Buffer.from(d.split(',')[1], 'base64');
 const index = {}, urls = [];
 for (const [key, file, code] of LIST) {
-  const d = await page.evaluate(c => window.render(c), code);
+  const d = await page.evaluate(c => window.render(c), key);
   if (errs.length) { console.error(key, errs.join('\n')); process.exit(1); }
   writeFileSync(join(out, file + '.png'), png(d)); urls.push(d);
   index[key] = { file: `assets/portraits/${file}.png`, w: 512, h: 608 };
