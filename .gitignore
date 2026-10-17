@@ -4,3 +4,4 @@ node_modules/
 .DS_Store
 studio/playtests/**/*.png
 studio/.gate/
+game/tools/art/.tmp/
