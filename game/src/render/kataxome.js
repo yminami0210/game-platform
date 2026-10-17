@@ -21,6 +21,7 @@ export const MOTIF = {
   },
   yagasuri(x, y, p) { const w = p / 2, s = Math.floor(x / w), lx = mod(x, w); return mod(y + Math.abs(lx - (w - 1) / 2) * (s % 2 ? 1 : -1) + s * 3, p) < 1.5; },
   uroko(x, y, p) { const h = p / 2, r = Math.floor(y / h), lx = mod(x + (r % 2) * h, p), ly = mod(y, h); return Math.abs(lx - h) <= ly * (h / h) - 1 && (r + Math.floor((x + (r % 2) * h) / p)) % 2 === 0; },
+  kebi(x, y) { return hash(x, y >> 1, 91) < 0.13 || (hash(x >> 1, y, 92) < 0.05); }, // ビロードの毛足（短い明暗の斑）
   chidori(x, y, p) {
     const cw = p + 4, ch = Math.round(p * 0.7), r = Math.floor(y / ch), lx = mod(x + (r % 2) * (cw >> 1), cw), ly = mod(y, ch);
     return ly < 4 && lx < 7 && CHIDORI[ly][lx] === '#';
@@ -35,21 +36,21 @@ function paint(g, x0, y0, w, h, motif, p, color, ox = 0, oy = 0, inside = null) 
     if (f(x - ox, y - oy, p)) g.fillRect(x, y, 1, 1);
   }
 }
-// 抜け線: 生成りの線（1〜2px、不揃い、ところどころ途切れる＝型紙の「つり」）
+// 抜け線: 生成りの線。長さ2〜10pxの不揃いな線が、不揃いな間と「つり」の途切れでつながる（等間隔の破線にしない）
 function nukeH(g, x0, x1, y, color, seed, gap = 0.16) {
   g.fillStyle = color;
-  for (let x = x0; x < x1; x++) {
-    if (hash(Math.floor(x / 3), seed, 71) < gap) continue;
-    const t = hash(x >> 2, seed, 72) < 0.3 ? 2 : 1;
-    g.fillRect(x, y + (hash(x >> 3, seed, 73) < 0.2 ? 1 : 0), 1, t);
+  for (let x = x0, i = 0; x < x1; i++) {
+    const len = 2 + Math.floor(hash(i, seed, 72) * 9);
+    if (hash(i, seed, 71) >= gap * 1.6) g.fillRect(x, y + (hash(i, seed, 73) < 0.25 ? 1 : 0), Math.min(len, x1 - x), hash(i, seed, 77) < 0.3 ? 2 : 1);
+    x += len + 1 + Math.floor(hash(i, seed, 78) * 4);
   }
 }
 function nukeV(g, x, y0, y1, color, seed, gap = 0.16) {
   g.fillStyle = color;
-  for (let y = y0; y < y1; y++) {
-    if (hash(seed, Math.floor(y / 3), 74) < gap) continue;
-    const t = hash(seed, y >> 2, 75) < 0.3 ? 2 : 1;
-    g.fillRect(x + (hash(seed, y >> 3, 76) < 0.2 ? 1 : 0), y, t, 1);
+  for (let y = y0, i = 0; y < y1; i++) {
+    const len = 2 + Math.floor(hash(seed, i, 75) * 9);
+    if (hash(seed, i, 74) >= gap * 1.6) g.fillRect(x + (hash(seed, i, 76) < 0.25 ? 1 : 0), y, hash(seed, i, 79) < 0.3 ? 2 : 1, Math.min(len, y1 - y));
+    y += len + 1 + Math.floor(hash(seed, i, 80) * 4);
   }
 }
 
@@ -77,7 +78,7 @@ function rack(th, layer, W, H, opt) {
     let ci = Math.floor(hash(n, seed, 5) * cloths.length);
     const [face, mc, motif] = cloths[ci];
     // 茜濃の反物は1つの層に1枚まで
-    if (face === K.akk && (opt.usedAkk || layer !== opt.akkLayer)) { const alt = cloths[(ci + 1) % cloths.length]; draw(alt); } else { if (face === K.akk) opt.usedAkk = true; draw(cloths[ci]); }
+    if (face === K.akk && !th.akkFree && (opt.usedAkk || layer !== (th.akkLayer ?? opt.akkLayer))) { const alt = cloths[(ci + 1) % cloths.length]; draw(alt); } else { if (face === K.akk) opt.usedAkk = true; draw(cloths[ci]); }
     function draw([face, mc, motif]) {
       const top = py + 1;
       // 下の端はわずかに不揃い（布の重み）
@@ -89,8 +90,6 @@ function rack(th, layer, W, H, opt) {
       // 耳（刈安）: 反物の上端
       if (opt.ear) { g.fillStyle = th.ear[0]; g.fillRect(x + sx, top, w - sx, 2); }
       // 抜け線（左右と下）。面より1〜2px内側にずれる
-      nukeV(g, x + sx, top + 2, top + len - 2, line, n * 7 + seed);
-      nukeV(g, x + w - 1 - (sx === 2 ? 1 : 0), top + 3, top + len - 3, line, n * 7 + seed + 3, 0.28);
       nukeH(g, x + 2, x + w - 2, top + len - 2 - (sy - 1), line, n * 5 + seed, 0.22);
       pins.push(x + 3, x + w - 6);
     }
@@ -135,11 +134,13 @@ function hanger(g, th, x, py, line, i, big) {
       g.fillStyle = [K.akk, K.ai, K.ka][i % 3]; g.fillRect(x, py - 3, 6, 6);
       g.fillStyle = shade; g.fillRect(x + 1, py - 3, 1, 6);
       break;
-    case 'needles': if (i % 3) break; { // 竿を貫く大きな待ち針
-      g.fillStyle = K.kis; g.fillRect(x + 2, py - 18, 1, 26);
-      g.fillStyle = K.su; g.fillRect(x + 3, py - 16, 1, 22);
-      g.fillStyle = K.akk; g.fillRect(x, py - 23, 5, 5);
-      g.fillStyle = line; g.fillRect(x + 1, py - 23, 2, 1);
+    case 'needles': { // 針山に林立する待ち針（刈安の頭・生成りの軸）
+      const t = 4 + Math.floor(hash(i, 5, 81) * 10), lean = hash(i, 5, 82) < 0.4 ? 1 : 0;
+      g.fillStyle = K.ki; g.fillRect(x + 2, py - 18 - t, 1, 26 + t); g.fillRect(x + 2 + lean, py - 18 - t, 1, 6);
+      g.fillStyle = K.su; g.fillRect(x + 3, py - 16 - t, 1, 22 + t);
+      g.fillStyle = K.kak; g.fillRect(x + 1, py - 22 - t, 5, 5);
+      g.fillStyle = K.ka; g.fillRect(x, py - 23 - t, 5, 5);
+      g.fillStyle = K.kaa; g.fillRect(x + 1, py - 23 - t, 2, 1);
       break; }
   }
 }
@@ -175,10 +176,7 @@ export function drawGroundTile(g, th, tx, ty, x, y, tileAt, isGround, patch) {
   // 継ぎ目: 隣の当て布と色が違う所に生影の抜け線（途切れがち）
   if (right && patch(tx + 1, ty) !== pid) nukeV(g, x + 15, y, y + TS, K.kis, tx * 31 + ty, 0.35);
   if (down && patch(tx, ty + 1) !== pid) nukeH(g, x, x + TS, y + 15, K.kis, ty * 29 + tx, 0.35);
-  // 外の縁: 生成りの抜け線（面より1px内側。外側に色の面がはみ出る＝版ずれ）
-  if (!left) nukeV(g, x + 1, y + (up ? 0 : 4), y + TS, K.ki, tx * 7 + ty * 3, 0.2);
-  if (!right) nukeV(g, x + 13, y + (up ? 0 : 4), y + TS, K.ki, tx * 7 + ty * 3 + 1, 0.2);
-  if (!down) nukeH(g, x, x + TS, y + 13, K.ki, ty * 11 + tx, 0.2);
+  // 外の縁の抜け線は上面の耳だけ（§4「意味のある所だけ」）
   if (!up) {
     // 上面: 刈安の耳（織物の端）。耳の版は1pxずらし、上に抜け線
     const ex = hash(tx, ty, 13) < 0.5 ? 1 : 0;

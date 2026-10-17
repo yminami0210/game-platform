@@ -59,10 +59,11 @@
   #hud { position: absolute; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: flex-start; padding: calc(var(--u) * 6) calc(var(--u) * 8);
     font-size: calc(var(--u) * 8.5); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--sumi); font-variant-numeric: tabular-nums; }
   #hud .medals { display: flex; gap: calc(var(--u) * 3); }
-  #hud .medals i { width: calc(var(--u) * 9); height: calc(var(--u) * 9); border-radius: 50%; background: rgba(43, 36, 32, .5); border: calc(var(--u) * 1) solid var(--sumi); display: block; }
-  #hud .medals i.on { background: radial-gradient(circle at 35% 35%, var(--karashi-light), var(--karashi) 60%); }
+  /* ピクト層の丸: 9x9 のドットの段（なめらかな円・グラデーションは使わない） */
+  #hud .medals i { width: calc(var(--u) * 9); height: calc(var(--u) * 9); background: #3a302b; display: block; clip-path: polygon(33.3% 0, 66.7% 0, 66.7% 11.1%, 88.9% 11.1%, 88.9% 22.2%, 100% 22.2%, 100% 77.8%, 88.9% 77.8%, 88.9% 88.9%, 66.7% 88.9%, 66.7% 100%, 33.3% 100%, 33.3% 88.9%, 11.1% 88.9%, 11.1% 77.8%, 0 77.8%, 0 22.2%, 11.1% 22.2%, 11.1% 11.1%, 33.3% 11.1%); }
+  #hud .medals i.on { background: linear-gradient(#e6cd6e 0 33.3%, #d1aa36 33.3% 77.8%, #a4852b 77.8%); }
   #hud .coins::before { content: ""; display: inline-block; width: calc(var(--u) * 7); height: calc(var(--u) * 7); margin-right: calc(var(--u) * 3); vertical-align: -6%;
-    background: repeating-linear-gradient(170deg, var(--karashi) 0 calc(var(--u) * 1.4), var(--karashi-light) calc(var(--u) * 1.4) calc(var(--u) * 2.4)); border-radius: 50%; border: calc(var(--u) * 1) solid var(--sumi); }
+    background: linear-gradient(90deg, #d1aa36 0 44.4%, #a4852b 44.4% 55.6%, #d1aa36 55.6%); clip-path: polygon(33.3% 0, 66.7% 0, 66.7% 11.1%, 88.9% 11.1%, 88.9% 22.2%, 100% 22.2%, 100% 77.8%, 88.9% 77.8%, 88.9% 88.9%, 66.7% 88.9%, 66.7% 100%, 33.3% 100%, 33.3% 88.9%, 11.1% 88.9%, 11.1% 77.8%, 0 77.8%, 0 22.2%, 11.1% 22.2%, 11.1% 11.1%, 33.3% 11.1%); }
   #hud .right { display: flex; gap: calc(var(--u) * 10); align-items: center; }
   #boss { position: absolute; left: 50%; top: calc(var(--u) * 20); transform: translateX(-50%); display: flex; gap: calc(var(--u) * 3); align-items: center; font-size: calc(var(--u) * 8); text-shadow: calc(var(--u) * 1) calc(var(--u) * 1) 0 var(--sumi); }
   #boss b { width: calc(var(--u) * 8); height: calc(var(--u) * 5); background: #a596b0; border: calc(var(--u) * 1) solid var(--sumi); display: block; }

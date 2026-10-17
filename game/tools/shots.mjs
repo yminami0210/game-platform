@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { serve } = await import(join(HERE, '../../.claude/game-studio/scripts/serve.mjs'));
-const req = createRequire(join(execSync('npm root -g', { encoding: 'utf8' }).trim(), 'x.js'));
+let req = createRequire(import.meta.url);
+try { req.resolve('playwright'); } catch { req = createRequire(join(execSync('npm root -g', { encoding: 'utf8' }).trim(), 'x.js')); }
 const { chromium } = req('playwright');
 const out = process.argv[2] ?? 'shots'; mkdirSync(out, { recursive: true });
 const id = process.argv[3] ?? '1-1';
