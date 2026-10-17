@@ -27,7 +27,7 @@ async function newPage(w, h, mobile = false) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile, ignoreHTTPSErrors: true, locale: 'ja-JP' });
   const page = await ctx.newPage();
   page.on('console', m => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)/.test(m.location()?.url ?? '')) summary.consoleErrors.push(m.text()); });
-  page.on('pageerror', e => summary.consoleErrors.push(String(e)));
+  page.on('pageerror', e => summary.consoleErrors.push(String(e) + (process.env.STACK ? e.stack : "")));
   await page.addInitScript(() => {
     window.__fps = []; let last = performance.now(), n = 0;
     const tick = now => { n++; if (now - last >= 1000) { window.__fps.push(n); n = 0; last = now; } requestAnimationFrame(tick); };

@@ -56,6 +56,7 @@ saved.prog.world ??= 1; saved.prog.worldAt ??= {};
 async function useWorld(n) {
   const w = await fetchWorld(n);
   if (!w) return false;
+  saved.prog.worldAt ??= {};
   if (world && world.id !== n) { saved.prog.worldAt[world.id] = saved.prog.at; saved.prog.at = saved.prog.worldAt[n] ?? 'home'; }
   world = w; mapView = createMapView(renderer, world); saved.prog.world = n;
   return true;
@@ -150,12 +151,13 @@ let story = null;
 function startStory(kind) {
   scene = 'story'; hideAll(); show('story');
   story = { kind, pages: text[kind], i: 0, t: 0 };
-  sfx.music(kind === 'ending' ? 'ending' : 'map');
+  sfx.music(kind.startsWith('ending') ? 'ending' : 'map');
   setStoryPage();
   $('story').querySelector('.skip').onclick = () => endStory();
   log('story', { kind });
 }
-function setStoryPage() { $('story-text').textContent = story.pages[story.i].text; story.t = 0; setPortrait('story-portrait', STORY_PORTRAIT[story.pages[story.i].scene]); }
+function setStoryPage() {
+  if (!story.pages[story.i]) return endStory(); $('story-text').textContent = story.pages[story.i].text; story.t = 0; setPortrait('story-portrait', STORY_PORTRAIT[story.pages[story.i].scene]); }
 function nextStory() {
   sfx.play('select');
   if (++story.i >= story.pages.length) return endStory();
@@ -164,7 +166,8 @@ function nextStory() {
 function endStory() {
   if (story.kind === 'intro') { saved.prog.seenIntro = true; save(saved); toMap(); }
   else {
-    saved.prog.seenEnding = true; save(saved);
+    if (world.id === 1) saved.prog.seenEnding = true; else (saved.prog.seenEndings ??= {})[world.id] = true;
+    save(saved);
     if (worldCache[world.id + 1]) { useWorld(world.id + 1).then(() => { save(saved); toMap(); }); return; }
     scene = 'tsuzuku'; hideAll(); show('tsuzuku'); story.t = 0;
     log('ending');
@@ -327,7 +330,8 @@ function leaveStage(exit) {
   if (exit === 'knot') {
     // 砦クリア: 次のワールドがあればそこへ。ワールド1の初回はエンディングを見せてから
     return fetchWorld(world.id + 1).then(next => {
-      if (world.id === 1 && !saved.prog.seenEnding) return startStory('ending');
+      const ek = world.id === 1 ? 'ending' : 'ending' + world.id;
+      if (text[ek] && !(world.id === 1 ? saved.prog.seenEnding : saved.prog.seenEndings?.[world.id])) return startStory(ek);
       if (next) return useWorld(world.id + 1).then(() => { save(saved); toMap(); });
       toMap(newEdges);
     });
@@ -370,7 +374,7 @@ function frame(now) {
       renderer.draw(titleState, dt, wall); break;
     case 'story':
       story.t += dt;
-      mapView.drawScene(story.pages[story.i].scene, saved.prog, wall, story.t); renderer.presentBig();
+      story.pages[story.i] && mapView.drawScene(story.pages[story.i].scene, saved.prog, wall, story.t); renderer.presentBig();
       if ((input.pressed('j') || input.pressed('start')) && story.t > 0.25) nextStory();
       break;
     case 'tsuzuku':
@@ -403,7 +407,7 @@ window.__GS__ = {
   get running() { return scene === 'stage' && S?.status === 'play'; },
   get scene() { return scene; },
   setPlayerSprite: sp => renderer.setPlayerSprite(sp),
-  enterStage: (id, carry) => { sfx.unlock(); enterStage(id, { carry, noIntro: true }); },
+  enterStage: (id, carry) => { sfx.unlock(); const w = parseInt(id), go = () => enterStage(id, { carry, noIntro: true }); go(); if (w && world.id !== w) useWorld(w); },
   toMap: () => toMap(),
   // 操作列（ステップ番号 → 押されているボタン）で、本物のループのまま遊ばせる
   setPlan: fn => { botPlan = fn; botStep = 0; acc = 0; },
