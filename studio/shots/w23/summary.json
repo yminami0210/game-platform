@@ -1,0 +1,48 @@
+{
+  "readyMs": 1209,
+  "consoleErrors": [],
+  "fpsMinWorst": 27,
+  "fpsAvg": 59.8,
+  "flow": true,
+  "stages": {
+    "2-1": {
+      "cleared": true,
+      "botSeconds": 38.7,
+      "realSeconds": 38.5
+    },
+    "2-F": {
+      "cleared": true,
+      "botSeconds": 52.4,
+      "realSeconds": 52.2
+    },
+    "3-1": {
+      "cleared": true,
+      "botSeconds": 39.7,
+      "realSeconds": 39.6
+    }
+  },
+  "shots": [
+    "title.png",
+    "story.png",
+    "map.png",
+    "stage-intro.png",
+    "2-1-30.png",
+    "2-1-70.png",
+    "2-1-result.png",
+    "2-F-30.png",
+    "2-F-70.png",
+    "2-F-result.png",
+    "ending-1.png",
+    "ending-3.png",
+    "tsuzuku.png",
+    "3-1-30.png",
+    "3-1-70.png",
+    "3-1-result.png",
+    "map-after.png",
+    "mobile-844x390.png",
+    "mobile-portrait.png"
+  ],
+  "ending": false,
+  "mobilePad": true,
+  "portraitNotice": true
+}
