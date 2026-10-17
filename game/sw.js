@@ -32,6 +32,7 @@ const ASSETS = [
   'src/render/renderer.js',
   'src/render/sprites.js',
   'src/render/themes.js',
+  'src/render/kataxome.js',
   'src/save.js',
 ];
 self.addEventListener('install', e => {

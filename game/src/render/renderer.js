@@ -4,6 +4,7 @@ import { T } from '../core/level.js';
 import { solidAt } from '../core/stage.js';
 import { PAL, bake } from './sprites.js';
 import { THEMES } from './themes.js';
+import { buildBackground, drawGroundTile } from './kataxome.js';
 
 const TS = 16;
 // 決定的なハッシュ（見た目の揺れ用。毎フレーム同じ結果になる）
@@ -175,7 +176,7 @@ export function createRenderer(canvas, view, opts = {}) {
     g.drawImage(bg.sky, 0, 0);
     // 背景はカメラが下端にいるときを基準に、上へ行くほど少しだけ下がる（視差）
     const up = Math.max(0, level.ph - H - cy);
-    drawStrip(bg.clouds, cx * 0.08 + t * 3, 0, 8 + up * 0.04);
+    drawStrip(bg.clouds, cx * 0.08, 0, 8 + up * 0.04);
     drawStrip(bg.far, cx * 0.18, 0, H - bg.far.height - 22 + up * 0.12);
     drawStrip(bg.props, cx * 0.3, 0, H - bg.props.height - 26 + up * 0.2);
     drawStrip(bg.near, cx * 0.45, 0, H - bg.near.height - 34 + up * 0.3);
@@ -671,61 +672,6 @@ function buildTerrain(L, th) {
 const isOneway = t => t === T.ONEWAY;
 const isSolidStatic = t => t === T.GROUND || t === T.BLOCK;
 
-function drawGroundTile(g, th, tx, ty, x, y, tileAt, isGround, patch) {
-  const pid = patch(tx, ty);
-  g.fillStyle = th.ground[pid]; g.fillRect(x, y, TS, TS);
-  // 刺し子（十字刺し）
-  g.fillStyle = th.cross;
-  if (th.twill) { for (let i = 0; i < TS; i += 4) g.fillRect(x + ((i + ty * 3) % TS), y + i, 2, 1); }
-  else if (th.stripes) { g.fillStyle = th.stripes; g.globalAlpha = 0.25; g.fillRect(x + ((tx % 2) ? 0 : 8), y, 4, TS); g.globalAlpha = 1; }
-  else {
-    // 当て布ごとに刺し子の柄を変える（十字刺し・横の運針・かすり・山形）
-    const kind = Math.floor(hash(Math.floor(tx / 5), Math.floor(ty / 4), 11) * 4);
-    if (kind === 0) {
-      const ox = (tx + ty) % 2 ? 0 : 8;
-      g.fillRect(x + ox + 2, y + 6, 3, 1); g.fillRect(x + ox + 3, y + 5, 1, 3);
-      g.fillRect(x + ((ox + 8) % 16) + 2, y + 13, 3, 1); g.fillRect(x + ((ox + 8) % 16) + 3, y + 12, 1, 3);
-    } else if (kind === 1) {
-      for (let yy = 3; yy < TS; yy += 6) for (let xx = (yy % 4); xx < TS; xx += 5) g.fillRect(x + xx, y + yy, 3, 1);
-    } else if (kind === 2) {
-      for (let k = 0; k < 3; k++) g.fillRect(x + Math.floor(hash(tx, ty, k + 20) * 13), y + Math.floor(hash(tx, ty, k + 30) * 14), 2, 1);
-    } else {
-      for (let xx = 0; xx < TS; xx += 4) { const yy = 8 + ((xx / 4) % 2 ? -2 : 2); g.fillRect(x + xx, y + yy, 2, 1); g.fillRect(x + xx + 2, y + 8, 1, 1); }
-    }
-  }
-  // 継ぎ目（隣の布と色が違う所に運針）
-  g.fillStyle = th.stitch;
-  const R = isGround(tileAt(tx + 1, ty)) && patch(tx + 1, ty) !== pid;
-  const D = isGround(tileAt(tx, ty + 1)) && patch(tx, ty + 1) !== pid;
-  if (R) for (let i = 1; i < TS; i += 4) g.fillRect(x + 15, y + i + Math.round(hash(tx, ty, i) * 1.2), 1, 2);
-  if (D) for (let i = 1; i < TS; i += 4) g.fillRect(x + i + Math.round(hash(tx, ty, i + 9) * 1.2), y + 15, 2, 1);
-  const up = isGround(tileAt(tx, ty - 1)) || tileAt(tx, ty - 1) === T.BLOCK && false;
-  const left = isGround(tileAt(tx - 1, ty)), right = isGround(tileAt(tx + 1, ty)), down = isGround(tileAt(tx, ty + 1));
-  // 縁: 墨の線と、内側の運針
-  g.fillStyle = th.groundInk;
-  if (!left) g.fillRect(x, y, 1, TS);
-  if (!right) g.fillRect(x + 15, y, 1, TS);
-  if (!down && ty < 999) g.fillRect(x, y + 15, TS, 1);
-  g.fillStyle = th.stitch;
-  if (!left) for (let i = 2; i < TS; i += 5) g.fillRect(x + 3, y + i, 1, 3);
-  if (!right) for (let i = 2; i < TS; i += 5) g.fillRect(x + 12, y + i, 1, 3);
-  if (!up) {
-    // 上面: 若草の布をピンキングばさみで切った縁＋運針
-    g.fillStyle = th.groundInk; g.fillRect(x, y, TS, 1);
-    g.fillStyle = th.top; g.fillRect(x, y + 1, TS, 5);
-    g.fillStyle = th.topDark; g.fillRect(x, y + 5, TS, 1);
-    for (let i = 0; i < TS; i += 4) { g.fillRect(x + i + 1, y + 6, 2, 1); g.fillRect(x + i + 2, y + 7, 1, 1); }
-    g.fillStyle = th.topStitch;
-    for (let i = 1; i < TS; i += 5) g.fillRect(x + i + Math.round(hash(tx, ty, i) * 1.4), y + 3, 3, 1);
-    if (!left) { g.fillStyle = th.groundInk; g.fillRect(x, y, 1, 7); }
-    if (!right) { g.fillStyle = th.groundInk; g.fillRect(x + 15, y, 1, 7); }
-    // 草の房（ところどころ）
-    if (hash(tx, ty, 3) < 0.28) {
-      g.fillStyle = th.topDark; const hx = x + 3 + Math.floor(hash(tx, ty, 4) * 9);
-      g.fillRect(hx, y - 2, 1, 3); g.fillRect(hx + 2, y - 3, 1, 4); g.fillRect(hx + 4, y - 1, 1, 2);
-    }
-  }
-}
 function drawSpool(g, tx, ty, x, y) {
   // 糸巻き（木の糸巻きに色糸）
   const cols = [PAL.R, PAL.Y, PAL.a, PAL.G];
@@ -762,145 +708,6 @@ function drawPins(g, x, y, tx, ceil) {
   }
 }
 
-function buildBackground(th, W, H) {
-  // 空: 3段の帯をディザでつなぐ
-  const sky = document.createElement('canvas'); sky.width = W; sky.height = H;
-  const sg = sky.getContext('2d');
-  const band = H / th.sky.length;
-  th.sky.forEach((c, i) => { sg.fillStyle = c; sg.fillRect(0, Math.floor(i * band), W, Math.ceil(band)); });
-  for (let i = 1; i < th.sky.length; i++) {
-    sg.fillStyle = th.sky[i];
-    const y0 = Math.floor(i * band) - 6;
-    for (let y = 0; y < 6; y++) for (let x = (y % 2); x < W; x += 2) if (hash(x, y, i) < y / 6) sg.fillRect(x, y0 + y, 1, 1);
-  }
-  if (th.tufted) {
-    // 砦: ビロードの壁にくるみボタン
-    for (let y = 18; y < H; y += 36) for (let x = (y / 36 % 2) * 24 + 12; x < W; x += 48) {
-      sg.fillStyle = 'rgba(0,0,0,0.18)'; sg.fillRect(x - 10, y - 1, 20, 1); sg.fillRect(x - 1, y - 10, 1, 20);
-      sg.fillStyle = th.hillSeam; sg.fillRect(x - 2, y - 2, 4, 4); sg.fillStyle = 'rgba(0,0,0,0.3)'; sg.fillRect(x - 1, y - 1, 2, 2);
-    }
-  }
-  // 雲: 綿のかたまり
-  const clouds = document.createElement('canvas'); clouds.width = 768; clouds.height = 70;
-  const cg = clouds.getContext('2d');
-  for (let i = 0; i < 6; i++) {
-    const cx = 40 + i * 128 + hash(i, 1) * 40, cy = 20 + hash(i, 2) * 30, n = 4 + Math.floor(hash(i, 3) * 3);
-    for (let k = 0; k < n; k++) {
-      const r = 7 + hash(i, k) * 8, x = cx + k * 9 - n * 4, y = cy - hash(k, i) * 6;
-      cg.fillStyle = th.cloudShade; disc(cg, x, y + 2, r);
-      cg.fillStyle = th.cloud; disc(cg, x, y, r);
-    }
-  }
-  // 遠景: 継ぎはぎの丘（縫い目つき）
-  const far = document.createElement('canvas'); far.width = 768; far.height = 130;
-  const fg = far.getContext('2d');
-  for (let i = 0; i < 7; i++) {
-    const cx = i * 118 + hash(i, 9) * 30, r = 80 + hash(i, 8) * 40, top = 6 + hash(i, 7) * 34;
-    fg.fillStyle = th.hillInk; hill(fg, cx, top - 1, r + 1, 130);
-    fg.fillStyle = th.hills[i % th.hills.length]; hill(fg, cx, top, r, 130);
-    // 布の継ぎ目（縦の運針）
-    fg.fillStyle = th.hillSeam;
-    for (let y = top + 12; y < 130; y += 5) fg.fillRect(Math.round(cx + Math.sin(y * 0.05 + i) * 4), y, 1, 3);
-    for (let x = cx - r * 0.6; x < cx + r * 0.6; x += 5) fg.fillRect(Math.round(x), Math.round(top + 34 + Math.sin(x * 0.04) * 3), 3, 1);
-  }
-  // 近景: ぽんぽんの茂みとボタンの花
-  const near = document.createElement('canvas'); near.width = 768; near.height = 80;
-  const ng = near.getContext('2d');
-  for (let i = 0; i < 16; i++) {
-    const x = i * 48 + hash(i, 4) * 30, h = 18 + hash(i, 5) * 26;
-    ng.fillStyle = th.nearInk; ng.fillRect(Math.round(x) - 1, 80 - h, 2, h);
-    const r = 9 + hash(i, 6) * 7;
-    ng.fillStyle = th.nearInk; disc(ng, x, 80 - h, r + 1);
-    ng.fillStyle = th.near[i % 2]; disc(ng, x, 80 - h, r);
-    // 毛糸のぽんぽん: 中心から外へ毛糸の筋
-    ng.fillStyle = th.nearInk; ng.globalAlpha = 0.35;
-    for (let k = 0; k < 14; k++) {
-      const a = k / 14 * Math.PI * 2 + hash(i, k) * 0.4;
-      for (let t = 0.35; t < 0.95; t += 0.12) ng.fillRect(Math.round(x + Math.cos(a) * r * t), Math.round(80 - h + Math.sin(a) * r * t), 1, 1);
-    }
-    ng.globalAlpha = 1;
-    // 下半分に影、上に1本だけ光
-    ng.fillStyle = th.nearInk; ng.globalAlpha = 0.25; ng.fillRect(Math.round(x - r), Math.round(80 - h + r * 0.35), Math.round(r * 2), Math.round(r * 0.7)); ng.globalAlpha = 1;
-    ng.fillStyle = 'rgba(255,255,255,0.18)'; ng.fillRect(Math.round(x - r * 0.5), Math.round(80 - h - r * 0.6), Math.round(r * 0.6), 1);
-    if (hash(i, 11) < 0.35) {
-      const fx = x + 18, fy = 80 - 18 - hash(i, 12) * 14, fc = th.flower[i % th.flower.length];
-      ng.globalAlpha = 0.7;
-      ng.fillStyle = th.nearInk; ng.fillRect(Math.round(fx), Math.round(fy), 1, 80 - fy);
-      ng.fillStyle = th.nearInk; disc(ng, fx, fy, 4);
-      ng.fillStyle = fc; disc(ng, fx, fy, 3);
-      ng.fillStyle = th.nearInk; ng.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 1, 1); ng.fillRect(Math.round(fx) + 1, Math.round(fy) + 1, 1, 1);
-      ng.globalAlpha = 1;
-    }
-  }
-  return { sky, clouds, far, near, props: buildProps(th) };
-}
-
-// 題材の小道具のシルエット（遠景と近景のあいだ）: 地面に刺さった大きな縫い針と渡した糸／糸巻きの塔／アイロン
-function buildProps(th) {
-  const c = document.createElement('canvas'); c.width = 768; c.height = 150;
-  const g = c.getContext('2d');
-  const ink = th.hillInk, body = th.hills[1], light = th.hillSeam;
-  const kind = th.props ?? 'needles';
-  if (kind === 'needles') {
-    const tops = [];
-    for (let i = 0; i < 4; i++) {
-      const x = 60 + i * 192 + hash(i, 40) * 40, h = 90 + hash(i, 41) * 40, lean = (hash(i, 42) - 0.5) * 0.25;
-      const top = 150 - h;
-      for (let y = top; y < 150; y++) {
-        const xx = Math.round(x + (y - top) * lean);
-        const w = y < top + 6 ? 2 : 3;
-        g.fillStyle = ink; g.fillRect(xx - 1, y, w + 2, 1);
-        g.fillStyle = body; g.fillRect(xx, y, w, 1);
-      }
-      g.fillStyle = th.sky[0]; g.fillRect(Math.round(x) , top + 8, 1, 6); // 針の穴
-      tops.push({ x: x + 1, y: top + 10 });
-    }
-    // 針の穴どうしに糸を渡す（たるみ）
-    g.fillStyle = th.flower[0]; g.globalAlpha = 0.45;
-    for (let i = 0; i < tops.length; i++) {
-      const a = tops[i], b = i + 1 < tops.length ? tops[i + 1] : { x: tops[0].x + 768, y: tops[0].y };
-      for (let t = 0; t <= 1; t += 0.004) {
-        const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t + Math.sin(t * Math.PI) * 26;
-        g.fillRect(Math.round(x) % 768, Math.round(y), 1, 1);
-      }
-    }
-    g.globalAlpha = 1;
-  } else if (kind === 'spools') {
-    for (let i = 0; i < 3; i++) {
-      const x = 80 + i * 256 + hash(i, 50) * 60, w = 34 + hash(i, 51) * 16, h = 60 + hash(i, 52) * 40, top = 150 - h;
-      g.fillStyle = ink; g.fillRect(x - w / 2 - 6, top - 1, w + 12, 8); g.fillRect(x - w / 2 - 6, 143, w + 12, 7);
-      g.fillStyle = body; g.fillRect(x - w / 2 - 5, top, w + 10, 6); g.fillRect(x - w / 2 - 5, 144, w + 10, 6);
-      g.fillStyle = ink; g.fillRect(x - w / 2 - 1, top + 6, w + 2, h - 12);
-      g.fillStyle = th.flower[i % th.flower.length]; g.globalAlpha = 0.55; g.fillRect(x - w / 2, top + 6, w, h - 12); g.globalAlpha = 1;
-      g.fillStyle = ink; for (let y = top + 8; y < 142; y += 3) g.fillRect(x - w / 2, y, w, 1);
-    }
-  } else if (kind === 'irons') {
-    for (let i = 0; i < 2; i++) {
-      const x = 120 + i * 384 + hash(i, 60) * 80, w = 120, h = 46, base = 150;
-      g.fillStyle = ink;
-      for (let y = 0; y < h; y++) { const ww = Math.round(w * (0.55 + 0.45 * y / h)); g.fillRect(Math.round(x + w - ww), base - h + y, ww, 1); }
-      g.fillStyle = body;
-      for (let y = 1; y < h - 1; y++) { const ww = Math.round(w * (0.55 + 0.45 * y / h)) - 2; g.fillRect(Math.round(x + w - ww - 1), base - h + y, ww, 1); }
-      // 取っ手
-      g.fillStyle = ink; g.fillRect(x + 50, base - h - 22, 50, 6); g.fillRect(x + 54, base - h - 18, 5, 18); g.fillRect(x + 92, base - h - 18, 5, 18);
-      g.fillStyle = light; for (let k = 0; k < 6; k++) g.fillRect(x + 40 + k * 12, base - 8, 2, 2);
-      // 湯気
-      g.fillStyle = light; g.globalAlpha = 0.5;
-      for (let k = 0; k < 8; k++) g.fillRect(Math.round(x + 20 + Math.sin(k) * 6), base - h - 10 - k * 7, 6, 3);
-      g.globalAlpha = 1;
-    }
-  }
-  return c;
-}
-function disc(g, cx, cy, r) {
-  for (let y = -r; y <= r; y++) { const w = Math.round(Math.sqrt(r * r - y * y)); g.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
-}
-function hill(g, cx, top, r, bottom) {
-  for (let y = top; y < bottom; y++) {
-    const d = (y - top) / r; const w = Math.round(r * Math.sqrt(Math.min(1, d * (2 - d))) * 1.2);
-    g.fillRect(Math.round(cx - w), y, w * 2, 1);
-  }
-}
 function makeClothTexture(W, H) {
   // 平織りの目（縦糸と横糸）を薄く1回だけ描く
   const c = document.createElement('canvas'); c.width = W; c.height = H;
