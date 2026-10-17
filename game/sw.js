@@ -1,5 +1,5 @@
 // オフライン対応。キャッシュ一覧と版は tools/sync_sw.mjs が書き直す。
-const CACHE_VERSION = 'tsugi-f0bcf498';
+const CACHE_VERSION = 'tsugi-81fabb36';
 const ASSETS = [
   './',
   'index.html',
@@ -35,11 +35,14 @@ const ASSETS = [
   'src/data/stages/3-3.json',
   'src/data/stages/3-4.json',
   'src/data/stages/3-S.json',
+  'src/data/stages/4-2.json',
+  'src/data/stages/6-1.json',
   'src/data/stages/index.json',
   'src/data/text.json',
   'src/data/tuning.json',
   'src/data/world1.json',
   'src/data/world2.json',
+  'src/data/world3.json',
   'src/data/worlds.json',
   'src/input/input.js',
   'src/main.js',
