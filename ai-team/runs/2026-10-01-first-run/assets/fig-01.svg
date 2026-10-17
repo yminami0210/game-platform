@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" font-family="sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#C9733A"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="675" fill="#F7F5F0"/>
+  <text x="60" y="58" font-size="34" font-weight="bold" fill="#2B3A55">スキルは3段階で読み込まれる</text>
+
+  <rect x="60" y="85" width="700" height="120" rx="14" fill="#2B3A55"/>
+  <text x="90" y="135" font-size="32" font-weight="bold" fill="#FFFFFF">① 起動時：name と description</text>
+  <text x="90" y="180" font-size="28" fill="#E3E8EF">1スキルあたり約100トークン</text>
+
+  <line x1="200" y1="210" x2="200" y2="268" stroke="#C9733A" stroke-width="6" marker-end="url(#ah)"/>
+  <text x="230" y="250" font-size="28" fill="#C9733A">関係ありと判断・/名前で呼び出し</text>
+
+  <rect x="60" y="275" width="700" height="120" rx="14" fill="#4A6283"/>
+  <text x="90" y="325" font-size="32" font-weight="bold" fill="#FFFFFF">② 発動時：SKILL.md の本文</text>
+  <text x="90" y="370" font-size="28" fill="#E3E8EF">目安は 5,000 トークン未満</text>
+
+  <line x1="200" y1="400" x2="200" y2="458" stroke="#C9733A" stroke-width="6" marker-end="url(#ah)"/>
+  <text x="230" y="440" font-size="28" fill="#C9733A">必要なときだけ</text>
+
+  <rect x="60" y="465" width="700" height="120" rx="14" fill="#E3E8EF" stroke="#4A6283" stroke-width="3"/>
+  <text x="90" y="515" font-size="32" font-weight="bold" fill="#2B3A55">③ 補助ファイル・スクリプト</text>
+  <text x="90" y="560" font-size="28" fill="#2B3A55">reference.md など</text>
+
+  <rect x="840" y="275" width="300" height="310" rx="14" fill="#FFFFFF" stroke="#C9733A" stroke-width="4" stroke-dasharray="12 8"/>
+  <text x="990" y="335" font-size="28" fill="#C9733A" text-anchor="middle">比較</text>
+  <text x="990" y="395" font-size="32" font-weight="bold" fill="#2B3A55" text-anchor="middle">CLAUDE.md</text>
+  <text x="990" y="470" font-size="28" fill="#2B3A55" text-anchor="middle">常に全文を</text>
+  <text x="990" y="510" font-size="28" fill="#2B3A55" text-anchor="middle">読み込む</text>
+</svg>

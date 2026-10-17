@@ -1,0 +1,60 @@
+{
+  "run": "2026-10-01-finance-trial",
+  "department": "finance",
+  "created": "2026-10-01 03:13",
+  "stages": {
+    "verify": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "例外3件を検出（金額超過・二重請求・振込先変更）"
+    },
+    "entry": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "支払予定1件・保留3件"
+    },
+    "audit": {
+      "state": "pass",
+      "revisions": 0,
+      "note": "品質スコア92点"
+    }
+  },
+  "feed": [
+    {
+      "at": "2026-10-01 03:13",
+      "stage": "verify",
+      "state": "working",
+      "note": "請求書を突合中"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "verify",
+      "state": "pass",
+      "note": "例外3件を検出（金額超過・二重請求・振込先変更）"
+    },
+    {
+      "at": "2026-10-01 03:15",
+      "stage": "entry",
+      "state": "working",
+      "note": "仕訳案と支払予定を作成中"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "entry",
+      "state": "pass",
+      "note": "支払予定1件・保留3件"
+    },
+    {
+      "at": "2026-10-01 03:17",
+      "stage": "audit",
+      "state": "working",
+      "note": "総括中"
+    },
+    {
+      "at": "2026-10-01 03:18",
+      "stage": "audit",
+      "state": "pass",
+      "note": "品質スコア92点"
+    }
+  ]
+}

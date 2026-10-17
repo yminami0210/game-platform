@@ -1,0 +1,11 @@
+{
+  "runSecondsMin": 20,
+  "runSecondsMax": 180,
+  "skillRatioMin": 1.5,
+  "firstGoalScore": 1,
+  "noviceReachMin": 0.5,
+  "stuckShareMax": 0.4,
+  "readyMsMax": 3000,
+  "retryGapSecMax": 3,
+  "fpsMinWorst": 30
+}

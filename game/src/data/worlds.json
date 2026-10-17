@@ -1,0 +1,12 @@
+{
+  "worlds": [
+    { "id": 1, "name": "はぎれ野", "file": "src/data/world1.json", "theme": "meadow" },
+    { "id": 2, "name": "藍の川", "file": "src/data/world2.json", "theme": "river" },
+    { "id": 3, "name": "わた雲山", "file": "src/data/world3.json", "theme": "cloud" },
+    { "id": 4, "name": "はた織り場", "file": "src/data/world4.json", "theme": "loom" },
+    { "id": 5, "name": "よなべ町", "file": "src/data/world5.json", "theme": "night" },
+    { "id": 6, "name": "毛糸の雪原", "file": "src/data/world6.json", "theme": "snow" },
+    { "id": 7, "name": "錦の宮", "file": "src/data/world7.json", "theme": "palace" },
+    { "id": 8, "name": "ほどきの穴", "file": "src/data/world8.json", "theme": "abyss" }
+  ]
+}

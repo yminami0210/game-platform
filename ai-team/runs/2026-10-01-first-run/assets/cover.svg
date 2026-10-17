@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 670" width="1280" height="670" font-family="sans-serif">
+  <rect width="1280" height="670" fill="#2B3A55"/>
+  <rect x="0" y="560" width="1280" height="110" fill="#22304A"/>
+  <g transform="translate(930,120)">
+    <rect x="0" y="0" width="240" height="300" rx="18" fill="#F7F5F0"/>
+    <rect x="30" y="40" width="120" height="22" rx="6" fill="#C9733A"/>
+    <rect x="30" y="90" width="180" height="14" rx="5" fill="#B7C3D3"/>
+    <rect x="30" y="125" width="160" height="14" rx="5" fill="#B7C3D3"/>
+    <rect x="30" y="160" width="180" height="14" rx="5" fill="#B7C3D3"/>
+    <rect x="30" y="195" width="130" height="14" rx="5" fill="#B7C3D3"/>
+    <text x="30" y="265" font-size="30" font-weight="bold" fill="#2B3A55">SKILL.md</text>
+  </g>
+  <text x="80" y="150" font-size="34" fill="#E8B48A">Claude のスキル入門</text>
+  <text x="80" y="260" font-size="66" font-weight="bold" fill="#FFFFFF">毎回同じ指示を</text>
+  <text x="80" y="350" font-size="66" font-weight="bold" fill="#FFFFFF">貼るのをやめる</text>
+  <text x="80" y="440" font-size="34" fill="#E3E8EF">SKILL.md を1本作って仕事を定型化する</text>
+  <text x="80" y="625" font-size="30" fill="#E3E8EF">作る → 呼び出す → 発動しないときの直し方 → 安全チェック</text>
+</svg>

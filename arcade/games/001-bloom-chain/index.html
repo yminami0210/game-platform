@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>蓮ひらく</title>
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --rokusho:#4a7a68;   /* 緑青: 池の地 */
+  --byakuroku:#a9c7ae; /* 白緑: 浮き葉 */
+  --gofun:#f0ede4;     /* 胡粉: 花びら・紙 */
+  --enji:#a3344a;      /* 臙脂: 花の先・落款 */
+  --kindei:#c2a05a;    /* 金泥: 蓮の実 */
+  --sumi:#26302b;      /* 墨: 線・文字 */
+}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--rokusho);touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100vw;height:100vh;height:100dvh}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="蓮ひらく。池に一度だけ触れて蓮を咲かせ、浮き葉を連鎖させるゲーム"></canvas>
+<script>
+(() => {
+"use strict";
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+// ---------- palette & type ----------
+const C = {
+  rokusho: "#4a7a68", byakuroku: "#a9c7ae", gofun: "#f0ede4",
+  enji: "#a3344a", kindei: "#c2a05a", sumi: "#26302b"
+};
+const BRUSH = '"Yuji Syuku","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+const BODY = '"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif';
+
+function rgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+function mix(h1, h2, k) {
+  // 不透明のまま2色を混ぜる（下の緑が透けて濁らないように）
+  const a = parseInt(h1.slice(1), 16), b = parseInt(h2.slice(1), 16);
+  const ch = (sh) => Math.round(((a >> sh) & 255) * (1 - k) + ((b >> sh) & 255) * k);
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+}
+
+// ---------- prerendered textures (made once, reused) ----------
+let bgCanvas = null;
+const grain = (() => {
+  const g = document.createElement("canvas"); g.width = g.height = 160;
+  const gx = g.getContext("2d"), img = gx.createImageData(160, 160);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.random();
+    const light = v > 0.5;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = light ? 255 : 20;
+    img.data[i + 3] = Math.random() < 0.35 ? Math.floor(Math.random() * 40) : 0;
+  }
+  gx.putImageData(img, 0, 0);
+  return g;
+})();
+function buildBackground() {
+  bgCanvas = document.createElement("canvas");
+  bgCanvas.width = Math.max(1, Math.round(W * DPR)); bgCanvas.height = Math.max(1, Math.round(H * DPR));
+  const b = bgCanvas.getContext("2d");
+  b.setTransform(DPR, 0, 0, DPR, 0, 0);
+  b.fillStyle = C.rokusho; b.fillRect(0, 0, W, H);
+  // 岩絵具のむら: 濃い所と白っぽい所を大きくにじませる
+  const big = Math.max(W, H);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.random() * W, y = Math.random() * H, r = big * (0.12 + Math.random() * 0.3);
+    const dark = Math.random() < 0.62;
+    const g = b.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, dark ? rgba(C.sumi, 0.07 + Math.random() * 0.08) : rgba(C.byakuroku, 0.05 + Math.random() * 0.06));
+    g.addColorStop(1, dark ? rgba(C.sumi, 0) : rgba(C.byakuroku, 0));
+    b.fillStyle = g; b.fillRect(0, 0, W, H);
+  }
+  // 絹目・紙のざらつき
+  b.save(); b.setTransform(1, 0, 0, 1, 0, 0);
+  b.fillStyle = b.createPattern(grain, "repeat"); b.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+  b.restore();
+}
+
+// 蓮の花（上から見た形）を4種類、1回だけ描いておく
+const TINTS = [
+  { tip: C.enji, pod: C.kindei, a: 0.62 },   // 紅蓮
+  { tip: "#c27884", pod: C.kindei, a: 0.55 },// 薄紅
+  { tip: C.kindei, pod: "#b08d48", a: 0.3 }, // 白蓮
+  { tip: "#8e2b40", pod: C.kindei, a: 0.75 } // 深い臙脂
+];
+const SPR = 256, SR = 118;
+function petalPath(g, len, wid, jit) {
+  // 根元(0,0) から 先(0,-len) へ。左右の膨らみに少しずつ揺れ
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.bezierCurveTo(-wid * (1 + jit[0]), -len * 0.25, -wid * (0.85 + jit[1]), -len * 0.8, jit[2] * 3, -len);
+  g.bezierCurveTo(wid * (0.85 + jit[3]), -len * 0.8, wid * (1 + jit[4]), -len * 0.25, 0, 0);
+  g.closePath();
+}
+function makeLotus(t) {
+  const c = document.createElement("canvas"); c.width = c.height = SPR;
+  const g = c.getContext("2d");
+  g.translate(SPR / 2, SPR / 2);
+  const ring = (n, len, wid, off) => {
+    for (let i = 0; i < n; i++) {
+      const jit = [0, 0, 0, 0, 0].map(() => (Math.random() - 0.5) * 0.16);
+      g.save();
+      g.rotate(off + (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.08);
+      const l = len * (0.93 + Math.random() * 0.1);
+      const grad = g.createLinearGradient(0, 0, 0, -l);
+      grad.addColorStop(0, C.gofun); grad.addColorStop(0.6, C.gofun);
+      grad.addColorStop(0.82, mix(C.gofun, t.tip, t.a * 0.45));
+      grad.addColorStop(1, mix(C.gofun, t.tip, t.a));
+      petalPath(g, l, wid, jit);
+      g.fillStyle = grad; g.fill();
+      // 版ずれ: 墨の線を少しずらして刷る
+      g.translate(1.8, 1.2);
+      petalPath(g, l, wid, jit);
+      g.strokeStyle = rgba(C.sumi, 0.42); g.lineWidth = 1.8; g.stroke();
+      g.beginPath(); g.moveTo(0, -l * 0.12); g.lineTo(jit[2] * 2, -l * 0.7);
+      g.strokeStyle = rgba(C.sumi, 0.18); g.lineWidth = 1.2; g.stroke();
+      g.restore();
+    }
+  };
+  ring(8, SR, SR * 0.36, 0);
+  ring(6, SR * 0.66, SR * 0.3, 0.4);
+  // 蓮の実（花托）
+  g.beginPath(); g.arc(0, 0, SR * 0.2, 0, 6.283); g.fillStyle = t.pod; g.fill();
+  g.beginPath(); g.arc(1.5, 1, SR * 0.2, 0, 6.283); g.strokeStyle = rgba(C.sumi, 0.6); g.lineWidth = 2; g.stroke();
+  g.fillStyle = rgba(C.sumi, 0.55);
+  for (let i = 0; i < 7; i++) {
+    const a = i * 0.9 + 0.3, d = i === 0 ? 0 : SR * 0.11;
+    g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, 3.2, 0, 6.283); g.fill();
+  }
+  return c;
+}
+const LOTUS = TINTS.map(makeLotus);
+
+// 浮き葉（切れこみのある蓮の葉）
+const PAD = (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"); g.translate(32, 32);
+  const leaf = (dx, dy) => {
+    g.beginPath(); g.moveTo(dx, dy);
+    const n = 18;
+    for (let i = 0; i <= n; i++) {
+      const a = 0.32 + (i / n) * (Math.PI * 2 - 0.64);
+      const r = 26 + (Math.random() - 0.5) * 2.2;
+      g.lineTo(dx + Math.cos(a - Math.PI / 2) * r, dy + Math.sin(a - Math.PI / 2) * r);
+    }
+    g.closePath();
+  };
+  leaf(0, 0); g.fillStyle = C.byakuroku; g.fill();
+  g.strokeStyle = rgba(C.rokusho, 0.45); g.lineWidth = 1.3;
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + 0.75 + i * 1.18;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 17, Math.sin(a) * 17); g.stroke();
+  }
+  leaf(1.6, 1.4); g.strokeStyle = rgba(C.sumi, 0.6); g.lineWidth = 2.4; g.stroke();
+  return c;
+})();
+
+// 落款（白文の朱印）。文字ごとに作って使い回す。フォントが届いたら作り直す
+let sealCache = {};
+function seal(ch) {
+  if (sealCache[ch]) return sealCache[ch];
+  const s = 128, c = document.createElement("canvas"); c.width = c.height = s;
+  const g = c.getContext("2d");
+  g.beginPath();
+  const pts = [[8, 10], [s - 9, 7], [s - 6, s - 10], [10, s - 7]];
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i <= 4; i++) {
+    const p = pts[i % 4], q = pts[i - 1];
+    g.lineTo((p[0] + q[0]) / 2 + (Math.random() - 0.5) * 4, (p[1] + q[1]) / 2 + (Math.random() - 0.5) * 4);
+    g.lineTo(p[0], p[1]);
+  }
+  g.closePath(); g.fillStyle = C.enji; g.fill();
+  g.globalCompositeOperation = "destination-out";
+  g.font = `${s * 0.7}px ${BRUSH}`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#000"; g.fillText(ch, s / 2, s / 2 + 4);
+  // 朱肉のかすれ
+  for (let i = 0; i < 260; i++) {
+    g.globalAlpha = Math.random() * 0.6;
+    g.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 3, 1 + Math.random() * 2);
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+  return (sealCache[ch] = c);
+}
+
+// 和紙の短冊（結果の札）: 形のゆらぎは札ごとに固定
+let paperShape = null;
+function newPaperShape() {
+  paperShape = { rot: (Math.random() - 0.5) * 0.03, j: Array.from({ length: 16 }, () => (Math.random() - 0.5) * 3) };
+}
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (cursor.x > W || cursor.y > H) { cursor.x = W / 2; cursor.y = H / 2; }
+  buildBackground();
+}
+
+// ---------- storage ----------
+const KEY = "arcade.bloom-chain.best";
+function loadBest() { try { return parseInt(localStorage.getItem(KEY) || "0", 10) || 0; } catch (e) { return 0; } }
+function saveBest(v) { try { localStorage.setItem(KEY, String(v)); } catch (e) {} }
+let best = loadBest();
+
+// ---------- audio ----------
+let actx = null, master = null, muted = false, voices = 0, lastNoteAt = 0;
+function initAudio() {
+  if (actx) { if (actx.state === "suspended") actx.resume().catch(() => {}); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    actx = new AC();
+    master = actx.createGain(); master.gain.value = muted ? 0 : 0.5;
+    master.connect(actx.destination);
+  } catch (e) { actx = null; }
+}
+const PENTA = [0, 2, 4, 7, 9];
+function noteFreq(step) {
+  const oct = Math.floor(step / 5), n = PENTA[step % 5] + oct * 12;
+  return 440 * Math.pow(2, (n - 9) / 12);
+}
+function bell(step, vol) {
+  if (!actx || muted) return;
+  const now = actx.currentTime;
+  if (voices >= 8 || now - lastNoteAt < 0.025) return;
+  lastNoteAt = now; voices++;
+  try {
+    const f = noteFreq(Math.min(step, 19));
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(vol || 0.25, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    const o = actx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+    const o2 = actx.createOscillator(); o2.type = "sine"; o2.frequency.value = f * 2.01;
+    const g2 = actx.createGain(); g2.gain.value = 0.25;
+    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
+    o.start(now); o2.start(now); o.stop(now + 0.95); o2.stop(now + 0.95);
+    o.onended = () => { voices = Math.max(0, voices - 1); };
+  } catch (e) { voices = Math.max(0, voices - 1); }
+}
+function chord(steps, vol) {
+  if (!actx || muted) return;
+  steps.forEach((s, i) => setTimeout(() => { lastNoteAt = 0; bell(s, vol); }, i * 70));
+}
+function setMuted(m) {
+  muted = m;
+  if (master) master.gain.value = muted ? 0 : 0.5;
+}
+
+// ---------- game data（遊びの数値は変えない） ----------
+const ROUNDS = 8;
+const TARGETS = [5, 9, 14, 20, 26, 32, 38, 45];
+const COUNTS = [32, 36, 40, 44, 48, 52, 56, 60];
+const SPEEDS = [14, 17, 20, 23, 26, 29, 32, 36];
+const ROUND_TINT = [0, 1, 2, 3, 1, 0, 2, 3];
+const MILESTONES = [10, 25, 40];
+const MILESTONE_TEXT = { 10: "十輪", 25: "二十五輪", 40: "四十輪" };
+
+let state = "title"; // title | aim | chain | result | over
+let round = 0, score = 0, roundScore = 0, retryLeft = 1, maxDepth = 0, bloomedCount = 0;
+let seeds = [], blooms = [], particles = [], petals = [], popups = [];
+let flash = 0, stateT = 0, sparkle = 0, allBloom = false, passed = false, newBest = false;
+let milestoneIdx = 0;
+const cursor = { x: 195, y: 422, visible: false };
+const keys = {};
+let ripples = [];
+
+function baseR() { return Math.max(30, Math.sqrt(Math.max(1, (W - 28) * (H - 84))) * 0.14); }
+
+function startGame() {
+  round = 0; score = 0; retryLeft = 1; newBest = false;
+  startRound();
+}
+function startRound() {
+  seeds = []; blooms = []; particles = []; popups = [];
+  bloomedCount = 0; maxDepth = 0; roundScore = 0; allBloom = false; milestoneIdx = 0; sparkle = 0;
+  const n = COUNTS[round], sp = SPEEDS[round] * Math.sqrt(Math.min(W, H) / 390);
+  const pad = 14, top = 70;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = sp * (0.5 + Math.random() * 0.7);
+    seeds.push({
+      x: pad + Math.random() * (W - pad * 2), y: top + Math.random() * (H - top - pad),
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s, ph: Math.random() * 6.28, alive: true
+    });
+  }
+  state = "aim"; stateT = 0;
+}
+function addBloom(x, y, depth, tint) {
+  const ring = Array.from({ length: 22 }, () => 1 + (Math.random() - 0.5) * 0.05);
+  blooms.push({ x, y, t: 0, depth, tint, rot: Math.random() * 6.28, ring, maxR: baseR() * (depth === 0 ? 1.1 : 1) });
+  bloomedCount += depth === 0 ? 0 : 1;
+  if (depth > maxDepth) maxDepth = depth;
+  if (depth > 0) {
+    const pts = 10 + (depth - 1) * 5;
+    roundScore += pts;
+  }
+  bell(depth, depth === 0 ? 0.3 : 0.22);
+}
+function tapAt(x, y) {
+  if (state !== "aim") return;
+  addBloom(x, y, 0, ROUND_TINT[round]);
+  state = "chain"; stateT = 0;
+}
+const BLOOM_LIFE = 1.5;
+function bloomRadius(b) {
+  const t = b.t;
+  if (t < 0.3) { const k = t / 0.3; return b.maxR * (1 - Math.pow(1 - k, 3)); }
+  if (t < 1.1) return b.maxR;
+  const k = (t - 1.1) / (BLOOM_LIFE - 1.1); return b.maxR * (1 - k * k);
+}
+
+function endRound() {
+  const total = seeds.length;
+  allBloom = bloomedCount >= total;
+  if (allBloom) roundScore *= 2;
+  passed = bloomedCount >= TARGETS[round];
+  sparkle = 1;
+  chord(passed ? [5, 7, 9, 12] : [4, 2, 0], 0.18);
+  if (allBloom) {
+    for (let i = 0; i < 90; i++) petals.push({ x: Math.random() * W, y: -Math.random() * H * 0.6, vy: 40 + Math.random() * 60, vx: -10 + Math.random() * 20, r: 4 + Math.random() * 5, rot: Math.random() * 6, vr: -2 + Math.random() * 4, pink: Math.random() < 0.4 });
+  }
+  newPaperShape();
+  state = "result"; stateT = 0;
+  if (passed) score += roundScore;
+}
+function advance() {
+  if (stateT < 1.0) return;
+  if (state === "result") {
+    if (passed) {
+      if (round + 1 >= ROUNDS) return finish(true);
+      round++; startRound();
+    } else if (retryLeft > 0) {
+      retryLeft--; startRound();
+    } else finish(false);
+  } else if (state === "over") {
+    startGame();
+  } else if (state === "title") {
+    startGame();
+  }
+}
+let cleared = false;
+function finish(c) {
+  cleared = c;
+  if (!c && !passed) score += roundScore;
+  if (score > best) { best = score; newBest = true; saveBest(best); } else newBest = false;
+  newPaperShape();
+  state = "over"; stateT = 0;
+}
+
+// ---------- input ----------
+function muteHit(x, y) { return x > W - 54 && y < 54; }
+function onPress(x, y) {
+  initAudio();
+  if (muteHit(x, y)) { setMuted(!muted); return; }
+  if (state === "aim") { cursor.visible = false; tapAt(x, y); }
+  else if (state === "title") { if (stateT > 0.2) startGame(); }
+  else advance();
+}
+cv.addEventListener("pointerdown", (e) => { e.preventDefault(); onPress(e.clientX, e.clientY); });
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+window.addEventListener("keydown", (e) => {
+  const k = e.code;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(k)) e.preventDefault();
+  initAudio();
+  if (k === "KeyM") { setMuted(!muted); return; }
+  keys[k] = true;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyW", "KeyA", "KeyS", "KeyD"].includes(k)) cursor.visible = true;
+  if (k === "Space" || k === "Enter") {
+    if (state === "aim") { cursor.visible = true; tapAt(cursor.x, cursor.y); }
+    else if (state === "title") startGame();
+    else advance();
+  }
+});
+window.addEventListener("keyup", (e) => { keys[e.code] = false; });
+window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+window.addEventListener("resize", resize);
+
+// ---------- update ----------
+function update(dt) {
+  stateT += dt;
+  if (flash > 0) flash = Math.max(0, flash - dt * 1.8);
+  if (sparkle > 0) sparkle = Math.max(0, sparkle - dt * 1.2);
+
+  const cs = Math.max(W, H) * 0.55;
+  let mx = 0, my = 0;
+  if (keys.ArrowLeft || keys.KeyA) mx -= 1;
+  if (keys.ArrowRight || keys.KeyD) mx += 1;
+  if (keys.ArrowUp || keys.KeyW) my -= 1;
+  if (keys.ArrowDown || keys.KeyS) my += 1;
+  cursor.x = Math.max(8, Math.min(W - 8, cursor.x + mx * cs * dt));
+  cursor.y = Math.max(8, Math.min(H - 8, cursor.y + my * cs * dt));
+
+  // 水の輪（何もしていないときの動きはこれ1種類だけ）
+  if (Math.random() < dt * 0.6) ripples.push({ x: Math.random() * W, y: Math.random() * H, t: 0 });
+  ripples = ripples.filter((r) => (r.t += dt) < 4);
+
+  for (const s of seeds) {
+    if (!s.alive) continue;
+    s.x += s.vx * dt; s.y += s.vy * dt; s.ph += dt * 3;
+    if (s.x < 6) { s.x = 6; s.vx = Math.abs(s.vx); }
+    if (s.x > W - 6) { s.x = W - 6; s.vx = -Math.abs(s.vx); }
+    if (s.y < 60) { s.y = 60; s.vy = Math.abs(s.vy); }
+    if (s.y > H - 6) { s.y = H - 6; s.vy = -Math.abs(s.vy); }
+  }
+
+  if (state === "chain" || state === "result") {
+    for (const b of blooms) b.t += dt;
+    for (const b of blooms) {
+      if (b.t > BLOOM_LIFE) continue;
+      const r = bloomRadius(b), r2 = (r + 4) * (r + 4);
+      for (const s of seeds) {
+        if (!s.alive) continue;
+        const dx = s.x - b.x, dy = s.y - b.y;
+        if (dx * dx + dy * dy < r2) {
+          s.alive = false;
+          addBloom(s.x, s.y, b.depth + 1, b.tint);
+          if (milestoneIdx < MILESTONES.length && bloomedCount >= MILESTONES[milestoneIdx]) {
+            const m = MILESTONES[milestoneIdx++];
+            flash = 0.5;
+            popups.push({ text: MILESTONE_TEXT[m], x: W / 2, y: H * 0.32, t: 0, size: Math.min(W, H) * (0.1 + milestoneIdx * 0.015) });
+          }
+        }
+      }
+    }
+    // 咲き終わった花は花びらになって散る
+    for (const b of blooms) {
+      if (b.t > BLOOM_LIFE && !b.done) {
+        b.done = true;
+        for (let i = 0; i < 6; i++) {
+          const a = Math.random() * 6.28, sp = 20 + Math.random() * 50;
+          particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: 0.6 + Math.random() * 0.5, rot: a });
+        }
+      }
+    }
+    if (state === "chain" && blooms.every((b) => b.t > BLOOM_LIFE)) endRound();
+  }
+  particles = particles.filter((p) => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.97; p.vy *= 0.97; return p.t < p.life; });
+  petals = petals.filter((p) => { p.y += p.vy * dt; p.x += p.vx * dt + Math.sin(p.y * 0.02) * 0.6; p.rot += p.vr * dt; return p.y < H + 20; });
+  popups = popups.filter((p) => (p.t += dt) < 1.4);
+}
+
+// ---------- draw ----------
+let S = 1;
+const MIN_PX = 12.5;
+function text(s, x, y, size, color, opt) {
+  opt = opt || {};
+  const px = Math.max(opt.min || MIN_PX, size);
+  ctx.font = `${opt.weight || 500} ${px}px ${opt.brush ? BRUSH : BODY}`;
+  ctx.textAlign = opt.align || "center"; ctx.textBaseline = "middle";
+  if (opt.shadow) { ctx.fillStyle = opt.shadow; ctx.fillText(s, x + px * 0.05, y + px * 0.05); }
+  ctx.fillStyle = color; ctx.fillText(s, x, y);
+  return px;
+}
+function vtext(s, x, y, size, color, shadow) {
+  // 縦書き（画賛のように上から下へ）
+  ctx.font = `${size}px ${BRUSH}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const chars = [...s];
+  chars.forEach((ch, i) => {
+    const cy = y + i * size * 1.04 + size / 2;
+    if (shadow) { ctx.fillStyle = shadow; ctx.fillText(ch, x + size * 0.04, cy + size * 0.04); }
+    ctx.fillStyle = color; ctx.fillText(ch, x, cy);
+  });
+  return chars.length * size * 1.04;
+}
+function drawSeal(ch, x, y, size, rot) {
+  const img = seal(ch);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+function drawLotus(x, y, r, rot, tint, alpha) {
+  if (alpha <= 0 || r <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.drawImage(LOTUS[tint], -r * SPR / (2 * SR), -r * SPR / (2 * SR), r * SPR / SR, r * SPR / SR);
+  ctx.restore();
+}
+function wobblyCircle(x, y, r, ring) {
+  ctx.beginPath();
+  const n = ring.length;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * 6.283, k = ring[i % n];
+    const px = x + Math.cos(a) * r * k, py = y + Math.sin(a) * r * k;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+function paper(x, y, w, h) {
+  const j = paperShape ? paperShape.j : new Array(16).fill(0);
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2); ctx.rotate(paperShape ? paperShape.rot : 0);
+  const path = (ox, oy) => {
+    ctx.beginPath();
+    const hw = w / 2, hh = h / 2;
+    ctx.moveTo(-hw + j[0] + ox, -hh + j[1] + oy);
+    ctx.lineTo(0 + j[2] + ox, -hh + j[3] + oy);
+    ctx.lineTo(hw + j[4] + ox, -hh + j[5] + oy);
+    ctx.lineTo(hw + j[6] + ox, 0 + j[7] + oy);
+    ctx.lineTo(hw + j[8] + ox, hh + j[9] + oy);
+    ctx.lineTo(0 + j[10] + ox, hh + j[11] + oy);
+    ctx.lineTo(-hw + j[12] + ox, hh + j[13] + oy);
+    ctx.lineTo(-hw + j[14] + ox, 0 + j[15] + oy);
+    ctx.closePath();
+  };
+  path(5, 6); ctx.fillStyle = rgba(C.sumi, 0.35); ctx.fill();
+  path(0, 0); ctx.fillStyle = C.gofun; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.globalAlpha = 0.6;
+  ctx.fillStyle = ctx.createPattern(grain, "repeat"); ctx.fillRect(-w, -h, w * 2, h * 2);
+  ctx.restore();
+  ctx.restore();
+}
+// 漢数字（池の番号に使う）
+const KAN = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+let time = 0;
+function draw() {
+  S = Math.max(0.85, Math.min(W / 390, H / 700, 1.6));
+  const land = W > H * 1.15;
+  if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, W, H); else { ctx.fillStyle = C.rokusho; ctx.fillRect(0, 0, W, H); }
+
+  // 水の輪
+  ctx.lineWidth = 1.2;
+  for (const r of ripples) {
+    ctx.strokeStyle = rgba(C.gofun, 0.16 * (1 - r.t / 4));
+    ctx.beginPath(); ctx.ellipse(r.x, r.y, r.t * 30, r.t * 11, 0, 0, 6.283); ctx.stroke();
+    ctx.strokeStyle = rgba(C.gofun, 0.08 * (1 - r.t / 4));
+    ctx.beginPath(); ctx.ellipse(r.x + 1, r.y + 1, r.t * 22, r.t * 8, 0, 0, 6.283); ctx.stroke();
+  }
+  // 浮き葉
+  const pr = 9;
+  for (const s of seeds) {
+    if (!s.alive) continue;
+    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.ph * 0.08);
+    ctx.drawImage(PAD, -pr * 1.2, -pr * 1.2, pr * 2.4, pr * 2.4);
+    ctx.restore();
+  }
+  // 花が届く範囲（水面に広がる輪）
+  for (const b of blooms) {
+    if (b.t > BLOOM_LIFE) continue;
+    const r = bloomRadius(b);
+    const fade = b.t > 1.1 ? 1 - (b.t - 1.1) / 0.4 : 1;
+    wobblyCircle(b.x, b.y, r, b.ring);
+    ctx.fillStyle = rgba(C.gofun, 0.1 * fade); ctx.fill();
+    ctx.strokeStyle = rgba(C.gofun, 0.42 * fade); ctx.lineWidth = 1.4; ctx.stroke();
+  }
+  // 蓮
+  for (const b of blooms) {
+    if (b.t > BLOOM_LIFE) continue;
+    const r = bloomRadius(b);
+    const fade = b.t > 1.1 ? 1 - (b.t - 1.1) / 0.4 : 1;
+    const open = Math.min(1, b.t / 0.3);
+    drawLotus(b.x, b.y, Math.min(r * 0.6, b.maxR * 0.6) * (0.55 + 0.45 * open), b.rot + b.t * 0.25, b.tint, Math.max(0, fade));
+  }
+  // 散る花びら
+  for (const p of particles) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = rgba(C.gofun, 0.9 * (1 - p.t / p.life));
+    ctx.beginPath(); ctx.ellipse(0, 0, 4, 2, 0, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+  // 締め: 咲いた場所に金泥の輪がひろがる
+  if (sparkle > 0) {
+    ctx.strokeStyle = rgba(C.kindei, sparkle * 0.9); ctx.lineWidth = 2;
+    for (const b of blooms) {
+      ctx.beginPath(); ctx.arc(b.x, b.y, 6 + (1 - sparkle) * 18, 0, 6.283); ctx.stroke();
+    }
+  }
+  // 満開の花びら
+  for (const p of petals) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = p.pink ? rgba("#c27884", 0.9) : rgba(C.gofun, 0.92);
+    ctx.beginPath(); ctx.ellipse(0, 0, p.r, p.r * 0.5, 0, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = rgba(C.sumi, 0.3); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(1, 1, p.r, p.r * 0.5, 0, 0, 6.283); ctx.stroke();
+    ctx.restore();
+  }
+  if (flash > 0) { ctx.fillStyle = rgba(C.gofun, flash * 0.28); ctx.fillRect(0, 0, W, H); }
+  // 十輪・二十五輪…（筆で書いたように）
+  for (const p of popups) {
+    const k = p.t / 1.4, sc = 0.6 + Math.min(1, p.t * 6) * 0.5;
+    ctx.save(); ctx.globalAlpha = 1 - k * k;
+    text(p.text, p.x, p.y - k * 40, p.size * sc, C.gofun, { brush: true, shadow: rgba(C.sumi, 0.7) });
+    ctx.restore();
+  }
+
+  // HUD
+  if (state === "aim" || state === "chain" || state === "result") {
+    const hs = 15 * S;
+    const ok = bloomedCount >= TARGETS[round];
+    text(`${KAN[round + 1]}の池`, 16, 26, 20 * S, C.gofun, { brush: true, align: "left", shadow: rgba(C.sumi, 0.6) });
+    text(`咲いた ${bloomedCount} / 目標 ${TARGETS[round]}`, 16, 26 + 26 * S, hs, ok ? C.gofun : rgba(C.gofun, 0.82), { weight: 700, align: "left" });
+    if (ok) {
+      ctx.strokeStyle = C.kindei; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(16, 26 + 37 * S); ctx.lineTo(16 + 128 * S, 26 + 36 * S); ctx.stroke();
+    }
+    const sx = W - 70;
+    text(`${score + (state === "result" ? 0 : roundScore)} 点`, sx, 24, 22 * S, C.gofun, { brush: true, align: "right", shadow: rgba(C.sumi, 0.6) });
+    text(retryLeft > 0 ? "おかわり 一回" : "おかわり なし", sx, 26 + 26 * S, 13 * S, rgba(C.gofun, 0.82), { weight: 500, align: "right" });
+  }
+  if (state === "aim") {
+    text("一か所に触れると、そこに蓮がひらきます", W / 2, H - 34, 15 * S, C.gofun, { weight: 700, shadow: rgba(C.sumi, 0.5) });
+  }
+  if (state === "aim" && cursor.visible) {
+    ctx.strokeStyle = C.gofun; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cursor.x, cursor.y, baseR() * 1.1, 0, 6.283); ctx.setLineDash([3, 7]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cursor.x - 10, cursor.y); ctx.lineTo(cursor.x + 10, cursor.y); ctx.moveTo(cursor.x, cursor.y - 10); ctx.lineTo(cursor.x, cursor.y + 10); ctx.stroke();
+  }
+
+  // ミュート
+  ctx.save();
+  ctx.fillStyle = rgba(C.sumi, 0.3);
+  ctx.beginPath(); ctx.arc(W - 28, 28, 18, 0, 6.283); ctx.fill();
+  ctx.fillStyle = C.gofun; ctx.strokeStyle = C.gofun; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(W - 37, 24); ctx.lineTo(W - 33, 24); ctx.lineTo(W - 27, 19); ctx.lineTo(W - 27, 37); ctx.lineTo(W - 33, 32); ctx.lineTo(W - 37, 32); ctx.closePath(); ctx.fill();
+  if (muted) { ctx.beginPath(); ctx.moveTo(W - 23, 23); ctx.lineTo(W - 16, 33); ctx.moveTo(W - 16, 23); ctx.lineTo(W - 23, 33); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.arc(W - 26, 28, 6, -0.9, 0.9); ctx.stroke(); }
+  ctx.restore();
+
+  if (state === "title") drawTitle(land);
+
+  const pw = Math.min(W - 40, 340 * S), px = (W - pw) / 2;
+  if (state === "result") {
+    const ph = Math.min(H - 40, 220 * S), py = H / 2 - ph / 2;
+    paper(px, py, pw, ph);
+    const head = allBloom ? "満開" : passed ? "咲きそろった" : `あと ${TARGETS[round] - bloomedCount} 輪`;
+    const lx = px + 24;
+    text(head, lx, py + 40 * S, 30 * S, C.sumi, { brush: true, align: "left" });
+    text(`咲いた ${bloomedCount} / 目標 ${TARGETS[round]}`, lx, py + 84 * S, 15 * S, C.sumi, { weight: 700, align: "left" });
+    text(`連鎖 ${maxDepth} 段まで届いた`, lx, py + 110 * S, 14 * S, rgba(C.sumi, 0.75), { align: "left" });
+    text(passed ? `+${roundScore} 点${allBloom ? "（満開で二倍）" : ""}` : (retryLeft > 0 ? "おかわりで同じ池をもう一度" : "おかわりは使いきりました"), lx, py + 138 * S, 15 * S, passed ? C.enji : C.sumi, { weight: 700, align: "left" });
+    // 印をぽんと押す（結果が出た瞬間だけ動く）
+    const k = Math.min(1, stateT / 0.18), sz = 62 * S * (1 + (1 - k) * 0.6);
+    ctx.save(); ctx.globalAlpha = k;
+    drawSeal(allBloom ? "満" : passed ? "咲" : "散", px + pw - 46 * S, py + 46 * S, sz, -0.08);
+    ctx.restore();
+    if (stateT > 1.0) {
+      const label = passed ? (round + 1 >= ROUNDS ? "触れて結果へ" : "触れて次の池へ") : (retryLeft > 0 ? "触れてやり直す" : "触れて結果へ");
+      text(label, lx, py + ph - 28 * S, 14 * S, rgba(C.sumi, 0.7), { weight: 700, align: "left" });
+    }
+  }
+  if (state === "over") {
+    const ph = Math.min(H - 40, 270 * S), py = H / 2 - ph / 2;
+    paper(px, py, pw, ph);
+    const lx = px + 24;
+    text(cleared ? "八つの池、咲ききった" : `${KAN[round + 1]}の池でおしまい`, lx, py + 40 * S, 24 * S, C.sumi, { brush: true, align: "left" });
+    text("得点", lx, py + 82 * S, 14 * S, rgba(C.sumi, 0.75), { align: "left" });
+    text(`${score}`, lx, py + 122 * S, 48 * S, C.sumi, { brush: true, align: "left" });
+    text(newBest ? "これまでの最高を更新" : `これまでの最高 ${best}`, lx, py + 164 * S, 14 * S, newBest ? C.enji : rgba(C.sumi, 0.75), { weight: 700, align: "left" });
+    const k = Math.min(1, stateT / 0.18), sz = 62 * S * (1 + (1 - k) * 0.6);
+    ctx.save(); ctx.globalAlpha = k;
+    drawSeal(cleared ? "満" : "了", px + pw - 46 * S, py + 46 * S, sz, 0.06);
+    ctx.restore();
+    if (stateT > 1.0) {
+      const bw = 150 * S, bh = 42 * S, bx = lx, by = py + ph - 64 * S;
+      ctx.fillStyle = C.sumi;
+      ctx.beginPath(); ctx.moveTo(bx, by + 1); ctx.lineTo(bx + bw, by - 1); ctx.lineTo(bx + bw + 1, by + bh); ctx.lineTo(bx - 1, by + bh + 1); ctx.closePath(); ctx.fill();
+      text("もう一回", bx + bw / 2, by + bh / 2, 18 * S, C.gofun, { weight: 700 });
+    }
+  }
+}
+
+function drawTitle(land) {
+  // 大きな一輪と、画賛のような縦書きの題
+  const big = Math.min(W, H) * (land ? 0.3 : 0.26);
+  const fx = land ? W * 0.3 : W * 0.36, fy = land ? H * 0.42 : H * 0.27;
+  drawLotus(fx, fy, big, 0.2, 0, 1);
+  const ts = Math.min(68 * S, H * (land ? 0.15 : 0.075));
+  const tx = land ? W * 0.62 : W * 0.8, ty = land ? H * 0.1 : H * 0.07;
+  const th = vtext("蓮ひらく", tx, ty, ts, C.gofun, rgba(C.sumi, 0.75));
+  drawSeal("蓮", tx, ty + th + ts * 0.55, ts * 0.72, 0.05);
+
+  // 遊び方（左寄せ）
+  const lx = land ? W * 0.7 : 28, base = land ? H * 0.2 : H * 0.6;
+  const fs = 14.5 * S, lh = fs * 1.7;
+  const lines = ["池に一度だけ触れる。", "ひらいた蓮が浮き葉を巻きこみ、", "つぎつぎに咲いていく。", "目標の数を咲かせて八つの池を渡る。"];
+  const tx2 = land ? tx + ts * 0.9 : lx;
+  lines.forEach((s, i) => text(s, tx2, base + i * lh, fs, C.gofun, { weight: 500, align: "left", shadow: rgba(C.sumi, 0.55) }));
+  const y2 = base + lines.length * lh + fs * 0.6;
+  text("PC は矢印キーで狙ってスペース", tx2, y2, 13 * S, rgba(C.gofun, 0.75), { align: "left" });
+  if (best > 0) text(`これまでの最高 ${best}`, tx2, y2 + lh * 1.2, 15 * S, C.gofun, { weight: 700, align: "left" });
+  text("触れてはじめる", tx2, land ? H - 40 : Math.min(H * 0.8, y2 + lh * 3.2), 19 * S, C.gofun, { brush: true, align: "left", shadow: rgba(C.sumi, 0.6) });
+}
+
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+resize();
+// フォントを先に取りに行く（届かなくても代わりの書体で遊べる）
+try {
+  if (document.fonts && document.fonts.load) {
+    const sample = "蓮ひらく満咲散了〇一二三四五六七八九十輪の池咲いた目標おかわり回なし得点これまでの最高触れてはじめる0123456789";
+    Promise.all([
+      document.fonts.load(`40px "Yuji Syuku"`, sample),
+      document.fonts.load(`500 16px "Zen Kaku Gothic New"`, sample + "一か所に触れると、そこに蓮がひらきます浮き葉を巻きこみつぎに咲いていく渡るPC矢印キーで狙ってスペース"),
+      document.fonts.load(`700 16px "Zen Kaku Gothic New"`, sample)
+    ]).then(() => { sealCache = {}; }).catch(() => {});
+  }
+} catch (e) {}
+round = 0;
+for (let i = 0; i < 30; i++) seeds.push({ x: Math.random() * W, y: 60 + Math.random() * (H - 60), vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, ph: Math.random() * 6, alive: true });
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

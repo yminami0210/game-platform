@@ -1,0 +1,32 @@
+{
+ "tsugi": {
+  "file": "assets/portraits/tsugi.png",
+  "w": 512,
+  "h": 608
+ },
+ "tsugi-surprised": {
+  "file": "assets/portraits/tsugi-surprised.png",
+  "w": 512,
+  "h": 608
+ },
+ "tsugi-resolve": {
+  "file": "assets/portraits/tsugi-resolve.png",
+  "w": 512,
+  "h": 608
+ },
+ "nuiba": {
+  "file": "assets/portraits/nuiba.png",
+  "w": 512,
+  "h": 608
+ },
+ "keba": {
+  "file": "assets/portraits/keba.png",
+  "w": 512,
+  "h": 608
+ },
+ "kuisuki": {
+  "file": "assets/portraits/kuisuki.png",
+  "w": 512,
+  "h": 608
+ }
+}

@@ -1,0 +1,28 @@
+{
+  "readyMs": 340,
+  "consoleErrors": [],
+  "fpsMinWorst": 55,
+  "fpsAvg": 60.3,
+  "flow": true,
+  "stages": {
+    "1-1": {
+      "cleared": true,
+      "botSeconds": 28.8,
+      "realSeconds": 28.8
+    }
+  },
+  "shots": [
+    "title.png",
+    "story.png",
+    "map.png",
+    "stage-intro.png",
+    "1-1-30.png",
+    "1-1-70.png",
+    "1-1-result.png",
+    "map-after.png",
+    "mobile-844x390.png",
+    "mobile-portrait.png"
+  ],
+  "mobilePad": true,
+  "portraitNotice": true
+}
