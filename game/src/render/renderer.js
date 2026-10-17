@@ -518,6 +518,7 @@ export function createRenderer(canvas, view, opts = {}) {
 
   function drawBoss(b, t) {
     if (b.mode === 'defeat' && b.dropped) return;
+    if (b.kind === 'tenaga') return drawTenaga(b, t);
     {
       const m = b.mode;
       const f = m === 'rest' ? pf('keba.rest.0') : m === 'defeat' ? pf('keba.defeat.0', 'keba.rest.0') : m === 'hurt' ? pf('keba.hurt.0', 'keba.hover.0')
@@ -610,7 +611,34 @@ export function createRenderer(canvas, view, opts = {}) {
     }
   }
 
+  // 渦のテナガ（仮の形）: 藍色の糸ミミズの頭、予告の波紋、渦の線
+  function drawTenaga(b, t) {
+    const fy = b.floorY;
+    for (const a of b.arms) { // 糸腕の予告: 水面の波紋
+      g.fillStyle = Math.floor(t * 12) % 2 ? PAL.n : PAL.N;
+      g.fillRect(Math.round(a.x - 2), fy - 3, a.w + 4, 3);
+    }
+    if (b.swirl) {
+      g.fillStyle = PAL.n;
+      for (let i = 0; i < 6; i++) { const k = (t * 1.5 + i / 6) % 1; g.fillRect(Math.round(b.cx - 160 + ((b.vdir > 0 ? k : 1 - k) * 320)), fy - 2 - (i % 2) * 2, 8, 1); }
+    }
+    if (b.y >= fy) return; // 潜っている
+    const blink = (b.mode === 'hurt' && Math.floor(t * 10) % 2) || (b.mode === 'defeat' && Math.floor(t * 8) % 2);
+    if (blink) g.globalAlpha = 0.45;
+    const x = Math.round(b.x), y = Math.round(b.y), w = b.w, h = Math.min(b.h, fy - y);
+    g.fillStyle = PAL.N; g.fillRect(x + 2, y, w - 4, h); g.fillRect(x, y + 3, w, h - 3);
+    g.fillStyle = PAL.n; for (let i = 4; i < w - 2; i += 6) g.fillRect(x + i, y + 2, 2, h - 2); // 糸の巻き目
+    g.fillStyle = PAL.m; const ex = b.face > 0 ? x + w - 11 : x + 6; g.fillRect(ex, y + 5, 3, 3); g.fillRect(ex + 3, y + 5, 2, 3);
+    g.globalAlpha = 1;
+  }
+
   function drawShot(o) {
+    if (o.kind === 'arm') { // 糸腕: 縦に伸びる太い糸
+      g.fillStyle = PAL.N; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h);
+      g.fillStyle = PAL.n; for (let i = 0; i < o.h; i += 6) g.fillRect(Math.round(o.x), Math.round(o.y + i), o.w, 2);
+      return;
+    }
+    if (o.kind === 'jar') { g.fillStyle = PAL.N; g.fillRect(Math.round(o.x), Math.round(o.y), o.w, o.h); g.fillStyle = PAL.n; g.fillRect(Math.round(o.x) + 2, Math.round(o.y), o.w - 4, 2); return; }
     if (o.kind === 'pin') { if (pdraw(pf('shot.pin'), o.x + o.w / 2, o.y + o.h, { rot: Math.atan2(o.vy, o.vx), cy: o.h / 2 })) return; }
     else if (o.kind === 'dust') { if (pdraw(pf('shot.dust'), o.x + o.w / 2, o.y + o.h)) return; }
     if (o.kind === 'pin') {
@@ -660,6 +688,7 @@ function buildTerrain(L, th) {
     if (t === T.GROUND) drawGroundTile(g, th, tx, ty, x, y, tileAt, isGround, patch);
     else if (t === T.BLOCK) drawSpool(g, tx, ty, x, y);
     else if (t === T.ONEWAY) drawRuler(g, x, y, tx, isOneway(tileAt(tx - 1, ty)), isOneway(tileAt(tx + 1, ty)));
+    else if (t === T.BELT_L || t === T.BELT_R) drawBelt(g, th, x, y, t === T.BELT_R ? 1 : -1);
     else if (t === T.SPIKE) drawPins(g, x, y, tx, isSolidStatic(tileAt(tx, ty - 1)) && !isSolidStatic(tileAt(tx, ty + 1)));
   }
   // 見えない壁用の1枚（地面の中身と同じ見た目）
@@ -670,6 +699,14 @@ function buildTerrain(L, th) {
   return c;
 }
 const isOneway = t => t === T.ONEWAY;
+// 流れる布: 藍の反物に、流れる向きの山形（くの字）を生成りで染め抜く
+function drawBelt(g, th, x, y, dir) {
+  g.fillStyle = th.ground[1]; g.fillRect(x, y, TS, TS);
+  g.fillStyle = th.ground[0]; g.fillRect(x, y + TS - 3, TS, 3);
+  g.fillStyle = th.top; g.fillRect(x, y, TS, 2);
+  g.fillStyle = K.ki;
+  for (const cx of [4, 11]) for (let k = 0; k < 4; k++) { const px = x + cx + (dir > 0 ? k - 2 : 1 - k) * 1; g.fillRect(px, y + 5 + k, 1, 1); g.fillRect(px, y + 12 - k, 1, 1); }
+}
 const isSolidStatic = t => t === T.GROUND || t === T.BLOCK;
 
 function drawSpool(g, tx, ty, x, y) {

@@ -126,6 +126,7 @@ function evalBoss(c) {
   if (p.power) v += 300;
   if (c.lock) { const dl = px - c.lock.x, dr = c.lock.x + c.lock.w - px; v -= Math.max(0, 56 - Math.min(dl, dr)) * 15; } // 壁際に追い込まれない
   for (const o of c.shots) v -= Math.max(0, 60 - Math.hypot(o.x - px, o.y - (p.y + p.h / 2))) * 4; // 弾から離れる
+  for (const a of b.arms ?? []) v -= Math.max(0, 40 - Math.abs(a.x + a.w / 2 - px)) * 40; // テナガの糸腕の予告から離れる
   return v;
 }
 export function bossChoose(s, depth = 2) {
