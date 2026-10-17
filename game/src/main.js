@@ -10,7 +10,7 @@ import { load, save, wipe } from './save.js';
 
 const $ = id => document.getElementById(id);
 const getJSON = async p => (await fetch(p)).json();
-const [tuning, world, text, portraits] = await Promise.all([getJSON('src/data/tuning.json'), getJSON('src/data/world1.json'), getJSON('src/data/text.json'), getJSON('src/data/portraits.json')]);
+const [tuning, worlds, text, portraits] = await Promise.all([getJSON('src/data/tuning.json'), getJSON('src/data/worlds.json'), getJSON('src/data/text.json'), getJSON('src/data/portraits.json')]);
 const stages = {};
 const ready = await getJSON('src/data/stages/index.json'); // できているステージだけ読む（404 を出さない）
 await Promise.all(ready.map(async id => { stages[id] = await getJSON(`src/data/stages/${id}.json`); }));
@@ -40,9 +40,27 @@ for (const [key, fn] of [['enemySprites', 'setEnemySprites'], ['bossSprite', 'se
     } catch {}
   }
 }
-const mapView = createMapView(renderer, world);
 const input = createInput($('pad'));
 let saved = load();
+// ---- ワールド（worlds.json の一覧。ファイルがまだ無いワールドは無いものとして扱う） ----
+const worldCache = {};
+async function fetchWorld(n) {
+  if (n in worldCache) return worldCache[n];
+  const w = worlds.worlds.find(x => x.id === n);
+  let data = null;
+  if (w) { try { const r = await fetch(w.file); if (r.ok) data = { ...(await r.json()), theme: w.theme }; } catch {} }
+  return (worldCache[n] = data);
+}
+let world = null, mapView = null;
+saved.prog.world ??= 1; saved.prog.worldAt ??= {};
+async function useWorld(n) {
+  const w = await fetchWorld(n);
+  if (!w) return false;
+  if (world && world.id !== n) { saved.prog.worldAt[world.id] = saved.prog.at; saved.prog.at = saved.prog.worldAt[n] ?? 'home'; }
+  world = w; mapView = createMapView(renderer, world); saved.prog.world = n;
+  return true;
+}
+if (!(await useWorld(saved.prog.world))) { saved.prog.world = 1; await useWorld(1); }
 sfx.setMuted(saved.muted);
 
 // ---- テレメトリ（playtester・ボット用） ----
@@ -147,6 +165,7 @@ function endStory() {
   if (story.kind === 'intro') { saved.prog.seenIntro = true; save(saved); toMap(); }
   else {
     saved.prog.seenEnding = true; save(saved);
+    if (worldCache[world.id + 1]) { useWorld(world.id + 1).then(() => { save(saved); toMap(); }); return; }
     scene = 'tsuzuku'; hideAll(); show('tsuzuku'); story.t = 0;
     log('ending');
   }
@@ -166,7 +185,7 @@ function updateMapCard() {
   const n = world.nodes.find(x => x.id === mapS.at);
   const st = saved.prog.stages[n.stage];
   $('map-name').textContent = n.stage ? (text.stages[n.stage]?.name ?? n.stage) : n.name;
-  $('map-num').textContent = n.stage ? (n.kind === 'fort' ? '1-砦' : n.secret ? '1-ひみつ' : n.stage) + (stages[n.stage] ? '' : '（準備中）') : '出発点';
+  $('map-num').textContent = n.stage ? (n.kind === 'fort' ? `${world.id}-砦` : n.secret ? `${world.id}-ひみつ` : n.stage) + (stages[n.stage] ? '' : '（準備中）') : '出発点';
   $('map-medals').hidden = !n.stage;
   [...$('map-medals').children].forEach((i, k) => i.classList.toggle('on', !!st?.medals[k]));
   $('map-best').textContent = st?.best != null ? `記録 ${fmt(st.best)}` : '';
@@ -305,7 +324,14 @@ function leaveStage(exit) {
   const newEdges = recordResult(world, saved.prog, stageId, r);
   saved.prog.at = world.nodes.find(n => n.stage === stageId)?.id ?? saved.prog.at;
   save(saved);
-  if (exit === 'knot' && !saved.prog.seenEnding) return startStory('ending');
+  if (exit === 'knot') {
+    // 砦クリア: 次のワールドがあればそこへ。ワールド1の初回はエンディングを見せてから
+    return fetchWorld(world.id + 1).then(next => {
+      if (world.id === 1 && !saved.prog.seenEnding) return startStory('ending');
+      if (next) return useWorld(world.id + 1).then(() => { save(saved); toMap(); });
+      toMap(newEdges);
+    });
+  }
   toMap(newEdges);
 }
 let resultBest = null;
