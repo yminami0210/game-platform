@@ -21,7 +21,7 @@ export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } 
     let plan;
     if (fresh && cache.has(s.checkpoint)) plan = cache.get(s.checkpoint);
     else {
-      plan = solve(L, { target: tgt, start: s, maxNodes: fresh ? 200000 : (tgt.kind === 'boss' ? 80000 : 40000) });
+      plan = solve(L, { target: tgt, start: s, maxNodes: fresh ? 400000 : (tgt.kind === 'boss' ? 80000 : 40000) });
       if (fresh) cache.set(s.checkpoint, plan);
     }
     fresh = false;
@@ -32,7 +32,7 @@ export function noviceRun(L, { seed = 1, noise = 0.12, maxDeaths = 25, target } 
       while (n++ < 180 && !d) d = step(s, {}).some(e => e.type === 'die');
       if (!d) {
         // 落ちてはいない → 時間をかけて考え直す
-        const full = solve(L, { target: tgt, start: s, maxNodes: 200000 }); plans++;
+        const full = solve(L, { target: tgt, start: s, maxNodes: 400000 }); plans++;
         if (!full.ok) return { cleared: false, deaths: s.deaths, time: s.time, deathsAt, stuck: true, plans };
         let died2 = false;
         for (const ai of full.path) { for (let k = 0; k < MACRO_FRAMES; k++) { const ev = step(s, ACTIONS[ai]); if (ev.some(e => e.type === 'die')) { died2 = true; break; } if (s.status === 'clear') { while (!s.finished) step(s, {}); return { cleared: true, deaths: s.deaths, time: +s.time.toFixed(1), deathsAt, plans }; } } if (died2) break; }

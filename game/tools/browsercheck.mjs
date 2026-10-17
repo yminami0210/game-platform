@@ -59,7 +59,7 @@ const key = async (page, k, n = 1, gap = 250) => { for (let i = 0; i < n; i++) {
   for (const id of ids) {
     const L = loadStage(id);
     const target = { kind: L.ents.some(e => e.kind === 'boss') ? 'boss' : 'goal' };
-    const plan = target.kind === 'boss' ? solveBoss(L) : solve(L, { target, maxNodes: 250000 });
+    const plan = target.kind === 'boss' ? solveBoss(L) : solve(L, { target, maxNodes: 400000 });
     if (!plan.ok) { summary.stages[id] = { cleared: false, reason: 'ボットが道を見つけられない' }; continue; }
     const secs = plan.frames / 60;
     await page.evaluate(([id, path, acts, M]) => { window.__GS__.enterStage(id); window.__GS__.setPlan(i => acts[path[Math.floor(i / M)]] ?? {}); }, [id, plan.path, ACTIONS, MACRO_FRAMES]);

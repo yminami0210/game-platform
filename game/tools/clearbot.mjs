@@ -198,7 +198,7 @@ export function checkStage(id, { medals = false, maxNodes } = {}) {
   if (medals) for (let i = 0; i < L.medalCount; i++) targets.push({ kind: 'medal', idx: i });
   for (const t of targets) {
     const t0 = Date.now();
-    const r = t.kind === 'medal' || t.kind === 'secret' ? solveVia(L, t) : t.kind === 'boss' ? solveBoss(L) : solve(L, { target: t, maxNodes: maxNodes ?? 150000 });
+    const r = t.kind === 'medal' || t.kind === 'secret' ? solveVia(L, t) : t.kind === 'boss' ? solveBoss(L) : solve(L, { target: t, maxNodes: maxNodes ?? 400000 });
     const rp = r.ok ? replay(L, r.path, t) : null;
     out.targets.push({ target: t.kind + (t.idx != null ? t.idx : ''), ok: r.ok && rp.ok, nodes: r.nodes, botSeconds: r.ok ? +(r.frames / 60).toFixed(1) : null, ms: Date.now() - t0, stuckAt: r.ok ? null : r.best && { x: Math.round(r.best.x / 16), y: Math.round(r.best.y / 16) } });
   }

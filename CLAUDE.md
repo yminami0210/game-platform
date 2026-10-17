@@ -84,3 +84,11 @@ AI社員の成果物はすべて下書き。送信・支払い・契約・採否
 各チームの PM（大型タイトル・ミニゲーム工場・note 発信・各部署）は、**プロダクトの4階層（Core → Why → What → How）と、階層の間の Fit & Refine** で考える（`.claude/skills/product-layers/SKILL.md`）。
 - **How から始めない。** Core から順に落とす。キャンバスは `docs/product/<プロダクト>/canvas.md`、会社の Core は `docs/product/company-core.md`。
 - Core はオーナーが決める。Why は PM 案をオーナーが確認する。迷い・矛盾・上の階層を直したいときは `docs/product/questions.md` に足し、AI相棒がまとめてオーナーに相談する。
+
+## 9. ルーティン業務の分担（OmniRoute）
+- 考えるのはClaude、実行するのはOmniRoute、最終チェックはClaude。設定の正本は Artifact「OmniRoute 運用設定」 https://claude.ai/artifact/9xmFA9SxMfJgCnP96bVVoL （Artifactツールの read で読む）
+- 呼び出しは `python3 tools/omni_task.py <役割> <依頼ファイル> <出力ファイル>`。役割ごとのモデルは `tools/omni_models.json`。依頼と出力は `studio/omni/依頼/`・`studio/omni/出力/`（生成記録.md が残る）
+- 実行するAIはプロジェクトのファイルを読めないので、依頼文に必要な資料を全部そのまま貼る。秘密情報は入れない
+- OmniRouteが失敗したら自動でGemini（tools/gemini_draft.py）に切り替わる。両方だめならClaudeが代筆し、そのことを残す
+- 大型タイトル（game-studio）では、ステージ・敵・テキストなどのデータ下書きと1次点検を OmniRoute に回す。コード（描画・仕組み）の修正、ブラウザ操作、最終判定は Claude が行う。データは Claude が反映したあとクリア確認ボット・gate_check で機械的に確かめる
+- 新しいルーティンを作るときも、この分担に合わせてスキルを書く
