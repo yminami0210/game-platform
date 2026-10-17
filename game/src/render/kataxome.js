@@ -26,6 +26,14 @@ export const MOTIF = {
     const r = Math.floor(y / 5), lx = mod(x + (r % 2) * 5, 10), ly = mod(y, 5);
     return ly < 3 && lx === 2 - ly;
   },
+  kanzemizu(x, y, p) { // 観世水: ゆるい波の線と、周期ごとの渦の巻き込み
+    const h = p / 2, r = Math.floor(y / h), lx = mod(x + (r % 2) * h, p), ly = mod(y, h);
+    const wy = h * 0.5 + Math.sin(lx / p * Math.PI * 2) * h * 0.28;
+    if (Math.abs(ly - wy) < 0.6) return true;
+    const cx = p * 0.75, cy = h * 0.5 + h * 0.28 * Math.sin(Math.PI * 1.5) + h * 0.22, d = Math.hypot(lx - cx, ly - cy);
+    const a = Math.atan2(ly - cy, lx - cx) + Math.PI; // 0..2π
+    return d < h * 0.3 && Math.abs(d - (a / (Math.PI * 2)) * h * 0.3) < 0.6;
+  },
   chidori(x, y, p) {
     const cw = p + 4, ch = Math.round(p * 0.7), r = Math.floor(y / ch), lx = mod(x + (r % 2) * (cw >> 1), cw), ly = mod(y, ch);
     return ly < 4 && lx < 7 && CHIDORI[ly][lx] === '#';

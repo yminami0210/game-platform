@@ -46,6 +46,14 @@ export const THEMES = {
     wood: [K.ka, K.kak], line: [K.kis, K.ki, K.ki], hanger: 'spools', akkLayer: 'far',
     ground: [K.kak, K.su, K.kak], cross: K.su, motifs: ['asanoha', 'chidori', 'yagasuri', 'shippo'], ear: [K.ka, K.kak], top: K.ka,
   },
+  river: { // 藍の川: 染め場の川べり。藍・縹・生成りの型染め、観世水と青海波の流れ
+    sky: K.haa, bird: K.ki,
+    far: [[K.ha, K.haa, 'kanzemizu'], [K.aia, K.ha, 'seigaiha'], [K.haa, K.ki, 'kanzemizu']],
+    mid: [[K.ai, K.aia, 'seigaiha'], [K.aik, K.ai, 'kanzemizu'], [K.ki, K.kis, 'seigaiha'], [K.aia, K.haa, 'kanzemizu']],
+    near: [[K.ha, K.haa, null], [K.ki, K.kis, null]],
+    wood: [K.kis, K.su], line: [K.ki, K.ki, K.haa], hanger: 'pins',
+    ground: [K.aik, K.ai, K.aik], cross: K.aia, motifs: ['kanzemizu', 'seigaiha', 'kanzemizu', 'shippo'], ear: [K.ki, K.kis], top: K.ki,
+  },
   fort: { // 針山の砦: 茜濃のビロードの針山。刈安の頭・生成りの軸の待ち針が林立
     sky: K.akd, bird: K.akk, akkFree: true,
     far: [[K.akk, K.akd, 'kebi'], [K.su, K.akd, 'kebi'], [K.akk, K.su, 'uroko']],
