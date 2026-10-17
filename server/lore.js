@@ -82,4 +82,4 @@ export const TRIP_WORDS = {
 
 export const HASHTAGS = ['#ナナシ県'];
 export const SNS_NAME = 'SNS';
-export const NEWSPAPER_NAME = 'ナナシ県 県民だより'; // 県庁広報課の発行物（地方紙はナナシ日日新聞。正本のバイブル）
+export const NEWSPAPER_NAME = 'ナナシ県 県民だより'; // 県庁広報課の発行物（地方紙はナナシ新聞。正本のバイブル）
