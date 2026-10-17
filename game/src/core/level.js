@@ -67,6 +67,6 @@ export function parseLevel(stage) {
   tiles.forEach((t, i) => { if (t === T.CRUMBLE) crumbleAt.set(i, crumbleAt.size); });
   return {
     id: stage.id, name: stage.name, theme: stage.theme ?? 'meadow', w, h, pw: w * 16, ph: h * 16,
-    tiles, ents, medalCount: medal, crumbleAt, marks, par: stage.par ?? 180,
+    tiles, ents, medalCount: medal, crumbleAt, marks, par: stage.par ?? 180, boss: stage.boss,
   };
 }
