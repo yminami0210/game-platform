@@ -4,7 +4,8 @@
 #   bash scripts/service.sh uninstall  # 自動起動をやめる
 #   bash scripts/service.sh status     # 動いているか、今日のログの件数
 #   bash scripts/service.sh restart    # コードを変えたあとに
-# Mac が眠っていたあいだは、起きたときに早回しで埋める（最大14日。LLM は使わない）。
+# Mac が眠っていたあいだは、起きたときに早回しで埋める（最大14日）。
+# 町の中の SNS・県民だよりはテンプレート（NANASHI_LLM_MODE=template、トークン 0）。実際の Instagram 投稿は ai-company 側でログから作る。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
@@ -22,7 +23,7 @@ case "${1:-status}" in
   <key>Label</key><string>$LABEL</string>
   <key>ProgramArguments</key><array><string>/bin/bash</string><string>$ROOT/scripts/start-omni.sh</string></array>
   <key>WorkingDirectory</key><string>$ROOT</string>
-  <key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>EnvironmentVariables</key><dict><key>NANASHI_LLM_MODE</key><string>template</string><key>PATH</key><string>/opt/homebrew/opt/node@24/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>60</integer>
@@ -31,6 +32,7 @@ case "${1:-status}" in
 </dict></plist>
 PL
     launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+    for _ in $(seq 30); do launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break; sleep 1; done  # 前のが止まるのを待つ
     launchctl bootstrap "$DOMAIN" "$PLIST"
     echo "裏で動かし始めました（$LABEL）。ログ: data/logs/、サーバーの記録: data/server.log"
     ;;

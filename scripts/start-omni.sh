@@ -22,5 +22,5 @@ if lsof -tiTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   exit 1
 fi
 
-export NANASHI_LLM_MODE=omniroute
+export NANASHI_LLM_MODE="${NANASHI_LLM_MODE:-omniroute}"
 exec node server/index.js
