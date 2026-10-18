@@ -24,15 +24,15 @@ MODEL = os.path.join(VENV, "models", "schnell-4bit")
 DESIGN_LOG = os.path.expanduser("~/ai-company/06_デザイン記録/県民だより写真ログ.md")
 STYLE = ("Realistic documentary photograph for a small local newspaper in a quiet Japanese provincial town, "
          "natural light, 35mm lens, slightly muted colors, everyday atmosphere. "
-         "No text, no letters, no writing, no logos, blank signs, no watermark.")
+         "Shallow depth of field so the background is soft. Nothing written anywhere: no text, no letters, no labels, no signs, no packaging print, no logos, no watermark.")
 
 # 出来事の言葉 → 何を撮るか（上から順に見る）
 BY_WORD = [
-    (r"屋根酢|酢", "Close-up of several glass bottles of homemade vinegar lined up on a wooden shelf in a small grocery store, plain paper labels with no writing."),
-    (r"卵", "Stacks of egg cartons on a supermarket shelf, shoppers' hands reaching in, soft fluorescent light."),
+    (r"屋根酢|酢", "Close-up of a hand pouring amber homemade vinegar from a plain unglazed earthenware jug into a small white ceramic dish on a worn wooden table, warm window light."),
+    (r"卵", "Close-up of brown eggs in plain gray pulp egg trays on a wooden table, a shopper's hand picking up a tray, soft light."),
     (r"子牛", "A newborn calf standing on straw in a small wooden barn, its mother cow beside it, morning light through the door."),
     (r"かぶら|かぶ", "Large white turnips with green leaves piled in wooden crates in front of a small greengrocer."),
-    (r"自販機|ぬる", "A drink vending machine at night in front of a small convenience store, glowing softly, rows of plain bottles."),
+    (r"自販機|ぬる", "Close-up of a hand holding a small plain unlabeled bottle of green tea at night, warm glow of a vending machine light behind, blurred."),
     (r"撮影", "A small local TV crew with a shoulder camera and a boom microphone filming on a riverside path."),
     (r"写生|作品", "Children's watercolor paintings displayed on panels in a shopping mall atrium, a few shoppers looking at them."),
     (r"ゲートボール", "Elderly people playing gateball on the sandy ground of a small town park in the morning."),
@@ -74,34 +74,44 @@ def font(size, bold=True):
 
 
 def paste_poster(photo, title, seed):
-    """コードで組んだポスターを壁の写真に貼る（少し傾け、影・光のむら・粒子で写真になじませる）"""
+    """コードで組んだポスターを壁の写真に貼る（小さめ・紙の質感・わずかな遠近・テープ・光のむら・粒子で写真になじませる）"""
     rnd = random.Random(seed)
     W, H = photo.size
-    pw, ph = int(W * 0.34), int(W * 0.34 * 1.414)
-    colors = rnd.choice([((244, 239, 226), (200, 67, 43)), ((234, 242, 236), (47, 111, 78)), ((253, 243, 216), (31, 78, 121))])
-    po = Image.new("RGB", (pw, ph), colors[0])
+    pw = int(W * 0.2); ph = int(pw * 1.414)
+    paper, accent = rnd.choice([((244, 239, 226), (200, 67, 43)), ((236, 241, 236), (47, 111, 78)), ((250, 244, 224), (31, 78, 121))])
+    po = Image.new("RGB", (pw, ph), paper)
     d = ImageDraw.Draw(po)
-    d.rectangle((0, 0, pw, int(ph * 0.12)), fill=colors[1])
-    d.text((pw // 2, int(ph * 0.06)), "ナナシ県", font=font(int(pw * 0.08), False), fill=colors[0], anchor="mm")
-    size = int(pw * (0.14 if len(title) <= 6 else 0.1))
-    y = int(ph * 0.24)
-    for i in range(0, len(title), 6 if len(title) <= 12 else 7):
-        d.text((pw // 2, y), title[i:i + (6 if len(title) <= 12 else 7)], font=font(size), fill=colors[1], anchor="mm")
+    d.rectangle((0, 0, pw, int(ph * 0.12)), fill=accent)
+    d.text((pw // 2, int(ph * 0.06)), "ナナシ県", font=font(int(pw * 0.08), False), fill=paper, anchor="mm")
+    n = 6 if len(title) <= 12 else 7
+    size = int(pw * (0.15 if len(title) <= 6 else 0.11))
+    y = int(ph * 0.25)
+    for i in range(0, len(title), n):
+        d.text((pw // 2, y), title[i:i + n], font=font(size), fill=accent, anchor="mm")
         y += int(size * 1.35)
-    d.ellipse((int(pw * 0.3), int(ph * 0.55), int(pw * 0.85), int(ph * 0.55) + int(pw * 0.55)), fill=tuple(int(c * 0.92) for c in colors[0]))
-    d.line((int(pw * 0.08), int(ph * 0.92), int(pw * 0.92), int(ph * 0.92)), fill=colors[1], width=3)
-    # 光のむら（上が明るい）
-    grad = Image.linear_gradient("L").resize((pw, ph)).point(lambda v: 255 - v // 5)
+    d.rectangle((int(pw * 0.12), int(ph * 0.55), int(pw * 0.88), int(ph * 0.82)), fill=tuple(int(c * 0.9) for c in paper))
+    for k in range(3):
+        d.line((int(pw * 0.12), int(ph * (0.86 + k * 0.03)), int(pw * (0.88 - k * 0.15)), int(ph * (0.86 + k * 0.03))), fill=tuple(int(c * 0.75) for c in paper), width=2)
+    # 紙の質感（細かいむら）と光のむら（左上が明るい）
+    tex = Image.effect_noise((pw, ph), 18).convert("L").point(lambda v: 235 + v // 12)
+    po = Image.composite(po, Image.new("RGB", po.size, (0, 0, 0)), tex)
+    grad = Image.linear_gradient("L").resize((pw, ph)).point(lambda v: 255 - v // 6)
     po = Image.composite(po, Image.new("RGB", po.size, (0, 0, 0)), grad)
-    po = po.convert("RGBA").rotate(rnd.uniform(-2.5, 2.5), expand=True, resample=Image.BICUBIC)
-    x, yy = (W - po.width) // 2, int(H * 0.16)
-    shadow = Image.new("RGBA", po.size, (0, 0, 0, 0))
-    shadow.paste((0, 0, 0, 90), (0, 0), po)
-    photo.paste(shadow.filter(ImageFilter.GaussianBlur(8)), (x + 8, yy + 10), shadow.filter(ImageFilter.GaussianBlur(8)))
+    # わずかな遠近（右が少し奥）
+    dx = int(pw * 0.04)
+    po = po.transform((pw, ph), Image.QUAD, (0, 0, 0, ph, pw, ph - dx, pw, dx), resample=Image.BICUBIC)
+    po = po.convert("RGBA").rotate(rnd.uniform(-1.5, 1.5), expand=True, resample=Image.BICUBIC)
+    x, yy = int(W * rnd.uniform(0.32, 0.48)), int(H * 0.2)
+    sh = Image.new("RGBA", po.size, (0, 0, 0, 0)); sh.paste((0, 0, 0, 70), (0, 0), po)
+    sh = sh.filter(ImageFilter.GaussianBlur(5))
+    photo.paste(sh, (x + 5, yy + 6), sh)
     photo.paste(po, (x, yy), po)
-    # 写真全体に軽い粒子とぼかしをかけて、貼り込みを目立たなくする
-    noise = Image.effect_noise(photo.size, 12).convert("RGB")
-    return Image.blend(photo.filter(ImageFilter.GaussianBlur(0.6)), noise, 0.04)
+    tape = Image.new("RGBA", (int(pw * 0.3), int(pw * 0.09)), (236, 230, 205, 170))
+    for tx in (x + int(pw * 0.08), x + int(pw * 0.62)):
+        photo.paste(tape, (tx, yy - int(pw * 0.04)), tape)
+    # 写真全体の色味・ぼけ・粒子をそろえる
+    photo = photo.filter(ImageFilter.GaussianBlur(0.7))
+    return Image.blend(photo, Image.effect_noise(photo.size, 14).convert("RGB"), 0.035)
 
 
 def wait_flux_free():
