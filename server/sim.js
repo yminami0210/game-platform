@@ -8,7 +8,7 @@ import {
 } from './world.js';
 import { cleanLook, describeLook, randomLook } from './looks.js';
 import { PersonaHub } from './personas.js';
-import { newsPicture } from './newsart.js';
+import { newsPicture, posterTitle } from './newsart.js';
 
 export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, away: 6 };
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
@@ -624,7 +624,9 @@ export class Simulation {
     } else if (t.type === 'newspaper') {
       const input = t.input.digest ? t.input : { ...this.digestNow(), dateLabel: dateLabel(this.day) };
       const r = t.externalResult != null ? { text: t.externalResult, via: 'claude-code' } : await this.executor.run('newspaper', input, this.day);
-      const file = this.chronicle.publishNews({ day: input.day, markdown: this.#withPicture(r.text, input.digest?.[0]), via: r.via });
+      const top = input.digest?.[0];
+      const place = top && (this.placeById[top.placeId] || this.layout.places.find((p) => p.name === top.place));
+      const file = this.chronicle.publishNews({ day: input.day, markdown: this.#withPicture(r.text, top), via: r.via, top: top && { place: top.place, kind: place?.kind || '', posterTitle: posterTitle(top.text) } });
       this.chronicle.log({ ...base, text: `ナナシ県民新聞 第${input.day}号が発行された（${file}）`, importance: 2, kind: 'task' });
     } else if (t.type === 'resident_register') {
       const vac = this.#vacancies();

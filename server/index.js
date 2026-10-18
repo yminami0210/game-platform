@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { loadConfig, ROOT, DATA } from './config.js';
 import { Chronicle } from './chronicle.js';
 import { Executor } from './executor.js';
@@ -27,6 +28,22 @@ sim.catchUp = (target) => {
   try { runSim(target); } finally { executor.offline = false; }
 };
 sim.onCatchUp = (from, to) => console.log(`早回しで追いつきました: ${((to - from) / 60).toFixed(1)}時間分`);
+
+// 県民だよりの一面を、この Mac の FLUX.1 で写真らしい写真に差し替える（1日1枚。数分かかる。Artifact はイラストのまま）
+const FLUX_PY = path.join(process.env.HOME || '', '.venvs/nanashi-flux/bin/python');
+chronicle.listeners.add((type, issue) => {
+  if (type !== 'news' || !REALTIME || process.env.NANASHI_NEWS_PHOTO === '0' || !fs.existsSync(FLUX_PY)) return;
+  if (issue.day < sim.day - 1) return; // 早回しで追いついた古い号には作らない
+  const file = path.join(DATA, 'news', `day-${String(issue.day).padStart(4, '0')}.md`);
+  const p = spawn(FLUX_PY, [path.join(ROOT, 'scripts/news_photo.py'), file], { env: { ...process.env, NEWS_TOP: JSON.stringify(issue.top || {}) }, stdio: 'ignore' });
+  p.on('close', (code) => {
+    if (code !== 0 || !fs.existsSync(file)) return console.log(`県民だよりの写真を作れませんでした（${code}）。イラストのままにします`);
+    const markdown = fs.readFileSync(file, 'utf8');
+    chronicle.news = { file: path.basename(file), markdown };
+    broadcast('news', { day: issue.day, markdown });
+    console.log(`県民だより第${issue.day}号の写真を差し替えました`);
+  });
+});
 
 // ---- SSE ----
 const clients = new Set();
