@@ -20,10 +20,10 @@ export const ROLE_LABEL = {
   retired: '隠居', homemaker: '家事', visitor: '来訪者', human: '人間アバター',
 };
 
-// 日付は現実の暦と同じ（年だけナナシ暦。2026年 = 1年）
+// 日付は現実の暦と同じ（年も西暦。ナナシ県は実在する県として扱う）
 export function dateLabel(day) {
   const d = new Date(EPOCH_UTC + (day - 1) * 86400000);
-  return `ナナシ暦${d.getUTCFullYear() - 2025}年 ${d.getUTCMonth() + 1}月${d.getUTCDate()}日（${WEEK[(d.getUTCDay() + 6) % 7]}）`;
+  return `${d.getUTCFullYear()}年 ${d.getUTCMonth() + 1}月${d.getUTCDate()}日（${WEEK[(d.getUTCDay() + 6) % 7]}）`;
 }
 
 // 住所（区画から町名を付ける）
