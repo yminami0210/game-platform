@@ -168,7 +168,12 @@ init.sns.forEach(addSns);
 
 function md(src) {
   // 最小限の Markdown（見出し・箇条書き・引用・強調）。先にエスケープする。
-  return esc(src).split('\n').map((l) => {
+  // 画像は「![説明](許可した形の URL)」の1行だけ通す（写真のファイル、写真の data URL、コードで組んだ SVG）
+  const IMG = /^!\[([^\]]*)\]\((data\/photos\/[\w-]+\.jpg|data:image\/jpeg;base64,[A-Za-z0-9+/=]+|data:image\/svg\+xml;charset=utf-8,[A-Za-z0-9%\-_.~]+)\)$/;
+  return src.split('\n').map((raw) => {
+    const im = raw.match(IMG);
+    if (im) return `<figure class="newsPic"><img src="${im[2]}" alt="${esc(im[1])}"></figure>`;
+    const l = esc(raw);
     if (l.startsWith('# ')) return `<h1>${l.slice(2)}</h1>`;
     if (l.startsWith('## ')) return `<h2>${l.slice(3)}</h2>`;
     if (l.startsWith('- ')) return `<li>${l.slice(2)}</li>`;

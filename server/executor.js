@@ -18,7 +18,7 @@ const PROMPTS = {
   sns_post: ({ event, author }) =>
     `あなたは架空の「ナナシ県」県庁広報課の職員${author}。次の出来事を、昭和の役所らしい素朴な文体で、100字以内のSNS投稿にして。ハッシュタグ#ナナシ県を1つ。本文のみ出力。\n出来事: ${event.text}（場所: ${event.placeName}）`,
   newspaper: ({ day, dateLabel, digest, stats }) =>
-    `架空の地方紙「${NEWSPAPER_NAME}」第${day}号（${dateLabel}）をMarkdownで書いて。見出し1つ+本文200字+箇条書き短信。実在の人物・企業名は出さない。素材(JSON): ${JSON.stringify({ digest, stats })}`,
+    `架空の地方紙「${NEWSPAPER_NAME}」第${day}号（${dateLabel}）をMarkdownで書いて。「# 紙名」「*日付*」「## 見出し」の下に本文200字の一面記事だけ。短信や箇条書きは不要。実在の人物・企業名は出さない。素材(JSON): ${JSON.stringify({ digest, stats })}`,
 };
 
 // "role:writer" のような指定は、会社共通の役割表 tools/omni_models.json から実際のモデル名に置き換える

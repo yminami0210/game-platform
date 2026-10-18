@@ -48,7 +48,7 @@ export class ChronicleCore {
     return [...byText.values()]
       .sort((a, b) => b.importance - a.importance || b.count - a.count)
       .slice(0, limit)
-      .map((e) => ({ time: e.time, who: e.who, place: e.placeName, text: e.text, importance: e.importance }));
+      .map((e) => ({ time: e.time, who: e.who, place: e.placeName, placeId: e.place, text: e.text, importance: e.importance }));
   }
 
   resetDay() {

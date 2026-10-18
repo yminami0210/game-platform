@@ -10,23 +10,17 @@ export const templates = {
     const tail = pick(['', '', '県庁広報課が確認しました。', '詳しくは県民だよりに載せます。'], rnd);
     return `【ナナシ県庁 広報課】${when}${event.text}。${tail}`;
   },
-  newspaper({ day, dateLabel, digest, stats }, rnd) {
-    const [top, ...rest] = digest;
+  // 一面記事だけ。写真（またはポスター・場所の絵）は sim が見出しの下に入れる
+  newspaper({ day, dateLabel, digest }, rnd) {
+    const [top] = digest;
     const head = top ? top.text : '大きな出来事はなし';
+    const who = top?.who && !/駅員|係|課$/.test(top.who) ? `居合わせた${top.who}さんは「${pick(['朝から並んでいた', '知らなかった', '来週もあるらしい', '帰りにまた寄る'], rnd)}」と話した。` : '';
     const lines = [
       `# ${NEWSPAPER_NAME}　第${day}号`,
       `*${dateLabel}*`,
       '',
-      `## 一面　${head}`,
-      top ? `${top.place}で${top.time}ごろ、${top.text}。居合わせた${top.who}さんは「${pick(['朝から並んでいた', '知らなかった', '来週もあるらしい', '帰りにまた寄る'], rnd)}」と話した。` : '大きな出来事はなかった。',
-      '',
-      '## 県内のうごき',
-      ...rest.map((e) => `- ${e.time} ${e.place}：${e.text}`),
-      '',
-      '## 県庁だより',
-      `- 本日の人口 ${stats.population}人（転入 ${stats.arrivals}人）`,
-      `- 広報課のSNS投稿 ${stats.posts}件、写真 ${stats.photos}枚`,
-      '',
+      `## ${head}`,
+      top ? `${top.place}で${String(top.time).replace(/^0/, '')}ごろ、${top.text}。${who}` : '大きな出来事はなかった。',
       '',
     ];
     return lines.join('\n');

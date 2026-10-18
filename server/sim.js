@@ -8,6 +8,7 @@ import {
 } from './world.js';
 import { cleanLook, describeLook, randomLook } from './looks.js';
 import { PersonaHub } from './personas.js';
+import { newsPicture } from './newsart.js';
 
 export const STATE = { walk: 0, idle: 1, desk: 2, task: 3, sleep: 4, wait: 5, away: 6 };
 const WEEK = ['月', '火', '水', '木', '金', '土', '日'];
@@ -596,7 +597,7 @@ export class Simulation {
     const place = this.placeById[t.input.place];
     if (!place) return;
     const photoId = `day${this.day}-task${t.id}`;
-    this.pendingPhotos.set(photoId, { taskId: t.id, place: place.id });
+    this.pendingPhotos.set(photoId, { taskId: t.id, place: place.id, text: t.input.event?.text });
     this.chronicle.emit('photo_request', { photoId, x: place.x, z: place.z, h: place.h || 6, cpId: cp.id, title: t.input.event?.text || place.name });
   }
 
@@ -623,7 +624,7 @@ export class Simulation {
     } else if (t.type === 'newspaper') {
       const input = t.input.digest ? t.input : { ...this.digestNow(), dateLabel: dateLabel(this.day) };
       const r = t.externalResult != null ? { text: t.externalResult, via: 'claude-code' } : await this.executor.run('newspaper', input, this.day);
-      const file = this.chronicle.publishNews({ day: input.day, markdown: r.text, via: r.via });
+      const file = this.chronicle.publishNews({ day: input.day, markdown: this.#withPicture(r.text, input.digest?.[0]), via: r.via });
       this.chronicle.log({ ...base, text: `ナナシ県民新聞 第${input.day}号が発行された（${file}）`, importance: 2, kind: 'task' });
     } else if (t.type === 'resident_register') {
       const vac = this.#vacancies();
@@ -651,6 +652,20 @@ export class Simulation {
     if (t.status === 'working') t.progress = 1;
     t.duration = 0;
     return true;
+  }
+
+  // 一面の見出しの下に、写真（なければポスター・場所の絵）を入れる
+  #withPicture(markdown, top) {
+    if (!top || /^!\[/m.test(markdown)) return markdown;
+    const pic = newsPicture({ ...top, photo: this.photoByEvent?.get(top.text) }, {
+      photoUrl: (id) => this.chronicle.photoUrl(id),
+      place: this.placeById[top.placeId] || this.layout.places.find((p) => p.name === top.place),
+    });
+    if (!pic) return markdown;
+    const lines = markdown.split('\n');
+    const at = lines.findIndex((l) => l.startsWith('## '));
+    lines.splice(at >= 0 ? at + 1 : lines.length, 0, `![${pic.caption}](${pic.src})`, `*写真：${pic.caption}*`);
+    return lines.join('\n');
   }
 
   digestNow() {
@@ -870,6 +885,8 @@ export class Simulation {
 
   photoSaved(photoId) {
     if (!this.pendingPhotos.has(photoId)) return false;
+    const { text } = this.pendingPhotos.get(photoId);
+    if (text) (this.photoByEvent ||= new Map()).set(text, photoId); // 県民だよりの一面に使う
     this.pendingPhotos.delete(photoId);
     this.stats.photos++;
     return true;

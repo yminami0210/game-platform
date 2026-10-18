@@ -194,3 +194,7 @@ body.mobile .ovHead button { padding: 6px 10px; font-size: 13px; }
 #walkPad button.on { background: var(--red, #2f5ba0); color: #fff; }
 body.mobile #walkPad { right: 12px; grid-template-columns: repeat(3, 60px); }
 body.mobile #walkPad button { height: 60px; }
+
+/* 県民だよりの一面の写真 */
+.paper .newsPic { margin: 8px 0 2px; }
+.paper .newsPic img { width: 100%; height: auto; display: block; border: 1px solid #c9bfae; }

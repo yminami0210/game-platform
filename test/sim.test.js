@@ -307,3 +307,27 @@ test('上限より長く閉じていたら、上限より前だけを飛ばす',
   assert.ok(sim.minutes >= from + 600);
   assert.equal(events.filter(([t, p]) => t === 'log' && p.kind === 'gap').length, 1);
 });
+
+test('県民だよりは一面記事だけで、ポスターの出来事にはポスターの絵が入る', async () => {
+  const { newsPicture, posterTitle } = await import('../server/newsart.js');
+  assert.equal(posterTitle('中ノ町駅の改札の前に、県民駅伝のポスターが貼られた'), '県民駅伝');
+  assert.equal(posterTitle('県庁のロビーに、県立歴史博物館の企画展のポスターが貼られた'), '県立歴史博物館の企画展');
+  const poster = newsPicture({ text: '中ノ町駅の改札の前に、県民駅伝のポスターが貼られた', place: '中ノ町駅' });
+  assert.match(poster.src, /^data:image\/svg\+xml;charset=utf-8,[A-Za-z0-9%\-_.~]+$/);
+  assert.match(decodeURIComponent(poster.src.split(',')[1]), /県民駅伝/);
+  const photo = newsPicture({ text: '牧場で子牛が生まれた', place: '中ノ町牧場', photo: 'day1-task3' }, { photoUrl: (id) => `data/photos/${id}.jpg` });
+  assert.equal(photo.src, 'data/photos/day1-task3.jpg');
+  const ill = newsPicture({ text: '牧場で子牛が生まれた', place: '中ノ町牧場' }, { place: { kind: 'bokujo', name: '中ノ町牧場' } });
+  assert.match(ill.caption, /イラスト/);
+
+  const { cfg, chronicle } = setup();
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
+  chronicle.log({ day: sim.day, time: '07:21', place: 'station', placeName: '中ノ町駅', text: '中ノ町駅の改札の前に、県民駅伝のポスターが貼られた', importance: 3, kind: 'event' });
+  const t = sim.requestTask('newspaper', {});
+  for (let i = 0; i < 12 && !chronicle.latestNews(); i++) { run(sim, 120); await new Promise((r) => setTimeout(r, 5)); }
+  const news = chronicle.latestNews();
+  assert.ok(news, '発行された');
+  assert.ok(!/県内のうごき|県庁だより/.test(news.markdown), '一面記事だけ');
+  assert.match(news.markdown, /^!\[貼り出された「県民駅伝」のポスター\]\(data:image\/svg/m);
+  assert.ok(t);
+});
