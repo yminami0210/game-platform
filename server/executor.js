@@ -86,6 +86,7 @@ export class Executor {
 
   #allowed(task, gameDay) {
     if (this.cfg.mode === 'template') return false;
+    if (this.offline) return false; // 早回しで追いついているあいだは LLM を使わない（トークンを守る）
     if (!PROMPTS[task]) return false;
     const cap = this.cfg.maxCallsPerGameDay?.[task] ?? 0;
     if (this.ledger.callsFor(gameDay, task) >= cap) return false;

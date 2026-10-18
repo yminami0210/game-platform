@@ -281,3 +281,29 @@ test('正本の登場人物が町の住人に配役される（西村ハル・�
   assert.equal(again.personas.bound.haru.id, b.haru.id);
   assert.equal(again.personas.bound.maruyama.name, '丸山 保');
 });
+
+test('閉じていたあいだは早回しで追いつき、ログが途切れない（裏でもログが取れる）', () => {
+  const { cfg, chronicle, events } = setup({ mode: 'omniroute' });
+  let calls = 0;
+  const executor = new Executor(cfg, { dataDir: chronicle.dir, fetchImpl: async () => { calls++; throw new Error('呼ばれないはず'); } });
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor });
+  executor.offline = true; // サーバーと同じく、早回しのあいだは LLM を止める
+  const from = sim.minutes;
+  sim.advanceTo(from + 6 * 60, 0.1); // 6時間閉じていた
+  executor.offline = false;
+  assert.ok(sim.minutes >= from + 6 * 60);
+  const logs = events.filter(([t]) => t === 'log').map(([, p]) => p);
+  assert.ok(!logs.some((e) => e.kind === 'gap'), '「記録はありません」にならない');
+  assert.ok(logs.length > 20, `6時間分の出来事が残る（${logs.length}件）`);
+  assert.equal(calls, 0, '早回し中は LLM を呼ばない');
+});
+
+test('上限より長く閉じていたら、上限より前だけを飛ばす', () => {
+  const { cfg, chronicle, events } = setup();
+  const sim = new Simulation({ seed: 7, population: 300, chronicle, executor: new Executor(cfg, { dataDir: chronicle.dir }) });
+  sim.catchUpLimit = 120;
+  const from = sim.minutes;
+  sim.advanceTo(from + 600, 0.1);
+  assert.ok(sim.minutes >= from + 600);
+  assert.equal(events.filter(([t, p]) => t === 'log' && p.kind === 'gap').length, 1);
+});

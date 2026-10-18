@@ -20,6 +20,14 @@ const saved = fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE,
 const REALTIME = !process.env.NANASHI_SPEED;
 const sim = new Simulation({ seed: cfg.seed, population: cfg.population, commuteShare: cfg.commuteShare, chronicle, executor, saved, startMinutes: REALTIME ? realMinutes() : 9 * 60 + 30 });
 
+// 裏で動かす前提: Mac が眠っていた・サーバーが止まっていたあいだも、起きたときに早回しでログを埋める（sim.catchUpLimit、既定14日）
+const runSim = sim.catchUp.bind(sim);
+sim.catchUp = (target) => {
+  executor.offline = true;
+  try { runSim(target); } finally { executor.offline = false; }
+};
+sim.onCatchUp = (from, to) => console.log(`早回しで追いつきました: ${((to - from) / 60).toFixed(1)}時間分`);
+
 // ---- SSE ----
 const clients = new Set();
 function send(res, type, data) {

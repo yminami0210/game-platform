@@ -883,12 +883,27 @@ export class Simulation {
     return true;
   }
 
-  // 現実の時刻に合わせて進める。少しの遅れはなめらかに、30分以上離れていたら一気に飛ぶ
+  // 現実の時刻に合わせて進める。少しの遅れはなめらかに、30分以上離れていたら早回しで追いつく（ログが途切れない）。
+  // 早回しは catchUpLimit 分（既定14日。1日分が約0.1秒）まで。それより前は記録なしで飛ばす
   advanceTo(target, dtReal) {
     const delta = target - this.minutes;
     if (delta <= 0) return;
-    if (delta > 30) return this.jumpTo(target);
+    if (delta > 30) return this.catchUp(target);
     this.tick(dtReal, delta / Math.max(dtReal, 0.001));
+  }
+
+  // 閉じていた・眠っていたあいだを、2分刻みの早回しで埋める（LLM は使わない。onCatchUp で知らせる）
+  catchUp(target) {
+    const limit = this.catchUpLimit ?? 14 * 1440;
+    if (target - this.minutes > limit) this.jumpTo(target - limit);
+    const from = this.minutes;
+    this.catchingUp = true;
+    try {
+      while (this.minutes < target) this.tick(Math.min(0.25, (target - this.minutes) / 8), 8);
+    } finally {
+      this.catchingUp = false;
+    }
+    this.onCatchUp?.(from, target);
   }
 
   // アプリを閉じていたあいだを飛ばす: 時刻を合わせ、全員をその時刻にいるはずの場所へ置き直す
