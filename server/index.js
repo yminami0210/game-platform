@@ -37,7 +37,7 @@ chronicle.listeners.add((type, issue) => {
   const file = path.join(DATA, 'news', `day-${String(issue.day).padStart(4, '0')}.md`);
   const p = spawn(FLUX_PY, [path.join(ROOT, 'scripts/news_photo.py'), file], { env: { ...process.env, NEWS_TOP: JSON.stringify(issue.top || {}) }, stdio: 'ignore' });
   p.on('close', (code) => {
-    if (code !== 0 || !fs.existsSync(file)) return console.log(`県民だよりの写真を作れませんでした（${code}）。イラストのままにします`);
+    if (code !== 0 || !fs.existsSync(file)) return console.log(code === 3 ? '県民だよりの写真に崩れた文字があった（または確かめられなかった）ので、イラストのままにします' : `県民だよりの写真を作れませんでした（${code}）。イラストのままにします`);
     const markdown = fs.readFileSync(file, 'utf8');
     chronicle.news = { file: path.basename(file), markdown };
     broadcast('news', { day: issue.day, markdown });

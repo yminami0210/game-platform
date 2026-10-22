@@ -131,6 +131,37 @@ def paste_poster(photo, title, seed, picture=None):
     return Image.blend(photo, Image.effect_noise(photo.size, 14).convert("RGB"), 0.035)
 
 
+CHECK_Q = ("新聞の写真として使えるか確認しています。写真の中に、目立つ崩れた文字（意味の通らない日本語や英字、ラベル・看板・貼り紙の文字化け）がありますか。"
+           "遠くて小さく、ほとんど目に入らない文字は数えません。壁に貼られたポスターの「ナナシ県」と題名は正しい文字なので数えません。YES か NO だけで答えて。")
+
+
+def text_check(path):
+    """Gemini（OmniRoute、ai-company の clerk のモデル）に、目立つ崩れた文字がないかを見てもらう。
+    戻り値: "ok"（文字なし）／"text"（崩れた文字あり）／"unknown"（確認できなかった）"""
+    import base64
+    import time
+    import urllib.request
+    try:
+        model = json.load(open(os.path.expanduser("~/ai-company/tools/omni_models.json"), encoding="utf-8"))["clerk"]
+    except Exception:
+        model = "gemini/gemini-3.6-flash"
+    img = base64.b64encode(open(path, "rb").read()).decode()
+    body = json.dumps({"model": model, "max_tokens": 600, "reasoning_effort": "low", "messages": [{"role": "user", "content": [
+        {"type": "text", "text": CHECK_Q}, {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + img}}]}]}).encode()
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request("http://127.0.0.1:20128/v1/chat/completions", data=body, headers={"content-type": "application/json"})
+            ans = (json.load(urllib.request.urlopen(req, timeout=120))["choices"][0]["message"].get("content") or "").strip().upper()
+            if ans.startswith("NO"):
+                return "ok"
+            if ans.startswith("YES"):
+                return "text"
+        except Exception:
+            pass
+        time.sleep(60)
+    return "unknown"
+
+
 def wait_flux_free():
     """ほかの FLUX の生成（毎朝の画像など）が動いていたら終わるまで待つ（メモリが足りないので同時に動かさない）"""
     import time
@@ -178,12 +209,15 @@ def main():
     out = os.path.join(ROOT, "data", "photos", name + ".jpg")
     photo.save(out, quality=88)
     os.remove(tmp)
+    check = text_check(out)  # 崩れた文字があったら、または確かめられなかったら、写真は使わずイラストのまま
 
-    caption = (f"貼り出された「{meta.get('posterTitle')}」のポスター" if poster else (meta.get("place") or "")) + "（広報課撮影）"
-    md = re.sub(r"^!\[[^\]]*\]\([^)]*\)\n\*写真：[^\n]*\*$", f"![{caption}](data/photos/{name}.jpg)\n*写真：{caption}*", md, count=1, flags=re.M)
-    open(news_path, "w", encoding="utf-8").write(md)
+    if check == "ok":
+        caption = (f"貼り出された「{meta.get('posterTitle')}」のポスター" if poster else (meta.get("place") or "")) + "（広報課撮影）"
+        md = re.sub(r"^!\[[^\]]*\]\([^)]*\)\n\*写真：[^\n]*\*$", f"![{caption}](data/photos/{name}.jpg)\n*写真：{caption}*", md, count=1, flags=re.M)
+        open(news_path, "w", encoding="utf-8").write(md)
 
     rec = {"tool": "FLUX.1 [schnell] 4bit（mflux）、4ステップ、1024×768", "prompt": prompt, "seed": seed, "poster_overlay": bool(poster),
+           "text_check": {"ok": "合格（目立つ崩れた文字なし）", "text": "不合格（崩れた文字あり。イラストのまま）", "unknown": "確認できず（イラストのまま）"}[check],
            "made": datetime.datetime.now().isoformat(timespec="minutes"), "news": os.path.relpath(news_path, ROOT)}
     json.dump(rec, open(os.path.join(ROOT, "data", "photos", name + ".json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     if os.path.isdir(os.path.dirname(DESIGN_LOG)):
@@ -191,8 +225,10 @@ def main():
         with open(DESIGN_LOG, "a", encoding="utf-8") as f:  # 追記のみ（デザイン規定）
             if new:
                 f.write("# 県民だより写真ログ\n\nゲームの県民だより（町の中の新聞）の一面写真。派生デザイン（FLUX.1 [schnell]、承認済み）。ポスターの文字はコードで組んで貼り込む。\n\n| 作成 | 号 | 見出し | シード | ポスター貼り込み | 指示文 |\n|---|---|---|---|---|---|\n")
-            f.write(f"| {rec['made']} | {day} | {head} | {seed} | {'あり' if poster else 'なし'} | {prompt[:120]}… |\n")
-    print(out)
+            f.write(f"| {rec['made']} | {day} | {head} | {seed} | {'あり' if poster else 'なし'} | {prompt[:120]}…（文字の点検：{rec['text_check']}） |\n")
+    print(out, rec["text_check"])
+    if check != "ok":
+        sys.exit(3)  # サーバーには「差し替えなし」と伝える
 
 
 if __name__ == "__main__":
