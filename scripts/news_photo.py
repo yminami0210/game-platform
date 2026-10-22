@@ -63,6 +63,16 @@ WALL = {
     "station": "A plain clean concrete wall beside the ticket gate of a small rural train station, a large empty area in the center of the wall, nothing posted on it.",
     "kencho": "A plain cream-colored wall in the lobby of an old government building, a large empty area in the center, nothing posted on it.",
 }
+# ポスターの題名 → ポスターに載せる写真（文字なし）
+POSTER_PHOTO = [
+    (r"駅伝|マラソン|ロードレース", "Several runners in plain colored running shirts with no numbers running a relay race along a quiet country road lined with autumn trees, mountains behind, one runner handing a plain cloth sash to the next."),
+    (r"博物館|企画展|資料|展示", "Old handwritten paper documents and a wooden box displayed under soft light in a quiet museum glass case, blurred so no writing is readable."),
+    (r"祭|まつり|盆踊り", "Paper lanterns glowing at dusk over a small town festival street with stalls and people in light summer kimono."),
+    (r"写生|絵|美術|県展", "Children sitting on the grass drawing pictures of a river with crayons on drawing boards, sunny day."),
+    (r"野球|サッカー|運動|体育", "Young players on a dirt field in a small town sports ground on a sunny day."),
+    (r"コンサート|演奏|合唱|音楽", "A small community choir singing on a simple stage in a town hall, warm stage light."),
+]
+POSTER_PHOTO_DEFAULT = "A wide river flowing through a quiet valley town with low houses and mountains behind, clear autumn day."
 WALL_DEFAULT = "A plain light concrete wall in a quiet public place, a large empty area in the center of the wall, nothing posted on it."
 
 
@@ -73,11 +83,11 @@ def font(size, bold=True):
     return ImageFont.truetype(hits[0], size) if hits else ImageFont.load_default(size=size)
 
 
-def paste_poster(photo, title, seed):
+def paste_poster(photo, title, seed, picture=None):
     """コードで組んだポスターを壁の写真に貼る（小さめ・紙の質感・わずかな遠近・テープ・光のむら・粒子で写真になじませる）"""
     rnd = random.Random(seed)
     W, H = photo.size
-    pw = int(W * 0.2); ph = int(pw * 1.414)
+    pw = int(W * 0.26); ph = int(pw * 1.414)
     paper, accent = rnd.choice([((244, 239, 226), (200, 67, 43)), ((236, 241, 236), (47, 111, 78)), ((250, 244, 224), (31, 78, 121))])
     po = Image.new("RGB", (pw, ph), paper)
     d = ImageDraw.Draw(po)
@@ -89,7 +99,14 @@ def paste_poster(photo, title, seed):
     for i in range(0, len(title), n):
         d.text((pw // 2, y), title[i:i + n], font=font(size), fill=accent, anchor="mm")
         y += int(size * 1.35)
-    d.rectangle((int(pw * 0.12), int(ph * 0.55), int(pw * 0.88), int(ph * 0.82)), fill=tuple(int(c * 0.9) for c in paper))
+    box = (int(pw * 0.08), int(ph * 0.47), int(pw * 0.92), int(ph * 0.83))
+    if picture is not None:  # 題名に合った写真を、印刷らしく少しだけ色を落として載せる
+        bw, bh = box[2] - box[0], box[3] - box[1]
+        side = min(picture.width, int(picture.height * bw / bh))
+        pic = picture.crop(((picture.width - side) // 2, 0, (picture.width + side) // 2, int(side * bh / bw))).resize((bw, bh))
+        po.paste(Image.blend(pic, Image.new("RGB", pic.size, paper), 0.08), box[:2])
+    else:
+        d.rectangle(box, fill=tuple(int(c * 0.9) for c in paper))
     for k in range(3):
         d.line((int(pw * 0.12), int(ph * (0.86 + k * 0.03)), int(pw * (0.88 - k * 0.15)), int(ph * (0.86 + k * 0.03))), fill=tuple(int(c * 0.75) for c in paper), width=2)
     # 紙の質感（細かいむら）と光のむら（左上が明るい）
@@ -149,7 +166,15 @@ def main():
     photo = Image.open(tmp).convert("RGB")
     if poster:
         title = meta.get("posterTitle") or "お知らせ"
-        photo = paste_poster(photo, title, seed)
+        pprompt = next((p for w, p in POSTER_PHOTO if re.search(w, title)), POSTER_PHOTO_DEFAULT) + " " + STYLE
+        ptmp = os.path.join(ROOT, "data", "photos", name + "-poster.png")
+        subprocess.run([os.path.join(VENV, "bin", "mflux-generate"), "--model", MODEL, "--base-model", "schnell", "--prompt", pprompt,
+                        "--steps", "4", "--seed", str(seed + 1), "--width", "768", "--height", "576", "--output", ptmp], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        picture = Image.open(ptmp).convert("RGB")
+        os.remove(ptmp)
+        photo = paste_poster(photo, title, seed, picture)
+        prompt = prompt + " ／ ポスターの写真：" + pprompt
     out = os.path.join(ROOT, "data", "photos", name + ".jpg")
     photo.save(out, quality=88)
     os.remove(tmp)
