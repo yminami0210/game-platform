@@ -81,7 +81,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // ============ テキスト（OmniRoute writer の下書き → Claude 点検済み。omni/出力/v1_テキスト.json） ============
-const TEXT = /*TEXT_START*/{"stages": [{"id": 1, "intro": "中ノ町市、23時00分、気温25℃。6畳の和室。蚊取り線香は出してあるが、火はついていない", "people": [{"role": "grandpa", "sleeptalk": ["明日の回覧板は、ひとまたぎ先だろ……", "酢の瓶、ひさしに上げとけ……", "……ん、まるやすは水曜が安い……", "風見間には置くな、風が入る……"], "itch": ["{place}が赤くなっとる。線香出しといたのになあ", "なんだ、{place}を食われたか。ぬるい夜だったからな", "{place}がかゆい。ことづけ窓、開けっぱなしだったか"]}]}, {"id": 2, "intro": "下川原市、23時00分、気温27℃。団地の6畳間に布団が4つ。扇風機が首を振っている", "people": [{"role": "father", "sleeptalk": ["ヨコデン、もう30分待つのか……", "明日は工場のラインが止まる……", "……ぬる〜いのお茶、買っといて……", "もうほどけたのか、早いな……"], "itch": ["{place}かゆいな。団地の蚊はどこから入るんだ", "うわ、{place}刺された。扇風機止まってたか", "{place}が腫れてる。今日一日かゆいやつだ"]}, {"role": "mother", "sleeptalk": ["おっちらまでに買い物行かなきゃ……", "明日のゴミは燃えるやつ……", "ご飯、少なめにまするから……", "ねじ餅、固くなる前に食べてよ……"], "itch": ["{place}刺されてる。子どもたち大丈夫だった？", "{place}がかゆい。蚊取り線香切れてたみたい", "こんなところ。{place}にかゆみ止め塗らなきゃ"]}, {"role": "boy", "sleeptalk": ["……宿題、まだ48問残ってる……", "ますめし、味噌だけ残った……", "パス、こっち！　走れ……", "……プール、明日もあるの……"], "itch": ["{place}めっちゃかゆい。血が出そう", "うわ、{place}刺された。最悪", "{place}にバッテンつけた。まだかゆい"]}, {"role": "girl", "sleeptalk": ["……うさぎさん、もうねた……", "アイス、あしたたべる……", "……すずしくない……", "ママ、あっちいって……"], "itch": ["{place}いたい。かゆい", "ここ、{place}ぷくってしてる", "{place}かいちゃだめって言われた"]}]}], "tips": ["扇風機の風の中に入ると流される。首振りの向きを見て近づく", "蚊取り線香の煙がある場所は、体力が減り続けます。", "ことづけ窓の隙間から外へ出れば脱出完了です。", "目のマークが2つ赤くなったら、一度離れて落ち着くのを待つ", "血を吸いすぎると体が重くなり、飛ぶ速度が落ちます。", "5時になる前に、ことづけ窓から出る。吸った血はそれで持ち帰りになる"], "results": {"clear": ["ことづけ窓の隙間から外に出た。", "網戸の端をくぐって、外に出た。", "開いていた窓から外に出た。"], "out": ["手のひらで叩かれた。", "寝ぼけた手が、たまたま当たった。", "起きた人に、両手で挟まれた。"], "dawn": ["5時になって、部屋の明かりがついた。", "新聞配達のバイクの音がして、人が起きた。"]}}/*TEXT_END*/;
+const TEXT = /*TEXT_START*/{"stages": [{"id": 1, "intro": "中ノ町市、23時00分、気温25℃。6畳の和室。蚊取り線香は出してあるが、火はついていない", "people": [{"role": "grandpa", "sleeptalk": ["明日の回覧板は、ひとまたぎ先だろ……", "酢の瓶、ひさしに上げとけ……", "……ん、まるやすは水曜が安い……", "風見間には置くな、風が入る……"], "itch": ["{place}が赤くなっとる。線香出しといたのになあ", "なんだ、{place}を食われたか。ぬるい夜だったからな", "{place}がかゆい。ことづけ窓、開けっぱなしだったか"]}]}, {"id": 2, "intro": "下川原市、23時00分、気温27℃。団地の6畳間に布団が4つ。扇風機が首を振っている", "people": [{"role": "father", "sleeptalk": ["ヨコデン、もう30分待つのか……", "明日は工場のラインが止まる……", "……ぬる〜いのお茶、買っといて……", "もうほどけたのか、早いな……"], "itch": ["{place}かゆいな。団地の蚊はどこから入るんだ", "うわ、{place}刺された。扇風機止まってたか", "{place}が腫れてる。今日一日かゆいやつだ"]}, {"role": "mother", "sleeptalk": ["おっちらまでに買い物行かなきゃ……", "明日のゴミは燃えるやつ……", "ご飯、少なめにまするから……", "ねじ餅、固くなる前に食べてよ……"], "itch": ["{place}刺されてる。子どもたち大丈夫だった？", "{place}がかゆい。蚊取り線香切れてたみたい", "こんなところ。{place}にかゆみ止め塗らなきゃ"]}, {"role": "boy", "sleeptalk": ["……宿題、まだ48問残ってる……", "ますめし、味噌だけ残った……", "パス、こっち！　走れ……", "……プール、明日もあるの……"], "itch": ["{place}めっちゃかゆい。血が出そう", "うわ、{place}刺された。最悪", "{place}にバッテンつけた。まだかゆい"]}, {"role": "girl", "sleeptalk": ["……うさぎさん、もうねた……", "アイス、あしたたべる……", "……すずしくない……", "ママ、あっちいって……"], "itch": ["{place}いたい。かゆい", "ここ、{place}ぷくってしてる", "{place}かいちゃだめって言われた"]}]}, {"id": 3, "intro": "23:00、鳴沢町の温泉旅館。客間は27℃。浴衣の中学生が5人。1人はまだ起きている", "people": [{"role": "student1", "sleeptalk": ["明日のバス、何時発だっけ", "自販機、ぬる〜いのお茶にして", "帯、苦しいからほどいていい？"], "itch": ["うわ、{place}かゆい。いつ刺されたんだろ", "{place}が腫れてる。温泉入ったら染みるかな"]}, {"role": "student2", "sleeptalk": ["お土産のねじ餅、買った？", "まだ寝ないの、電気消してよ", "明日は6時起きだってさ"], "itch": ["{place}めっちゃかゆい。かゆみ止め持ってくればよかった", "赤くなってる。{place}ばっかり狙われた"]}, {"role": "student3", "sleeptalk": ["枕、そっちに転がっていった", "ますめしの容器、返したっけ", "ふとん、もう一枚取って"], "itch": ["{place}をポリポリかきすぎて痛くなってきた", "朝から{place}がかゆいの最悪なんだけど"]}, {"role": "student4", "sleeptalk": ["ヨコデンの切符、ポケットにある", "消灯時間すぎてるって怒られる", "あと5分したら起こして"], "itch": ["{place}がぷっくり膨らんでる。かゆい", "誰かかゆみ止め貸して。{place}が我慢できない"]}, {"role": "student5", "sleeptalk": ["みんな寝るの早いな、まだ23時なのに", "スマホの充電、あと12パーセントか", "なんか飛んでる気がする、気のせいか"], "itch": ["あんなに起きてたのに{place}刺されたの？", "{place}がかゆくて全然寝られなかった"]}]}, {"id": 4, "intro": "23:00、中ノ町の一軒家。居間は28℃。甲子園の録画中継を見ながら3人が起きている。", "people": [{"role": "grandpa", "sleeptalk": ["今の判定、抗議するかはかざみたほうがええ", "49校もあると覚えるのが一苦労じゃ", "9回の表でひっくり返るかもしれん"], "itch": ["{place}が急にかゆくなってきたわ。叩き損ねたか", "おや、{place}を食われとる。薬はどこじゃったか"]}, {"role": "father", "sleeptalk": ["明日も7時から仕事なのに、テレビが消せん", "ぬる〜い缶コーヒー、冷蔵庫にあったか", "このピッチャー、球速142キロ出てるぞ"], "itch": ["うわ、{place}やられた。画面見てて気づかなかった", "{place}がかゆい。蚊取り線香つけておけばよかった"]}, {"role": "son", "sleeptalk": ["中商、今年はベスト8までいけるかな", "延長戦になったら今日中に終わらないよ", "耳元でなんかプツンって鳴らなかった？"], "itch": ["{place}がめっちゃ赤くなってる。かゆすぎる", "試合見てる間に{place}3箇所も吸われてる"]}]}, {"id": 5, "intro": "23:00、深田市の農家。寝室は26℃。夫婦の横のベビー蚊帳で赤ちゃんが寝ている。扇風機が2台", "people": [{"role": "husband", "sleeptalk": ["明日はかぶらの畑、水入れないと", "回覧板、ことづけ窓に入ってたっけ", "扇風機、首振りにしといて……"], "itch": ["うわっ、{place}がかゆい。いつ入ってきたんだ", "{place}が腫れてるな。あいつに刺されなくてよかった"]}, {"role": "wife", "sleeptalk": ["ミルクの温度、ぬるいくらいでいいよ", "明日は燃えるゴミの日だから6時に……", "ますめし用の升、洗って乾かした？"], "itch": ["{place}がすごくかゆい。ベビー蚊帳閉めてて正解だった", "朝から{place}ポリポリかいちゃう。跡になりそう"]}]}, {"id": 6, "intro": "23:00、深田の県立大学寮。室内は27℃。机の電灯がつき、1人がラケットを置いている。", "people": [{"role": "student_awake", "sleeptalk": ["レポート、あと1000字書かないと", "ラケットのスイッチ、入ってるよな", "光に虫が集まってくるのうっとうしい"], "itch": ["起きてたのに{place}刺された。ラケット空振りしたか", "{place}がかゆくて課題に集中できないんだけど"]}, {"role": "student_sleep", "sleeptalk": ["1限の講義、代返頼む……", "ナカノモール、土曜に行こうよ", "部屋の電気、消してくれよ"], "itch": ["うわ、{place}めっちゃ腫れてる。部屋に蚊いたのか", "{place}がかゆくて目が覚めた。最悪の朝だ"]}]}, {"id": 7, "intro": "23:00、下川原の部品工場。仮眠室の畳部屋は25℃。壁の換気扇が回る中、4人が雑魚寝する。", "people": [{"role": "worker1", "sleeptalk": ["ライン止めるな、検品まだだぞ", "ヨコデン、終電終わったよな", "換気扇の音がうるさくて寝れん"], "itch": ["{place}がかゆいな。夜勤明けに勘弁してくれよ", "誰だよ窓開けたの。{place}食われまくってる"]}, {"role": "worker2", "sleeptalk": ["明日は17時にほどけるシフトだ", "ぬる〜いお茶、もう1本買ってこい", "ネジの箱、3番の棚に置いた"], "itch": ["{place}が赤くなってる。風通し悪いから湧くんだ", "うわ、{place}痒くてたまらん。ウエスで拭くか"]}, {"role": "worker3", "sleeptalk": ["金型の温度、200度まで冷ませ", "団地の階段、上がるのきついな", "朝飯、ますめしでいいや……"], "itch": ["おい、{place}刺されたぞ。畳に線香焚いてくれ", "{place}かゆくて眠気飛んだわ。作業着の上からか"]}, {"role": "worker4", "sleeptalk": ["明日のゴミ出し、妻に頼まれたっけ", "換気扇の風、足元に直撃してる", "あと2時間寝かせてくれ……"], "itch": ["{place}がぷくぷくしてる。蚊取り線香ないのかよ", "起きた瞬間から{place}がかゆいってどういうこと"]}]}, {"id": 8, "intro": "23:00、上ヨコネ村の古い家。25℃。大きな蚊帳のすき間は2か所。線香が2つ", "people": [{"role": "grandpa", "sleeptalk": ["明日は屋根酢の瓶ば、日に当てろ", "網戸の破れ、明日直さんと", "ヨコデンの最終、もう出たかい"], "itch": ["蚊帳に入っとったのに{place}食われた。すき間あったか", "{place}がえらいかゆいぞい。どこから入り込んだか"]}, {"role": "grandma", "sleeptalk": ["おっちらに、回覧板まわさんと", "朝飯は、軽うますればええ", "その相談は、明日かざみるべ"], "itch": ["{place}がぽっこり腫れとる。蚊帳の結び目が緩かったか", "あらら、{place}ば刺されたわ。薬どこさ置いたかいね"]}]}, {"id": 9, "intro": "23:00、中ノ町商業高校の柔道場。室温28℃。扇風機3台が回り、部員6人が雑魚寝する。", "people": [{"role": "captain", "sleeptalk": ["明日は5時半に道場集合だぞ", "シートノック、100本いくぞ", "49代表の中で一番声出せ"], "itch": ["{place}がかゆい。朝練の素振りで気合で散らすか", "{place}刺されたな。おい1年、網戸閉まってたか？"]}, {"role": "second1", "sleeptalk": ["自販機、ぬる〜い麦茶売り切れてた", "扇風機、首振り止めるなよ", "明日の練習、何時にほどけるかな"], "itch": ["うわ、{place}かゆっ。ユニフォーム着るのキツい", "{place}が赤くなってる。柔道場の畳、絶対蚊がいる"]}, {"role": "second2", "sleeptalk": ["ますめし3杯食ったら腹重い", "バント練習、もっと低く構えろ", "誰か、そこの扇風機こっち向けて"], "itch": ["{place}めっちゃ腫れてる。グローブはめると痛い", "朝から{place}かきすぎて血が出そうなんだけど"]}, {"role": "first1", "sleeptalk": ["ボール拾い、あと何球ですか", "道場の窓、閉めました", "氷のう用の氷、作っとかないと"], "itch": ["{place}が痒くて集中できないっす。主将に怒られる", "うわ、{place}やられた。寝る前に耳元で羽音聞こえたのに"]}, {"role": "first2", "sleeptalk": ["水筒の補充、終わりました", "明日のグラウンド整備、何時ですか", "ナカノモールでスパイク買いたい"], "itch": ["{place}が赤く腫れ上がってる。かゆみ止めありますか", "{place}をポリポリかいちゃう。練習前にテンション下がる"]}, {"role": "first3", "sleeptalk": ["ヨコデンの始発、間に合わない", "明日の弁当、ねじ餅入ってたな", "スコアブック、カバンに入れました"], "itch": ["{place}がめちゃくちゃかゆい。何箇所刺されたんだろ", "うわっ、{place}腫れてる。アイシングの氷貼りたい"]}]}, {"id": 10, "intro": "23:00、鳴沢の親戚の家。大広間は28℃。8人が寝ているが、おじはまだ起きている", "people": [{"role": "uncle", "sleeptalk": ["線香焚いてもどっかから入るな", "子どもらの蚊帳、わしが見とく", "子どもら刺されたらたまらんからな"], "itch": ["見張ってたのに{place}やられた。油断した隙か", "{place}がかゆい。起きて見張ってたのにな"]}, {"role": "aunt", "sleeptalk": ["ますめしの升、10個足りないわ", "ラケットの充電、満タンにしといた", "明日の朝ご飯、早めに炊かないと"], "itch": ["あらやだ、{place}刺されてる。蚊帳の裾開いてたかしら", "{place}がかゆくてたまらない。子ども用の薬塗らなきゃ"]}, {"role": "grandma", "sleeptalk": ["盆の棚、屋根酢ば供えとくれ", "その話は明日、みんなでかざみるべえ", "座布団、あと3枚出してきとくれ"], "itch": ["{place}がぷっくりしとる。大広間は広すぎて防げんね", "あらら、{place}ば食われたかい。痒くて目が覚めたわい"]}, {"role": "cousin_m", "sleeptalk": ["県道7号、工事で渋滞してたな", "ぬる〜い自販機でジュース買うか", "明日のヨコデン、混むかな……"], "itch": ["うわ、{place}めっちゃかゆい。畳のすき間にいたのか", "{place}腫れすぎて熱持ってる。薬どこ置いたっけ"]}, {"role": "cousin_f", "sleeptalk": ["親戚多すぎて全然落ち着かない", "扇風機の首振り、こっち来ない", "部屋の隅でなんか飛んでる音する"], "itch": ["起きてたのに{place}刺されたの？最悪なんだけど", "{place}が赤くなって目立つ。明日長袖着なきゃダメかな"]}, {"role": "kid1", "sleeptalk": ["ねじ餅、もっとほどきたい", "花火、明日もやろうよ……", "カブトムシ、逃げちゃった"], "itch": ["ママ、{place}がかゆい！かいちゃダメって言われても無理", "{place}がぽっこりしてる。すっごくかゆいよー"]}, {"role": "kid2", "sleeptalk": ["スイカの種、飛ばしたよ", "テレビのチャンネル、変えないで", "おばあちゃん、お腹すいた……"], "itch": ["うぇーん、{place}がかゆくて痛いよー", "{place}赤くなってる。かゆみ止めのシール貼って"]}, {"role": "grandpa_far", "sleeptalk": ["下川原から車でひとまたぎじゃった", "この家は、風見間が広うて涼しい", "夜は仕事もほどけて、ぬるいもんじゃ"], "itch": ["ふうむ、{place}をやられたか。大勢おると蚊も寄るわい", "{place}がじくじく痒いわい。古い蚊取りは煙いだけかの"]}]}], "tips": ["扇風機の風の中に入ると流される。首振りの向きを見て近づく", "蚊取り線香の煙がある場所は、体力が減り続けます。", "ことづけ窓の隙間から外へ出れば脱出完了です。", "目のマークが2つ赤くなったら、一度離れて落ち着くのを待つ", "血を吸いすぎると体が重くなり、飛ぶ速度が落ちます。", "5時になる前に、ことづけ窓から出る。吸った血はそれで持ち帰りになる", "蚊帳の中へは、赤い輪のすき間からしか入れない", "起きている人は警戒度が高い。テレビや作業に夢中な隙を狙おう。", "ラケットを持つ人の叩き判定は広い。振り下ろされる前に離れよう。", "換気扇や扇風機の強い風の筋に巻き込まれると姿勢を崩してしまう。", "蚊取り線香の煙に近づきすぎると体力が削られるので迂回しよう。", "浴衣や短パンで肌が出ている部位を探し、5:00までに窓へ向かおう。"], "results": {"clear": ["ことづけ窓の隙間から外に出た。", "網戸の端をくぐって、外に出た。", "開いていた窓から外に出た。"], "out": ["手のひらで叩かれた。", "寝ぼけた手が、たまたま当たった。", "起きた人に、両手で挟まれた。"], "dawn": ["5時になって、部屋の明かりがついた。", "新聞配達のバイクの音がして、人が起きた。"]}}/*TEXT_END*/;
 
 // ============ 数値（単位は cm・秒） ============
 const NIGHT_SEC = 240;                          // 23:00→5:00
@@ -256,8 +256,9 @@ function makePerson(o){
     {name:'腕',   local:V(mid.x, mid.y+3.8, mid.z), r:10, rate:.09, risk:.6, onArm:true},
     {name:'首',   local:V(0, 21.4, -64), r:7, rate:.14, risk:1.3},
   ].map(s=>Object.assign(s, {person:P, pos:W(s.local), r:s.r*Math.max(.8,o.s)}));
+  if(o.noBite) P.skin = [];
   P.head = W(V(0, 22, -82));
-  P.alert = 0; P.anim = 0; P.talkT = rnd(8, 20);
+  P.alert = o.awake ? 1.5 : 0; P.anim = 0; P.talkT = rnd(8, 20);
 
   // --- 掛け布団（体の形に沿わせ、息で上下する）
   const KX0 = a<0 ? -26 : -54, KX1 = a<0 ? 54 : 26, KZ0 = -44, KZ1 = o.kakeEnd;
@@ -296,8 +297,9 @@ function makeRoom(R){
   const room = new THREE.Mesh(new THREE.BoxGeometry(R.w, R.h, R.d), [wallMat, wallMat, ceil, std({color:0x222}), wallMat, wallMat]);
   room.material.forEach(m=>m.side=THREE.BackSide); room.position.y = R.h/2; room.receiveShadow = true; root.add(room);
   const tm = std({map:T.tatami, roughness:.9});
-  for(let ix=0; ix<Math.round(R.w/90); ix++) for(let iz=0; iz<2; iz++){
-    const t = add(new THREE.Mesh(new THREE.PlaneGeometry(90, Math.min(180, R.d/2)), tm), -R.w/2+45+ix*90, .05, -R.d/4 + iz*R.d/2); t.rotation.x = -Math.PI/2; }
+  const nx = Math.max(1, Math.round(R.w/90)), nz = Math.max(2, Math.round(R.d/180)), tw = R.w/nx, td = R.d/nz;
+  for(let ix=0; ix<nx; ix++) for(let iz=0; iz<nz; iz++){
+    const t = add(new THREE.Mesh(new THREE.PlaneGeometry(tw, td), tm), -R.w/2+tw/2+ix*tw, .05, -R.d/2+td/2+iz*td); t.rotation.x = -Math.PI/2; }
   const wm = R.trim || M.wood;
   if(R.pillars) for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(11, R.h, 11, wm, x*(R.w/2-5.5), R.h/2, z*(R.d/2-5.5));
   for(const s of [-1,1]){ if(R.pillars){ box(R.w, 9, 4, wm, 0, R.h-60, s*(R.d/2-2)); box(4, 9, R.d, wm, s*(R.w/2-2), R.h-60, 0); }
@@ -318,7 +320,7 @@ function makeWindow(Wn){
   // 窓の場所がわかる弱い光
   const glow = add(new THREE.Mesh(new THREE.RingGeometry(Wn.w*.62, Wn.w*.7, 32), new THREE.MeshBasicMaterial({color:0x7fc4ff, transparent:true, opacity:.18, depthWrite:false})), Wn.x, Wn.y, Wn.z-3); glow.rotation.y = Math.PI;
   const moon = new THREE.DirectionalLight(0x9fb4e0, .9); moon.position.set(Wn.x, 260, Wn.z+380); moon.target.position.set(Wn.x+60, 0, 0);
-  moon.castShadow = true; moon.shadow.mapSize.set(MOBILE?512:1024, MOBILE?512:1024); Object.assign(moon.shadow.camera, {left:-220,right:220,top:220,bottom:-220,near:50,far:900}); root.add(moon, moon.target);
+  moon.castShadow = true; moon.shadow.mapSize.set(MOBILE?512:1024, MOBILE?512:1024); Object.assign(moon.shadow.camera, {left:-380,right:380,top:380,bottom:-380,near:50,far:1100}); root.add(moon, moon.target);
 }
 function makeTansu(x, z, ry=0){ const t = new THREE.Group(); t.position.set(x, 0, z); t.rotation.y = ry; root.add(t);
   box(70, 90, 42, M.kiri, 0, 45, 0, t);
@@ -341,12 +343,41 @@ function makeFan(o){ const fan = new THREE.Group(); fan.position.set(o.x, 0, o.z
   add(new THREE.Mesh(new THREE.SphereGeometry(19, 20, 10, 0, Math.PI*2, 0, Math.PI*.3), guard), 0, 0, 10, head).rotation.x = -Math.PI/2;
   const blades = new THREE.Group(); blades.position.z = 2; head.add(blades);
   for(let i=0;i<3;i++){ const b=add(new THREE.Mesh(new THREE.CircleGeometry(15, 12, 0, 1.0), std({color:0x8fc0d8, transparent:true, opacity:.65, side:THREE.DoubleSide})), 0, 0, 0, blades); b.rotation.z = i*Math.PI*2/3;}
-  return {fan, blades, on:o.on, base:o.dir, swing:o.swing, x:o.x, z:o.z, y:76, phi:o.dir}; }
+  return {fan, blades, on:o.on, base:o.dir, swing:o.swing, x:o.x, z:o.z, y:76, phi:o.dir, power:150, reach:280}; }
 // 蚊取り線香：火がついていれば煙を出す
 function makeCoil(o){ const c = add(new THREE.Mesh(new THREE.TorusGeometry(5, .45, 6, 60), mat(0x3a5a2a)), o.x, 2.2, o.z); c.rotation.x = Math.PI/2;
   add(new THREE.Mesh(new THREE.CylinderGeometry(8, 7, 1.5, 24), std({color:0x6a7070, metalness:.6, roughness:.5})), o.x, .75, o.z);
   if(o.lit) add(new THREE.Mesh(new THREE.SphereGeometry(.7, 8, 6), new THREE.MeshBasicMaterial({color:0xff5a20})), o.x+5, 2.6, o.z);
   return {x:o.x+5, z:o.z, lit:o.lit}; }
+// 蚊帳：網の箱。gaps のすき間からだけ出入りできる
+function makeKaya(o){ const k = {x0:o.x-o.w/2, x1:o.x+o.w/2, z0:o.z-o.d/2, z1:o.z+o.d/2, h:o.h, gaps:o.gaps||[]};
+  const net = std({color:0x6f8a6a, map:T.screen, transparent:true, opacity:.55, alphaTest:.05, side:THREE.DoubleSide, depthWrite:false, roughness:1});
+  const top = add(new THREE.Mesh(new THREE.PlaneGeometry(o.w, o.d), net), o.x, o.h, o.z); top.rotation.x = Math.PI/2; top.castShadow = false;
+  const sides = {n:[o.w, o.x, o.z-o.d/2, 0], s:[o.w, o.x, o.z+o.d/2, 0], w:[o.d, o.x-o.w/2, o.z, Math.PI/2], e:[o.d, o.x+o.w/2, o.z, Math.PI/2]};
+  for(const [side,[len,x,z,r]] of Object.entries(sides)){
+    const m = add(new THREE.Mesh(new THREE.PlaneGeometry(len, o.h), net), x, o.h/2, z); m.rotation.y = r; m.castShadow = false;
+    for(const g of k.gaps.filter(g=>g.side===side)){ // すき間はめくれた布の影で見せる
+      const c = add(new THREE.Mesh(new THREE.PlaneGeometry(g.width, g.y1-g.y0), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:.55, side:THREE.DoubleSide, depthWrite:false})),
+        r ? x : x + g.at, (g.y0+g.y1)/2, r ? z + g.at : z); c.rotation.y = r; c.position.addScaledVector(r ? V(1,0,0) : V(0,0,1), side==='n'||side==='w' ? -.6 : .6);
+      const rim = add(new THREE.Mesh(new THREE.TorusGeometry(Math.min(g.width, g.y1-g.y0)/2, .6, 4, 24), std({color:0xb04030})), c.position.x, c.position.y, c.position.z); rim.rotation.y = r; rim.scale.set(g.width/Math.min(g.width,g.y1-g.y0), (g.y1-g.y0)/Math.min(g.width,g.y1-g.y0), 1);
+    }}
+  for(const [px,pz] of [[k.x0,k.z0],[k.x1,k.z0],[k.x0,k.z1],[k.x1,k.z1]]) add(new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,o.h+30,4), mat(0xd8d0b8)), px, (o.h+30)/2, pz);
+  kayas.push(k); return k; }
+function makeTV(x, z, ry=0){ const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
+  box(90, 40, 40, M.kiri, 0, 20, 0, g); rbox(80, 48, 8, 2, std({color:0x1a1a1a, roughness:.4}), 0, 66, 0, g);
+  const scr = std({color:0x000000, emissive:0x8fb8ff, emissiveIntensity:1.2}); add(new THREE.Mesh(new THREE.PlaneGeometry(72, 41), scr), 0, 66, 4.1, g);
+  const l = new THREE.PointLight(0x9ac0ff, 1.6, 420, 1.1); l.position.set(0, 66, 30); g.add(l);
+  flickers.push({light:l, mat:scr, base:1.6, kind:'tv'}); }
+function makeLamp(x, y, z){ add(new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 2, 16), M.metal), x, y+1, z);
+  add(new THREE.Mesh(new THREE.CylinderGeometry(.7,.7,34,6), M.metal), x, y+18, z);
+  add(new THREE.Mesh(new THREE.ConeGeometry(9, 12, 20, 1, true), std({color:0x2e5a3a, side:THREE.DoubleSide})), x+6, y+34, z).rotation.z = -.6;
+  add(new THREE.Mesh(new THREE.SphereGeometry(2.4, 10, 8), new THREE.MeshBasicMaterial({color:0xfff2c0})), x+8, y+30, z);
+  const l = new THREE.PointLight(0xffe0a0, 1.8, 300, 1.1); l.position.set(x+10, y+26, z); root.add(l); flickers.push({light:l, base:1.8, kind:'lamp'}); }
+function makeVent(x, y, z, dir){ const v = add(new THREE.Mesh(new THREE.BoxGeometry(34, 34, 6), M.white), x, y, z); v.rotation.y = dir;
+  const blades = new THREE.Group(); blades.position.set(x, y, z); blades.rotation.y = dir; root.add(blades);
+  const bh = new THREE.Group(); bh.position.z = 3.5; blades.add(bh);
+  for(let i=0;i<4;i++){ const b = add(new THREE.Mesh(new THREE.BoxGeometry(26, 6, .6), mat(0x9a9a92)), 0, 0, 0, bh); b.rotation.z = i*Math.PI/4; }
+  const f = {fan:{rotation:{y:0}}, blades:bh, on:true, base:dir, swing:0, x, z, y, phi:dir, power:260, reach:340, vent:true}; fans.push(f); return f; }
 function makeRandoseru(x, z){ const r = rbox(24, 30, 18, 4, std({color:0x1d1d22, roughness:.45}), x, 15, z); r.rotation.y = .3;
   rbox(22, 18, 4, 3, std({color:0x24242a, roughness:.4}), x+1.3, 20, z+9); }
 function makeChabudai(x, z){ add(new THREE.Mesh(new THREE.CylinderGeometry(40, 40, 3, 40), M.kiri), x, 30, z); for(const [a,b] of [[-1,-1],[1,-1],[-1,1],[1,1]]) box(3, 28, 3, M.wood, x+a*22, 14, z+b*22); }
@@ -404,8 +435,13 @@ const swatSkin = std({color:0xd4a184, roughness:.62});
 add(new THREE.Mesh(new RoundedBoxGeometry(16, 4, 18, 3, 1.8), swatSkin), 0, 0, 0, swatHand);
 for(let i=0;i<4;i++) add(new THREE.Mesh(new THREE.CapsuleGeometry(1.6, 9, 4, 8), swatSkin), -5.4+i*3.6, 0, -14, swatHand).rotation.x = Math.PI/2;
 add(new THREE.Mesh(new THREE.CapsuleGeometry(1.8, 7, 4, 8), swatSkin), 10, 0, -2, swatHand).rotation.set(Math.PI/2, 0, -.9);
+// 電撃ラケット
+const racket = new THREE.Group(); racket.visible = false; swatHand.add(racket);
+add(new THREE.Mesh(new THREE.TorusGeometry(24, 1.4, 6, 32), std({color:0x2a6ad0, roughness:.4})), 0, 0, 0, racket).rotation.x = Math.PI/2;
+add(new THREE.Mesh(new THREE.CircleGeometry(23, 24), std({map:T.screen, transparent:true, alphaTest:.1, side:THREE.DoubleSide, color:0xc0c8d0})), 0, 0, 0, racket).rotation.x = -Math.PI/2;
+add(new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.2, 30, 8), std({color:0x2a6ad0})), 0, 0, 38, racket).rotation.x = Math.PI/2;
 // 煙（粒）
-const SMOKE_N = 70;
+const SMOKE_N = 120;
 const smokeGeo = new THREE.BufferGeometry(); smokeGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(SMOKE_N*3), 3));
 const smoke = new THREE.Points(smokeGeo, new THREE.PointsMaterial({map:T.smoke, size:22, transparent:true, depthWrite:false, sizeAttenuation:true}));
 smoke.frustumCulled = false; scene.add(smoke);
@@ -447,22 +483,26 @@ document.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
 const axis = (a,b)=>(key[a]?1:0)-(key[b]?1:0);
 
 // ============ 面の組み立て ============
-let S, people, skins, fan, coil, WIN, hemi, rings = [];
+let S, people, skins, fans = [], coils = [], kayas = [], flickers = [], WIN, hemi, rings = [];
 function loadStage(i){
   if(root !== scene) scene.remove(root);
   root = new THREE.Group(); scene.add(root);
   S = STAGES[i]; WIN = S.win;
   hemi = new THREE.HemisphereLight(S.hemi[0], 0x1a1410, S.hemi[1]); root.add(hemi);
   makeRoom(S.room); makeWindow(S.win);
-  fan = null; coil = null;
+  fans = []; coils = []; kayas = []; flickers = [];
   people = S.people.map(o=>{ makeFuton(o.x, o.z, o.s); return makePerson(o); });
-  S.build();   // 中で作った扇風機と線香は fan / coil に入る
+  S.build();   // 中で作った扇風機・線香・蚊帳は fans / coils / kayas に入る
   skins = people.flatMap(p=>p.skin);
   rings = skins.map(s=>{const m=new THREE.Mesh(new THREE.RingGeometry(s.r-1.2, s.r, 24), ringMat()); m.rotation.x=-Math.PI/2; m.position.copy(s.pos).add(V(0,.3,0)); m.renderOrder=5; root.add(m); return m;});
   // 人の欄
   document.getElementById('people').innerHTML = people.map((p,k)=>`<div class="p"><span>${p.o.label}</span><span class="e" id="e${k}">○○○○</span></div>`).join('') + `<div id="state" style="color:var(--dim)"></div>`;
 }
 const _makeFan = makeFan, _makeCoil = makeCoil;
+// ステージ3〜10は src/stages.js（コンテンツ担当）。この道具箱を渡す
+function loadExtStages(m){ const K = {THREE, V, MOBILE, T, tex, woodTex, speckTex, kasuri, stripe, dots, std, mat, M, add, box, rbox,
+  makeTansu, makeAndon, makeRandoseru, makeChabudai, makeClock, makeFan, makeCoil, makeKaya, makeTV, makeLamp, makeVent};
+  const ext = m.default(K).filter(s=>s.id>2).sort((a,b)=>a.id-b.id); STAGES.push(...ext); }
 
 // ============ 別ファイルの部品（音・エフェクト・タイトル）。読めなくてもゲームは動く ============
 let AU = null, FX = null, TITLE = null;
@@ -470,6 +510,7 @@ const modsReady = Promise.all([
   import('./src/audio.js').then(m=>{ AU = m.createAudio(); }).catch(e=>console.warn('audio', e)),
   import('./src/fx.js').then(m=>{ FX = m.createFX(THREE, scene, {mobile:MOBILE}); }).catch(e=>console.warn('fx', e)),
   import('./src/title.js').then(m=>{ TITLE = m; }).catch(e=>console.warn('title', e)),
+  import('./src/stages.js').then(loadExtStages).catch(e=>{ console.warn('stages', e); fatal('ステージ3以降を読めませんでした: '+e.message); }),
 ]);
 addEventListener('pointerdown', ()=>AU?.unlock(), {capture:true});
 function fxStage(){ FX?.setStage({roomW:S.room.w, roomH:S.room.h, roomD:S.room.d, windowPos:V(WIN.x, WIN.y, WIN.z), windowSize:{w:WIN.w, h:WIN.h}, moonDir:V(.25,-.55,-1).normalize()}); }
@@ -485,7 +526,7 @@ function reset(i){
   G = {stage:i, t:0, pos:V(WIN.x, WIN.y, WIN.z-12), vel:V(), yaw:0, blood:0, hp:1, landed:null, swat:null, cooldown:0, state:'play',
        bites:0, bitten:new Map(), roll:0, pitch:0, noise:0, wind:V(), tut:0, smokeT:0};
   for(const p of sp){ p.life = 0; p.p.set(0,-999,0); }
-  fxStage();
+  fxStage(); AU?.setStageMood?.(S.id);
   cam.position.copy(G.pos).add(V(0,5,-14));
   const st = TEXT.stages.find(s=>s.id===S.id);
   toast(st && st.intro ? st.intro : `${S.name}　23:00　${S.temp}`, 4);
@@ -541,19 +582,19 @@ function step(dt){
 
   // 扇風機の風
   G.wind.set(0,0,0);
-  if(fan && fan.on){
-    fan.phi = fan.base + Math.sin(G.t*.45)*fan.swing;
-    const d = tmp2.set(Math.sin(fan.phi), 0, Math.cos(fan.phi));
+  for(const fan of fans){ if(!fan.on) continue;
+    fan.phi = fan.base + Math.sin(G.t*.45 + fan.x*.01)*fan.swing;
+    const d = V(Math.sin(fan.phi), 0, Math.cos(fan.phi));
     const windAt = (p, out)=>{ const rel = tmp.set(p.x-fan.x, p.y-fan.y, p.z-fan.z); const along = rel.dot(d);
-      if(along<=0 || along>280) return out; const lat = rel.addScaledVector(d, -along).length(), spread = 16+along*.32;
-      if(lat<spread) out.addScaledVector(d, 150*(1-along/280)*(1-lat/spread)); return out; };
+      if(along<=0 || along>fan.reach) return out; const lat = rel.addScaledVector(d, -along).length(), spread = 16+along*(fan.vent?.18:.32);
+      if(lat<spread) out.addScaledVector(d, fan.power*(1-along/fan.reach)*(1-lat/spread)); return out; };
     windAt(G.pos, G.wind);
-    // 煙も流す
-    for(const s of sp) if(s.life>0){ const w = windAt(s.p, V()); s.v.addScaledVector(w, dt*.6); }
+    for(const s of sp) if(s.life>0){ const w = windAt(s.p, V()); s.v.addScaledVector(w, dt*.6); }   // 煙も流す
   }
   // 蚊取り線香の煙
-  if(coil && coil.lit){
-    G.smokeT -= dt; if(G.smokeT<=0){ G.smokeT = .12; const s = sp.find(q=>q.life<=0); if(s){ s.life = 9; s.p.set(coil.x, 4, coil.z); s.v.set(rnd(-1.5,1.5), rnd(6,9), rnd(-1.5,1.5)); } }
+  const lit = coils.filter(c=>c.lit);
+  if(lit.length){
+    G.smokeT -= dt; if(G.smokeT<=0){ G.smokeT = .12/lit.length; const c = lit[Math.floor(Math.random()*lit.length)]; const s = sp.find(q=>q.life<=0); if(s){ s.life = 9; s.p.set(c.x, 4, c.z); s.v.set(rnd(-1.5,1.5), rnd(6,9), rnd(-1.5,1.5)); } }
   }
   let inSmoke = 0;
   for(const s of sp){ if(s.life<=0) continue; s.life -= dt; s.v.multiplyScalar(1 - .25*dt); s.v.y = Math.max(s.v.y, 3);
@@ -583,7 +624,9 @@ function step(dt){
     if(glide){ G.vel.y -= 60*dt; G.vel.x *= 1-0.4*dt; G.vel.z *= 1-0.4*dt; }
     else G.vel.lerp(target, 1 - Math.exp(-4.5*heavy*dt));
     G.vel.addScaledVector(G.wind, dt*1.8);
+    const prev = tmp2.copy(G.pos);
     G.pos.addScaledVector(G.vel, dt);
+    for(const k of kayas) kayaBlock(k, prev, G.pos, G.vel);
     const R = S.room, m=2;
     G.pos.x = Math.max(-R.w/2+m, Math.min(R.w/2-m, G.pos.x));
     G.pos.y = Math.max(1.5, Math.min(R.h-m, G.pos.y));
@@ -613,7 +656,8 @@ function step(dt){
     const dHead = G.pos.distanceTo(p.head);
     const near = Math.max(0, 1 - dHead/(70*p.o.hear));
     p.alert += noise*near*near*1.4*p.o.hear*dt;
-    p.alert = Math.max(0, p.alert - 0.12*dt);
+    p.alert = Math.max(p.o.awake ? 1.5 : 0, p.alert - 0.12*dt);
+    if(p.o.noBite && p.alert >= 3) for(const q of people) if(q!==p) q.alert += .5*dt;   // 赤ちゃんがぐずると親が起きる
     G.noise = Math.max(G.noise, noise*(0.4+0.6*near));
     // 寝言
     p.talkT -= dt;
@@ -622,12 +666,12 @@ function step(dt){
   }
   // 叩く（警戒4の人がいれば）
   G.cooldown -= dt;
-  if(!G.swat && G.cooldown <= 0){ const p = people.find(q=>q.alert>=4); if(p){ G.swat = {t:0, at:G.pos.clone(), p, delay:p.o.swatDelay}; buzz([40,40,40]); AU?.swatWarn(); } }
+  if(!G.swat && G.cooldown <= 0){ const p = people.find(q=>q.alert>=4 && !q.o.noBite); if(p){ G.swat = {t:0, at:G.pos.clone(), p, delay:p.o.swatDelay, r:p.o.swatR||SWAT_R}; buzz([40,40,40]); AU?.swatWarn(); } }
   if(G.swat){
     G.swat.t += dt;
     if(G.swat.t >= G.swat.delay){
       const flat = Math.hypot(G.pos.x-G.swat.at.x, G.pos.z-G.swat.at.z);
-      if(flat < SWAT_R && Math.abs(G.pos.y-G.swat.at.y) < 30){ buzz(200); AU?.slap(); FX?.burst('slap', G.pos); return end('out'); }
+      if(flat < G.swat.r && Math.abs(G.pos.y-G.swat.at.y) < 30){ buzz(200); AU?.slap(); FX?.burst('slap', G.pos); return end('out'); }
       AU?.miss(); FX?.burst('miss', G.swat.at);
       G.swat.p.alert = 2.6; G.swat = null; G.cooldown = 2.5;
     }
@@ -643,6 +687,21 @@ function step(dt){
   }
 }
 
+function inKaya(k, p){ return p.x>k.x0 && p.x<k.x1 && p.z>k.z0 && p.z<k.z1 && p.y<k.h; }
+function kayaBlock(k, a, b, vel){
+  const ia = inKaya(k, a), ib = inKaya(k, b); if(ia===ib) return;
+  const o = ia ? b : a;   // 外側の点から、どの面を通ったか
+  let side = null, along = 0;
+  if(o.y >= k.h) side = 'top';
+  else if(o.z <= k.z0){ side='n'; along = b.x - (k.x0+k.x1)/2; }
+  else if(o.z >= k.z1){ side='s'; along = b.x - (k.x0+k.x1)/2; }
+  else if(o.x <= k.x0){ side='w'; along = b.z - (k.z0+k.z1)/2; }
+  else if(o.x >= k.x1){ side='e'; along = b.z - (k.z0+k.z1)/2; }
+  const ok = k.gaps.some(g=>g.side===side && Math.abs(along-g.at) < g.width/2 && b.y>g.y0 && b.y<g.y1);
+  if(ok) return;
+  b.copy(a); vel.multiplyScalar(-.3);
+  if(!G.kayaWarned){ G.kayaWarned = true; toast('蚊帳。赤い輪のすき間からしか入れない'); }
+}
 function end(kind){
   G.state = 'end'; const mg = Math.round(G.blood*5*100)/100;
   const R = TEXT.results || {};
@@ -686,12 +745,13 @@ function render(now, dt){
     p.anim += ((lv>=1?1:0) - p.anim)*Math.min(1, dt*2);
     p.parts.head.rotation.y = Math.sin(tt*.7+p.o.x)*.03 + p.anim*.22*(p.o.arm);
     const lift = lv>=3 ? .35 : 0; p.parts.head.rotation.x += (-lift - p.parts.head.rotation.x)*Math.min(1, dt*3);
-    p.lids.forEach(l=>l.visible = lv<3); p.eyes.forEach(e=>e.visible = lv>=3);
+    const open = lv>=3 || p.o.awake; p.lids.forEach(l=>l.visible = !open); p.eyes.forEach(e=>e.visible = open);
     const sc = lv>=2 ? Math.sin(tt*14)*.08 + .1 : 0;   // かいている
     p.parts.arm.rotation.y += (sc*p.o.arm - p.parts.arm.rotation.y)*Math.min(1, dt*8);
     p.parts.arm.rotation.z += ((lv>=2? .12*p.o.arm : 0) - p.parts.arm.rotation.z)*Math.min(1, dt*4);
   }
-  if(fan){ fan.fan.rotation.y = fan.phi; if(fan.on) fan.blades.rotation.z -= dt*28; }
+  for(const fan of fans){ if(!fan.vent) fan.fan.rotation.y = fan.phi; if(fan.on) fan.blades.rotation.z -= dt*28; }
+  for(const f of flickers){ const n = f.kind==='tv' ? .55 + .45*Math.abs(Math.sin(tt*7.3)*Math.sin(tt*2.1+1)) : 1; f.light.intensity = f.base*n; if(f.mat) f.mat.emissiveIntensity = 1.2*n; }
   const sa = smokeGeo.attributes.position; sp.forEach((s,i)=>sa.setXYZ(i, s.p.x, s.p.y, s.p.z)); sa.needsUpdate = true;
   // 蚊
   mos.position.copy(G.pos);
@@ -713,7 +773,7 @@ function render(now, dt){
   if(G.swat){
     const k = Math.min(1, G.swat.t/G.swat.delay);
     shadow.position.set(G.swat.at.x, Math.max(0.3, G.swat.at.y-12), G.swat.at.z);
-    shadow.material.opacity = 0.25 + 0.45*k;
+    shadow.material.opacity = 0.25 + 0.45*k; shadow.scale.setScalar(G.swat.r/SWAT_R); racket.visible = G.swat.r > SWAT_R; swatHand.children.forEach(c=>c.visible = !racket.visible);
     swatHand.visible = true; swatHand.position.set(G.swat.at.x, G.swat.at.y + 70*(1-k*k) + 6, G.swat.at.z);
   } else { shadow.material.opacity = 0; swatHand.visible = false; }
   rings.forEach((m,i)=>{ const s = skins[i]; m.material.opacity = G.landed===s ? .9 : (G.nearSkin===s ? .75 : .4); });
@@ -737,7 +797,7 @@ function render(now, dt){
   const playing = G.state==='play';
   let nearest = 0; for(const p of people) nearest = Math.max(nearest, 1 - Math.min(1, G.pos.distanceTo(p.head)/120));
   AU?.update({playing, speed01:Math.min(1, G.vel.length()/MAX_SPD), near01:nearest, landed:!!G.landed, sucking:!!(G.landed && (btnSuck||key.Space)),
-    glide:btnGlide||!!key.ShiftLeft, fanOn:!!(fan&&fan.on), fanNear01: fan ? Math.max(0, 1 - Math.hypot(G.pos.x-fan.x, G.pos.z-fan.z)/250) : 0,
+    glide:btnGlide||!!key.ShiftLeft, fanOn:fans.some(f=>f.on), fanNear01: fans.reduce((m,f)=>Math.max(m, f.on ? 1 - Math.hypot(G.pos.x-f.x, G.pos.z-f.z)/250 : 0), 0),
     alertMax:worst, blood01:G.blood, hp01:G.hp});
   FX?.update(dt, {camera:cam, mosPos:G.pos, mosVel:G.vel, landed:!!G.landed, sucking:!!(G.landed && (btnSuck||key.Space)), blood01:G.blood,
     swat: G.swat ? {at:G.swat.at, k:Math.min(1, G.swat.t/G.swat.delay)} : null, alertMax:worst, time:tt});
@@ -749,13 +809,13 @@ function loop(now){
   step(dt); render(now, dt); requestAnimationFrame(loop);
 }
 // 扇風機と線香を build から受け取る
-makeFan = (o)=>{ const f = _makeFan(o); fan = f; return f; };
-makeCoil = (o)=>{ const c = _makeCoil(o); coil = c; return c; };
+makeFan = (o)=>{ const f = _makeFan(o); fans.push(f); return f; };
+makeCoil = (o)=>{ const c = _makeCoil(o); coils.push(c); return c; };
 function onResize(){ renderer.setSize(innerWidth, innerHeight); cam.aspect=innerWidth/innerHeight; cam.fov = cam.aspect<1 ? 82 : 70; cam.updateProjectionMatrix(); }
 addEventListener('resize', onResize); onResize();
 reset(0); G.state = 'title'; title();
 requestAnimationFrame(loop);
-window.__G = ()=>G; window.__people = ()=>people; window.__reset = reset; // 確認用
+window.__G = ()=>G; window.__people = ()=>people; window.__reset = reset; window.__tick = (n=1)=>{ for(let i=0;i<n;i++) step(1/60); }; // 確認用
 </script>
 </body>
 </html>

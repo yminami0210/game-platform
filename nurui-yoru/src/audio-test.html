@@ -6,7 +6,7 @@
 <h1>ぬるい夜 音のテスト</h1>
 <p>state: <span id="st">-</span> / 作成ノード数: <span id="nc">0</span></p>
 <div id="btns"><button id="unlock">unlock</button><button id="mute">mute切替</button></div>
-<div id="sl"></div>
+<label>stage <input id="stg" type="range" min="1" max="10" step="1" value="1"></label><p>bpm: <span id="bpm">-</span> / active: <span id="act">-</span></p><div id="sl"></div>
 <script type="module">
 // ノード作成数を数える（unlock 前に仕込む）
 window.__nodes = 0;
@@ -35,7 +35,9 @@ for (const k of Object.keys(s)) {
   else { i.type = 'range'; i.min = 0; i.max = k === 'alertMax' ? 4 : 1; i.step = k === 'alertMax' ? 1 : 0.01; i.value = s[k]; i.oninput = () => s[k] = +i.value; }
   l.append(k + ' ', i); sl.append(l);
 }
+document.getElementById('stg').oninput = (e) => A.setStageMood(+e.target.value);
 function loop() {
+  if (A.context) { document.getElementById('bpm').textContent = A.stats.bpm.toFixed(1); document.getElementById('act').textContent = A.stats.active; }
   A.update(s);
   document.getElementById('st').textContent = A.context ? A.context.state : '-';
   document.getElementById('nc').textContent = window.__nodes;
