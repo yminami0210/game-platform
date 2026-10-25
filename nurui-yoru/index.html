@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>ぬるい夜</title>
+<style>
+:root{--ink:#e9e4d4;--dim:#9a9a8c;--warn:#e8a33a;--bad:#e2553f;--ok:#7fc4a0;--bg:#0c1220}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic",system-ui,sans-serif;touch-action:none}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:13px}
+.box{background:rgba(8,12,20,.55);border:1px solid rgba(233,228,212,.18);border-radius:6px;padding:6px 9px;line-height:1.5;font-variant-numeric:tabular-nums}
+.box b{font-weight:600}
+.bar{width:110px;height:7px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden;margin-top:2px}
+.bar i{display:block;height:100%;width:0;background:var(--ok)}
+#eyes{font-size:15px;letter-spacing:2px}
+#att{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 8px);transform:translateX(-50%)}
+#msg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;font-size:15px;pointer-events:auto;max-width:min(92vw,520px)}
+#msg h1{font-size:40px;margin:0 0 6px;letter-spacing:.12em;font-weight:600}
+#msg p{margin:4px 0;color:var(--dim);line-height:1.7}
+#msg button{margin-top:14px;font:inherit;font-size:17px;padding:10px 28px;border-radius:24px;border:1px solid var(--ink);background:transparent;color:var(--ink)}
+.btn{position:absolute;pointer-events:auto;width:76px;height:76px;border-radius:50%;border:2px solid rgba(233,228,212,.5);background:rgba(8,12,20,.4);color:var(--ink);font-size:15px;display:flex;align-items:center;justify-content:center}
+.btn.on{background:rgba(226,85,63,.45)}
+#suck{right:calc(env(safe-area-inset-right) + 24px);bottom:170px}
+#glide{left:calc(env(safe-area-inset-left) + 24px);bottom:170px;width:62px;height:62px;font-size:13px}
+.stick{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid rgba(233,228,212,.25);display:none}
+.stick i{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px;border-radius:50%;background:rgba(233,228,212,.35)}
+#hint{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 8px);left:0;right:0;text-align:center;font-size:12px;color:var(--dim)}
+#ring{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="top">
+    <div class="box">
+      <div><b id="clock">23:00</b></div>
+      <div>高さ <span id="alt">0</span>cm　速さ <span id="spd">0</span>cm/s</div>
+      <div>血 <div class="bar"><i id="blood"></i></div></div>
+      <div>羽音 <div class="bar"><i id="noise"></i></div></div>
+    </div>
+    <canvas id="att" width="120" height="120"></canvas>
+    <div class="box" style="text-align:right">
+      <div>おじいさん</div>
+      <div id="eyes">○○○○</div>
+      <div id="state" style="color:var(--dim)">寝ている</div>
+    </div>
+  </div>
+  <div id="glide" class="btn">滑空</div>
+  <div id="suck" class="btn">吸う</div>
+  <div class="stick" id="stL"><i></i></div>
+  <div class="stick" id="stR"><i></i></div>
+  <div id="hint">左：上昇下降・向き　右：前後・横　｜　キーボード：W/S 上下・A/D 向き・矢印 前後横・Space 吸う・Shift 滑空</div>
+  <div id="msg"></div>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ---- 数値（単位は cm・秒） ----
+const ROOM = {w: 360, h: 240, d: 400};          // 6畳くらい
+const NIGHT_SEC = 240;                          // 23:00→5:00
+const MAX_SPD = 90, MAX_UP = 55, YAW_RATE = 2.2;
+const LAND_SPD = 28;                            // これより速いと着陸できない
+const SWAT_DELAY = 0.6, SWAT_R = 15;
+const SKIN = [ // 刺せる場所：量と危険
+  {name:'足首', pos:[ 18, 14, 95], r:9,  rate:0.06, risk:0.35},
+  {name:'腕',   pos:[-34, 22, -10], r:11, rate:0.09, risk:0.6},
+  {name:'首',   pos:[  0, 20, -60], r:8,  rate:0.14, risk:1.3},
+];
+const HEAD = new THREE.Vector3(0, 22, -78);
+
+// ---- 描画 ----
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c1220);
+scene.fog = new THREE.Fog(0x0c1220, 120, 620);
+const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.5, 2000);
+
+scene.add(new THREE.HemisphereLight(0x5a6c9a, 0x1a1410, 0.7));
+const moon = new THREE.DirectionalLight(0x9fb4e0, 0.6); moon.position.set(-200, 300, 300); scene.add(moon);
+const lamp = new THREE.PointLight(0xffb060, 1.4, 400, 1.2); lamp.position.set(140, 40, -150); scene.add(lamp);
+
+const mat = c => new THREE.MeshLambertMaterial({color:c});
+function box(w,h,d,c,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));m.position.set(x,y,z);scene.add(m);return m;}
+// 部屋
+const room = new THREE.Mesh(new THREE.BoxGeometry(ROOM.w, ROOM.h, ROOM.d), [mat(0x3a3a32),mat(0x3a3a32),mat(0x2e2c28),mat(0x6b6448),mat(0x403c33),mat(0x403c33)]);
+room.material.forEach(m=>m.side=THREE.BackSide); room.position.y = ROOM.h/2; scene.add(room);
+for(let i=-1;i<=1;i++) box(1, 0.3, ROOM.d, 0x4a4330, i*90, 0.2, 0); // 畳のへり
+// 布団と人
+box(100, 8, 210, 0xd9d2c0, 0, 4, 0);
+box(96, 6, 120, 0x6d88a8, 0, 12, 30);                 // かけ布団（胴から下）
+box(42, 10, 26, 0xe8e0cc, 0, 12, -88);                // 枕
+const skinMat = mat(0xd8a888);
+const head = new THREE.Mesh(new THREE.SphereGeometry(13, 16, 12), skinMat); head.position.copy(HEAD); scene.add(head);
+const body = box(50, 16, 70, 0x8aa0b8, 0, 14, -30);    // ゆかた
+const arm = new THREE.Mesh(new THREE.CapsuleGeometry(5, 50, 4, 8), skinMat); arm.rotation.x = Math.PI/2; arm.position.set(-34, 17, -15); scene.add(arm);
+const leg = new THREE.Mesh(new THREE.CapsuleGeometry(5, 30, 4, 8), skinMat); leg.rotation.x = Math.PI/2; leg.position.set(18, 11, 100); scene.add(leg);
+const skinDots = SKIN.map(s=>{const m=new THREE.Mesh(new THREE.RingGeometry(s.r-1.2, s.r, 24), new THREE.MeshBasicMaterial({color:0xe8a33a,transparent:true,opacity:.45,side:THREE.DoubleSide})); m.rotation.x=-Math.PI/2; m.position.set(s.pos[0], s.pos[1]+0.3, s.pos[2]); scene.add(m); return m;});
+// 家具・明かり
+box(60, 60, 40, 0x5a4630, 140, 30, -160);              // たんす
+const lampShade = new THREE.Mesh(new THREE.CylinderGeometry(10, 14, 18, 16), new THREE.MeshBasicMaterial({color:0xffc070})); lampShade.position.copy(lamp.position); scene.add(lampShade);
+// ことづけ窓（出入口）：南の壁
+const WIN = {x:-120, y:110, z:ROOM.d/2, w:44, h:30};
+const winGlow = new THREE.Mesh(new THREE.PlaneGeometry(WIN.w, WIN.h), new THREE.MeshBasicMaterial({color:0x2c4a78}));
+winGlow.position.set(WIN.x, WIN.y, WIN.z-0.5); winGlow.rotation.y = Math.PI; scene.add(winGlow);
+box(WIN.w+6, 3, 4, 0x6b5638, WIN.x, WIN.y-WIN.h/2-1.5, WIN.z-2);
+box(WIN.w+6, 3, 4, 0x6b5638, WIN.x, WIN.y+WIN.h/2+1.5, WIN.z-2);
+
+// 蚊
+const mos = new THREE.Group();
+const mBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.4, 4, 8), mat(0x2a2620)); mBody.rotation.x = Math.PI/2; mos.add(mBody);
+const wingMat = new THREE.MeshBasicMaterial({color:0xcfd8e8,transparent:true,opacity:.35,side:THREE.DoubleSide});
+const wL = new THREE.Mesh(new THREE.PlaneGeometry(1.8, .6), wingMat), wR = wL.clone(); wL.position.x = -1; wR.position.x = 1; mos.add(wL, wR);
+const belly = new THREE.Mesh(new THREE.SphereGeometry(.45, 10, 8), mat(0x8a1a14)); belly.position.z = .9; mos.add(belly);
+scene.add(mos);
+// 叩く手と影
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(SWAT_R, 28), new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,depthWrite:false}));
+shadow.rotation.x = -Math.PI/2; scene.add(shadow);
+const hand = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 24), skinMat); hand.visible = false; scene.add(hand);
+
+// ---- 入力 ----
+const key = {};
+addEventListener('keydown', e=>{key[e.code]=true; if(e.code==='Space') e.preventDefault();});
+addEventListener('keyup', e=>key[e.code]=false);
+const sticks = {L:{id:null,x:0,y:0,el:document.getElementById('stL')}, R:{id:null,x:0,y:0,el:document.getElementById('stR')}};
+let btnSuck=false, btnGlide=false;
+function bindBtn(id, set){const el=document.getElementById(id);
+  el.addEventListener('pointerdown',e=>{e.stopPropagation();set(true);el.classList.add('on');});
+  for(const t of ['pointerup','pointercancel','pointerleave']) el.addEventListener(t,()=>{set(false);el.classList.remove('on');});}
+bindBtn('suck', v=>btnSuck=v); bindBtn('glide', v=>btnGlide=v);
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', e=>{
+  const s = e.clientX < innerWidth/2 ? sticks.L : sticks.R; if(s.id!==null) return;
+  s.id=e.pointerId; s.ox=e.clientX; s.oy=e.clientY; s.x=s.y=0;
+  s.el.style.display='block'; s.el.style.left=(e.clientX-55)+'px'; s.el.style.top=(e.clientY-55)+'px'; s.el.firstElementChild.style.transform='';
+});
+addEventListener('pointermove', e=>{for(const s of Object.values(sticks)) if(s.id===e.pointerId){
+  let dx=(e.clientX-s.ox)/50, dy=(e.clientY-s.oy)/50; const l=Math.hypot(dx,dy); if(l>1){dx/=l;dy/=l;}
+  s.x=dx; s.y=-dy; s.el.firstElementChild.style.transform=`translate(${dx*33}px,${-s.y*33}px)`;}});
+const up = e=>{for(const s of Object.values(sticks)) if(s.id===e.pointerId){s.id=null;s.x=s.y=0;s.el.style.display='none';}};
+addEventListener('pointerup', up); addEventListener('pointercancel', up);
+const axis = (a,b)=>(key[a]?1:0)-(key[b]?1:0);
+
+// ---- 状態 ----
+let G;
+function reset(){
+  G = {t:0, pos:new THREE.Vector3(WIN.x, WIN.y, WIN.z-12), vel:new THREE.Vector3(), yaw:0, blood:0, alert:0,
+       landed:null, swat:null, cooldown:0, state:'play', bites:0, roll:0, pitch:0};
+}
+const ui = id=>document.getElementById(id);
+const msg = ui('msg');
+function show(html, label, fn){msg.innerHTML = html + (label?`<br><button>${label}</button>`:''); msg.style.display='block';
+  if(label) msg.querySelector('button').onclick=()=>{msg.style.display='none'; fn();};}
+reset(); G.state='title';
+show(`<h1>ぬるい夜</h1><p>夏の夜、あなたは1匹の蚊。<br>ことづけ窓から入って血を吸い、夜明けまでに窓から出る。</p><p>オレンジの輪が刺せる場所。ゆっくり着陸して「吸う」を長押し。<br>手の影が落ちたら、すぐ影の外へ。</p>`, 'はじめる', ()=>{reset();});
+
+function alertLevel(a){return Math.min(4, Math.floor(a));}
+const STATE_TXT = ['寝ている','寝返り','かゆい','起きた','叩く！'];
+
+// ---- 1コマ ----
+const fwd = new THREE.Vector3(), right = new THREE.Vector3(), tmp = new THREE.Vector3();
+let last = performance.now();
+function step(dt){
+  if(G.state!=='play') return;
+  G.t += dt;
+  const ly = sticks.L.y + axis('KeyW','KeyS'), lx = sticks.L.x + axis('KeyD','KeyA');
+  const ry = sticks.R.y + axis('ArrowUp','ArrowDown'), rx = sticks.R.x + axis('ArrowRight','ArrowLeft');
+  const suck = btnSuck || key.Space, glide = btnGlide || key.ShiftLeft || key.ShiftRight;
+  const clamp = v=>Math.max(-1, Math.min(1, v));
+  const heavy = 1 - 0.35*G.blood;
+
+  let noise = 0;
+  if(G.landed){
+    // 着陸中：スティックを倒すと飛び立つ
+    if(Math.abs(ly)+Math.abs(ry)+Math.abs(rx) > 0.3){ // 飛び立つ：倒した向きにはじく
+      G.landed=null; G.noLand=0.6; fwd.set(-Math.sin(G.yaw),0,-Math.cos(G.yaw)); right.set(Math.cos(G.yaw),0,-Math.sin(G.yaw));
+      G.vel.copy(fwd).multiplyScalar(ry*60).addScaledVector(right, rx*60); G.vel.y = 25 + Math.max(0,ly)*40; }
+    else if(suck){
+      const s = G.landed; G.blood = Math.min(1, G.blood + s.rate*dt);
+      G.alert += s.risk*dt*(0.6 + G.blood);
+    }
+  }
+  if(!G.landed){
+    G.yaw -= clamp(lx)*YAW_RATE*dt;
+    fwd.set(-Math.sin(G.yaw), 0, -Math.cos(G.yaw)); right.set(Math.cos(G.yaw), 0, -Math.sin(G.yaw));
+    const target = tmp.copy(fwd).multiplyScalar(clamp(ry)*MAX_SPD*heavy).addScaledVector(right, clamp(rx)*MAX_SPD*0.7*heavy);
+    target.y = clamp(ly)*MAX_UP*heavy - G.blood*12;  // 重いと沈む
+    if(glide){ G.vel.y -= 60*dt; G.vel.x *= 1-0.4*dt; G.vel.z *= 1-0.4*dt; }
+    else G.vel.lerp(target, 1 - Math.exp(-4.5*heavy*dt));  // 慣性
+    G.pos.addScaledVector(G.vel, dt);
+    // 壁と床
+    const m=2;
+    G.pos.x = Math.max(-ROOM.w/2+m, Math.min(ROOM.w/2-m, G.pos.x));
+    G.pos.y = Math.max(1.5, Math.min(ROOM.h-m, G.pos.y));
+    G.pos.z = Math.max(-ROOM.d/2+m, Math.min(ROOM.d/2-m, G.pos.z));
+    if(G.pos.y<=1.5 && G.vel.y<0) G.vel.y=0;
+    const spd = G.vel.length();
+    noise = glide ? 0 : 0.25 + 0.75*spd/MAX_SPD;
+    // 着陸判定
+    G.noLand = (G.noLand||0) - dt;
+    if(G.noLand <= 0) for(const s of SKIN){
+      const d = tmp.set(...s.pos).sub(G.pos);
+      if(d.length() < s.r && Math.abs(d.y) < 4){
+        if(spd < LAND_SPD){ G.landed = s; G.vel.set(0,0,0); G.pos.set(G.pos.x, s.pos[1]+1, G.pos.z); G.bites++; G.lastBite = s.name; }
+        else { G.vel.multiplyScalar(-0.6); G.alert += 0.6; G.noLand = 0.4; } // 跳ねる
+        break;
+      }
+    }
+    // 窓から出る
+    if(G.pos.z > WIN.z-4 && Math.abs(G.pos.x-WIN.x) < WIN.w/2 && Math.abs(G.pos.y-WIN.y) < WIN.h/2 && G.t > 3){
+      return end(G.blood>0.02 ? 'clear' : 'empty');
+    }
+  }
+  // 羽音が耳もとで聞こえる
+  const dHead = G.pos.distanceTo(HEAD);
+  const near = Math.max(0, 1 - dHead/70);
+  G.alert += noise*near*near*1.4*dt;
+  G.alert = Math.max(0, G.alert - 0.12*dt);
+  G.noise = noise*(0.4+0.6*near);
+
+  // 叩く
+  G.cooldown -= dt;
+  if(!G.swat && G.alert >= 4 && G.cooldown <= 0){
+    G.swat = {t:0, at:G.pos.clone()};
+  }
+  if(G.swat){
+    G.swat.t += dt;
+    if(G.swat.t >= SWAT_DELAY){
+      const flat = Math.hypot(G.pos.x-G.swat.at.x, G.pos.z-G.swat.at.z);
+      if(flat < SWAT_R && Math.abs(G.pos.y-G.swat.at.y) < 30) return end('out');
+      G.swat = null; G.alert = 2.6; G.cooldown = 2.5;
+    }
+  }
+  if(G.t >= NIGHT_SEC) end('dawn');
+}
+
+function end(kind){
+  G.state = 'end'; const ml = Math.round(G.blood*5*100)/100;
+  const T = {
+    clear:[`ほどけた`, `窓から出た。持ち帰った血 ${ml} mg（刺した回数 ${G.bites}）`, `朝、おじいさんは「なんか${G.lastBite||'足首'}がかゆい」と言った。`],
+    empty:[`素通り`, `何も吸わずに出てしまった。`, ``],
+    out:[`OUT`, `ぱちん。叩かれた。`, `吸った血は ${ml} mg だった。`],
+    dawn:[`夜明け`, `窓から出られないまま朝になった。`, `電気がついた。`],
+  }[kind];
+  show(`<h1>${T[0]}</h1><p>${T[1]}</p><p>${T[2]}</p>`, 'もうひと晩', reset);
+}
+
+// ---- 画面 ----
+const att = ui('att').getContext('2d');
+function drawAtt(roll, pitch){
+  const c = att, R = 56; c.clearRect(0,0,120,120); c.save(); c.translate(60,60);
+  c.beginPath(); c.arc(0,0,R,0,Math.PI*2); c.clip();
+  c.rotate(roll); c.fillStyle='#2c4a78'; c.fillRect(-80,-80,160,80+pitch); c.fillStyle='#5a4630'; c.fillRect(-80,pitch,160,80);
+  c.strokeStyle='#e9e4d4'; c.lineWidth=1; for(let i=-2;i<=2;i++){ if(!i) continue; c.beginPath(); c.moveTo(-12,pitch+i*12); c.lineTo(12,pitch+i*12); c.stroke(); }
+  c.restore(); c.strokeStyle='#e8a33a'; c.lineWidth=3; c.beginPath(); c.moveTo(30,60); c.lineTo(50,60); c.moveTo(70,60); c.lineTo(90,60); c.stroke();
+  c.strokeStyle='rgba(233,228,212,.5)'; c.lineWidth=2; c.beginPath(); c.arc(60,60,R,0,Math.PI*2); c.stroke();
+}
+function render(){
+  // 蚊
+  mos.position.copy(G.pos);
+  const lv = tmp.copy(G.vel).applyAxisAngle(new THREE.Vector3(0,1,0), -G.yaw);
+  G.roll += ((-lv.x/MAX_SPD)*0.6 - G.roll)*0.15; G.pitch += ((lv.z/MAX_SPD)*0.4 - G.pitch)*0.15;
+  mos.rotation.set(G.pitch, G.yaw, G.roll, 'YXZ');
+  const flap = G.landed ? 0 : Math.sin(performance.now()*0.09)*0.7;
+  wL.rotation.z = flap; wR.rotation.z = -flap;
+  belly.scale.setScalar(0.6 + G.blood*1.4);
+  // カメラ：後ろ上から
+  const back = new THREE.Vector3(Math.sin(G.yaw), 0, Math.cos(G.yaw));
+  const want = G.pos.clone().addScaledVector(back, 14).add(new THREE.Vector3(0, 5, 0));
+  want.x = Math.max(-ROOM.w/2+3, Math.min(ROOM.w/2-3, want.x)); want.z = Math.max(-ROOM.d/2+3, Math.min(ROOM.d/2-3, want.z));
+  want.y = Math.max(2, Math.min(ROOM.h-3, want.y));
+  cam.position.lerp(want, 0.2); cam.lookAt(G.pos.x, G.pos.y+1, G.pos.z);
+  // 影と手
+  if(G.swat){
+    const k = G.swat.t/SWAT_DELAY;
+    shadow.position.set(G.swat.at.x, Math.max(0.3, G.swat.at.y-12), G.swat.at.z);
+    shadow.material.opacity = 0.25 + 0.45*k;
+    hand.visible = true; hand.position.set(G.swat.at.x, G.swat.at.y + 70*(1-k) + 6, G.swat.at.z);
+  } else { shadow.material.opacity = 0; hand.visible = false; }
+  skinDots.forEach((m,i)=>m.material.opacity = G.landed===SKIN[i] ? .9 : .45);
+  // 計器
+  const mins = Math.floor(G.t/NIGHT_SEC*360); const hh = (23 + Math.floor(mins/60))%24, mm = mins%60;
+  ui('clock').textContent = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}` + (G.landed ? `　${G.landed.name}にとまっている` : '');
+  ui('alt').textContent = Math.round(G.pos.y);
+  ui('spd').textContent = Math.round(G.vel.length());
+  ui('blood').style.width = (G.blood*100)+'%'; ui('blood').style.background = G.blood>.75 ? 'var(--bad)' : 'var(--ok)';
+  ui('noise').style.width = ((G.noise||0)*100)+'%'; ui('noise').style.background = (G.noise||0)>.6 ? 'var(--warn)' : 'var(--ok)';
+  const lvA = alertLevel(G.alert);
+  ui('eyes').textContent = '●'.repeat(lvA) + '○'.repeat(4-lvA);
+  ui('eyes').style.color = lvA>=3 ? 'var(--bad)' : lvA>=2 ? 'var(--warn)' : 'var(--ink)';
+  ui('state').textContent = G.swat ? '叩く！' : STATE_TXT[lvA];
+  drawAtt(-G.roll*1.5, G.vel.y*0.5);
+  renderer.render(scene, cam);
+}
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  step(dt); render(); requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+addEventListener('resize', ()=>{renderer.setSize(innerWidth, innerHeight); cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix();});
+window.__G = ()=>G; // 確認用
+</script>
+</body>
+</html>
