@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>タイトル確認</title><style>html,body{margin:0;height:100%;background:#0c1220}#t{position:absolute;inset:0}</style></head>
+<body><div id="t"></div>
+<script type="module">
+import { mountTitle } from './title.js';
+mountTitle(document.getElementById('t'), {
+  stages:[{id:1,name:'中ノ町の一軒家',short:'一軒家',best:2.75,note:'練習。おじいさん1人'},{id:2,name:'下川原の団地',short:'団地',best:null,note:'家族4人。扇風機と蚊取り線香'}],
+  tip:'扇風機の首が向こうを向いた隙に通る。',
+  onStart:i=>console.log('start',i)
+});
+</script></body></html>

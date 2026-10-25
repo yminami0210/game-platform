@@ -37,7 +37,7 @@ canvas{display:block;touch-action:none}
 .btn.ready{border-color:var(--warn);box-shadow:0 0 0 4px rgba(232,163,58,.25)}
 #suck{right:calc(var(--sr) + var(--st) + 30px);bottom:calc(var(--sb) + 18px)}
 #glide{left:calc(var(--sl) + var(--st) + 30px);bottom:calc(var(--sb) + 18px);width:calc(var(--btn)*.8);height:calc(var(--btn)*.8);font-size:13px}
-#pause{right:calc(var(--sr) + 8px);top:auto;bottom:auto;position:absolute;pointer-events:auto}
+#pause{right:calc(var(--sr) + 8px);top:calc(var(--stp) + 50%);transform:translateY(-50%);width:44px;height:44px;font-size:13px}
 .stick{position:absolute;bottom:calc(var(--sb) + 14px);width:var(--st);height:var(--st);border-radius:50%;border:2px solid rgba(235,229,211,.22);background:rgba(8,12,20,.22)}
 .stick i{position:absolute;left:50%;top:50%;width:42%;height:42%;transform:translate(-50%,-50%);border-radius:50%;background:rgba(235,229,211,.38)}
 .stick b{position:absolute;left:0;right:0;bottom:calc(100% + 2px);text-align:center;font-size:10px;font-weight:400;color:var(--dim)}
@@ -70,6 +70,7 @@ canvas{display:block;touch-action:none}
   <div class="stick" id="stR"><b>前後・横</b><i></i></div>
   <div id="glide" class="btn">滑空</div>
   <div id="suck" class="btn">吸う</div>
+  <div id="pause" class="btn" aria-label="一時停止">II</div>
   <div id="flash"></div>
   <div id="msg"></div>
 </div>
@@ -88,14 +89,19 @@ const MAX_SPD = 90, MAX_UP = 55, YAW_RATE = 2.2;
 const LAND_SPD = 28;
 const SWAT_R = 15;
 const MOBILE = matchMedia('(pointer:coarse)').matches;
+// 画面に出すエラー（スマホで原因を見るため）
+function fatal(t){ let el=document.getElementById('err'); if(!el){ el=document.createElement('div'); el.id='err'; el.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#300;color:#fdd;font:12px monospace;padding:8px;border-radius:6px;white-space:pre-wrap;pointer-events:auto'; document.body.appendChild(el);} el.textContent += t+'\n'; }
+addEventListener('error', e=>fatal('エラー: '+e.message+' @'+(e.lineno||''))); addEventListener('unhandledrejection', e=>fatal('エラー: '+(e.reason&&e.reason.message||e.reason)));
 
 // ============ 描画の土台 ============
-const renderer = new THREE.WebGLRenderer({antialias:!MOBILE, powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.5 : 2));
+const renderer = new THREE.WebGLRenderer({antialias:!MOBILE, powerPreference:'high-performance', precision:'highp'})   // cm 単位で距離が大きいので、精度の低いGPUで光があふれないように;
+renderer.setPixelRatio(Math.min(devicePixelRatio, MOBILE ? 1.25 : 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = !MOBILE;   // スマホは影なし（重さと白飛び対策） renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
 document.body.prepend(renderer.domElement);
+renderer.domElement.addEventListener('webglcontextlost', e=>{ e.preventDefault(); fatal('描画が止まりました（メモリ不足）。再読み込みしてください'); });
+renderer.domElement.style.background = '#0c1220';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0c1220);
 const cam = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.4, 2000);
@@ -160,7 +166,7 @@ function makePerson(o){
   const P = {o, g, skin, parts:{}};
 
   // --- 頭：頂点を動かして頭蓋・あご・頬を作り、頂点色で髪と肌を塗る
-  const hg = new THREE.SphereGeometry(1, 48, 36); const hp = hg.attributes.position; const col = [];
+  const hg = new THREE.SphereGeometry(1, MOBILE?32:48, MOBILE?24:36); const hp = hg.attributes.position; const col = [];
   const hair = new THREE.Color(o.hair), sk = new THREE.Color(SKIN_TONES[o.age]), cheek = sk.clone().lerp(new THREE.Color(0xd07a6a), .25);
   for(let i=0;i<hp.count;i++){ let x=hp.getX(i), y=hp.getY(i), z=hp.getZ(i);  // y=顔の向き、z=あご(+)／頭頂(-)
     let sx = 8.2, sy = 9.6, sz = 11.2;
@@ -349,13 +355,13 @@ function makeClock(x, y, z){ const c = add(new THREE.Mesh(new THREE.CylinderGeom
 
 // ============ 面（ステージ） ============
 const STAGES = [
-  { id:1, name:'中ノ町の一軒家', short:'一軒家', temp:'25℃',
+  { id:1, name:'中ノ町の一軒家', short:'一軒家', temp:'25℃', note:'練習。おじいさん1人',
     room:{w:360, h:240, d:400, wallTex:T.plaster, ceilTex:woodTex('#7a6040','50,35,15',1,6), pillars:true},
     win:{x:-120, y:110, z:200, w:44, h:30}, hemi:[0x46587e, .55],
     people:[{key:'grandpa', label:'おじいさん', x:0, z:0, s:1, age:'old', hair:0xb8b4ac, brow:0xc8c4bc, bald:true, cloth:stripe('#d8dde0','#3d5470'), kake:kasuri('#2f4a6e','rgba(230,230,220,.75)'), yukata:true, arm:-1, foot:1, kakeEnd:88, swatDelay:.75, hear:1}],
     build(){ makeTansu(140, -175); makeAndon(140, -150); makeFan({x:-140, z:-150, dir:.7, swing:0, on:false}); makeCoil({x:60, z:120, lit:false});
       const u = add(new THREE.Mesh(new THREE.CircleGeometry(11, 24), std({color:0xe8e0c8, side:THREE.DoubleSide})), 70, 10.2, -60); u.rotation.x = -Math.PI/2; box(1.4, .8, 14, 0xa08050, 70, 10.2, -46); }},
-  { id:2, name:'下川原の団地', short:'団地', temp:'27℃',
+  { id:2, name:'下川原の団地', short:'団地', temp:'27℃', note:'家族4人。扇風機と蚊取り線香',
     room:{w:360, h:230, d:400, wallTex:T.cloth, trim:std({color:0x8a7a62, roughness:.8}), pillars:false, nightLight:true},
     win:{x:120, y:105, z:200, w:40, h:28}, hemi:[0x40507a, .45],
     people:[
@@ -418,6 +424,7 @@ function bindBtn(id, set){const el=document.getElementById(id);
   el.addEventListener('pointerdown',e=>{e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); set(true); el.classList.add('on');});
   for(const t of ['pointerup','pointercancel','lostpointercapture']) el.addEventListener(t,()=>{set(false);el.classList.remove('on');});}
 bindBtn('suck', v=>btnSuck=v); bindBtn('glide', v=>btnGlide=v);
+document.getElementById('pause').addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); togglePause(); });
 // スティック：画面の左半分／右半分どこを触っても、その場所が中心になる。離すと定位置に戻る
 const hud = document.getElementById('hud');
 function stickStart(e){
@@ -457,6 +464,16 @@ function loadStage(i){
 }
 const _makeFan = makeFan, _makeCoil = makeCoil;
 
+// ============ 別ファイルの部品（音・エフェクト・タイトル）。読めなくてもゲームは動く ============
+let AU = null, FX = null, TITLE = null;
+const modsReady = Promise.all([
+  import('./src/audio.js').then(m=>{ AU = m.createAudio(); }).catch(e=>console.warn('audio', e)),
+  import('./src/fx.js').then(m=>{ FX = m.createFX(THREE, scene, {mobile:MOBILE}); }).catch(e=>console.warn('fx', e)),
+  import('./src/title.js').then(m=>{ TITLE = m; }).catch(e=>console.warn('title', e)),
+]);
+addEventListener('pointerdown', ()=>AU?.unlock(), {capture:true});
+function fxStage(){ FX?.setStage({roomW:S.room.w, roomH:S.room.h, roomD:S.room.d, windowPos:V(WIN.x, WIN.y, WIN.z), windowSize:{w:WIN.w, h:WIN.h}, moonDir:V(.25,-.55,-1).normalize()}); }
+
 // ============ 状態 ============
 let G;
 const ui = id=>document.getElementById(id);
@@ -468,6 +485,7 @@ function reset(i){
   G = {stage:i, t:0, pos:V(WIN.x, WIN.y, WIN.z-12), vel:V(), yaw:0, blood:0, hp:1, landed:null, swat:null, cooldown:0, state:'play',
        bites:0, bitten:new Map(), roll:0, pitch:0, noise:0, wind:V(), tut:0, smokeT:0};
   for(const p of sp){ p.life = 0; p.p.set(0,-999,0); }
+  fxStage();
   cam.position.copy(G.pos).add(V(0,5,-14));
   const st = TEXT.stages.find(s=>s.id===S.id);
   toast(st && st.intro ? st.intro : `${S.name}　23:00　${S.temp}`, 4);
@@ -478,15 +496,27 @@ function show(html, buttons){
   msg.querySelectorAll('button').forEach(el=>el.onclick=()=>{ msg.style.display='none'; buttons[el.dataset.k][1](); });
 }
 function stageButtons(){ return STAGES.map((s,k)=>[`${s.id}. ${s.short}`, ()=>{ goFull(); reset(k); }, best[s.id] ? `最高 ${best[s.id]} mg` : '']); }
-function goFull(){ if(!MOBILE) return; try{ const d=document.documentElement; (d.requestFullscreen||d.webkitRequestFullscreen)?.call(d).catch?.(()=>{}); screen.orientation?.lock?.('landscape').catch(()=>{}); }catch(e){} }
+function goFull(){ if(!MOBILE || window.top !== window) return;   // アーティファクトの中（iframe）では全画面にしない。白くなる端末がある
+ try{ const d=document.documentElement; (d.requestFullscreen||d.webkitRequestFullscreen)?.call(d).catch?.(()=>{}); screen.orientation?.lock?.('landscape').catch(()=>{}); }catch(e){} }
 let toastT = 0;
 function toast(t, sec=2.5){ const el = ui('toast'); el.textContent = t; el.style.opacity = 1; toastT = sec; }
 let talkT = 0;
 function talk(t, sec=3){ const el = ui('talk'); el.textContent = t; el.style.opacity = 1; talkT = sec; }
-function togglePause(){ if(!G) return; if(G.state==='play'){ G.state='pause'; show('<h1>一時停止</h1>', [['つづける', ()=>G.state='play'], ['面をえらぶ', title]]); } }
+function togglePauseBack(){ G.state='play'; togglePause(); }
+function togglePause(){ if(!G) return; if(G.state==='play'){ G.state='pause'; show('<h1>一時停止</h1>', [['つづける', ()=>G.state='play'], ['遊び方', ()=>howTo(togglePauseBack)], ['面をえらぶ', title]]); } }
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) togglePause(); });
-function title(){
+let titleEl = null;
+function overlay(){ titleEl?.remove(); titleEl = document.createElement('div'); titleEl.style.cssText = 'position:fixed;inset:0;z-index:20;pointer-events:auto'; document.body.appendChild(titleEl); return titleEl; }
+function closeOverlay(){ titleEl?.remove(); titleEl = null; }
+function howTo(after){ if(!TITLE) return after(); TITLE.mountHowTo(overlay(), {onClose:()=>{ closeOverlay(); after(); }}); }
+async function title(){
   if(G) G.state = 'title';
+  await modsReady;
+  if(TITLE){ msg.style.display = 'none';
+    const tip0 = TEXT.tips.length ? TEXT.tips[Math.floor(Math.random()*TEXT.tips.length)] : '';
+    TITLE.mountTitle(overlay(), {tip:tip0, stages:STAGES.map(s=>({id:s.id, name:s.name, short:s.short, best:best[s.id]||null, note:s.note})),
+      onStart:i=>{ closeOverlay(); AU?.unlock(); goFull(); reset(i); }});
+    return; }
   const tip = TEXT.tips.length ? TEXT.tips[Math.floor(Math.random()*TEXT.tips.length)] : '';
   show(`<h1>ぬるい夜</h1><p>夏の夜、あなたは1匹の蚊。ことづけ窓から入って血を吸い、夜明けまでに窓から出る。</p>
     <p>左の指で上下と向き、右の指で前後と横。オレンジの輪にゆっくり降りて「吸う」を長押し。手の影が落ちたら、すぐ影の外へ。</p>
@@ -567,12 +597,13 @@ function step(dt){
       const d = tmp.copy(s.pos).sub(G.pos);
       if(d.length() < s.r*2.2) G.nearSkin = s;
       if(d.length() < s.r && Math.abs(d.y) < 4){
-        if(spd < LAND_SPD){ G.landed = s; G.vel.set(0,0,0); G.pos.set(G.pos.x, s.pos.y+1, G.pos.z); G.bites++; buzz(12); }
-        else { G.vel.multiplyScalar(-0.6); s.person.alert += 0.6; G.noLand = 0.4; buzz(20); toast('速すぎて跳ねた。ゆっくり降りる'); }
+        if(spd < LAND_SPD){ G.landed = s; G.vel.set(0,0,0); G.pos.set(G.pos.x, s.pos.y+1, G.pos.z); G.bites++; buzz(12); AU?.land(); FX?.burst('land', G.pos); }
+        else { G.vel.multiplyScalar(-0.6); s.person.alert += 0.6; G.noLand = 0.4; buzz(20); AU?.bounce(); FX?.burst('bounce', G.pos); toast('速すぎて跳ねた。ゆっくり降りる'); }
         break;
       }
     }
     if(G.pos.z > WIN.z-4 && Math.abs(G.pos.x-WIN.x) < WIN.w/2 && Math.abs(G.pos.y-WIN.y) < WIN.h/2 && G.t > 3){
+      AU?.clear(); FX?.burst('clear', G.pos);
       return end(G.blood>0.02 ? 'clear' : 'empty');
     }
   }
@@ -587,16 +618,17 @@ function step(dt){
     // 寝言
     p.talkT -= dt;
     if(p.talkT <= 0){ p.talkT = rnd(14, 26); const st = TEXT.stages.find(s=>s.id===S.id); const pt = st && st.people && st.people.find(q=>q.role===p.o.key);
-      if(p.alert < 2 && pt && pt.sleeptalk && pt.sleeptalk.length) talk(`${p.o.label}「${pick(pt.sleeptalk)}」`); }
+      if(p.alert < 2 && pt && pt.sleeptalk && pt.sleeptalk.length){ talk(`${p.o.label}「${pick(pt.sleeptalk)}」`); AU?.sleepTalk(); } }
   }
   // 叩く（警戒4の人がいれば）
   G.cooldown -= dt;
-  if(!G.swat && G.cooldown <= 0){ const p = people.find(q=>q.alert>=4); if(p){ G.swat = {t:0, at:G.pos.clone(), p, delay:p.o.swatDelay}; buzz([40,40,40]); } }
+  if(!G.swat && G.cooldown <= 0){ const p = people.find(q=>q.alert>=4); if(p){ G.swat = {t:0, at:G.pos.clone(), p, delay:p.o.swatDelay}; buzz([40,40,40]); AU?.swatWarn(); } }
   if(G.swat){
     G.swat.t += dt;
     if(G.swat.t >= G.swat.delay){
       const flat = Math.hypot(G.pos.x-G.swat.at.x, G.pos.z-G.swat.at.z);
-      if(flat < SWAT_R && Math.abs(G.pos.y-G.swat.at.y) < 30){ buzz(200); return end('out'); }
+      if(flat < SWAT_R && Math.abs(G.pos.y-G.swat.at.y) < 30){ buzz(200); AU?.slap(); FX?.burst('slap', G.pos); return end('out'); }
+      AU?.miss(); FX?.burst('miss', G.swat.at);
       G.swat.p.alert = 2.6; G.swat = null; G.cooldown = 2.5;
     }
   }
@@ -702,6 +734,13 @@ function render(now, dt){
   drawAtt(-G.roll*1.5, G.vel.y*0.5);
   if(toastT>0){ toastT -= dt; if(toastT<=0) ui('toast').style.opacity = 0; }
   if(talkT>0){ talkT -= dt; if(talkT<=0) ui('talk').style.opacity = 0; }
+  const playing = G.state==='play';
+  let nearest = 0; for(const p of people) nearest = Math.max(nearest, 1 - Math.min(1, G.pos.distanceTo(p.head)/120));
+  AU?.update({playing, speed01:Math.min(1, G.vel.length()/MAX_SPD), near01:nearest, landed:!!G.landed, sucking:!!(G.landed && (btnSuck||key.Space)),
+    glide:btnGlide||!!key.ShiftLeft, fanOn:!!(fan&&fan.on), fanNear01: fan ? Math.max(0, 1 - Math.hypot(G.pos.x-fan.x, G.pos.z-fan.z)/250) : 0,
+    alertMax:worst, blood01:G.blood, hp01:G.hp});
+  FX?.update(dt, {camera:cam, mosPos:G.pos, mosVel:G.vel, landed:!!G.landed, sucking:!!(G.landed && (btnSuck||key.Space)), blood01:G.blood,
+    swat: G.swat ? {at:G.swat.at, k:Math.min(1, G.swat.t/G.swat.delay)} : null, alertMax:worst, time:tt});
   renderer.render(scene, cam);
 }
 let last = performance.now();

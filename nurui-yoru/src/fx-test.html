@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fx test</title>
+<style>body{margin:0;background:#000;overflow:hidden;font:12px sans-serif}#ui{position:fixed;left:8px;top:8px;display:flex;flex-wrap:wrap;gap:4px;max-width:96vw}button{padding:6px 8px}#info{position:fixed;left:8px;bottom:8px;color:#9ab;white-space:pre}</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+</head><body>
+<div id="ui"></div><div id="info"></div>
+<script type="module">
+import * as THREE from 'three';
+import { createFX } from './fx.js';
+const W = 360, H = 240, D = 400;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x05070d);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 3000);
+camera.position.set(0, 160, 330); camera.lookAt(0, 70, -60);
+scene.add(new THREE.AmbientLight(0x334466, 0.6));
+const moon = new THREE.DirectionalLight(0x99aadd, 1.2); moon.position.set(-1, 1, -2); scene.add(moon);
+const lamp = new THREE.PointLight(0xffaa66, 3000, 400); lamp.position.set(120, 40, 80); scene.add(lamp);
+const room = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), new THREE.MeshStandardMaterial({ color: 0x6b5a48, side: THREE.BackSide, roughness: 0.9 }));
+room.position.y = H / 2; scene.add(room);
+const winPos = new THREE.Vector3(-40, 140, -D / 2 + 1), winSize = { w: 110, h: 80 };
+const win = new THREE.Mesh(new THREE.PlaneGeometry(winSize.w, winSize.h), new THREE.MeshBasicMaterial({ color: 0x1a2a50 }));
+win.position.copy(winPos); scene.add(win);
+const futon = new THREE.Mesh(new THREE.BoxGeometry(120, 10, 200), new THREE.MeshStandardMaterial({ color: 0xc8c0b0 }));
+futon.position.set(30, 5, 20); scene.add(futon);
+const mos = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+scene.add(mos);
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(12, 32), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4 }));
+shadow.rotation.x = -Math.PI / 2; shadow.visible = false; scene.add(shadow);
+
+const fx = createFX(THREE, scene, { mobile: /Mobi/.test(navigator.userAgent) });
+const stageArgs = () => ({ roomW: W, roomH: H, roomD: D, windowPos: winPos, windowSize: winSize, moonDir: new THREE.Vector3(0.5, -0.6, 1).normalize() });
+fx.setStage(stageArgs());
+
+const st = { camera, mosPos: new THREE.Vector3(), mosVel: new THREE.Vector3(), landed: false, sucking: false, blood01: 0, swat: null, alertMax: 0, time: 0 };
+let swatT = -1;
+const btn = (l, f) => { const b = document.createElement('button'); b.textContent = l; b.onclick = f; ui.appendChild(b); };
+const at = () => new THREE.Vector3(30, 10.5, 20);
+['land', 'bounce', 'miss', 'slap', 'clear'].forEach((k) => btn(k, () => fx.burst(k, k === 'miss' || k === 'slap' ? at() : st.mosPos.clone())));
+btn('swat', () => { swatT = 0; });
+btn('suck', () => { st.sucking = !st.sucking; });
+btn('alert', () => { st.alertMax = (st.alertMax + 1) % 5; });
+btn('setStage x3', () => { for (let i = 0; i < 3; i++) fx.setStage(stageArgs()); });
+window.fx = fx; window.renderer = renderer; window.stageArgs = stageArgs;
+
+let last = performance.now(); const prev = new THREE.Vector3();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; st.time = now / 1000;
+  const t = st.time;
+  if (st.sucking) { st.mosPos.set(30, 11.5, 20); st.landed = true; st.blood01 = Math.min(1, st.blood01 + dt * 0.1); }
+  else { st.landed = false; st.mosPos.set(Math.sin(t * 0.9) * 110, 90 + Math.sin(t * 1.7) * 40, Math.cos(t * 0.6) * 120 - 40); }
+  st.mosVel.copy(st.mosPos).sub(prev).divideScalar(dt || 1 / 60); prev.copy(st.mosPos);
+  mos.position.copy(st.mosPos);
+  if (swatT >= 0) { swatT += dt; const k = Math.min(1, swatT / 1.2); st.swat = { at: at(), k }; shadow.visible = true; shadow.position.copy(at()); shadow.scale.setScalar(1.5 - k * 0.5);
+    if (k >= 1) { swatT = -1; st.swat = null; shadow.visible = false; fx.burst('slap', at()); } }
+  fx.update(dt, st);
+  renderer.render(scene, camera);
+  const m = renderer.info.memory; info.textContent = `geo ${m.geometries} tex ${m.textures} alert ${st.alertMax} suck ${st.sucking}`;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script></body></html>

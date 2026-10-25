@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>音のテスト</title>
+<style>body{font-family:sans-serif;background:#14161c;color:#ddd;padding:16px}button{margin:4px;padding:8px 12px}label{display:block;margin:6px 0}</style>
+</head><body>
+<h1>ぬるい夜 音のテスト</h1>
+<p>state: <span id="st">-</span> / 作成ノード数: <span id="nc">0</span></p>
+<div id="btns"><button id="unlock">unlock</button><button id="mute">mute切替</button></div>
+<div id="sl"></div>
+<script type="module">
+// ノード作成数を数える（unlock 前に仕込む）
+window.__nodes = 0;
+const AC = window.AudioContext || window.webkitAudioContext;
+for (const m of Object.getOwnPropertyNames(BaseAudioContext.prototype)) {
+  if (/^create(?!Buffer$|PeriodicWave)/.test(m) && typeof BaseAudioContext.prototype[m] === 'function') {
+    const orig = BaseAudioContext.prototype[m];
+    BaseAudioContext.prototype[m] = function (...a) { window.__nodes++; return orig.apply(this, a); };
+  }
+}
+import { createAudio } from './audio.js';
+const A = createAudio(); window.A = A;
+const s = { playing: true, speed01: 0.5, near01: 0.3, landed: false, sucking: false, glide: false, fanOn: false, fanNear01: 0.5, alertMax: 0, blood01: 0, hp01: 1 };
+window.S = s;
+let muted = false;
+document.getElementById('unlock').onclick = () => A.unlock();
+document.getElementById('mute').onclick = () => A.setMuted(muted = !muted);
+for (const k of ['land', 'bounce', 'swatWarn', 'miss', 'slap', 'clear', 'sleepTalk']) {
+  const b = document.createElement('button'); b.textContent = k; b.onclick = () => { A.unlock(); A[k](); };
+  document.getElementById('btns').append(b);
+}
+const sl = document.getElementById('sl');
+for (const k of Object.keys(s)) {
+  const l = document.createElement('label'); const i = document.createElement('input');
+  if (typeof s[k] === 'boolean') { i.type = 'checkbox'; i.checked = s[k]; i.onchange = () => s[k] = i.checked; }
+  else { i.type = 'range'; i.min = 0; i.max = k === 'alertMax' ? 4 : 1; i.step = k === 'alertMax' ? 1 : 0.01; i.value = s[k]; i.oninput = () => s[k] = +i.value; }
+  l.append(k + ' ', i); sl.append(l);
+}
+function loop() {
+  A.update(s);
+  document.getElementById('st').textContent = A.context ? A.context.state : '-';
+  document.getElementById('nc').textContent = window.__nodes;
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body></html>
