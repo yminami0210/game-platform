@@ -215,10 +215,10 @@
     // 低い点は自虐で誘い、高い点は素直に。どちらも中身には触れない
     const head = n === Q
       ? `『${STORY.title}』、二度目の答え合わせで ${Q}つ全部気づけた。`
-      : n <= 3
+      : n <= 2
         ? `『${STORY.title}』、二度目の答え合わせで ${Q}つ中 ${n}つしか気づけなかった。`
         : `『${STORY.title}』、二度目の答え合わせで ${Q}つのうち ${n}つ気づけた。`;
-    return `${head}七分で読めるので、一度目は何も調べずにどうぞ。 #${STORY.title}`;
+    return `${head}同じ文章が、二度目に違う意味になる。七分。一度目は何も調べずにどうぞ。 #${STORY.title}`;
   }
   function shareUrl() { return location.href.split("#")[0].split("?")[0]; }
   function xIntent() {
@@ -230,8 +230,9 @@
     st.phase = "end2";
     st.best = Math.max(st.best || 0, n);
     persist();
-    $("end2-found").innerHTML = `七つのうち、気づけたのは <strong>${n}</strong> つ。` +
-      (n < Q ? "<br>答え合わせに出なかった伏線も、まだ本文に残っています。" : "<br>答え合わせに出なかった伏線も、本文にはまだ残っています。");
+    $("end2-n").textContent = String(n);
+    $("end2-of").textContent = String(Q);
+    $("end2-found").textContent = "答え合わせに出なかった伏線も、本文にはまだ残っています。";
     $("share-preview").textContent = shareText();
     show("screen-end2");
   }

@@ -3,7 +3,7 @@
 //  - 冒頭3タップ以内に引き（「おかえり」）が出る
 //  - 一度目の本文量から読了時間を見積もり、答え合わせ込みで 5〜9 分に収まる
 //  - 途中保存→リロード→「つづきから」で同じ段落に戻る
-//  - 一度目→結末→答え合わせ7問（正誤を混ぜる）→終章→結果（n/7）→共有文にネタバレなし
+//  - 一度目→結末→答え合わせ5問（正誤を混ぜる）→終章→結果（n/5）→共有文にネタバレなし
 //  - OGP 画像が 1200x630、og/twitter メタが揃っている
 //  - ライト／ダーク両方、ページエラー 0
 import { createRequire } from "node:module";
@@ -44,7 +44,7 @@ const CPM = 450; // スマホで物語を読む速さ（字/分）の控えめ�
 const minutes = (readChars + quizChars) / CPM + S.quiz.length * 0.15 + S.scenes.length * 0.1;
 console.log(`[静的] 一度目 ${readChars}字 / 答え合わせ+終章 ${quizChars}字 → 見積り ${minutes.toFixed(1)}分`);
 assert(minutes >= 5 && minutes <= 9, "全体が7分前後（5〜9分）");
-assert(S.quiz.length === 7, "答え合わせは7問");
+assert(S.quiz.length === 5, "答え合わせは5問");
 const allText = S.scenes.flatMap((s) => s.paras).map(plain).join("\n");
 assert(S.quiz.every((q) => q.lines.every((l) => allText.includes(l))), "答え合わせの各行は本文と一字一句同じ");
 assert(S.scenes[0].paras.slice(0, 4).map(plain).join("").includes("おかえり"), "冒頭3タップ以内に引き");
@@ -105,9 +105,9 @@ for (const [label, scheme] of [["light", "light"], ["dark", "dark"]]) {
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(shots, `${label}-04-end1.png`) });
 
-  // 答え合わせ：偶数問は正解、奇数問は外す → 4/7
+  // 答え合わせ：偶数問は正解、奇数問は外す → 3/5
   await page.locator("#btn-second").click();
-  for (let q = 0; q < 7; q++) {
+  for (let q = 0; q < S.quiz.length; q++) {
     const ans = S.quiz[q].answer;
     const pick = q % 2 === 0 ? ans : (ans + 1) % 3;
     if (q === 0) { await page.waitForTimeout(900); await page.screenshot({ path: path.join(shots, `${label}-05-quiz.png`) }); }
@@ -125,10 +125,10 @@ for (const [label, scheme] of [["light", "light"], ["dark", "dark"]]) {
   await page.waitForTimeout(2600);
   await page.screenshot({ path: path.join(shots, `${label}-07-epilogue.png`) });
   await page.locator("#btn-next").click();
-  const res = await page.locator("#end2-found").innerText();
-  assert(/気づけたのは\s*4\s*つ/.test(res), "結果 4/7: " + res.split("\n")[0]);
+  const res = (await page.locator("#end2-h").innerText()).replace(/\s/g, "");
+  assert(res === "3/5", "結果 3/5: " + res);
   const href = await page.locator("#share-preview").innerText();
-  assert(href.includes("7つのうち 4つ") && !/お父さん|老人|認知|娘|父/.test(href), "共有文に数・ネタバレなし: " + href.slice(0, 40));
+  assert(href.includes("5つのうち 3つ") && href.includes("同じ文章が、二度目に違う意味になる") && !/お父さん|老人|認知|娘|父/.test(href), "共有文に数・ネタバレなし: " + href.slice(0, 40));
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(shots, `${label}-08-result.png`) });
 

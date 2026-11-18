@@ -105,6 +105,7 @@ button, a { font: inherit; color: inherit; }
 }
 .title-note {
   margin-top: 2.4rem;
+  line-height: 2;
   font-size: .72rem;
   color: var(--ink-faint);
   letter-spacing: .1em;
@@ -282,6 +283,9 @@ button, a { font: inherit; color: inherit; }
   letter-spacing: .4em;
   color: var(--accent);
 }
+.end-h-small { font-size: 1.3rem; letter-spacing: .12em; }
+.end-score { font-weight: 400; margin: 0; font-size: 4.6rem; line-height: 1; letter-spacing: .04em; color: var(--accent); }
+.end-score-of { font-size: .45em; color: var(--ink-soft); }
 .end-lead strong { font-weight: 400; color: var(--accent); font-size: 1.3em; }
 
 .theme-toggle {
