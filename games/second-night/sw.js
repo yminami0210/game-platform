@@ -1,6 +1,6 @@
 /* 二度目の夜 — オフライン用の最小 Service Worker（同一オリジンの静的ファイルのみ） */
-const CACHE = "second-night-v1";
-const FILES = ["./", "index.html", "style.css", "story.js", "app.js", "manifest.webmanifest", "icon.svg"];
+const CACHE = "second-night-v2";
+const FILES = ["./", "index.html", "style.css", "story.js", "app.js", "manifest.webmanifest", "icon.svg", "og.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

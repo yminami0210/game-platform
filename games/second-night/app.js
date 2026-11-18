@@ -2,209 +2,241 @@
   "use strict";
 
   const STORY = window.STORY;
-  const KEY = "second-night:v1";
+  const KEY = "second-night:v2";
   const THEME_KEY = "second-night:theme";
-  const SHARE_TEXT = "『二度目の夜』を読んだ。一度目で閉じないでほしい。二度目、同じ文章がまるで違って見える。 #二度目の夜";
+  const Q = STORY.quiz.length;
 
-  /* ---------- 保存（失敗しても動く） ---------- */
-  const store = {
-    load() {
-      try { return Object.assign({ clearedFirst: false, found: [] }, JSON.parse(localStorage.getItem(KEY) || "{}")); }
-      catch (_) { return { clearedFirst: false, found: [] }; }
-    },
-    save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) { /* noop */ } }
-  };
-  let save = store.load();
-  const found = new Set(save.found);
-
-  /* ---------- 本文パース ---------- */
-  const HINT_RE = /\[\[([\s\S]+?)\|([\s\S]+?)\]\]/g;
-  const hints = {};          // id -> { text, note }
-  let hintTotal = 0;
-
-  // 段落ごとにトークン化しておく（伏線IDは場面内の出現順で固定）
-  const scenes = STORY.scenes.map((sc) => {
-    let n = 0;
-    const paras = sc.paras.map((p) => {
-      const para = typeof p === "string" ? { kind: "p", text: p } : p;
-      const tokens = [];
-      let last = 0;
-      para.text.replace(HINT_RE, (m, text, note, idx) => {
-        if (idx > last) tokens.push({ text: para.text.slice(last, idx) });
-        const id = `${sc.id}-${++n}`;
-        hints[id] = { text, note };
-        hintTotal++;
-        tokens.push({ text, id });
-        last = idx + m.length;
-        return m;
-      });
-      if (last < para.text.length) tokens.push({ text: para.text.slice(last) });
-      return { kind: para.kind || "p", tokens };
-    });
-    return { id: sc.id, title: sc.title, second: !!sc.second, paras };
-  });
+  /* ---------- 保存（使えない環境でも遊べる） ---------- */
+  const fresh = () => ({ clearedFirst: false, phase: null, scene: 0, shown: 0, q: 0, answers: [], best: null });
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (!s || typeof s !== "object") return fresh();
+      const v = Object.assign(fresh(), s);
+      // 壊れた／古い保存データでも起動できるように範囲外は捨てる
+      const okInt = (n, max) => Number.isInteger(n) && n >= 0 && n < max;
+      if (!okInt(v.scene, STORY.scenes.length) || !okInt(v.q, Q) || !Array.isArray(v.answers) ||
+          !Number.isInteger(v.shown) || v.shown < 0) {
+        return Object.assign(fresh(), { clearedFirst: !!v.clearedFirst });
+      }
+      return v;
+    } catch (_) { return fresh(); }
+  }
+  let st = load();
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (_) { /* noop */ } }
 
   /* ---------- DOM ---------- */
   const $ = (id) => document.getElementById(id);
   const app = $("app");
   const el = {
     paras: $("paras"), sceneTitle: $("scene-title"), next: $("btn-next"), tapHint: $("tap-hint"),
-    barRun: $("bar-run"), barProgress: $("bar-progress"), barFound: $("bar-found"), page: $("page"),
-    sheet: $("sheet"), backdrop: $("sheet-backdrop"), sheetQuote: $("sheet-quote"), sheetNote: $("sheet-note")
+    barRun: $("bar-run"), barProgress: $("bar-progress"), page: $("page"),
+    qLines: $("quiz-lines"), qNext: $("quiz-next"), qProgress: $("quiz-progress"), qFound: $("quiz-found")
   };
 
-  let run = 1;
-  let sceneIndex = 0;
-  let shownCount = 0;
-  let sceneList = [];
-
-  function show(screenId) {
-    document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("is-active", s.id === screenId));
+  function show(id) {
+    document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("is-active", s.id === id));
     window.scrollTo(0, 0);
-  }
-
-  function setRun(r) {
-    run = r;
-    app.dataset.run = String(r);
-    sceneList = scenes.filter((s) => r === 2 || !s.second);
   }
 
   /* ---------- タイトル ---------- */
   function renderTitle() {
-    setRun(save.clearedFirst ? 2 : 1);
-    $("btn-restart-first").hidden = !save.clearedFirst;
-    if (save.clearedFirst) {
-      $("title-sub").textContent = "同じ夜を、もう一度";
-      $("title-lead").innerHTML = "文章は、一度目とまったく同じです。<br>ただ、ところどころの言葉が光っています。<br>触れると、もうひとつの読みが現れます。";
-      $("btn-start").textContent = "二度目の夜をはじめる";
+    const inProgress = st.phase === "read" || st.phase === "quiz" || st.phase === "epilogue";
+    app.dataset.run = st.clearedFirst ? "2" : "1";
+    const start = $("btn-start"), sub = $("btn-sub");
+    if (inProgress) {
+      start.textContent = "つづきから";
+      sub.textContent = "最初から読む";
+      sub.hidden = false;
+    } else if (st.clearedFirst) {
+      start.textContent = "答え合わせをする";
+      sub.textContent = "最初から読む";
+      sub.hidden = false;
     } else {
-      $("title-sub").textContent = "十五分の短編";
-      $("title-lead").innerHTML = "海辺の古い宿に、ひとりの客がたどり着く。<br>明日の朝、恋人に結婚を申し込むために。";
-      $("btn-start").textContent = "はじめる";
+      start.textContent = "はじめる";
+      sub.hidden = true;
+    }
+    if (st.clearedFirst) {
+      $("title-sub").textContent = "同じ夜を、もう一度";
+      $("title-lead").innerHTML = "あの文章の中に、<br>二度目には意味が変わる一文が、いくつもある。";
     }
     show("screen-title");
   }
 
-  /* ---------- 場面 ---------- */
+  function resume() {
+    if (st.phase === "read") return openRead(st.scene, st.shown);
+    if (st.phase === "epilogue") return openEpilogue(st.shown);
+    if (st.phase === "quiz" || st.clearedFirst) return openQuiz(st.phase === "quiz" ? st.q : 0, st.phase === "quiz");
+    return openRead(0, 0);
+  }
+
+  /* ---------- 一度目：本文 ---------- */
+  // 本文画面は「一度目の場面」と「終章」の両方で使う
+  let cur = null;   // { title, paras, label, progress, onEnd }
+
   function buildPara(p) {
-    const node = document.createElement(p.kind === "letter" || p.kind === "diary" ? "div" : "p");
-    if (p.kind !== "p") node.classList.add(p.kind);
-    for (const t of p.tokens) {
-      if (t.id && run === 2) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "hint" + (found.has(t.id) ? " is-found" : "");
-        b.dataset.hint = t.id;
-        b.textContent = t.text;
-        node.appendChild(b);
-      } else {
-        node.appendChild(document.createTextNode(t.text));
-      }
-    }
+    const para = typeof p === "string" ? { kind: "p", text: p } : p;
+    const node = document.createElement(para.kind === "diary" ? "div" : "p");
+    if (para.kind !== "p") node.classList.add(para.kind);
+    node.textContent = para.text;
     return node;
   }
 
-  function startScene(i) {
-    sceneIndex = i;
-    const sc = sceneList[i];
-    el.sceneTitle.textContent = sc.title;
+  function mountText(view, shown) {
+    cur = view;
+    el.sceneTitle.textContent = view.title;
+    el.barRun.textContent = view.label;
+    el.barProgress.textContent = view.progress;
     el.paras.textContent = "";
-    sc.paras.forEach((p) => {
-      const node = buildPara(p);
-      if (run === 1) node.classList.add("is-hidden");
-      el.paras.appendChild(node);
+    view.paras.forEach((p, i) => {
+      const n = buildPara(p);
+      if (i >= shown) n.classList.add("is-hidden");
+      el.paras.appendChild(n);
     });
-    el.barRun.textContent = run === 1 ? "一度目の夜" : "二度目の夜";
-    el.barProgress.textContent = `${i + 1} / ${sceneList.length}`;
-    updateFound();
-    if (run === 1) {
-      shownCount = 0;
-      advance();
-    } else {
-      shownCount = sc.paras.length;
-      [...el.paras.children].forEach((n) => n.classList.add("is-new"));
-      finishScene();
-    }
-    window.scrollTo(0, 0);
+    cur.shown = Math.max(1, shown);
+    [...el.paras.children].slice(0, cur.shown).forEach((n) => n.classList.remove("is-hidden"));
+    updateFoot();
+    show("screen-read");
+    if (cur.shown > 1) requestAnimationFrame(() => scrollToNode(el.paras.children[cur.shown - 1], "auto"));
   }
 
-  function isLastScene() { return sceneIndex === sceneList.length - 1; }
+  function openRead(scene, shown) {
+    const sc = STORY.scenes[scene];
+    st.phase = "read"; st.scene = scene; st.shown = Math.max(1, shown); persist();
+    mountText({
+      title: sc.title, paras: sc.paras, label: "一度目の夜", progress: `${scene + 1} / ${STORY.scenes.length}`,
+      onAdvance: (n) => { st.shown = n; persist(); },
+      onEnd: () => {
+        if (scene + 1 < STORY.scenes.length) return openRead(scene + 1, 1);
+        st.clearedFirst = true; st.phase = "end1"; persist();
+        app.dataset.run = "2";
+        show("screen-end1");
+      }
+    }, st.shown);
+  }
 
-  function finishScene() {
-    el.tapHint.hidden = true;
-    el.next.hidden = false;
-    el.next.textContent = isLastScene() ? "夜を閉じる" : "次の場面へ";
+  function openEpilogue(shown) {
+    st.phase = "epilogue"; st.shown = Math.max(1, shown); persist();
+    mountText({
+      title: STORY.epilogue.title, paras: STORY.epilogue.paras, label: "二度目の夜", progress: "",
+      onAdvance: (n) => { st.shown = n; persist(); },
+      onEnd: showResult
+    }, st.shown);
+  }
+
+  function updateFoot() {
+    const done = cur.shown >= cur.paras.length;
+    el.tapHint.hidden = done;
+    el.next.hidden = !done;
+    el.next.textContent = "次へ";
+  }
+
+  function scrollToNode(n, behavior) {
+    const r = n.getBoundingClientRect();
+    if (r.bottom > window.innerHeight - 120) window.scrollBy({ top: r.bottom - window.innerHeight + 160, behavior: behavior || "smooth" });
   }
 
   function advance() {
-    const nodes = el.paras.children;
-    if (shownCount >= nodes.length) return;
-    const n = nodes[shownCount++];
+    if (!cur || cur.shown >= cur.paras.length) return;
+    const n = el.paras.children[cur.shown++];
     n.classList.remove("is-hidden");
     n.classList.add("is-new");
-    if (shownCount >= nodes.length) finishScene();
-    else { el.tapHint.hidden = false; el.next.hidden = true; }
-    // 新しい段落が見えるように
-    requestAnimationFrame(() => {
-      const r = n.getBoundingClientRect();
-      if (r.bottom > window.innerHeight - 120) window.scrollBy({ top: r.bottom - window.innerHeight + 160, behavior: "smooth" });
+    cur.onAdvance(cur.shown);
+    updateFoot();
+    requestAnimationFrame(() => scrollToNode(n));
+  }
+
+  /* ---------- 二度目：答え合わせ ---------- */
+  function foundCount() { return st.answers.filter(Boolean).length; }
+
+  function openQuiz(q, keep) {
+    if (!keep) st.answers = [];
+    st.phase = "quiz"; st.q = q; persist();
+    renderQuestion();
+    show("screen-quiz");
+  }
+
+  function renderQuestion() {
+    const item = STORY.quiz[st.q];
+    const answered = st.answers[st.q] !== undefined && st.answers[st.q] !== null;
+    el.qProgress.textContent = `${st.q + 1} / ${Q}`;
+    el.qFound.textContent = `気づいた ${foundCount()}`;
+    el.qLines.textContent = "";
+    item.lines.forEach((text, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "qline";
+      b.dataset.i = String(i);
+      b.textContent = text;
+      el.qLines.appendChild(b);
     });
+    el.qNext.hidden = true;
+    if (answered) reveal(null);
   }
 
-  function nextScene() {
-    if (!isLastScene()) { startScene(sceneIndex + 1); return; }
-    if (run === 1) {
-      save.clearedFirst = true;
-      store.save(save);
-      setRun(2);
-      show("screen-end1");
-    } else {
-      $("end2-found").innerHTML =
-        `見つけた伏線　${found.size} / ${hintTotal}` +
-        (found.size < hintTotal ? "<br>まだ光ったままの言葉が残っています。" : "<br>すべての言葉に、触れました。");
-      show("screen-end2");
-    }
+  function choose(i) {
+    if (st.answers[st.q] !== undefined && st.answers[st.q] !== null) return;
+    const item = STORY.quiz[st.q];
+    st.answers[st.q] = i === item.answer;
+    persist();
+    reveal(i);
   }
 
-  function updateFound() {
-    el.barFound.hidden = run !== 2;
-    el.barFound.textContent = `伏線 ${found.size} / ${hintTotal}`;
+  function reveal(chosen) {
+    const item = STORY.quiz[st.q];
+    [...el.qLines.children].forEach((b, i) => {
+      b.disabled = true;
+      if (i === item.answer) b.classList.add("is-answer");
+      else b.classList.add("is-dim");
+      if (chosen !== null && i === chosen && i !== item.answer) b.classList.add("is-missed");
+    });
+    const note = document.createElement("p");
+    note.className = "qnote";
+    const who = document.createElement("span");
+    who.className = "qnote-who";
+    who.textContent = "咲";
+    note.append(who, document.createTextNode(item.note));
+    el.qLines.children[item.answer].after(note);
+    el.qFound.textContent = `気づいた ${foundCount()}`;
+    el.qNext.hidden = false;
+    el.qNext.textContent = st.q + 1 < Q ? "次へ" : "最後に";
+    el.qNext.focus({ preventScroll: true });
+    requestAnimationFrame(() => scrollToNode(el.qNext));
   }
 
-  /* ---------- 真相側の読み ---------- */
-  let lastFocus = null;
-  function openSheet(id, btn) {
-    const h = hints[id];
-    if (!h) return;
-    lastFocus = btn;
-    el.sheetQuote.textContent = h.text;
-    el.sheetNote.textContent = h.note;
-    el.sheet.hidden = false;
-    el.backdrop.hidden = false;
-    $("sheet-close").focus({ preventScroll: true });
-    if (!found.has(id)) {
-      found.add(id);
-      save.found = [...found];
-      store.save(save);
-      document.querySelectorAll(`[data-hint="${id}"]`).forEach((b) => b.classList.add("is-found"));
-      updateFound();
-    }
-  }
-  function closeSheet() {
-    el.sheet.hidden = true;
-    el.backdrop.hidden = true;
-    if (lastFocus) lastFocus.focus({ preventScroll: true });
+  function nextQuestion() {
+    if (st.q + 1 < Q) { st.q++; persist(); renderQuestion(); window.scrollTo(0, 0); return; }
+    openEpilogue(1);
   }
 
-  /* ---------- 共有 ---------- */
+  /* ---------- 結果と共有 ---------- */
+  function shareText() {
+    const n = foundCount();
+    const head = n === Q
+      ? `『${STORY.title}』、二度目の答え合わせで ${Q}つ全部気づけた。`
+      : `『${STORY.title}』、二度目の答え合わせで ${Q}つ中 ${n}つしか気づけなかった。`;
+    return `${head}七分で読めるので、一度目は何も調べずにどうぞ。 #${STORY.title}`;
+  }
   function shareUrl() { return location.href.split("#")[0].split("?")[0]; }
   function xIntent() {
-    return "https://x.com/intent/post?text=" + encodeURIComponent(SHARE_TEXT) + "&url=" + encodeURIComponent(shareUrl());
+    return "https://x.com/intent/post?text=" + encodeURIComponent(shareText()) + "&url=" + encodeURIComponent(shareUrl());
   }
+
+  function showResult() {
+    const n = foundCount();
+    st.phase = "end2";
+    st.best = Math.max(st.best || 0, n);
+    persist();
+    $("end2-found").innerHTML = `七つのうち、気づけたのは <strong>${n}</strong> つ。` +
+      (n < Q ? "<br>答え合わせに出なかった伏線も、まだ本文に残っています。" : "<br>答え合わせに出なかった伏線も、本文にはまだ残っています。");
+    $("link-x").href = xIntent();
+    show("screen-end2");
+  }
+
   async function share() {
     const toast = $("share-toast");
     if (navigator.share) {
-      try { await navigator.share({ title: STORY.title, text: SHARE_TEXT, url: shareUrl() }); return; }
+      try { await navigator.share({ title: STORY.title, text: shareText(), url: shareUrl() }); return; }
       catch (e) { if (e && e.name === "AbortError") return; }
     }
     window.open(xIntent(), "_blank", "noopener");
@@ -217,38 +249,31 @@
     else delete document.documentElement.dataset.theme;
   }
   function currentTheme() {
-    const t = document.documentElement.dataset.theme;
-    if (t) return t;
-    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return document.documentElement.dataset.theme ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   }
   try { applyTheme(localStorage.getItem(THEME_KEY)); } catch (_) { /* noop */ }
 
   /* ---------- イベント ---------- */
-  $("btn-start").addEventListener("click", () => { setRun(save.clearedFirst ? 2 : 1); show("screen-read"); startScene(0); });
-  $("btn-restart-first").addEventListener("click", () => { setRun(1); show("screen-read"); startScene(0); });
-  $("btn-second").addEventListener("click", () => { setRun(2); show("screen-read"); startScene(0); });
-  $("btn-again").addEventListener("click", () => { setRun(2); show("screen-read"); startScene(0); });
-  $("btn-home").addEventListener("click", renderTitle);
-  el.next.addEventListener("click", (e) => { e.stopPropagation(); nextScene(); });
-  document.querySelectorAll(".js-share").forEach((b) => b.addEventListener("click", share));
-  $("link-x").href = xIntent();
-
-  el.page.addEventListener("click", (e) => {
-    const h = e.target.closest(".hint");
-    if (h) { e.stopPropagation(); openSheet(h.dataset.hint, h); return; }
-    if (run === 1) advance();
+  $("btn-start").addEventListener("click", resume);
+  $("btn-sub").addEventListener("click", () => { st.phase = null; st.answers = []; openRead(0, 1); });
+  $("btn-second").addEventListener("click", () => openQuiz(0, false));
+  $("btn-home").addEventListener("click", () => { st.phase = null; persist(); renderTitle(); });
+  el.next.addEventListener("click", (e) => { e.stopPropagation(); cur.onEnd(); });
+  el.qNext.addEventListener("click", nextQuestion);
+  el.qLines.addEventListener("click", (e) => {
+    const b = e.target.closest(".qline");
+    if (b) choose(Number(b.dataset.i));
   });
-  el.backdrop.addEventListener("click", closeSheet);
-  $("sheet-close").addEventListener("click", closeSheet);
+  document.querySelectorAll(".js-share").forEach((b) => b.addEventListener("click", share));
+  el.page.addEventListener("click", advance);
 
   document.addEventListener("keydown", (e) => {
-    if (!el.sheet.hidden) { if (e.key === "Escape") closeSheet(); return; }
     if (!$("screen-read").classList.contains("is-active")) return;
-    if (e.target.closest && e.target.closest("button")) return; // ボタン自身の Enter/Space は既定動作に任せる
+    if (e.target.closest && e.target.closest("button, a")) return;
     if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
-      if (shownCount < el.paras.children.length) advance();
-      else nextScene();
+      if (cur.shown < cur.paras.length) advance(); else cur.onEnd();
     }
   });
 
