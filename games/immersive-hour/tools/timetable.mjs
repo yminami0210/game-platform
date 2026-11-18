@@ -33,7 +33,7 @@ for (const s of sc.scenes) {
   }
 }
 for (const t of sc.truths) {
-  for (const r of t.requires) if (!sceneIds.has(r) && !truthIds.has(r)) errors.push(`${t.id}: 未知の要件 ${r}`);
+  for (const r of t.requires.flat()) if (!sceneIds.has(r) && !truthIds.has(r)) errors.push(`${t.id}: 未知の要件 ${r}`);
 }
 const ids = sc.rooms.map(r => r.id);
 for (const [a, b] of sc.doors) if (!ids.includes(a) || !ids.includes(b)) errors.push(`扉 ${a}-${b} が不正`);
@@ -47,9 +47,9 @@ for (const c of sc.characters) {
   const segs = s.map((e, i) => `${clock(e.t)}–${clock(i + 1 < s.length ? s[i + 1].t : L)} ${roomName[e.room]}`);
   out += `| ${c.short}（${c.role}） | ${segs.join(' → ')} |\n`;
 }
-out += '\n### 場面一覧\n\n| ID | 時刻 | 部屋 | 登場 | 場面 | 真相 |\n|---|---|---|---|---|---|\n';
+out += '\n### 場面一覧\n\n| ID | 時刻 | 部屋 | 登場 | 場面 | 手がかり |\n|---|---|---|---|---|---|\n';
 const usedBy = {};
-for (const t of sc.truths) for (const r of t.requires) (usedBy[r] ||= []).push(t.title.split(' ')[0]);
+for (const t of sc.truths) for (const r of t.requires.flat()) (usedBy[r] ||= []).push(t.title.split(' ')[0]);
 for (const s of [...sc.scenes].sort((a, b) => a.t - b.t || a.id.localeCompare(b.id))) {
   out += `| ${s.id} | ${clock(s.t)}–${clock(s.t + s.dur)} | ${roomName[s.room]} | ${s.chars.map(c => charName[c]).join('・')} | ${s.title} | ${(usedBy[s.id] || ['—']).join('、')} |\n`;
 }
@@ -58,5 +58,5 @@ if (errors.length) {
   console.error('整合性エラー:\n' + errors.join('\n'));
   process.exit(1);
 } else {
-  console.error(`OK: 場面 ${sc.scenes.length} / 真相 ${sc.truths.length} / 人物 ${sc.characters.length}`);
+  console.error(`OK: 場面 ${sc.scenes.length} / 手がかり ${sc.truths.length} / 人物 ${sc.characters.length}`);
 }

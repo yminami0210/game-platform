@@ -5,7 +5,7 @@
 
   const params = new URLSearchParams(location.search);
   const FAST = Math.max(1, Number(params.get('fast')) || 1); // テスト用の時間加速
-  const MS_PER_MIN = 4000 / FAST; // 等速で 1 分 = 4 秒（1 周 = 4 分）
+  const MS_PER_MIN = 9000 / FAST; // 等速で 1 分 = 9 秒（1 周 = 3 分）
   const SPEEDS = [1, 2, 4];
 
   const $ = id => document.getElementById(id);
@@ -39,7 +39,7 @@
   let SC, KEY, rooms, chars, adj;
   const S = {
     t: 0, room: null, follow: null, speed: 1, running: false, ended: false,
-    lastMin: -1, loopNew: [], loopTruths: [],
+    lastMin: -1, loopNew: [], loopTruths: [], loopRumor: null,
     save: { loops: 0, seen: {}, witnessed: {}, truths: {}, notes: '' }
   };
 
@@ -72,6 +72,7 @@
     for (const c of SC.characters) S.save.witnessed[c.id] ||= {};
     document.title = SC.title;
     $('title').textContent = SC.title;
+    $('question').textContent = SC.question || '';
     S.room = SC.startRoom;
     buildMap();
     bindUI();
@@ -125,15 +126,16 @@
     if (sc && !S.save.seen[sc.id]) {
       S.save.seen[sc.id] = true;
       S.loopNew.push(sc.id);
-      toast(`記録帳に追加：${clockText(sc.t)} ${rooms[sc.room].name}「${sc.title}」`);
       checkTruths();
       changed = true;
     }
     if (changed) persist();
   }
 
+  // requires の要素が配列なら「どれか1つ」(any-of)
   function truthMet(id) {
-    return S.save.truths[id] || !!S.save.seen[id];
+    if (Array.isArray(id)) return id.some(truthMet);
+    return !!S.save.truths[id] || !!S.save.seen[id];
   }
   function checkTruths() {
     let again = true;
@@ -144,7 +146,6 @@
         if (tr.requires.every(truthMet)) {
           S.save.truths[tr.id] = true;
           S.loopTruths.push(tr.id);
-          toast(`真相が解放された：${tr.title}`, 'truth');
           again = true;
         }
       }
@@ -176,7 +177,7 @@
   function pause() { S.running = false; render(true); }
 
   function newLoop() {
-    Object.assign(S, { t: 0, room: SC.startRoom, follow: null, ended: false, lastMin: -1, loopNew: [], loopTruths: [] });
+    Object.assign(S, { t: 0, room: SC.startRoom, follow: null, ended: false, lastMin: -1, loopNew: [], loopTruths: [], loopRumor: null });
     hideOverlay();
     start();
   }
@@ -186,6 +187,22 @@
     S.ended = true;
     S.running = false;
     S.save.loops = (S.save.loops || 0) + 1;
+    checkTruths();
+    // その周で手がかりが1つも開かなかったら、進捗の最も高い未開の手がかりを噂として1つ開く
+    if (!S.loopTruths.length) {
+      let best = null, bestP = -1;
+      for (const tr of SC.truths) {
+        if (tr.final || S.save.truths[tr.id]) continue;
+        const p = tr.requires.filter(truthMet).length / tr.requires.length;
+        if (p > bestP) { best = tr; bestP = p; }
+      }
+      if (best) {
+        S.save.truths[best.id] = true;
+        S.loopTruths.push(best.id);
+        S.loopRumor = best.id;
+        checkTruths();
+      }
+    }
     persist();
     render(true);
     showFinale();
@@ -283,7 +300,7 @@
     const box = $('scene');
     box.innerHTML = '';
     if (sc) {
-      box.append(el('div', { class: 'scene-title' }, `${clockText(sc.t)}　${sc.title}`));
+      box.append(el('div', { class: 'scene-title' }, `${clockText(sc.t)}　${sc.title}`, S.save.seen[sc.id] ? el('span', { class: 'mark', title: '記録済み' }, ' ✎') : null));
       sc.lines.slice(0, nLines).forEach(ln => box.append(lineNode(ln)));
       box.hidden = false;
     } else box.hidden = true;
@@ -292,7 +309,7 @@
     $('playBtn').disabled = S.ended;
     $('speedBtn').textContent = `×${S.speed}`;
     $('loop').textContent = `第${(S.save.loops || 0) + (S.ended ? 0 : 1)}周`;
-    $('frag').textContent = `記録 ${seenCount()}/${sceneFragments()} · 真相 ${Object.keys(S.save.truths).length}/${SC.truths.length}`;
+    $('frag').textContent = `場面 ${seenCount()}/${sceneFragments()} · 手がかり ${Object.keys(S.save.truths).length}/${SC.truths.length}`;
   }
 
   function lineNode(ln) {
@@ -319,16 +336,29 @@
   function showTitleCard() {
     const loops = S.save.loops || 0;
     showSheet([
+      SC.question ? el('p', { class: 'question-lead' }, SC.question) : null,
       el('p', { class: 'eyebrow' }, SC.subtitle),
       el('h2', {}, SC.title),
       ...SC.intro.map(t => el('p', {}, t)),
       el('ul', { class: 'howto' },
         el('li', {}, '見取り図で隣の部屋をタップして移動。'),
         el('li', {}, '部屋にいる人物の「追う」で、その人に付いて回る。'),
-        el('li', {}, '見た場面は記録帳に残り、周をまたいで蓄積される。断片がそろうと真相が開く。')),
+        el('li', {}, '見た場面は記録帳に残り、周をまたいで蓄積される。終演のたびに、手がかりが開く。')),
       el('button', { class: 'primary big', id: 'startBtn', onclick: () => { hideOverlay(); start(); } },
         loops ? `第${loops + 1}周を始める` : '開演する')
     ]);
+  }
+
+  function clueNodes(list) {
+    if (!list.length) return [el('p', { class: 'muted' }, 'この周は、新しい手がかりを得られなかった。')];
+    return [el('div', { class: 'new-truths' }, el('b', {}, '開いた手がかり'),
+      ...list.map(t => {
+        const rumor = S.loopRumor === t.id;
+        const paras = t.final ? t.text.slice(0, 1) : t.text;
+        return el('div', { class: `clue${t.final ? ' final' : ''}${rumor ? ' rumor' : ''}` },
+          rumor ? el('small', {}, '終演後、ロビーで耳にした噂') : null,
+          el('h3', {}, t.title), ...paras.map(p => el('p', {}, p)));
+      }))];
   }
 
   function showFinale() {
@@ -340,8 +370,8 @@
       el('h2', {}, '零時'),
       el('p', {}, inRoom ? 'あなたはロビーで、止まった大時計を見上げていた。' : SC.finale.elsewhere),
       el('p', { class: 'muted' }, `この周で記録した場面：${S.loopNew.length}　/　累計 ${seenCount()}/${sceneFragments()}`),
-      newTruths.length ? el('div', { class: 'new-truths' }, el('b', {}, '解放された真相'), ...newTruths.map(t => el('div', {}, '・' + t.title))) : null,
-      allDone ? el('p', { class: 'epilogue' }, 'すべての章がそろった。それでも、この夜はまた始まる。誰かが手紙に封をするまで。') : null,
+      ...clueNodes(newTruths),
+      allDone ? el('p', { class: 'epilogue' }, 'すべての手がかりがそろった。それでも、この夜はまた始まる。誰かが手紙に封をするまで。') : null,
       el('div', { class: 'row' },
         el('button', { class: 'primary big', id: 'againBtn', onclick: newLoop }, 'もう一度、この一時間へ'),
         el('button', { onclick: () => openBook(newTruths.length ? 'truths' : 'scenes') }, '記録帳を開く'))
@@ -349,7 +379,7 @@
   }
 
   // ---------- 記録帳 ----------
-  let bookTab = 'scenes';
+  let bookTab = 'scenes', bookOpenScene = null;
   function openBook(tab) {
     if (tab) bookTab = tab;
     S.wasRunning = S.running;
@@ -368,15 +398,25 @@
     const body = $('bookBody');
     body.innerHTML = '';
     if (bookTab === 'scenes') {
-      const seen = [...SC.scenes].sort((a, b) => a.t - b.t).filter(s => S.save.seen[s.id]);
-      body.append(el('p', { class: 'muted' }, `見た場面 ${seen.length} / ${SC.scenes.length}（周回 ${S.save.loops || 0}）`));
-      if (!seen.length) body.append(el('p', {}, 'まだ何も記録されていない。部屋を歩いて、誰かの一分を目撃しよう。'));
-      for (const s of seen) {
-        body.append(el('details', { class: 'entry', style: `--tone:${rooms[s.room].tone}` },
-          el('summary', {}, el('span', { class: 'when' }, clockText(s.t)), el('span', { class: 'where' }, rooms[s.room].name), s.title,
-            el('span', { class: 'who' }, s.chars.map(c => chars[c].short).join('・'))),
-          ...s.lines.map(lineNode)));
+      body.append(el('p', { class: 'muted' }, `見た場面 ${seenCount()} / ${SC.scenes.length}（周回 ${S.save.loops || 0}）　見た場面をタップで台詞`));
+      const times = [...new Set(SC.scenes.map(s => s.t))].sort((a, b) => a - b);
+      const tbl = el('table', { class: 'stable' });
+      tbl.append(el('thead', {}, el('tr', {}, el('th', {}, ''), ...SC.rooms.map(r => el('th', { style: `--tone:${r.tone}` }, r.name)))));
+      const tb = el('tbody');
+      for (const t of times) {
+        const here = SC.scenes.filter(s => s.t === t);
+        tb.append(el('tr', {}, el('th', { class: 'tm' }, clockText(t)), ...SC.rooms.map(r => {
+          const ss = here.filter(s => s.room === r.id);
+          return el('td', { style: `--tone:${r.tone}` }, ss.map(sc => S.save.seen[sc.id]
+            ? el('button', { class: `sc-btn${bookOpenScene === sc.id ? ' on' : ''}`, 'data-scene': sc.id, onclick: () => { bookOpenScene = bookOpenScene === sc.id ? null : sc.id; renderBook(); } }, sc.title)
+            : el('span', { class: 'sc-q' }, '？')));
+        })));
+        const op = here.find(sc => sc.id === bookOpenScene);
+        if (op) tb.append(el('tr', { class: 'sc-lines' }, el('td', { colspan: SC.rooms.length + 1, style: `--tone:${rooms[op.room].tone}` },
+          el('div', { class: 'who' }, `${clockText(op.t)} ${rooms[op.room].name}　${op.chars.map(c => chars[c].short).join('・')}`), ...op.lines.map(lineNode))));
       }
+      tbl.append(tb);
+      body.append(tbl);
     } else if (bookTab === 'people') {
       body.append(el('p', { class: 'muted' }, '同じ部屋で目撃した時刻だけが埋まっていく。誰がいつどこにいたか、時刻表を完成させよう。'));
       for (const c of SC.characters) {
@@ -397,10 +437,10 @@
         const open = S.save.truths[tr.id];
         const got = tr.requires.filter(truthMet).length;
         body.append(el('div', { class: `truth ${open ? 'open' : 'locked'} ${tr.final ? 'final' : ''}`, style: `--c:${chars[tr.char]?.color || '#ccc'}` },
-          el('h3', {}, open ? tr.title : (tr.final ? '？？？ ── ' : tr.title.split('──')[0] + '── ？？？')),
+          el('h3', {}, open ? tr.title : '？？？'),
           open ? tr.text.map(p => el('p', {}, p)) : [
             el('div', { class: 'meter' }, el('i', { style: `width:${(got / tr.requires.length) * 100}%` })),
-            el('p', { class: 'muted' }, `断片 ${got}/${tr.requires.length}　${tr.hint}`)
+            el('p', { class: 'muted' }, `手がかり ${got}/${tr.requires.length}　${tr.hint}`)
           ]));
       }
       const ta = el('textarea', { id: 'notes', rows: 4, placeholder: '考察メモ（この端末にだけ保存されます）' });
@@ -414,8 +454,8 @@
   }
 
   async function shareProgress() {
-    const titles = SC.truths.filter(t => S.save.truths[t.id]).map(t => t.title.split('──')[0].trim());
-    const text = `『${SC.title}』${S.save.loops || 0}周 / 記録 ${seenCount()}/${sceneFragments()} / 真相 ${titles.length}/${SC.truths.length}` +
+    const titles = SC.truths.filter(t => S.save.truths[t.id]).map(t => t.title);
+    const text = `『${SC.title}』${S.save.loops || 0}周 / 場面 ${seenCount()}/${sceneFragments()} / 手がかり ${titles.length}/${SC.truths.length}` +
       (titles.length ? `（${titles.join('・')}）` : '') + '\n#最後の一時間';
     try {
       if (navigator.share) await navigator.share({ text });
@@ -428,7 +468,7 @@
     store.remove(KEY);
     S.save = { loops: 0, seen: {}, witnessed: {}, truths: {}, notes: '' };
     for (const c of SC.characters) S.save.witnessed[c.id] = {};
-    Object.assign(S, { t: 0, room: SC.startRoom, follow: null, ended: false, running: false, lastMin: -1, loopNew: [], loopTruths: [] });
+    Object.assign(S, { t: 0, room: SC.startRoom, follow: null, ended: false, running: false, lastMin: -1, loopNew: [], loopTruths: [], loopRumor: null });
     $('book').hidden = true;
     render(true);
     showTitleCard();
@@ -462,7 +502,7 @@
 
   // 自動テスト・デバッグ用の窓口
   window.IH = {
-    get state() { return { t: S.t, room: S.room, follow: S.follow, running: S.running, ended: S.ended, loops: S.save.loops, seen: Object.keys(S.save.seen), truths: Object.keys(S.save.truths) }; },
+    get state() { return { t: S.t, room: S.room, follow: S.follow, running: S.running, ended: S.ended, loops: S.save.loops, seen: Object.keys(S.save.seen), truths: Object.keys(S.save.truths), rumor: S.loopRumor, loopTruths: S.loopTruths.slice() }; },
     move: moveTo, follow: setFollow, start, pause, newLoop, openBook, closeBook
   };
 
