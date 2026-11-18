@@ -33,7 +33,10 @@
 | **ちゃんと書けてる** | 妙なほめ方 | 名前が書けなくなる夜が来るのが、いちばん怖い |
 | **浜昼顔の宿** | 海辺の宿の名前らしい題 | 父が娘に名前をくれた花。毎晩、初めて |
 
-PM の推しは「おかえりなさい」（冒頭3タップの台詞そのもので、二度目に一番重く反転する）。採用時は `story.js` の `title`、`index.html` の `<title>`・og/twitter、`manifest.webmanifest`、`tests/make-og.mjs` を差し替えて `node tests/make-og.mjs` で OGP を作り直す。
+PM の推しは「おかえりなさい」（冒頭3タップの台詞そのもので、二度目に一番重く反転する）。
+
+**「おかえりなさい」版は差し替え済みのコミットを用意してある**: `studio/title-okaeri.patch`（`<title>`・og/twitter・manifest・タイトル画面・OGP 画像を差し替え、OGP は「……うん。ちゃんと書けてる」を二度並べる絵に作り直し。自動ゲート PASS 済み）。採用するなら、リポジトリ直下で `git am games/second-night/studio/title-okaeri.patch`。
+別ブランチとして push していないのは、このセッションに作業ブランチ以外への push 許可がないため。
 
 ## 物語（ネタバレ）
 
