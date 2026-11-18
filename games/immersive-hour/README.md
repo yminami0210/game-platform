@@ -57,7 +57,7 @@ games/immersive-hour/
 │   └── shiomi-hotel.json             公演「汐見ホテル、最後の二十分」
 ├── tools/
 │   ├── timetable.mjs                 脚本の整合性チェック + 下の時刻表を出力
-│   └── e2e.mjs                       Playwright で 5 周（噂・全手がかり・最終章）を確認
+│   └── e2e.mjs                       Playwright で 6 周（噂・全手がかり・最終章・旧データ）を確認
 ├── screenshots/                      e2e が撮るスクリーンショット
 └── studio/                           制作ドキュメント（コンセプト・GDD・決定ログ・プレイテスト）
 ```

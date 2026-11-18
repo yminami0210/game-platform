@@ -68,8 +68,7 @@
     chars = Object.fromEntries(SC.characters.map(c => [c.id, c]));
     adj = Object.fromEntries(SC.rooms.map(r => [r.id, new Set()]));
     for (const [a, b] of SC.doors) { adj[a].add(b); adj[b].add(a); }
-    Object.assign(S.save, store.load(KEY) || {});
-    for (const c of SC.characters) S.save.witnessed[c.id] ||= {};
+    Object.assign(S.save, sanitizeSave(store.load(KEY)));
     document.title = SC.title;
     $('title').textContent = SC.title;
     $('question').textContent = SC.question || '';
@@ -79,6 +78,27 @@
     render(true);
     showTitleCard();
     requestAnimationFrame(frame);
+  }
+
+  // 保存データを現行の脚本に合わせて洗う（旧版の場面・部屋・人物・分が混ざっていても壊れない）
+  function sanitizeSave(raw) {
+    const r = raw && typeof raw === 'object' ? raw : {};
+    const sceneIds = new Set(SC.scenes.map(s => s.id));
+    const truthIds = new Set(SC.truths.map(t => t.id));
+    const pick = (obj, ok) => Object.fromEntries(Object.entries(obj && typeof obj === 'object' ? obj : {}).filter(([k, v]) => v && ok(k)));
+    const witnessed = {};
+    for (const c of SC.characters) {
+      const w = r.witnessed?.[c.id];
+      witnessed[c.id] = Object.fromEntries(Object.entries(w && typeof w === 'object' ? w : {})
+        .filter(([m, room]) => Number(m) >= 0 && Number(m) < SC.length && rooms[room]));
+    }
+    return {
+      loops: Number.isFinite(r.loops) && r.loops > 0 ? r.loops : 0,
+      seen: pick(r.seen, id => sceneIds.has(id)),
+      truths: pick(r.truths, id => truthIds.has(id)),
+      witnessed,
+      notes: typeof r.notes === 'string' ? r.notes : ''
+    };
   }
 
   // ---------- 時間の進行 ----------

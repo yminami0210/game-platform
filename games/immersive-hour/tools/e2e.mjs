@@ -121,6 +121,20 @@ await page.waitForSelector('#startBtn');
 s = await state();
 assert(s.loops === 6 && s.truths.length === 8, '再読み込み後も記録と周回数が残る');
 
+// 旧版（5人・60分）の保存データが残っている端末でも壊れない
+await page.evaluate(() => localStorage.setItem('immersive-hour:v1:shiomi-hotel', JSON.stringify({
+  loops: 4, seen: { C1: true, H1: true, S0: true }, truths: { T_chiyo: true, K_bag: true },
+  witnessed: { haijima: { 3: 'bar' }, chiyo: { 2: 'clock', 7: 'kitchen', 45: 'lobby' }, iwaki: { 9: 'kitchen' } }, notes: 'memo'
+})));
+await page.reload();
+await page.waitForSelector('#startBtn');
+await page.click('#startBtn');
+await page.click('#bookBtn');
+for (const tab of ['people', 'scenes', 'truths']) await page.click(`.tabs [data-tab="${tab}"]`);
+const legacy = await state();
+assert(legacy.loops === 4 && legacy.seen.join() === 'S0' && legacy.truths.join() === 'K_bag', '旧版の保存データは現行の場面・手がかりだけ残して読み込まれる');
+assert((await page.textContent('#frag')).includes('手がかり 1/'), 'ヘッダーの手がかり数に旧版の ID が混ざらない');
+
 assert(errors.length === 0, 'コンソールエラーなし ' + errors.join(' | '));
 await browser.close();
 console.log(`ok ${n} 件`);

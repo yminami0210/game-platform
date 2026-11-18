@@ -72,7 +72,7 @@ h1 { font-size: 17px; margin: 0; letter-spacing: .08em; color: var(--brass); }
 .p-name { font-size: 15px; }
 .p-name small { color: var(--muted); font-size: 11px; }
 .p-idle { font-size: 13px; color: var(--muted); }
-.follow { border: 1px solid var(--c); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 13px; min-height: 32px; }
+.follow { border: 1px solid var(--c); background: transparent; border-radius: 999px; padding: 4px 12px; font-size: 13px; min-height: 44px; min-width: 64px; }
 .follow.on { background: var(--c); color: #1a1620; }
 
 .scene { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
@@ -181,7 +181,7 @@ textarea { width: 100%; background: var(--bg); color: var(--ink); border: 1px so
 .stable th.tm { text-align: right; padding-right: 4px; color: var(--muted); font-weight: 400; }
 .stable tbody tr { border-top: 1px solid var(--line); }
 .stable td { border-left: 1px solid var(--line); }
-.sc-btn { width: 100%; min-height: 30px; padding: 2px 3px; font-size: 10px; line-height: 1.3; border-radius: 4px; border: 1px solid var(--tone); background: var(--panel-2); color: inherit; text-align: left; }
+.sc-btn { width: 100%; min-height: 44px; padding: 2px 3px; font-size: 10px; line-height: 1.3; border-radius: 4px; border: 1px solid var(--tone); background: var(--panel-2); color: inherit; text-align: left; }
 .sc-btn.on { background: var(--tone); }
 .sc-q { display: block; width: 100%; text-align: center; color: var(--muted); padding: 6px 0; background: none; border: 0; font: inherit; cursor: pointer; }
 .sc-q.on { color: var(--brass); }
