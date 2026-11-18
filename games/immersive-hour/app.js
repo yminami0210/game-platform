@@ -17,7 +17,7 @@
       else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
       else if (v !== false && v != null) n.setAttribute(k, v);
     }
-    for (const k of kids.flat()) if (k != null) n.append(k.nodeType ? k : document.createTextNode(k));
+    for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : document.createTextNode(k));
     return n;
   };
   const SVGNS = 'http://www.w3.org/2000/svg';
@@ -45,7 +45,7 @@
 
   const pad = n => String(n).padStart(2, '0');
   const clockText = m => {
-    const tot = SC.clockStart.hour * 60 + SC.clockStart.minute + Math.min(m, SC.length - 1);
+    const tot = SC.clockStart.hour * 60 + SC.clockStart.minute + m;
     return `${pad(Math.floor(tot / 60) % 24)}:${pad(tot % 60)}`;
   };
   const roomAt = (cid, m) => {
@@ -110,7 +110,7 @@
     S.lastMin = m;
     if (S.follow) {
       const r = roomAt(S.follow, m).room;
-      if (r !== S.room) { S.room = r; }
+      if (r !== S.room) { S.room = r; toast(`${chars[S.follow].short}を追って${rooms[r].name}へ`, 'move'); }
     }
     observe(m);
   }
@@ -257,8 +257,14 @@
         });
         layer.append(svg('circle', { cx, cy: cy - 6, r: 6, class: 'you' }));
         layer.append(svg('text', { x: cx, y: cy - 16, 'text-anchor': 'middle', class: 'you-label' }, 'あなた'));
-      } else if (m >= 0 && adj[S.room].has(id) && activeScene(id, S.t)) {
-        layer.append(svg('text', { x: cx, y: cy + 14, 'text-anchor': 'middle', class: 'murmur' }, '…話し声'));
+      } else if (m >= 0 && adj[S.room].has(id)) {
+        const asc = activeScene(id, S.t);
+        const n = charsIn(id, m).length;
+        if (asc && asc.chars.length) {
+          layer.append(svg('text', { x: cx, y: cy + 14, 'text-anchor': 'middle', class: 'murmur' }, '…話し声'));
+        } else if (n) {
+          for (let i = 0; i < n; i++) layer.append(svg('circle', { cx: cx + (i - (n - 1) / 2) * 12, cy: cy + 18, r: 4, class: 'presence' }));
+        }
       }
     }
   }
@@ -327,7 +333,7 @@
   function showSheet(nodes) {
     const sh = $('sheet');
     sh.innerHTML = '';
-    sh.append(...nodes);
+    sh.append(...nodes.filter(n => n != null && n !== false));
     $('overlay').hidden = false;
     sh.querySelector('button')?.focus();
   }
@@ -352,12 +358,13 @@
   function clueNodes(list) {
     if (!list.length) return [el('p', { class: 'muted' }, 'この周は、新しい手がかりを得られなかった。')];
     return [el('div', { class: 'new-truths' }, el('b', {}, '開いた手がかり'),
-      ...list.map(t => {
+      ...list.map((t, i) => {
         const rumor = S.loopRumor === t.id;
         const paras = t.final ? t.text.slice(0, 1) : t.text;
-        return el('div', { class: `clue${t.final ? ' final' : ''}${rumor ? ' rumor' : ''}` },
-          rumor ? el('small', {}, '終演後、ロビーで耳にした噂') : null,
-          el('h3', {}, t.title), ...paras.map(p => el('p', {}, p)));
+        const cls = `clue${t.final ? ' final' : ''}${rumor ? ' rumor' : ''}`;
+        const note = rumor ? el('small', {}, '終演後、ロビーで耳にした噂') : null;
+        if (i === 0) return el('div', { class: cls }, note, el('h3', {}, t.title), ...paras.map(p => el('p', {}, p)));
+        return el('details', { class: cls }, el('summary', {}, t.title), note, ...paras.map(p => el('p', {}, p)));
       }))];
   }
 
@@ -374,12 +381,13 @@
       allDone ? el('p', { class: 'epilogue' }, 'すべての手がかりがそろった。それでも、この夜はまた始まる。誰かが手紙に封をするまで。') : null,
       el('div', { class: 'row' },
         el('button', { class: 'primary big', id: 'againBtn', onclick: newLoop }, 'もう一度、この一時間へ'),
-        el('button', { onclick: () => openBook(newTruths.length ? 'truths' : 'scenes') }, '記録帳を開く'))
+        el('button', { onclick: () => openBook(newTruths.length ? 'truths' : 'scenes') }, '記録帳を開く'),
+        el('button', { id: 'qBtn', onclick: () => openBook('scenes') }, '記録帳の『？』を見る'))
     ]);
   }
 
   // ---------- 記録帳 ----------
-  let bookTab = 'scenes', bookOpenScene = null;
+  let bookTab = 'scenes', bookOpenScene = null, bookQ = null;
   function openBook(tab) {
     if (tab) bookTab = tab;
     S.wasRunning = S.running;
@@ -399,6 +407,7 @@
     body.innerHTML = '';
     if (bookTab === 'scenes') {
       body.append(el('p', { class: 'muted' }, `見た場面 ${seenCount()} / ${SC.scenes.length}（周回 ${S.save.loops || 0}）　見た場面をタップで台詞`));
+      body.append(el('p', { class: 'muted legend-q' }, '？ ＝ そこで何かが起きていた（まだ見ていない）'));
       const times = [...new Set(SC.scenes.map(s => s.t))].sort((a, b) => a - b);
       const tbl = el('table', { class: 'stable' });
       tbl.append(el('thead', {}, el('tr', {}, el('th', {}, ''), ...SC.rooms.map(r => el('th', { style: `--tone:${r.tone}` }, r.name)))));
@@ -409,11 +418,13 @@
           const ss = here.filter(s => s.room === r.id);
           return el('td', { style: `--tone:${r.tone}` }, ss.map(sc => S.save.seen[sc.id]
             ? el('button', { class: `sc-btn${bookOpenScene === sc.id ? ' on' : ''}`, 'data-scene': sc.id, onclick: () => { bookOpenScene = bookOpenScene === sc.id ? null : sc.id; renderBook(); } }, sc.title)
-            : el('span', { class: 'sc-q' }, '？')));
+            : el('button', { class: `sc-q${bookQ === sc.id ? ' on' : ''}`, 'data-q': sc.id, onclick: () => { bookQ = bookQ === sc.id ? null : sc.id; renderBook(); } }, '？')));
         })));
+        const q = here.find(sc => sc.id === bookQ && !S.save.seen[sc.id]);
+        if (q) tb.append(el('tr', { class: 'sc-lines q-note' }, el('td', { colspan: SC.rooms.length + 1 }, `${clockText(q.t)} ${rooms[q.room].name} ── まだ見ていない。次の周、この時刻にここへ。`)));
         const op = here.find(sc => sc.id === bookOpenScene);
         if (op) tb.append(el('tr', { class: 'sc-lines' }, el('td', { colspan: SC.rooms.length + 1, style: `--tone:${rooms[op.room].tone}` },
-          el('div', { class: 'who' }, `${clockText(op.t)} ${rooms[op.room].name}　${op.chars.map(c => chars[c].short).join('・')}`), ...op.lines.map(lineNode))));
+          el('div', { class: 'who' }, `${clockText(op.t)} ${rooms[op.room].name}${op.chars.length ? '　' + op.chars.map(c => chars[c].short).join('・') : ''}`), ...op.lines.map(lineNode))));
       }
       tbl.append(tb);
       body.append(tbl);
@@ -478,8 +489,9 @@
   function toast(msg, kind = '') {
     const t = el('div', { class: `toast ${kind}` }, msg);
     $('toasts').append(t);
-    setTimeout(() => t.classList.add('out'), kind === 'truth' ? 4200 : 2600);
-    setTimeout(() => t.remove(), kind === 'truth' ? 4800 : 3200);
+    const [a, b] = kind === 'truth' ? [4200, 4800] : kind === 'move' ? [1600, 2200] : [2600, 3200];
+    setTimeout(() => t.classList.add('out'), a);
+    setTimeout(() => t.remove(), b);
   }
 
   // ---------- 入力 ----------

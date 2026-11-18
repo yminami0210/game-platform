@@ -38,6 +38,13 @@ const has = (s, ...ids) => ids.every(id => s.truths.includes(id));
 await page.click('#startBtn');
 let s = await finish();
 await shot(page, '03-finale');
+assert(!(await page.evaluate(() => document.querySelector('#sheet').innerText)).includes('null'), '終演画面に "null" が出ない');
+assert((await page.evaluate(() => document.querySelector('#clock').textContent)) === '00:00', '終演後のヘッダー時計が 00:00');
+await page.click('#qBtn');
+await page.click('#bookBody .sc-q');
+assert((await page.textContent('#bookBody')).includes('まだ見ていない。次の周、この時刻にここへ。'), '「？」マスを押すと案内が出る');
+assert((await page.textContent('#bookBody')).includes('？ ＝ そこで何かが起きていた'), '場面タブに「？」の凡例が出る');
+await page.click('#bookClose');
 assert(s.loops === 1 && has(s, 'K_bag', 'K_case'), '周1: ロビーに居続けると K_bag と K_case が開く');
 
 // 周2: もう一度ロビー → 噂
@@ -81,10 +88,26 @@ assert(has(s, 'K_photo', 'K_final'), '周5: 汐見を追うと K_photo と K_fin
 assert((await page.textContent('#sheet')).includes('零時に出ていく人'), '周5: 最終章が終演画面で特別に見える');
 await shot(page, '07-finale-final');
 
+// 周6: 隣室の気配と話し声
+await page.click('#againBtn');
+await page.evaluate(() => window.IH.pause());
+await page.click('[data-room="room207"]');
+await page.evaluate(() => window.IH.start());
+await page.waitForFunction(() => window.IH.state.t >= 6.1);
+await page.evaluate(() => window.IH.pause());
+s = await state();
+assert(s.t >= 6 && s.t < 8 && s.room === 'room207', '周6: 23:46 に207号室にいる');
+assert((await page.locator('[data-room="lobby"] .murmur').count()) === 0, '環境場面 A1 進行中のロビーに「…話し声」が出ない');
+await page.click('[data-room="lobby"]');
+assert((await page.locator('[data-room="bar"] .murmur').count()) === 1, '23:46 ロビーから見て、ミナの場面 M2 が進行中のバーに「…話し声」が出る');
+await page.evaluate(() => window.IH.start());
+s = await finish();
+assert(!(await page.evaluate(() => document.querySelector('#sheet').innerText)).includes('null'), '周6: 終演画面に "null" が出ない');
+
 // 記録帳
 await page.click('text=記録帳を開く');
 await page.click('.tabs [data-tab="scenes"]');
-assert(s.seen.length === 13, '全13場面が記録されている');
+assert(s.seen.length === 15, '全15場面が記録されている');
 await page.click('#bookBody .sc-btn');
 await shot(page, '05-book-scenes');
 const w = await page.evaluate(() => { const b = document.querySelector('#bookBody'); return [b.scrollWidth, b.clientWidth]; });
@@ -96,7 +119,7 @@ await shot(page, '06-book-clues');
 await page.reload();
 await page.waitForSelector('#startBtn');
 s = await state();
-assert(s.loops === 5 && s.truths.length === 8, '再読み込み後も記録と周回数が残る');
+assert(s.loops === 6 && s.truths.length === 8, '再読み込み後も記録と周回数が残る');
 
 assert(errors.length === 0, 'コンソールエラーなし ' + errors.join(' | '));
 await browser.close();
