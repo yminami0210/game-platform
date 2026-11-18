@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>二度目の夜</title>
+<meta name="description" content="同じ文章を、もう一度。二周目で意味が反転する、十五分の短編ノベル。">
+<meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="二度目の夜">
+<meta property="og:description" content="同じ文章を、もう一度。二周目で意味が反転する、十五分の短編ノベル。">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" data-run="1">
+
+  <!-- タイトル -->
+  <section id="screen-title" class="screen is-active" aria-labelledby="title-h">
+    <div class="title-wrap">
+      <p class="title-sub" id="title-sub">十五分の短編</p>
+      <h1 id="title-h" class="title"><span class="title-num">二</span>度目の夜</h1>
+      <p class="title-lead" id="title-lead">海辺の古い宿に、ひとりの客がたどり着く。<br>明日の朝、恋人に結婚を申し込むために。</p>
+      <div class="title-actions">
+        <button class="btn btn-primary" id="btn-start" type="button">はじめる</button>
+        <button class="btn btn-ghost" id="btn-restart-first" type="button" hidden>一度目から読む</button>
+      </div>
+      <p class="title-note">画面をタップすると、文章が進みます。</p>
+    </div>
+  </section>
+
+  <!-- 本文 -->
+  <section id="screen-read" class="screen" aria-live="polite">
+    <header class="bar">
+      <span class="bar-run" id="bar-run">一度目の夜</span>
+      <span class="bar-progress" id="bar-progress"></span>
+      <span class="bar-found" id="bar-found" hidden></span>
+    </header>
+    <article class="page" id="page">
+      <h2 class="scene-title" id="scene-title"></h2>
+      <div class="paras" id="paras"></div>
+      <div class="page-foot">
+        <p class="tap-hint" id="tap-hint">タップで続きへ</p>
+        <button class="btn btn-next" id="btn-next" type="button" hidden>次の場面へ</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- 一周目の結末 -->
+  <section id="screen-end1" class="screen" aria-labelledby="end1-h">
+    <div class="end-wrap">
+      <p class="end-mark">一度目の夜</p>
+      <h2 class="end-h" id="end1-h">了</h2>
+      <p class="end-lead">同じ夜を、もう一度。<br>この文章には、もうひとつの読み方があります。</p>
+      <div class="title-actions">
+        <button class="btn btn-primary" id="btn-second" type="button">二度目の夜へ</button>
+        <button class="btn btn-ghost js-share" type="button">この物語を薦める</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 二周目の結末 -->
+  <section id="screen-end2" class="screen" aria-labelledby="end2-h">
+    <div class="end-wrap">
+      <p class="end-mark">二度目の夜</p>
+      <h2 class="end-h" id="end2-h">了</h2>
+      <p class="end-lead" id="end2-found"></p>
+      <div class="title-actions">
+        <button class="btn btn-primary js-share" type="button">この物語を薦める</button>
+        <a class="btn btn-ghost" id="link-x" target="_blank" rel="noopener">X にポストする</a>
+        <button class="btn btn-ghost" id="btn-again" type="button">もう一度、二度目の夜を</button>
+        <button class="btn btn-text" id="btn-home" type="button">タイトルへ</button>
+      </div>
+      <p class="share-toast" id="share-toast" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- 真相側の読み -->
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <aside class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-voice" hidden>
+    <p class="sheet-quote" id="sheet-quote"></p>
+    <p class="sheet-voice" id="sheet-voice">咲</p>
+    <p class="sheet-note" id="sheet-note"></p>
+    <button class="btn btn-text sheet-close" id="sheet-close" type="button">閉じる</button>
+  </aside>
+
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="表示テーマを切り替える">
+    <span aria-hidden="true">◐</span>
+  </button>
+</div>
+
+<script src="story.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
