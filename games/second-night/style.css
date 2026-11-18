@@ -260,7 +260,7 @@ button, a { font: inherit; color: inherit; }
 .qline:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .qline:disabled { cursor: default; }
 .qline.is-dim { opacity: .38; }
-.qline.is-missed { opacity: .55; text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+.qline.is-missed { opacity: .55; border-style: dashed; }
 .qline.is-answer {
   border-color: var(--hint-line);
   background: var(--hint-bg);
