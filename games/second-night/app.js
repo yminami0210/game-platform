@@ -212,9 +212,12 @@
   /* ---------- 結果と共有 ---------- */
   function shareText() {
     const n = foundCount();
+    // 低い点は自虐で誘い、高い点は素直に。どちらも中身には触れない
     const head = n === Q
       ? `『${STORY.title}』、二度目の答え合わせで ${Q}つ全部気づけた。`
-      : `『${STORY.title}』、二度目の答え合わせで ${Q}つ中 ${n}つしか気づけなかった。`;
+      : n <= 3
+        ? `『${STORY.title}』、二度目の答え合わせで ${Q}つ中 ${n}つしか気づけなかった。`
+        : `『${STORY.title}』、二度目の答え合わせで ${Q}つのうち ${n}つ気づけた。`;
     return `${head}七分で読めるので、一度目は何も調べずにどうぞ。 #${STORY.title}`;
   }
   function shareUrl() { return location.href.split("#")[0].split("?")[0]; }
@@ -229,7 +232,7 @@
     persist();
     $("end2-found").innerHTML = `七つのうち、気づけたのは <strong>${n}</strong> つ。` +
       (n < Q ? "<br>答え合わせに出なかった伏線も、まだ本文に残っています。" : "<br>答え合わせに出なかった伏線も、本文にはまだ残っています。");
-    $("link-x").href = xIntent();
+    $("share-preview").textContent = shareText();
     show("screen-end2");
   }
 

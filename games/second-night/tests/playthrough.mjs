@@ -127,8 +127,8 @@ for (const [label, scheme] of [["light", "light"], ["dark", "dark"]]) {
   await page.locator("#btn-next").click();
   const res = await page.locator("#end2-found").innerText();
   assert(/気づけたのは\s*4\s*つ/.test(res), "結果 4/7: " + res.split("\n")[0]);
-  const href = decodeURIComponent(await page.locator("#link-x").getAttribute("href"));
-  assert(href.includes("7つ中 4つ") && !/お父さん|老人|認知|娘|父/.test(href), "共有文に数・ネタバレなし");
+  const href = await page.locator("#share-preview").innerText();
+  assert(href.includes("7つのうち 4つ") && !/お父さん|老人|認知|娘|父/.test(href), "共有文に数・ネタバレなし: " + href.slice(0, 40));
   await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(shots, `${label}-08-result.png`) });
 

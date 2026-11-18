@@ -144,6 +144,17 @@ button, a { font: inherit; color: inherit; }
 .btn-primary:active { opacity: .85; }
 .btn-ghost:active { background: var(--bg-soft); }
 .btn-text { border-color: transparent; color: var(--ink-soft); font-size: .85rem; }
+.share-preview {
+  margin: 0 0 .4rem;
+  padding: 1rem 1.1rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  font-size: .85rem;
+  line-height: 1.9;
+  color: var(--ink-soft);
+  text-align: start;
+}
+.qnote, .quiz-ask, .qline, .end-lead { text-wrap: pretty; }
 .share-toast { min-height: 1.4em; font-size: .8rem; color: var(--ink-soft); margin-top: 1.4rem; }
 
 /* ---------- 本文 ---------- */
@@ -185,6 +196,7 @@ button, a { font: inherit; color: inherit; }
   word-break: normal;
   overflow-wrap: anywhere;
   line-break: strict;
+  text-wrap: pretty;
 }
 .paras > * { transition: opacity .9s ease, transform .9s ease; }
 .paras > .is-hidden { display: none; }
