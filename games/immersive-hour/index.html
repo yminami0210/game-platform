@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14121a">
+<title>最後の一時間</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="title-wrap">
+      <h1 id="title">最後の一時間</h1>
+      <div class="sub"><span id="loop">第1周</span> · <span id="frag">記録 0/0</span></div>
+    </div>
+    <div class="clock" id="clock" aria-live="off">23:00</div>
+  </header>
+  <p id="question" class="question"></p>
+  <div class="timebar" aria-hidden="true"><div id="timefill"></div></div>
+
+  <svg id="map" viewBox="0 0 300 200" role="img" aria-label="館内見取り図"></svg>
+
+  <section class="room" id="roomPanel">
+    <div class="room-head">
+      <h2 id="roomName">ロビー</h2>
+      <span id="followTag" class="follow-tag" hidden></span>
+    </div>
+    <p class="room-desc" id="roomDesc"></p>
+    <div class="people" id="people"></div>
+    <div class="scene" id="scene"></div>
+  </section>
+
+  <nav class="controls">
+    <button id="playBtn" class="primary">▶ 開演</button>
+    <button id="speedBtn" aria-label="速度">×1</button>
+    <button id="bookBtn">記録帳</button>
+  </nav>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="overlay" id="book" hidden>
+  <div class="sheet book">
+    <div class="book-head">
+      <h2>記録帳</h2>
+      <button id="bookClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="scenes" class="on">場面</button>
+      <button role="tab" data-tab="people">人物</button>
+      <button role="tab" data-tab="truths">手がかり</button>
+    </div>
+    <div id="bookBody" class="book-body"></div>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
