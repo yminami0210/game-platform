@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>二度目の夜</title>
+<meta name="description" content="七分で読める短編。二度目に、同じ文章の意味が変わる。">
+<meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="二度目の夜">
+<meta property="og:description" content="七分で読める短編。二度目に、同じ文章の意味が変わる。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://yminami0210.github.io/game-platform/games/second-night/">
+<meta property="og:image" content="https://yminami0210.github.io/game-platform/games/second-night/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="同じ一文が二度並び、二度目だけ傍線が引かれている">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="二度目の夜">
+<meta name="twitter:description" content="七分で読める短編。二度目に、同じ文章の意味が変わる。">
+<meta name="twitter:image" content="https://yminami0210.github.io/game-platform/games/second-night/og.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" data-run="1">
+
+  <!-- タイトル -->
+  <section id="screen-title" class="screen is-active" aria-labelledby="title-h">
+    <div class="title-wrap">
+      <p class="title-sub" id="title-sub">七分の短編</p>
+      <h1 id="title-h" class="title"><span class="title-num">二</span>度目の夜</h1>
+      <p class="title-lead" id="title-lead">「指輪は、上着の左のポケットに入れてある。」<br>海辺の古い宿の、ひと晩の話。</p>
+      <div class="title-actions">
+        <button class="btn btn-primary" id="btn-start" type="button">はじめる</button>
+        <button class="btn btn-ghost" id="btn-sub" type="button" hidden></button>
+      </div>
+      <p class="title-note" id="title-note">画面をタップすると、文章が進みます。約七分。<br>喪失を扱う物語です。</p>
+    </div>
+  </section>
+
+  <!-- 本文 -->
+  <section id="screen-read" class="screen" aria-live="polite">
+    <header class="bar">
+      <span class="bar-run" id="bar-run">一度目の夜</span>
+      <span class="bar-progress" id="bar-progress"></span>
+    </header>
+    <article class="page" id="page">
+      <h2 class="scene-title" id="scene-title"></h2>
+      <div class="paras" id="paras"></div>
+      <div class="page-foot">
+        <p class="tap-hint" id="tap-hint">タップで続きへ</p>
+        <button class="btn btn-next" id="btn-next" type="button" hidden>次の場面へ</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- 一周目の結末 -->
+  <section id="screen-end1" class="screen" aria-labelledby="end1-h">
+    <div class="end-wrap">
+      <p class="end-mark">一度目の夜</p>
+      <h2 class="end-h end-h-small" id="end1-h">おしまい。……では、ない。</h2>
+      <p class="end-lead">いま読んだ文章の中に、<br>二度目には意味が変わる一文が、いくつもあった。</p>
+      <div class="title-actions">
+        <button class="btn btn-primary" id="btn-second" type="button">答え合わせをする</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 二周目：答え合わせ -->
+  <section id="screen-quiz" class="screen">
+    <header class="bar">
+      <span class="bar-run">二度目の夜</span>
+      <span class="bar-progress" id="quiz-progress"></span>
+      <span class="bar-found" id="quiz-found"></span>
+    </header>
+    <article class="page quiz-page">
+      <p class="quiz-ask" id="quiz-ask">この中に、二度目には意味が変わる一文がある。<br>一行を選んでください。</p>
+      <div class="quiz-lines" id="quiz-lines"></div>
+      <div class="page-foot">
+        <button class="btn btn-next" id="quiz-next" type="button" hidden>次へ</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- 二周目の結末 -->
+  <section id="screen-end2" class="screen" aria-labelledby="end2-h">
+    <div class="end-wrap">
+      <p class="end-mark">二度目に気づけた一文</p>
+      <h2 class="end-score" id="end2-h"><span id="end2-n">0</span><span class="end-score-of"> / <span id="end2-of">5</span></span></h2>
+      <p class="end-lead" id="end2-found"></p>
+      <div class="title-actions">
+        <p class="share-preview" id="share-preview"></p>
+        <button class="btn btn-primary js-share" type="button">この文でシェアする</button>
+        <button class="btn btn-text" id="btn-home" type="button">タイトルへ</button>
+      </div>
+      <p class="share-toast" id="share-toast" role="status" aria-live="polite"></p>
+      <p class="title-note">進み具合はこの端末にだけ保存されます。<br>結果の文章が外に出るのは、共有ボタンを押したときだけです。</p>
+    </div>
+  </section>
+
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="表示テーマを切り替える">
+    <span aria-hidden="true">◐</span>
+  </button>
+</div>
+
+<script src="story.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
