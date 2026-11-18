@@ -10,3 +10,5 @@
 - 2026-11-18 タイトルは仮題のまま。候補5案を README に記載し、決定はオーナー。
 - 2026-11-18 OGP 画像は「同じ一文が二度並び、二度目だけ傍線」で仕組みだけ見せる。文字は IPA明朝（コンテナに導入）で描画した PNG。og:image は Pages 公開時の想定 URL（絶対 URL）。
 - 2026-11-18 eco モードの呼び出し計画: legal 1・playtester 1・reviewer 1（＋再確認1まで）。worldbuilder/design/content/sound/balance/researcher は小規模なノベルのため省略、PM が直接書く。
+- 2026-11-18 legal YELLOW 対応: LICENSES.md 追加、プライバシー一行（結果画面と README）、内容の注記。画面上の注記は「喪失を扱う物語です」に留め（「認知症」と書くと仕掛けが割れる）、README には明記する。
+- 2026-11-18 legal 残り（人間判断）: 商標の J-PlatPat 確認（タイトル決定後）、リポジトリのライセンス決定。いずれもオーナーへ Gate 2 承認パックで渡す。
