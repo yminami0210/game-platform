@@ -1,0 +1,4 @@
+{
+  "baseUrl": "https://yminami0210.github.io/game-platform/games/hanten/",
+  "note": "OGP の画像 URL は絶対 URL が必要なため、公開先が決まったらここを書き換えて tools/build.mjs を再実行する。"
+}

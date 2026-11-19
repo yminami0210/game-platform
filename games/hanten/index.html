@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>反転一行</title>
+<meta name="description" content="一分で読める超短編。最後の一行で、物語の意味が変わる。毎週一本。">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16161a" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="反転一行">
+<meta property="og:description" content="一分で読める超短編。最後の一行で、物語の意味が変わる。毎週一本。">
+<meta property="og:image" content="og/series.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="og/series.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app" aria-live="polite">
+  <section id="list" hidden>
+    <header class="masthead">
+      <h1>反転一行</h1>
+      <p class="tag">一分で読める。最後の一行で、意味が変わる。</p>
+    </header>
+    <ol id="works" class="works"></ol>
+    <p class="foot">毎週一本。読んだ話には印がつきます（この端末にだけ保存）。</p>
+  </section>
+
+  <section id="reader" hidden>
+    <nav class="bar">
+      <a href="./" class="back" id="toList">← 一覧</a>
+      <span class="no" id="rNo"></span>
+    </nav>
+    <div class="progress"><span id="prog"></span></div>
+    <article id="page" class="page" tabindex="0">
+      <p class="special" id="rSpecial" hidden></p>
+      <h2 id="rTitle"></h2>
+      <div id="paras" class="paras"></div>
+      <p id="hint" class="hint">タップで次へ</p>
+    </article>
+    <div id="end" class="end" hidden>
+      <p class="done">読了</p>
+      <button id="share" class="btn primary" type="button">共有する</button>
+      <p class="sharepreview" id="sharePreview"></p>
+      <div class="row">
+        <button id="again" class="btn" type="button">はじめから読む</button>
+        <a id="next" class="btn" href="./">次の話</a>
+      </div>
+      <a class="btn ghost" href="./">一覧へ</a>
+      <p class="toast" id="toast" role="status"></p>
+    </div>
+  </section>
+
+  <section id="missing" hidden>
+    <p>この話は見つかりませんでした。</p>
+    <a class="btn" href="./">一覧へ</a>
+  </section>
+</main>
+<noscript><p style="padding:24px">この作品を読むには JavaScript を有効にしてください。</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+:root{
+  --bg:#f4f1ea; --fg:#26241f; --sub:#7a756b; --line:#ddd7cb; --accent:#b8542f; --card:#fbf9f4;
+  --serif:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","IPAMincho",serif;
+  --sans:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","IPAGothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#16161a; --fg:#e6e1d6; --sub:#8f8a80; --line:#2c2c32; --accent:#e08a66; --card:#1d1d22; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--serif);-webkit-text-size-adjust:100%;min-height:100dvh}
+main{max-width:640px;margin:0 auto;padding:0 20px calc(32px + env(safe-area-inset-bottom))}
+a{color:inherit}
+[hidden]{display:none!important}
+
+/* 一覧 */
+.masthead{padding:48px 0 20px;border-bottom:1px solid var(--line)}
+.masthead h1{font-size:34px;letter-spacing:.25em;margin:0;font-weight:600}
+.tag{color:var(--sub);margin:10px 0 0;font-size:15px;letter-spacing:.05em}
+.works{list-style:none;margin:0;padding:0}
+.works li{border-bottom:1px solid var(--line)}
+.works a{display:block;padding:20px 4px;text-decoration:none}
+.works .meta{display:flex;gap:10px;align-items:center;font-family:var(--sans);font-size:12px;color:var(--sub);letter-spacing:.05em}
+.works .t{font-size:22px;margin:6px 0 6px;letter-spacing:.12em}
+.works .first{color:var(--sub);font-size:15px;margin:0;line-height:1.7}
+.badge{font-family:var(--sans);font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line)}
+.badge.read{border-color:var(--accent);color:var(--accent)}
+.badge.sp{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.foot{color:var(--sub);font-size:13px;font-family:var(--sans);margin:24px 0}
+
+/* 読む画面 */
+.bar{display:flex;justify-content:space-between;align-items:center;padding:16px 0 10px;font-family:var(--sans);font-size:14px;color:var(--sub)}
+.back{text-decoration:none;padding:6px 0}
+.progress{height:2px;background:var(--line);border-radius:2px;overflow:hidden}
+.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.page{min-height:calc(100dvh - 90px);padding:28px 0 40px;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;user-select:none}
+.page.finished{min-height:0;cursor:default;padding-bottom:8px}
+.page h2{font-size:15px;color:var(--sub);letter-spacing:.3em;font-weight:400;margin:0 0 28px}
+.special{font-family:var(--sans);font-size:12px;letter-spacing:.1em;color:var(--accent);margin:0 0 6px}
+.paras p{font-size:18px;line-height:2;margin:0 0 1em;letter-spacing:.03em;animation:in .45s ease both}
+.monologue .paras p{padding-left:14px;border-left:2px solid var(--line)}
+.paras p.lastline{margin-top:2.4em;font-size:20px;font-weight:600;animation:in 1.2s ease both;
+  padding:0;border:0;background:linear-gradient(transparent 70%,color-mix(in srgb,var(--accent) 22%,transparent) 70%)}
+.hint{font-family:var(--sans);color:var(--sub);font-size:13px;text-align:center;margin-top:28px;animation:blink 2s ease-in-out infinite}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes blink{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.paras p,.hint{animation:none}}
+
+.end{text-align:center;padding:12px 0 40px;animation:in .6s ease both}
+.done{font-family:var(--sans);font-size:12px;letter-spacing:.4em;color:var(--sub);margin:0 0 18px}
+.btn{display:inline-block;font:inherit;font-family:var(--sans);font-size:15px;padding:12px 20px;border-radius:10px;
+  border:1px solid var(--line);background:var(--card);color:var(--fg);text-decoration:none;cursor:pointer;min-height:44px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%;max-width:360px;font-size:16px}
+.btn.ghost{border:0;background:none;color:var(--sub);margin-top:6px}
+.row{display:flex;gap:10px;justify-content:center;margin:18px 0 6px;flex-wrap:wrap}
+.row .btn{flex:1;max-width:175px}
+.sharepreview{white-space:pre-wrap;text-align:left;font-family:var(--sans);font-size:13px;line-height:1.7;color:var(--sub);
+  background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:12px auto 0;max-width:360px}
+.toast{font-family:var(--sans);font-size:13px;color:var(--accent);min-height:1.5em;margin:8px 0 0}
+#missing{padding:60px 0;text-align:center}
+.works li.soon{padding:20px 4px;opacity:.55}
+.works li.soon .t{margin-bottom:0}
