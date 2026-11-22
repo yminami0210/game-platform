@@ -1,0 +1,90 @@
+{
+  "summary": {
+    "url": "game/index.html",
+    "runs": 3,
+    "secondsPerRun": 40,
+    "bot": "sticky-random",
+    "readyMsMedian": 70,
+    "runLengthSecMedian": 23.38,
+    "retryGapSecMedian": 0.11,
+    "scoreMedian": 0,
+    "fpsAvgMedian": 60.5,
+    "fpsMinWorst": 60,
+    "consoleErrors": [
+      "TypeError: Cannot read properties of null (reading 'events')"
+    ],
+    "note": "retryGap にはボットの反応時間（約0.1秒）が含まれる。fps はヘッドレス計測の参考値。"
+  },
+  "runs": [
+    {
+      "run": 0,
+      "readyMs": 74,
+      "firstStartSec": 0.038,
+      "runs": 3,
+      "fails": 2,
+      "runLengths": [
+        11.91,
+        21.2
+      ],
+      "retryGapsSec": [
+        0.11,
+        0.11
+      ],
+      "scores": [
+        0,
+        0
+      ],
+      "fpsAvg": 60.5,
+      "fpsMin": 60,
+      "heap": 10000000,
+      "errors": [
+        "TypeError: Cannot read properties of null (reading 'events')",
+        "TypeError: Cannot read properties of null (reading 'events')"
+      ]
+    },
+    {
+      "run": 1,
+      "readyMs": 70,
+      "firstStartSec": 0.04,
+      "runs": 2,
+      "fails": 1,
+      "runLengths": [
+        23.38
+      ],
+      "retryGapsSec": [
+        0.11
+      ],
+      "scores": [
+        0
+      ],
+      "fpsAvg": 60.5,
+      "fpsMin": 60,
+      "heap": 10000000,
+      "errors": [
+        "TypeError: Cannot read properties of null (reading 'events')"
+      ]
+    },
+    {
+      "run": 2,
+      "readyMs": 50,
+      "firstStartSec": 0.028,
+      "runs": 2,
+      "fails": 1,
+      "runLengths": [
+        30.57
+      ],
+      "retryGapsSec": [
+        0.11
+      ],
+      "scores": [
+        1
+      ],
+      "fpsAvg": 60.6,
+      "fpsMin": 60,
+      "heap": 10000000,
+      "errors": [
+        "TypeError: Cannot read properties of null (reading 'events')"
+      ]
+    }
+  ]
+}
