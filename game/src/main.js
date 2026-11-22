@@ -3,6 +3,7 @@ import { createGame, step, macroActions, microActions, snapshot, reportsOf, canD
 import { TYPES, PRINCIPLES } from './core/battle.js';
 import { explain, learnedFrom, principleStatus, checkReports } from './core/explain.js';
 import { chip, zoneHTML, board, reportRow, ZORDER } from './render/view.js';
+import { trail } from './render/ink.js';
 import { load, save, record } from './save.js';
 
 const [balance, T] = await Promise.all(['balance', 'text'].map((n) => fetch(`src/data/${n}.json`).then((r) => r.json())));
@@ -35,7 +36,7 @@ function newGame() {
 let shown = null;
 function render() {
   app.innerHTML = { title: viewTitle, gunji: viewGunji, digest: viewDigest, result: viewResult }[screen]();
-  if (shown !== screen) app.firstElementChild?.classList.add('fade'); // 画面が変わった時だけ淡く出す
+  if (shown !== screen) app.firstElementChild?.classList.add('fade', 'enter'); // 画面が変わった時だけ淡く出す（巻物もこの時だけ広がる）
   shown = screen;
 }
 
@@ -89,7 +90,7 @@ function viewDigest() {
   const cells = ZORDER.map((z) => {
     const ps = TYPES.filter((t) => v.p[t].zone === z).map((t) => chip(T, 'p', t, Math.round(v.p[t].count), { dead: v.p[t].count < 0.5, act: picked == null && d.waiting ? `pick:${t}` : (d.waiting && picked === t ? `pick:${t}` : undefined), sel: d.waiting && picked === t })).join('');
     const es = TYPES.filter((t) => v.e[t].zone === z).map((t) => chip(T, 'e', t, Math.round(v.e[t].count), { dead: v.e[t].count < 0.5 })).join('');
-    return zoneHTML(T, z, es + ps, { act: d.waiting && picked ? `izone:${z}` : `noop:${z}`, target: d.waiting && picked && g.plan.place[picked] !== z, flash: fx && d.flash === z, fire: v.fire && (z === 'river' || z === 'plain') });
+    return zoneHTML(T, z, es + ps, { act: d.waiting && picked ? `izone:${z}` : `noop:${z}`, target: d.waiting && picked && g.plan.place[picked] !== z, flash: fx && d.flash === z, splash: d.splash, fire: v.fire && (z === 'river' || z === 'plain') });
   }).join('');
   const round = Math.min(B.rounds, Math.max(0, d.round));
   const dots = Array.from({ length: B.rounds }, (_, i) => `<span class="${i < round ? 'on' : ''}"></span>`).join('');
@@ -103,7 +104,7 @@ function viewDigest() {
   }
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span class="dots" aria-label="第${round}合">${dots}</span></div>
   <div class="hp" title="本陣" aria-label="本陣の守り"><div style="width:${baseW}%"></div></div>
-  <div class="caption"><span>${d.mark ? `<span class="seal ${d.mark.k}">${esc(d.mark.t)}</span>` : ''}${esc(d.caption)}</span>${d.sub ? `<small>${esc(d.sub)}</small>` : ''}</div><div class="scroll">${board(cells)}</div>${panel}</div>`;
+  <div class="caption"><span>${d.mark ? `<span class="seal ${d.mark.k}">${esc(d.mark.t)}</span>` : ''}${esc(d.caption)}</span>${d.sub ? `<small>${esc(d.sub)}</small>` : ''}</div><div class="scroll roll"><i class="rod"></i>${board(cells, d.trail ? trail(d.trail[0], d.trail[1]) : '')}<i class="rod"></i></div>${panel}</div>`;
 }
 
 function viewResult() {
@@ -118,7 +119,7 @@ function viewResult() {
   const help = T.scoreHelp.replace('{g}', Math.round((1 - B.goodEnemyLeft) * 100)).replace('{w}', Math.round((1 - B.winEnemyLeft) * 100)).replace('{p}', Math.round((1 - B.perfectEnemyLeft) * 100)).replace('{o}', Math.round(B.perfectOwn * 100));
   const newly = g.newLearned?.length ? `<div class="learn">習得: ${g.newLearned.map((p) => T.principles[p].name).join('・')}</div>` : '';
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>解説</span></div><div class="scroll">
-  <div class="stamp ${sc >= 2 ? '' : 'lose'}">${['惜', '善', '勝', '完'][sc]}</div>
+  <div class="stamp ${sc >= 2 ? '' : 'lose'}" aria-label="落款 ${T.scoreLabel[sc]}"><span>${['惜', '善', '勝', '完'][sc]}</span></div>
   <div class="squares" aria-label="評価 ${sc}/3">${sq}</div><div class="big" style="font-size:24px;margin:0">${T.scoreLabel[sc]}</div>
   <p class="lead">${T.scoreLead[sc]}</p>${why}${checkHTML}${newly}<p class="legend">${help}</p></div>
   <div class="bar" style="flex-direction:column"><button class="btn main" data-act="retry" style="flex:none">${T.ui.retry}</button><button class="btn sub" data-act="title" style="flex:none">${T.ui.toTitle}</button></div></div>`;
@@ -158,13 +159,13 @@ function clashNote(ev) {
   return notes.slice(0, 2).join('。');
 }
 function applyEvent(ev) {
-  const d = dg, v = d.view; d.flash = null; v.fire = false; d.sub = ''; d.mark = null;
+  const d = dg, v = d.view; d.flash = null; d.splash = false; d.trail = null; v.fire = false; d.sub = ''; d.mark = null;
   d.round = Math.max(d.round, ev.t);
   const C = T.captions;
   const eff = (k, o) => { d.caption = C[k][0]; d.sub = fmt(C[k][1], o); d.mark = { k: 'on', t: '効' }; };
   switch (ev.kind) {
     case 'deploy': d.caption = C.deploy; break;
-    case 'intervene': v.p[ev.unit].zone = ev.to; d.caption = C.intervene; d.sub = `${T.types[ev.unit]}を${T.zones[ev.to]}へ`; d.flash = ev.to; vibrate(20); break;
+    case 'intervene': v.p[ev.unit].zone = ev.to; d.caption = C.intervene; d.sub = `${T.types[ev.unit]}を${T.zones[ev.to]}へ`; d.flash = ev.to; d.trail = [ev.from, ev.to]; vibrate(20); break;
     case 'high_ground': eff('high_ground'); d.flash = 'hill'; break;
     case 'choke': eff('choke'); d.flash = 'gorge'; break;
     case 'trap': eff('trap', { z: ev.zone }); d.flash = ev.zone; break;
@@ -172,7 +173,7 @@ function applyEvent(ev) {
     case 'clash':
       for (const [t, n] of ev.p) v.p[t].count = n;
       for (const [t, n] of ev.e) v.e[t].count = n;
-      d.caption = fmt(C.clash, { z: ev.zone }); d.sub = clashNote(ev); d.flash = ev.zone; vibrate(12); break;
+      d.caption = fmt(C.clash, { z: ev.zone }); d.sub = clashNote(ev); d.flash = ev.zone; d.splash = !reduceMotion; vibrate(12); break;
     case 'base_hit': v.baseHp = ev.baseHp; d.caption = fmt(C.base_hit, { z: ev.zone }); d.sub = C.base_hit_sub; d.flash = ev.zone; vibrate(30); break;
     case 'fire': v.fire = true; eff('fire_E'); break;
     case 'backfire': v.fire = true; d.caption = C.backfire[0]; d.sub = fmt(C.backfire[1]); d.mark = { k: 'off', t: '裏目' }; vibrate(30); break;
