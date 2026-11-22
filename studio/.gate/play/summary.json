@@ -4,87 +4,183 @@
     "runs": 3,
     "secondsPerRun": 40,
     "bot": "sticky-random",
-    "readyMsMedian": 70,
-    "runLengthSecMedian": 23.38,
-    "retryGapSecMedian": 0.11,
-    "scoreMedian": 0,
-    "fpsAvgMedian": 60.5,
-    "fpsMinWorst": 60,
-    "consoleErrors": [
-      "TypeError: Cannot read properties of null (reading 'events')"
-    ],
+    "readyMsMedian": 66,
+    "runLengthSecMedian": 2.21,
+    "retryGapSecMedian": 0.1,
+    "scoreMedian": 1,
+    "fpsAvgMedian": 60.6,
+    "fpsMinWorst": 59,
+    "consoleErrors": [],
     "note": "retryGap にはボットの反応時間（約0.1秒）が含まれる。fps はヘッドレス計測の参考値。"
   },
   "runs": [
     {
       "run": 0,
-      "readyMs": 74,
-      "firstStartSec": 0.038,
-      "runs": 3,
-      "fails": 2,
+      "readyMs": 82,
+      "firstStartSec": 0.042,
+      "runs": 17,
+      "fails": 13,
       "runLengths": [
-        11.91,
-        21.2
+        2.32,
+        2.41,
+        1.67,
+        1.98,
+        2.39,
+        2.82,
+        1.88,
+        1.67,
+        2.4,
+        2.4,
+        1.77,
+        2.29,
+        2.39
       ],
       "retryGapsSec": [
+        0.1,
+        0.1,
         0.11,
-        0.11
+        0.11,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.11,
+        0.1,
+        0.1,
+        0.1
       ],
       "scores": [
+        1,
+        1,
         0,
-        0
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1
       ],
-      "fpsAvg": 60.5,
+      "fpsAvg": 60.7,
       "fpsMin": 60,
       "heap": 10000000,
-      "errors": [
-        "TypeError: Cannot read properties of null (reading 'events')",
-        "TypeError: Cannot read properties of null (reading 'events')"
-      ]
+      "errors": []
     },
     {
       "run": 1,
-      "readyMs": 70,
-      "firstStartSec": 0.04,
-      "runs": 2,
-      "fails": 1,
+      "readyMs": 50,
+      "firstStartSec": 0.027,
+      "runs": 17,
+      "fails": 11,
       "runLengths": [
-        23.38
+        1.77,
+        2.2,
+        1.98,
+        2.84,
+        1.67,
+        1.99,
+        2.53,
+        1.89,
+        1.47,
+        2.74,
+        2.63
       ],
       "retryGapsSec": [
-        0.11
+        0.1,
+        0.1,
+        0.1,
+        0.11,
+        0.1,
+        0.11,
+        0.1,
+        0.11,
+        0.1,
+        0.11,
+        0.1
       ],
       "scores": [
-        0
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1
       ],
       "fpsAvg": 60.5,
-      "fpsMin": 60,
+      "fpsMin": 59,
       "heap": 10000000,
-      "errors": [
-        "TypeError: Cannot read properties of null (reading 'events')"
-      ]
+      "errors": []
     },
     {
       "run": 2,
-      "readyMs": 50,
-      "firstStartSec": 0.028,
-      "runs": 2,
-      "fails": 1,
+      "readyMs": 66,
+      "firstStartSec": 0.036,
+      "runs": 18,
+      "fails": 15,
       "runLengths": [
-        30.57
+        1.69,
+        1.57,
+        2.21,
+        2.22,
+        2.43,
+        2.22,
+        2.74,
+        2.01,
+        2.64,
+        2.43,
+        2.09,
+        1.88,
+        1.99,
+        2.94,
+        1.68
       ],
       "retryGapsSec": [
-        0.11
+        0.1,
+        0.1,
+        0.11,
+        0.11,
+        0.11,
+        0.11,
+        0.11,
+        0.11,
+        0.11,
+        0.11,
+        0.1,
+        0.11,
+        0.1,
+        0.1,
+        0.1
       ],
       "scores": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
         1
       ],
       "fpsAvg": 60.6,
       "fpsMin": 60,
       "heap": 10000000,
-      "errors": [
-        "TypeError: Cannot read properties of null (reading 'events')"
-      ]
+      "errors": []
     }
   ]
 }

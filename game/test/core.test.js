@@ -201,3 +201,13 @@ test('データJSONがすべて読める', () => {
   const dir = new URL('../src/data/', import.meta.url);
   for (const f of readdirSync(dir)) if (f.endsWith('.json')) JSON.parse(readFileSync(new URL(f, dir)));
 });
+
+test('simulate 経路: 一括の策→待つ だけで1戦が終わり、結果が出る', () => {
+  const s = createGame({ seed: 9, data });
+  const a = actions(s); assert.ok(a.length > 10 && a.every((x) => x.startsWith('plan:')));
+  assert.ok(step(s, a[0], 1 / 60).some((e) => e.type === 'deploy'));
+  assert.equal(s.alive, true); assert.ok(s.score >= 0);
+  let ev = [], n = 0;
+  while (s.alive && n++ < 60 * 200) ev = ev.concat(step(s, 'wait', 1 / 60));
+  assert.ok(n > 60 * 20 && n < 60 * 300); assert.ok(ev.some((e) => e.type === 'clear' || e.type === 'fail'));
+});

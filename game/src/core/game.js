@@ -1,6 +1,7 @@
 // 1戦のセッション（軍議→開戦→介入→結果）の状態機械。純粋なJS。UI・ボット・simulate.mjs が共通で使う。
 // 行動(action)は文字列: place:<兵科>:<地形> / principle:<原則> / spy:<報告の対象> / deploy / intervene:<兵科>:<地形> / skip
 import { createEngine, ZONES, TYPES, PRINCIPLES } from './battle.js';
+import { createRng } from './rng.js';
 
 const engines = new WeakMap();
 export function engineOf(data) {
@@ -15,7 +16,7 @@ export function createGame({ seed = 1, data }) {
   return {
     seed, data, phase: 'plan', alive: true, score: 0,
     sc, rawReports: eng.makeReports(sc, seed), spyTarget: null,
-    place: {}, principles: [], plan: null, result: null, intervention: null,
+    place: {}, principles: [], plan: null, result: null, intervention: null, busy: 0,
   };
 }
 
@@ -58,7 +59,7 @@ export function deploy(s) {
   if (!canDeploy(s)) return false;
   s.plan = { place: { ...s.place }, principles: [...s.principles], intervention: null };
   s.result = engineOf(s.data).resolveBattle(s.sc, s.plan, s.seed);
-  s.phase = 'battle';
+  s.phase = 'battle'; s.score = s.result.score; // score は simulate.mjs の先読み用。画面は result 局面まで見せない
   return true;
 }
 
@@ -75,7 +76,34 @@ export function intervene(s, unit, zone) {
   return true;
 }
 
-export function actions(s) {
+// 一括の策（軍議を一度に決める）。simulate.mjs とブラウザのボットが使う。
+// 形式: plan:inf=hill,arc=plain,cav=river|high,fire[|spy対象]。半分は報告を鵜呑みにした配置、半分は無作為。
+export function macroActions(s, n = 40) {
+  const out = [];
+  const claimed = s.rawReports.filter((r) => r.subject !== 'wind').map((r) => r.claim);
+  for (let k = 0; k < n; k++) {
+    const rng = createRng(s.seed * 977 + k);
+    const place = {};
+    if (k % 2 === 0) { const ts = [...TYPES].sort(() => rng.next() - 0.5); ts.forEach((t, i) => { place[t] = claimed[i]; }); }
+    else for (const t of TYPES) place[t] = ZONES[rng.int(0, ZONES.length - 1)];
+    const pr = [...PRINCIPLES].sort(() => rng.next() - 0.5).slice(0, 2);
+    let str = `plan:${TYPES.map((t) => `${t}=${place[t]}`).join(',')}|${pr.join(',')}`;
+    if (pr.includes('spy')) str += `|${s.rawReports[rng.int(0, s.rawReports.length - 1)].subject}`;
+    out.push(str);
+  }
+  return out;
+}
+
+function applyMacro(s, str) {
+  const [pl, pr, spy] = str.slice(5).split('|');
+  for (const kv of pl.split(',')) { const [t, z] = kv.split('='); if (!setPlace(s, t, z)) return false; }
+  for (const p of pr.split(',')) if (!togglePrinciple(s, p)) return false;
+  if (spy && !chooseSpy(s, spy)) return false;
+  return deploy(s);
+}
+
+// 細かい操作の一覧（UI用）
+export function microActions(s) {
   if (s.phase === 'plan') {
     const a = [];
     for (const t of TYPES) for (const z of ZONES) a.push(`place:${t}:${z}`);
@@ -92,17 +120,26 @@ export function actions(s) {
   return ['retry'];
 }
 
-// 行動を1つ適用。結果が出たら clear / fail を返す。dt は使わない（simulate.mjs 互換）。
-export function step(s, action) {
+// simulate.mjs 用: 軍議は一括の策、再生中は待つだけ
+export function actions(s) {
+  if (s.phase === 'plan') return macroActions(s);
+  return s.phase === 'battle' ? ['wait'] : ['retry'];
+}
+
+// 行動を1つ適用。結果が出たら clear / fail を返す。
+// dt を渡すと（simulate.mjs）、一括の策のあと simSeconds（軍議+再生の目安）が経ってから結果になる。UI は dt を渡さない。
+export function step(s, action, dt) {
   const ev = [];
   const [k, a, b] = String(action).split(':');
   let ok = false;
-  if (k === 'place') ok = setPlace(s, a, b);
+  if (k === 'plan') { ok = applyMacro(s, String(action)); if (ok) { ev.push({ type: 'deploy' }); s.busy = s.data.balance?.simSeconds ?? s.data.simSeconds ?? 75; } }
+  else if (k === 'place') ok = setPlace(s, a, b);
   else if (k === 'principle') ok = togglePrinciple(s, a);
   else if (k === 'spy') ok = chooseSpy(s, a);
   else if (k === 'deploy') { ok = deploy(s); if (ok) ev.push({ type: 'deploy' }); }
   else if (k === 'intervene') ok = intervene(s, a, b);
   else if (k === 'skip') ok = intervene(s, null);
+  if (dt && s.phase === 'battle' && s.busy > 0 && k !== 'plan') { s.busy -= dt; if (s.busy <= 0) ok = intervene(s, null); }
   if (ok && s.phase === 'result') ev.push({ type: s.result.win ? 'clear' : 'fail', score: s.score, win: s.result.win, reasons: [...s.result.reasons] });
   return ev;
 }

@@ -82,5 +82,6 @@
  "winEnemyLeft": 0.4,
  "goodEnemyLeft": 0.75,
  "perfectEnemyLeft": 0.2,
- "perfectOwn": 0.5
+ "perfectOwn": 0.5,
+ "simSeconds": 75
 }

@@ -1,5 +1,5 @@
 // 起動・画面遷移・__GS__ の公開。ゲームの規則は core/ にあり、ここは表示と入力だけ。
-import { createGame, step, actions, snapshot, reportsOf, canDeploy } from './core/game.js';
+import { createGame, step, macroActions, microActions, snapshot, reportsOf, canDeploy } from './core/game.js';
 import { TYPES, PRINCIPLES } from './core/battle.js';
 import { explain, learnedFrom } from './core/explain.js';
 import { chip, zoneHTML, board, reportRow, ZORDER } from './render/view.js';
@@ -188,10 +188,10 @@ function dispatch(act) {
     else if (act === 'tray') { if (selected && g.place[selected]) { delete g.place[selected]; selected = null; } }
     else if (act === 'undo') { g.place = {}; selected = null; }
     else if (act === 'deploy') { if (step(g, 'deploy').length) { log('deploy', { principles: [...g.plan.principles] }); startDigest(); return; } }
-    else step(g, act);
+    else { step(g, act); if (g.phase === 'battle') { log('deploy', { principles: [...g.plan.principles] }); startDigest(); return; } }
   } else if (screen === 'digest') {
     if (act === 'ff') { dg.speed = dg.speed > 1 ? 1 : 3; schedule(); }
-    else if (act === 'next') advance();
+    else if (act === 'next') { if (!dg.waiting) advance(); }
     else if (k === 'pick') picked = picked === a ? null : a;
     else if (k === 'izone') { if (picked) { doIntervene(picked, a); return; } }
     else if (act === 'skip') { doIntervene(null); return; }
@@ -210,15 +210,15 @@ window.__GS__ = {
   events,
   get running() { return screen === 'gunji' || screen === 'digest'; },
   bot: {
-    actions: () => (screen === 'title' ? ['start'] : screen === 'result' ? ['retry'] : screen === 'digest' ? (dg.waiting ? actions(g).filter((a) => a === 'skip' || a.startsWith('intervene:')) : ['next']) : actions(g)),
-    press: (a) => {
-      if (screen === 'digest' && a === 'next') { if (dg.waiting) return; advance(); return; }
-      if (screen === 'digest' && (a === 'skip' || a.startsWith('intervene:'))) { dispatch(a); return; }
-      if (screen === 'title' && a !== 'start') return;
-      if (screen === 'result' && a !== 'retry' && a !== 'title') return;
-      dispatch(a);
-    },
+    actions: () => botActions(),
+    press: (a) => { if (botActions().includes(a)) dispatch(a); },
   },
 };
+function botActions() {
+  if (screen === 'title') return ['start'];
+  if (screen === 'result') return ['retry'];
+  if (screen === 'digest') return dg?.waiting ? microActions(g) : ['next'];
+  return g ? macroActions(g) : [];
+}
 render();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
