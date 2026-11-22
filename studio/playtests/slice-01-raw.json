@@ -1,0 +1,404 @@
+{
+ "runs": [
+  {
+   "name": "r1-first-normal",
+   "strat": {
+    "principles": [
+     "high",
+     "choke"
+    ],
+    "place": "report",
+    "intervene": "none",
+    "shotPlan": true
+   },
+   "t0": 1795321882267,
+   "events": [
+    "place inf->river",
+    "place arc->hill",
+    "place cav->gorge",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r1-first-normal-1-gunji.png",
+    "r1-first-normal-2-digest.png",
+    "r1-first-normal-3-intervene.png",
+    "r1-first-normal-4-result.png"
+   ],
+   "reportsAtStart": "inf:river/high arc:hill/high cav:gorge/mid wind:W/low",
+   "principlesChosen": [
+    "high",
+    "choke"
+   ],
+   "deployTapMs": 44,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 弓 | 40 | 騎 | 30 | 弓 | 30 | 谷 | 騎 | 30 | 江 | 歩 | 50 | 歩 | 40 | 平地 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 弓 | 32 | 騎 | 24 | 弓 | 3 | 谷 | 騎 | 30 | 江 | 歩 | 36 | 歩 | 22 | 平地 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:arc noop:gorge pick:cav noop:river pick:inf noop:plain pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 1,
+    "win": false,
+    "reasons": [
+     "high",
+     "idle:gorge",
+     "uncovered:hill"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 善戦 | 本陣は守った。あと一歩で勝ちに届く。 | 無所不備、則無所不寡虚実篇 | 山地に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 兵者、詭道也計篇 | 選んだ「険所を先に占めて待つ」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 知彼知己、百戦不殆謀攻篇 | 谷に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | 習得: 高所を先に占める | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 22830,
+   "retryMs": 84
+  },
+  {
+   "name": "r2-trap-random",
+   "strat": {
+    "principles": [
+     "trap",
+     "fire"
+    ],
+    "place": "random",
+    "intervene": "none",
+    "ff": true
+   },
+   "t0": 1795321905181,
+   "events": [
+    "place inf->river",
+    "place arc->plain",
+    "place cav->hill",
+    "ff",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r2-trap-random-2-digest.png",
+    "r2-trap-random-3-intervene.png",
+    "r2-trap-random-4-result.png"
+   ],
+   "reportsAtStart": "inf:hill/low arc:river/high cav:gorge/mid wind:E/mid",
+   "principlesChosen": [
+    "trap",
+    "fire"
+   ],
+   "deployTapMs": 40,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 騎 | 30 | 谷 | 歩 | 50 | 騎 | 30 | 江 | 弓 | 40 | 歩 | 40 | 平地 | 弓 | 30 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 騎 | 30 | 谷 | 歩 | 50 | 騎 | 30 | 江 | 弓 | 23 | 歩 | 19 | 平地 | 弓 | 30 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:cav noop:gorge noop:river pick:inf noop:plain pick:arc pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 0,
+    "win": false,
+    "reasons": [
+     "idle:hill",
+     "trap:river",
+     "idle:plain",
+     "uncovered:gorge",
+     "fire_backfire"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 惜敗 | 読み違いであって、死ではない。理由を確かめて、もう一度。 | 無所不備、則無所不寡虚実篇 | 谷に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 火発上風、無攻下風火攻篇 | 風は西だった。火は味方の江と平地の部隊に返り、自滅した。風の報告は疑い、確かめる手もある。 | 知彼知己、百戦不殆謀攻篇 | 山地に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | 習得: 死地に追い込む | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 9669,
+   "retryMs": 76
+  },
+  {
+   "name": "r3-intervene",
+   "strat": {
+    "principles": [
+     "high",
+     "choke"
+    ],
+    "place": "report",
+    "intervene": "cav",
+    "shotPlan": true
+   },
+   "t0": 1795321914926,
+   "events": [
+    "place inf->river",
+    "place arc->gorge",
+    "place cav->plain",
+    "intervene -> izone:hill"
+   ],
+   "shots": [
+    "r3-intervene-1-gunji.png",
+    "r3-intervene-2-digest.png",
+    "r3-intervene-3-intervene.png",
+    "r3-intervene-4-result.png"
+   ],
+   "reportsAtStart": "inf:river/mid arc:gorge/high cav:plain/low wind:W/high",
+   "principlesChosen": [
+    "high",
+    "choke"
+   ],
+   "deployTapMs": 40,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 谷 | 弓 | 40 | 弓 | 30 | 江 | 歩 | 50 | 歩 | 40 | 平地 | 騎 | 30 | 騎 | 30 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 谷 | 弓 | 27 | 弓 | 19 | 江 | 歩 | 37 | 歩 | 22 | 平地 | 騎 | 15 | 騎 | 15 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill noop:gorge pick:arc noop:river pick:inf noop:plain pick:cav pick:inf pick:arc pick:cav skip",
+   "moved": true,
+   "interveneActs1": "izone:hill izone:gorge izone:river izone:plain pick:cav pick:inf pick:arc pick:cav skip",
+   "result": {
+    "score": 1,
+    "win": false,
+    "reasons": [
+     "choke",
+     "uncovered:plain"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 善戦 | 本陣は守った。あと一歩で勝ちに届く。 | 無所不備、則無所不寡虚実篇 | 平地に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 兵者、詭道也計篇 | 選んだ「高所を先に占める」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 険形者、我先居之地形篇 | 谷で待ち受け、敵の攻めを削いだ。狭い所では、待つ側が強い。 | 習得: 険所を先に占めて待つ | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 27462,
+   "retryMs": 67
+  },
+  {
+   "name": "r4-same-plan-changed-principles",
+   "strat": {
+    "principles": [
+     "trap",
+     "fire"
+    ],
+    "place": "report",
+    "intervene": "none"
+   },
+   "t0": 1795321942456,
+   "events": [
+    "place inf->gorge",
+    "place arc->gorge",
+    "place cav->gorge",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r4-same-plan-changed-principles-2-digest.png",
+    "r4-same-plan-changed-principles-3-intervene.png",
+    "r4-same-plan-changed-principles-4-result.png"
+   ],
+   "reportsAtStart": "inf:gorge/low arc:gorge/high cav:gorge/low wind:W/low",
+   "principlesChosen": [
+    "trap",
+    "fire"
+   ],
+   "deployTapMs": 38,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 谷 | 歩 | 50 | 弓 | 40 | 騎 | 30 | 歩 | 40 | 弓 | 30 | 騎 | 30 | 江 | 平地 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 谷 | 歩 | 37 | 弓 | 28 | 騎 | 16 | 歩 | 22 | 弓 | 15 | 騎 | 12 | 江 | 平地 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill noop:gorge pick:inf pick:arc pick:cav noop:river noop:plain pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 1,
+    "win": false,
+    "reasons": [
+     "fire_ok"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 善戦 | 本陣は守った。あと一歩で勝ちに届く。 | 兵者、詭道也計篇 | 選んだ「死地に追い込む」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 火攻有五火攻篇 | 東風に乗せた火が、江と平地の敵を崩した。風を読んだ者の勝ちだ。 | 習得: 火攻は風を読む | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 16130,
+   "retryMs": 53
+  },
+  {
+   "name": "r5-spy-low",
+   "strat": {
+    "principles": [
+     "spy",
+     "high"
+    ],
+    "place": "report",
+    "spy": "low",
+    "intervene": "none",
+    "ff": true
+   },
+   "t0": 1795321958639,
+   "events": [
+    "place inf->hill",
+    "place arc->hill",
+    "place cav->plain",
+    "ff",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r5-spy-low-2-digest.png",
+    "r5-spy-low-3-intervene.png",
+    "r5-spy-low-4-result.png"
+   ],
+   "reportsAtStart": "inf:hill/mid arc:hill/mid cav:plain/high wind:E/low",
+   "principlesChosen": [
+    "spy",
+    "high"
+   ],
+   "deployTapMs": 42,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 歩 | 40 | 弓 | 30 | 谷 | 江 | 歩 | 50 | 弓 | 40 | 平地 | 騎 | 30 | 騎 | 30 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 歩 | 40 | 弓 | 30 | 谷 | 江 | 歩 | 50 | 弓 | 40 | 平地 | 騎 | 16 | 騎 | 15 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:inf pick:arc noop:gorge noop:river noop:plain pick:cav pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 0,
+    "win": false,
+    "reasons": [
+     "idle:hill",
+     "uncovered:river"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 惜敗 | 読み違いであって、死ではない。理由を確かめて、もう一度。 | 無所不備、則無所不寡虚実篇 | 江に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 兵者、詭道也計篇 | 選んだ「高所を先に占める」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 知彼知己、百戦不殆謀攻篇 | 山地に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 7615,
+   "retryMs": 49
+  },
+  {
+   "name": "r6-high-trust-only",
+   "strat": {
+    "principles": [
+     "high",
+     "choke"
+    ],
+    "place": "report",
+    "trustFilter": "high",
+    "intervene": "none",
+    "ff": true
+   },
+   "t0": 1795321966304,
+   "events": [
+    "place inf->plain",
+    "place arc->plain",
+    "place cav->hill",
+    "ff",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r6-high-trust-only-2-digest.png",
+    "r6-high-trust-only-3-intervene.png",
+    "r6-high-trust-only-4-result.png"
+   ],
+   "reportsAtStart": "inf:hill/low arc:river/low cav:hill/high wind:W/high",
+   "principlesChosen": [
+    "high",
+    "choke"
+   ],
+   "deployTapMs": 39,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 歩 | 50 | 弓 | 40 | 騎 | 30 | 騎 | 30 | 谷 | 江 | 平地 | 歩 | 40 | 弓 | 30 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 歩 | 48 | 弓 | 37 | 騎 | 28 | 騎 | 0 | 谷 | 江 | 平地 | 歩 | 40 | 弓 | 30 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:cav noop:gorge noop:river noop:plain pick:inf pick:arc pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 0,
+    "win": false,
+    "reasons": [
+     "high",
+     "idle:plain",
+     "uncovered:hill"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 惜敗 | 読み違いであって、死ではない。理由を確かめて、もう一度。 | 無所不備、則無所不寡虚実篇 | 山地に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 兵者、詭道也計篇 | 選んだ「険所を先に占めて待つ」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 知彼知己、百戦不殆謀攻篇 | 平地に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 7585,
+   "retryMs": 82
+  },
+  {
+   "name": "r7-retry-check",
+   "strat": {
+    "principles": [
+     "high",
+     "choke"
+    ],
+    "place": "report",
+    "intervene": "none",
+    "ff": true
+   },
+   "t0": 1795321973972,
+   "events": [
+    "place inf->river",
+    "place arc->gorge",
+    "place cav->hill",
+    "ff",
+    "no intervention (skip)"
+   ],
+   "shots": [
+    "r7-retry-check-2-digest.png",
+    "r7-retry-check-3-intervene.png",
+    "r7-retry-check-4-result.png"
+   ],
+   "reportsAtStart": "inf:river/low arc:gorge/low cav:hill/high wind:E/low",
+   "principlesChosen": [
+    "high",
+    "choke"
+   ],
+   "deployTapMs": 37,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 騎 | 30 | 騎 | 30 | 谷 | 弓 | 30 | 江 | 歩 | 50 | 弓 | 40 | 歩 | 40 | 平地 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 騎 | 18 | 騎 | 23 | 谷 | 弓 | 30 | 江 | 歩 | 44 | 弓 | 35 | 歩 | 0 | 平地 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:cav noop:gorge pick:arc noop:river pick:inf noop:plain pick:inf pick:arc pick:cav skip",
+   "skipped": true,
+   "result": {
+    "score": 1,
+    "win": false,
+    "reasons": [
+     "high",
+     "idle:gorge",
+     "uncovered:river"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 善戦 | 本陣は守った。あと一歩で勝ちに届く。 | 無所不備、則無所不寡虚実篇 | 江に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 兵者、詭道也計篇 | 選んだ「険所を先に占めて待つ」は、条件が揃わず働かなかった。原則は、使う場所と時を読んで初めて効く。 | 知彼知己、百戦不殆謀攻篇 | 谷に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 9533,
+   "retryMs": 50
+  },
+  {
+   "name": "r8-random-all",
+   "strat": {
+    "principles": [
+     "fire",
+     "spy"
+    ],
+    "place": "random",
+    "spy": "high",
+    "intervene": "cav",
+    "ff": true
+   },
+   "t0": 1795321983555,
+   "events": [
+    "place inf->river",
+    "place arc->hill",
+    "place cav->gorge",
+    "ff",
+    "intervene -> izone:hill"
+   ],
+   "shots": [
+    "r8-random-all-2-digest.png",
+    "r8-random-all-3-intervene.png",
+    "r8-random-all-4-result.png"
+   ],
+   "reportsAtStart": "inf:gorge/high arc:hill/mid cav:gorge/high wind:E/mid",
+   "principlesChosen": [
+    "fire",
+    "spy"
+   ],
+   "deployTapMs": 38,
+   "digestAt": "赤壁 | 両軍、布陣す | 山地 | 弓 | 30 | 谷 | 歩 | 50 | 騎 | 30 | 騎 | 30 | 江 | 歩 | 40 | 平地 | 弓 | 40 | 早送り",
+   "interveneText": "赤壁 | 機が来た。号令を下せ | 山地 | 弓 | 30 | 谷 | 歩 | 48 | 騎 | 28 | 騎 | 0 | 江 | 歩 | 40 | 平地 | 弓 | 40 | 機 | 号令で動かす部隊を選べ（1部隊） | 歩 | 弓 | 騎 | そのまま",
+   "interveneActs0": "noop:hill pick:arc noop:gorge pick:cav noop:river pick:inf noop:plain pick:inf pick:arc pick:cav skip",
+   "moved": true,
+   "interveneActs1": "izone:hill izone:gorge pick:cav izone:river izone:plain pick:inf pick:arc pick:cav skip",
+   "result": {
+    "score": 0,
+    "win": false,
+    "reasons": [
+     "idle:hill",
+     "idle:river",
+     "uncovered:plain",
+     "fire_ok",
+     "uncovered:gorge"
+    ]
+   },
+   "resultText": "赤壁 | 解説 | 惜 | 惜敗 | 読み違いであって、死ではない。理由を確かめて、もう一度。 | 無所不備、則無所不寡虚実篇 | 平地に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 無所不備、則無所不寡虚実篇 | 谷に敵がいたのに、味方がいなかった。空いた場所から本陣が削られた。報告の真偽を見直したい。 | 知彼知己、百戦不殆謀攻篇 | 山地に置いた部隊は敵に会えず、空振りに終わった。敵の居場所を読むことが、勝負の半分だ。 | もう一度、軍議を開く | 戦場へ戻る",
+   "resultActs": "retry(もう一度、軍議を開く)56px@724 title(戦場へ戻る)48px@788",
+   "battleMs": 11293,
+   "retryMs": 72
+  }
+ ],
+ "seen": {
+  "noop:hill": 24,
+  "noop:gorge": 24,
+  "noop:river": 24,
+  "noop:plain": 24,
+  "ff": 16,
+  "pick:arc": 16,
+  "pick:cav": 16,
+  "pick:inf": 16,
+  "skip": 8
+ },
+ "smallErrors": [],
+ "errors": []
+}
