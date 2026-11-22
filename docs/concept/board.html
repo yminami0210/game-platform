@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>食卓の盤面</title>
+<style>
+:root{--bg:#f6f1e7;--ink:#2b2622;--sub:#6f655c;--table:#d9c6a5;--edge:#b79f78;--card:#fffdf8;--back:#7a4b3a;--accent:#c0392b;--phone:#1f1f1f;--screen:#fbfaf6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1916;--ink:#eee7dc;--sub:#a99d90;--table:#4a3d2e;--edge:#6b5843;--card:#2c2925;--back:#8c5a47;--accent:#e2665a;--phone:#0c0c0c;--screen:#ece7dd}}
+:root[data-theme="dark"]{--bg:#1b1916;--ink:#eee7dc;--sub:#a99d90;--table:#4a3d2e;--edge:#6b5843;--card:#2c2925;--back:#8c5a47;--accent:#e2665a;--phone:#0c0c0c;--screen:#ece7dd}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:20px;margin:0 0 4px}
+p.lead{color:var(--sub);margin:0 0 16px;font-size:14px}
+svg{width:100%;height:auto;display:block}
+.t{fill:var(--ink);font-size:13px}
+.s{fill:var(--sub);font-size:11px}
+.legend{display:grid;grid-template-columns:1fr;gap:10px;margin-top:18px;font-size:14px}
+.legend div{background:var(--card);border:1px solid var(--edge);border-radius:8px;padding:10px 12px}
+.legend b{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>食卓の盤面（4人の例）</h1>
+<p class="lead">上から見た図。真ん中のスマホ1台が「親」。手札は紙のカード。各自のスマホは使わない。</p>
+<svg viewBox="0 0 720 620" role="img" aria-label="食卓を上から見た盤面図">
+  <!-- table -->
+  <rect x="110" y="90" width="500" height="440" rx="40" fill="var(--table)" stroke="var(--edge)" stroke-width="4"/>
+  <!-- phone -->
+  <rect x="300" y="240" width="120" height="140" rx="16" fill="var(--phone)"/>
+  <rect x="308" y="250" width="104" height="120" rx="8" fill="var(--screen)"/>
+  <text x="360" y="272" text-anchor="middle" style="fill:#6f655c;font-size:10px">第3問 / 残り12分</text>
+  <text x="360" y="300" text-anchor="middle" style="fill:#2b2622;font-size:12px">お題</text>
+  <text x="360" y="326" text-anchor="middle" style="fill:#c0392b;font-size:20px;font-weight:700">カロリー</text>
+  <text x="360" y="352" text-anchor="middle" style="fill:#6f655c;font-size:10px">高い方が勝ち</text>
+  <!-- played cards (center ring) -->
+  <g>
+    <rect x="335" y="175" width="50" height="50" rx="6" fill="var(--card)" stroke="var(--edge)"/><text x="360" y="198" text-anchor="middle" class="s">カツ丼</text><text x="360" y="214" text-anchor="middle" class="s">893</text>
+    <rect x="335" y="395" width="50" height="50" rx="6" fill="var(--card)" stroke="var(--edge)"/><text x="360" y="418" text-anchor="middle" class="s">ざるそば</text><text x="360" y="434" text-anchor="middle" class="s">284</text>
+    <rect x="225" y="285" width="50" height="50" rx="6" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/><text x="250" y="308" text-anchor="middle" class="s">ラーメン</text><text x="250" y="324" text-anchor="middle" class="s">920</text>
+    <rect x="445" y="285" width="50" height="50" rx="6" fill="var(--card)" stroke="var(--edge)"/><text x="470" y="308" text-anchor="middle" class="s">親子丼</text><text x="470" y="324" text-anchor="middle" class="s">731</text>
+  </g>
+  <text x="360" y="470" text-anchor="middle" class="s">同時に出した手（使ったら戻らない）</text>
+  <!-- seats -->
+  <g class="t">
+    <text x="360" y="40" text-anchor="middle">孫（14）</text>
+    <text x="360" y="600" text-anchor="middle">母</text>
+    <text x="60" y="315" text-anchor="middle">祖父</text>
+    <text x="660" y="315" text-anchor="middle">父</text>
+  </g>
+  <!-- hands: backs -->
+  <g fill="var(--back)">
+    <rect x="300" y="52" width="22" height="32" rx="3"/><rect x="326" y="52" width="22" height="32" rx="3"/><rect x="352" y="52" width="22" height="32" rx="3"/><rect x="378" y="52" width="22" height="32" rx="3"/>
+    <rect x="300" y="540" width="22" height="32" rx="3"/><rect x="326" y="540" width="22" height="32" rx="3"/><rect x="352" y="540" width="22" height="32" rx="3"/><rect x="378" y="540" width="22" height="32" rx="3"/>
+    <rect x="40" y="240" width="32" height="22" rx="3"/><rect x="40" y="266" width="32" height="22" rx="3"/><rect x="40" y="330" width="32" height="22" rx="3"/><rect x="40" y="356" width="32" height="22" rx="3"/>
+    <rect x="648" y="240" width="32" height="22" rx="3"/><rect x="648" y="266" width="32" height="22" rx="3"/><rect x="648" y="330" width="32" height="22" rx="3"/><rect x="648" y="356" width="32" height="22" rx="3"/>
+  </g>
+  <text x="130" y="300" class="s">祖父が勝ち</text>
+  <text x="130" y="316" class="s">（読み切った）</text>
+  <!-- card detail -->
+  <g transform="translate(540,420)">
+    <rect width="150" height="120" rx="10" fill="var(--card)" stroke="var(--edge)"/>
+    <text x="75" y="24" text-anchor="middle" class="t" style="font-weight:700">ラーメン</text>
+    <text x="14" y="52" class="s">カロリー</text><text x="136" y="52" text-anchor="end" class="s">920 kcal</text>
+    <text x="14" y="74" class="s">値段</text><text x="136" y="74" text-anchor="end" class="s">900 円</text>
+    <text x="14" y="96" class="s">歴史</text><text x="136" y="96" text-anchor="end" class="s">約120 年</text>
+  </g>
+  <text x="615" y="410" text-anchor="middle" class="s">手札1枚の中身（例）</text>
+</svg>
+<div class="legend">
+  <div><b>スマホ（親）</b>：お題をめくる、残り時間を出す、数回ごとに「一番悔しい判断をした人」を名指しする。20分で千秋楽。</div>
+  <div><b>手札</b>：紙のカード。1枚に複数の指標（例：カロリー・値段・歴史）。どのお題で切るかが読み合い。</div>
+  <div><b>場</b>：全員が同時に1枚出して表にする。使ったカードは戻らない。</div>
+  <div><b>やらないこと</b>：各自のスマホは使わない／一人用なし／課金・ガチャなし／翌日に持ち越す記録なし。</div>
+</div>
+<p class="lead" style="margin-top:14px">数値は図示用の仮の値です。</p>
+</main>
+</body>
+</html>
