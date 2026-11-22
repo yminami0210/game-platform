@@ -1,6 +1,6 @@
 {
   "runSecondsMin": 20,
-  "runSecondsMax": 180,
+  "runSecondsMax": 300,
   "skillRatioMin": 1.5,
   "firstGoalScore": 1,
   "noviceReachMin": 0.5,

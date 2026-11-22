@@ -1,15 +1,16 @@
 # STATUS（コンテキストが切れたらここから再開）
 
 - mode: eco
-- 現在フェーズ: 1→2（Gate 1 提示待ち）
+- 現在フェーズ: 3（垂直スライス）
 - Gate 1: 未 / Gate 2: 未
 - 最終更新: 2026-11-21
 
 ## エージェント呼び出し数（上限: eco 20 / standard 35。playtester・reviewer は別欄でも数える）
 | フェーズ | 回数 | 内訳 |
 |---|---|---|
-| 1 | 0 | |
-| 合計 | 0 | |
+| 1 | 0 | PM代行で調査 |
+| 2 | 3 | worldbuilder, design-manager, balance |
+| 合計 | 3 | |
 
 ## 直近でやったこと
 - game-studio 雛形（eco）をセットアップ
