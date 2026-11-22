@@ -92,3 +92,22 @@ button:focus-visible, [data-act]:focus-visible { outline:2px solid var(--indigo)
 @media (prefers-reduced-motion: reduce) { .zone.flash, .panel.pulse, .fade { animation:none; } }
 .nofx .zone.flash, .nofx .panel.pulse { animation:none; }
 [hidden] { display:none !important; }
+
+/* 軍議の下段（原則札・トレー・案内）は常に見える位置に固定 */
+.dock { padding:0 16px; border-top:1px solid rgba(31,27,22,.12); background:var(--paper); }
+.dock .tray { margin-top:4px; min-height:60px; }
+.dock .cards { gap:4px; overflow:visible; padding:4px 0; }
+.card { flex:1 1 0; min-width:0; min-height:96px; padding:4px; display:flex; flex-direction:column; gap:2px; }
+.card b { font-size:15px; } .card small { font-size:12px; line-height:1.25; flex:1; }
+.st { font-style:normal; font-size:12px; font-weight:700; border-top:1px solid rgba(31,27,22,.3); padding-top:2px; white-space:nowrap; }
+.st.ok { color:var(--moss); } .st.no { color:var(--vermilion); }
+.legend { font-size:12px; color:var(--ink-soft); font-weight:400; line-height:1.4; }
+.need { text-align:center; font-size:13px; padding:2px 0 4px; color:var(--ink-soft); } .need.warn { color:var(--vermilion); font-weight:700; }
+.scroll { mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent); -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 20px), transparent); padding-bottom:20px; }
+.zone { min-height:96px; } .rep { min-height:44px; margin:3px 0; } .badge { width:32px; height:32px; }
+.caption { flex-direction:column; min-height:76px; gap:2px; } .caption small { font-size:14px; font-weight:400; color:var(--ink-soft); font-family:var(--sans); }
+.seal { display:inline-block; font-size:14px; padding:0 6px; margin-right:8px; border:2px solid; vertical-align:middle; }
+.seal.on { color:var(--ochre); } .seal.off { color:var(--vermilion); border-style:double; }
+.ck { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid rgba(31,27,22,.1); font-size:15px; } .ck > span:nth-child(2) { flex:1; } .ck small { display:block; font-size:12px; color:var(--ink-soft); } .ck.miss b { color:var(--vermilion); } .ck.hit b { color:var(--moss); }
+@media (max-height:700px) { .zone { min-height:84px; } .card { min-height:88px; } .rep small { display:none; } .caption { min-height:60px; } }
+.why q { display:inline; } .why .src { font-size:12px; color:var(--ink-soft); margin-left:8px; }

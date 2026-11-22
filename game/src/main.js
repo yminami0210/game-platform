@@ -1,7 +1,7 @@
 // 起動・画面遷移・__GS__ の公開。ゲームの規則は core/ にあり、ここは表示と入力だけ。
 import { createGame, step, macroActions, microActions, snapshot, reportsOf, canDeploy } from './core/game.js';
 import { TYPES, PRINCIPLES } from './core/battle.js';
-import { explain, learnedFrom } from './core/explain.js';
+import { explain, learnedFrom, principleStatus, checkReports } from './core/explain.js';
 import { chip, zoneHTML, board, reportRow, ZORDER } from './render/view.js';
 import { load, save, record } from './save.js';
 
@@ -50,26 +50,37 @@ function viewTitle() {
   <div class="bar"><button class="btn sub" data-act="fx" aria-label="演出の切替">演出 ${fx ? 'あり' : 'なし'}</button><button class="btn main" data-act="start">${T.ui.start}</button></div></div>`;
 }
 
+function missing() {
+  const m = [];
+  const un = TYPES.filter((t) => !g.place[t]).map((t) => T.types[t]);
+  if (un.length) m.push(`${un.join('・')}が未配置`);
+  if (g.principles.length < 2) m.push(`原則をあと${2 - g.principles.length}つ選ぶ`);
+  if (g.principles.includes('spy') && !g.spyTarget) m.push('用間の対象（確かめる報告）を選ぶ');
+  return m;
+}
 function viewGunji() {
   const reports = reportsOf(g);
   const spyNow = g.principles.includes('spy') && !g.spyTarget;
   const rows = reports.map((r) => reportRow(T, r, { spy: spyNow })).join('');
   const marks = {}; for (const z of ZORDER) marks[z] = '';
   for (const r of reports) if (r.subject !== 'wind') marks[r.claim] += chip(T, 'e', r.subject, null, { src: r.source });
-  const placed = (z) => TYPES.filter((t) => g.place[t] === z).map((t) => chip(T, 'p', t, B.playerCount[t], { act: `select:${t}`, sel: selected === t })).join('');
+  const placed = (z) => TYPES.filter((t) => g.place[t] === z).map((t) => chip(T, 'p', t, B.playerCount[t], { act: `chip:${t}`, sel: selected === t })).join('');
   const cells = ZORDER.map((z) => zoneHTML(T, z, marks[z] + placed(z), { target: !!selected })).join('');
   const tray = TYPES.filter((t) => !g.place[t]).map((t) => chip(T, 'p', t, B.playerCount[t], { act: `select:${t}`, sel: selected === t })).join('');
   const cards = PRINCIPLES.map((p) => {
     const on = g.principles.includes(p), lock = p === 'spy' && g.spyTarget;
-    return `<button class="card${on ? ' on' : ''}${lock ? ' locked' : ''}" data-act="principle:${p}" aria-pressed="${on}"><b>${T.principles[p].name}</b><small>${T.principles[p].pian}・${T.principles[p].brief}</small></button>`;
+    const st = on || p !== 'spy' ? principleStatus(p, g.place, reports, B.exit) : 'maybe';
+    const pr = T.principles[p];
+    return `<button class="card${on ? ' on' : ''}${lock ? ' locked' : ''}" data-act="principle:${p}" aria-pressed="${on}" aria-label="${pr.name}。${pr.cond}"><b>${pr.short}</b><small>${pr.cond}</small><em class="st ${st}">${T.status[st]}</em></button>`;
   }).join('');
-  const hint = spyNow ? '用間: 確かめる報告を1つ選べ' : !TYPES.every((t) => g.place[t]) ? '兵科を選び、地形をタップして配置' : g.principles.length < 2 ? '原則を2つ選べ' : '準備よし';
+  const miss = missing();
+  const hint = miss.length ? `開戦するには: ${miss.join('／')}` : '準備よし。開戦できる';
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>軍議</span></div><div class="scroll">
-  <h2>斥候報告</h2>${rows}
   <h2>配置（敵の印は報告のとおり）</h2>${board(cells)}
-  <div class="tray" data-act="tray">${tray || '<span class="hint">全て配置済み。駒をタップで動かせる</span>'}</div>
-  <h2>孫子の原則（2つ）</h2><div class="cards">${cards}</div></div>
-  <div class="panel" style="padding-bottom:0;text-align:center;font-size:14px;color:var(--ink-soft)">${hint}</div>
+  <h2>斥候報告 <small class="legend">${T.sourceLegend}</small></h2>${rows}</div>
+  <div class="dock"><div class="tray" data-act="tray">${tray || '<span class="hint">全て配置済み。駒をタップで選び直せる</span>'}</div>
+  <div class="cards">${cards}</div><div class="legend">${T.statusLegend}</div>
+  <div class="need ${miss.length ? 'warn' : ''}">${hint}</div></div>
   <div class="bar"><button class="btn sub" data-act="undo">${T.ui.undo}</button><button class="btn main" data-act="deploy" ${canDeploy(g) ? '' : 'disabled'}>${T.ui.deploy}</button></div></div>`;
 }
 
@@ -92,19 +103,24 @@ function viewDigest() {
   }
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span class="dots" aria-label="第${round}合">${dots}</span></div>
   <div class="hp" title="本陣" aria-label="本陣の守り"><div style="width:${baseW}%"></div></div>
-  <div class="caption">${esc(d.caption)}</div><div class="scroll">${board(cells)}</div>${panel}</div>`;
+  <div class="caption"><span>${d.mark ? `<span class="seal ${d.mark.k}">${esc(d.mark.t)}</span>` : ''}${esc(d.caption)}</span>${d.sub ? `<small>${esc(d.sub)}</small>` : ''}</div><div class="scroll">${board(cells)}</div>${panel}</div>`;
 }
 
 function viewResult() {
   const r = g.result, sc = r.score;
   const ex = explain(r, g.plan, T);
-  const why = ex.map((e) => `<div class="why ${e.kind}"><q>${esc(e.quote)}<span>${esc(e.src)}</span></q><p>${esc(e.body)}</p></div>`).join('');
+  const why = ex.map((e) => `<div class="why ${e.kind}"><q>${esc(e.quote)}</q><span class="src">${esc(e.src)}</span><p>${esc(e.body)}</p></div>`).join('');
   const sq = [1, 2, 3].map((i) => `<span class="${sc >= i ? 'on' : ''}"></span>`).join('');
+  const ck = checkReports(g.rawReports, g.sc, g.spyTarget, T);
+  const rowsHTML = ck.rows.map((x) => `<div class="ck ${x.hit ? 'hit' : 'miss'}"><span class="badge ${x.source}">${x.mark}</span><span>${esc(x.claim)}<small>信頼度${x.label}${x.spied ? '・' + T.check.spy : ''}${x.hit ? '' : '／' + T.check.truth.replace('{v}', x.truth)}</small></span><b>${x.hit ? '◎' + T.check.hit : '×' + T.check.miss}</b></div>`).join('');
+  const tallyS = ['high', 'mid', 'low'].filter((k) => ck.tally[k]).map((k) => T.check.lv.replace('{l}', T.source[k].label).replace('{h}', ck.tally[k][0]).replace('{n}', ck.tally[k][1])).join('　');
+  const checkHTML = `<h2>${T.check.title}</h2>${rowsHTML}<p class="legend">${T.check.tally.replace('{s}', tallyS)}</p>`;
+  const help = T.scoreHelp.replace('{g}', Math.round((1 - B.goodEnemyLeft) * 100)).replace('{w}', Math.round((1 - B.winEnemyLeft) * 100)).replace('{p}', Math.round((1 - B.perfectEnemyLeft) * 100)).replace('{o}', Math.round(B.perfectOwn * 100));
   const newly = g.newLearned?.length ? `<div class="learn">習得: ${g.newLearned.map((p) => T.principles[p].name).join('・')}</div>` : '';
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>解説</span></div><div class="scroll">
-  <div class="stamp ${sc >= 2 ? '' : 'lose'}">${sc >= 2 ? T.scoreLabel[sc].slice(0, 2) : '惜'}</div>
+  <div class="stamp ${sc >= 2 ? '' : 'lose'}">${['惜', '善', '勝', '完'][sc]}</div>
   <div class="squares" aria-label="評価 ${sc}/3">${sq}</div><div class="big" style="font-size:24px;margin:0">${T.scoreLabel[sc]}</div>
-  <p class="lead">${T.scoreLead[sc]}</p>${why}${newly}</div>
+  <p class="lead">${T.scoreLead[sc]}</p>${why}${checkHTML}${newly}<p class="legend">${help}</p></div>
   <div class="bar" style="flex-direction:column"><button class="btn main" data-act="retry" style="flex:none">${T.ui.retry}</button><button class="btn sub" data-act="title" style="flex:none">${T.ui.toTitle}</button></div></div>`;
 }
 
@@ -117,24 +133,50 @@ function startDigest() {
   for (const u of g.sc.enemy) e[u.type] = { zone: u.zone, count: u.count };
   dg = d; screen = 'digest'; advance();
 }
-const cap = (k, z) => T.captions[k].replace('{z}', z ? T.zones[z] : '');
+const fmt = (str, o = {}) => str
+  .replace('{highAtk}', B.high.atk).replace('{highDef}', B.high.def).replace('{chokeDef}', B.choke.def)
+  .replace('{trapAtk}', B.trap.atk).replace('{trapEnemy}', B.trap.enemyAtk)
+  .replace('{fireE}', Math.round(B.fireEnemy * 100)).replace('{fireS}', Math.round(B.fireSelf * 100)).replace('{backfire}', Math.round(B.backfire * 100))
+  .replace('{z}', o.z ? T.zones[o.z] : '').replace('{p}', o.p ?? '').replace('{why}', o.why ?? '')
+  .replace('{a}', o.a ?? '').replace('{b}', o.b ?? '');
+// 再生用イベント列: 不発の原則を第1合の後ろに差し込む
+function viewEvents() {
+  const r = g.result, list = [...r.events];
+  const fired = (k) => r.reasons.some((x) => x.split(':')[0] === k);
+  const unmet = g.plan.principles.filter((p) => (p === 'high' || p === 'choke' || p === 'trap') ? !fired(p) : p === 'fire' ? !fired('fire_ok') && !fired('fire_backfire') : false);
+  list.splice(1, 0, ...unmet.map((p) => ({ t: 1, kind: 'unmet', p })));
+  return list;
+}
+function clashNote(ev) {
+  const notes = [];
+  for (const [pt, pn] of ev.p) for (const [et, en] of ev.e) {
+    if (pn < 0.5 || en < 0.5) continue;
+    if (B.beats[pt] === et) notes.push(fmt(T.captions.strong, { a: T.types[pt], b: T.types[et] }));
+    else if (B.beats[et] === pt) notes.push(fmt(T.captions.weak, { a: T.types[pt], b: T.types[et] }));
+  }
+  for (const [pt] of ev.p) { const c = B.terrain[pt][ev.zone]; if (c >= 1.2) notes.push(fmt(T.captions.tgood, { a: T.types[pt], z: ev.zone })); else if (c <= 0.7) notes.push(fmt(T.captions.tbad, { a: T.types[pt], z: ev.zone })); }
+  return notes.slice(0, 2).join('。');
+}
 function applyEvent(ev) {
-  const d = dg, v = d.view; d.flash = null; v.fire = false;
+  const d = dg, v = d.view; d.flash = null; v.fire = false; d.sub = ''; d.mark = null;
   d.round = Math.max(d.round, ev.t);
+  const C = T.captions;
+  const eff = (k, o) => { d.caption = C[k][0]; d.sub = fmt(C[k][1], o); d.mark = { k: 'on', t: '効' }; };
   switch (ev.kind) {
-    case 'deploy': d.caption = cap('deploy'); break;
-    case 'intervene': v.p[ev.unit].zone = ev.to; d.caption = cap('intervene'); d.flash = ev.to; vibrate(20); break;
-    case 'high_ground': d.caption = cap('high_ground'); d.flash = 'hill'; break;
-    case 'choke': d.caption = cap('choke'); d.flash = 'gorge'; break;
-    case 'trap': d.caption = cap('trap'); d.flash = ev.zone; break;
+    case 'deploy': d.caption = C.deploy; break;
+    case 'intervene': v.p[ev.unit].zone = ev.to; d.caption = C.intervene; d.sub = `${T.types[ev.unit]}を${T.zones[ev.to]}へ`; d.flash = ev.to; vibrate(20); break;
+    case 'high_ground': eff('high_ground'); d.flash = 'hill'; break;
+    case 'choke': eff('choke'); d.flash = 'gorge'; break;
+    case 'trap': eff('trap', { z: ev.zone }); d.flash = ev.zone; break;
+    case 'unmet': d.caption = C.unmet[0]; d.sub = fmt(C.unmet[1], { p: T.principles[ev.p].name, why: T.unmet[ev.p] }); d.mark = { k: 'off', t: '不発' }; break;
     case 'clash':
       for (const [t, n] of ev.p) v.p[t].count = n;
       for (const [t, n] of ev.e) v.e[t].count = n;
-      d.caption = cap('clash', ev.zone); d.flash = ev.zone; vibrate(12); break;
-    case 'base_hit': v.baseHp = ev.baseHp; d.caption = cap('base_hit', ev.zone); d.flash = ev.zone; vibrate(30); break;
-    case 'fire': v.fire = true; d.caption = cap('fire_E'); break;
-    case 'backfire': v.fire = true; d.caption = cap('backfire'); vibrate(30); break;
-    case 'end': d.caption = cap('end'); break;
+      d.caption = fmt(C.clash, { z: ev.zone }); d.sub = clashNote(ev); d.flash = ev.zone; vibrate(12); break;
+    case 'base_hit': v.baseHp = ev.baseHp; d.caption = fmt(C.base_hit, { z: ev.zone }); d.sub = C.base_hit_sub; d.flash = ev.zone; vibrate(30); break;
+    case 'fire': v.fire = true; eff('fire_E'); break;
+    case 'backfire': v.fire = true; d.caption = C.backfire[0]; d.sub = fmt(C.backfire[1]); d.mark = { k: 'off', t: '裏目' }; vibrate(30); break;
+    case 'end': d.caption = C.end; d.sub = `${T.scoreLabel[ev.score]}（敵の残り ${Math.round(ev.eLeft * 100)}%）`; break;
   }
 }
 function schedule() {
@@ -143,7 +185,7 @@ function schedule() {
   timer = setTimeout(advance, (fx ? 1100 : 700) / dg.speed);
 }
 function advance() {
-  const d = dg, list = g.result.events;
+  const d = dg, list = viewEvents();
   if (!d || screen !== 'digest' || d.waiting) return;
   const ev = list[d.idx];
   if (ev && ev.t >= B.interveneRound + 1 && !d.intervened) { d.waiting = true; d.round = B.interveneRound; d.caption = '機が来た。号令を下せ'; log('intervene_offer'); render(); return; }
@@ -159,8 +201,9 @@ function doIntervene(unit, zone) {
   if (!ok.length && g.phase !== 'result') return; // 無効な移動
   d.waiting = false; d.intervened = true; picked = null;
   // 再計算後のイベント列から、第3合の頭の続きを探す（1〜2合は同一）
-  d.idx = g.result.events.findIndex((e) => e.t >= B.interveneRound + 1);
-  if (d.idx < 0) d.idx = g.result.events.length;
+  const vl = viewEvents();
+  d.idx = vl.findIndex((e) => e.t >= B.interveneRound + 1);
+  if (d.idx < 0) d.idx = vl.length;
   render(); schedule();
 }
 function finish() {
@@ -184,6 +227,10 @@ function dispatch(act) {
   else if (act === 'fx') { fx = !fx; store = { ...store, fx }; save(store); document.body.classList.toggle('nofx', !fx); }
   else if (screen === 'gunji') {
     if (k === 'select') selected = selected === a ? null : a;
+    else if (k === 'chip') { // 置いた駒: 別の駒を選択中なら、その駒の地形へ置く。そうでなければ選び直し
+      if (selected && selected !== a) { step(g, `place:${selected}:${g.place[a]}`); selected = null; vibrate(8); }
+      else selected = selected === a ? null : a;
+    }
     else if (k === 'zone') { if (selected) { step(g, `place:${selected}:${a}`); selected = null; vibrate(8); } }
     else if (act === 'tray') { if (selected && g.place[selected]) { delete g.place[selected]; selected = null; } }
     else if (act === 'undo') { g.place = {}; selected = null; }

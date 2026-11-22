@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createEngine, ZONES, TYPES } from '../src/core/battle.js';
 import { createGame, step, actions, deploy, setPlace, togglePrinciple, chooseSpy, intervene, canDeploy, reportsOf, snapshot, clone } from '../src/core/game.js';
-import { explain, learnedFrom } from '../src/core/explain.js';
+import { explain, learnedFrom, principleStatus, checkReports } from '../src/core/explain.js';
 import { load, save, record, KEY } from '../src/save.js';
 import { createBots } from './bots.js';
 
@@ -210,4 +210,29 @@ test('simulate 経路: 一括の策→待つ だけで1戦が終わり、結果�
   let ev = [], n = 0;
   while (s.alive && n++ < 60 * 200) ev = ev.concat(step(s, 'wait', 1 / 60));
   assert.ok(n > 60 * 20 && n < 60 * 300); assert.ok(ev.some((e) => e.type === 'clear' || e.type === 'fail'));
+});
+
+test('解説: 勝った戦で「自滅した」と言わない／同種の理由は1行にまとめる', () => {
+  const win = { win: true, score: 2, reasons: ['fire_backfire', 'uncovered:hill', 'uncovered:river'] };
+  const ex = explain(win, plan({}, ['fire', 'trap']), T, 9);
+  assert.ok(!ex.some((e) => e.body.includes('自滅')));
+  assert.equal(ex.filter((e) => e.key === 'uncovered').length, 1);
+  assert.ok(ex.find((e) => e.key === 'uncovered').body.includes('山地・江'));
+  const lose = explain({ win: false, score: 0, reasons: ['fire_backfire'] }, plan({}, ['fire', 'spy']), T);
+  assert.ok(lose.find((e) => e.key === 'fire_backfire').body.includes('自滅'));
+  assert.ok(explain({ win: false, score: 0, reasons: [] }, plan({}, ['high', 'spy']), T).some((e) => e.body.includes('山地で敵と会えなかった')));
+});
+
+test('原則札の印と報告の答え合わせ', () => {
+  const reps = [{ subject: 'inf', claim: 'hill' }, { subject: 'arc', claim: 'river' }, { subject: 'cav', claim: 'plain' }, { subject: 'wind', claim: 'E' }];
+  assert.equal(principleStatus('high', { inf: 'hill' }, reps, B.exit), 'ok');
+  assert.equal(principleStatus('high', { inf: 'plain' }, reps, B.exit), 'no');
+  assert.equal(principleStatus('choke', { inf: 'gorge' }, reps, B.exit), 'maybe');
+  assert.equal(principleStatus('trap', { inf: 'plain', arc: 'river' }, reps, B.exit), 'ok');
+  assert.equal(principleStatus('fire', { arc: 'plain' }, reps, B.exit), 'ok');
+  assert.equal(principleStatus('fire', {}, reps, B.exit), 'na');
+  const sc = sc0({ inf: 'hill', arc: 'gorge', cav: 'plain' }, 'W');
+  const ck = checkReports(reps.map((r) => ({ ...r, source: 'mid' })), sc, 'wind', T);
+  assert.deepEqual(ck.rows.map((r) => r.hit), [true, false, true, false]);
+  assert.equal(ck.rows[3].spied, true); assert.deepEqual(ck.tally.mid, [2, 4]);
 });
