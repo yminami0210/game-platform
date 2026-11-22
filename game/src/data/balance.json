@@ -1,10 +1,86 @@
 {
-  "moveStep": 0.5,
-  "fallSpeed": 5,
-  "speedGrowth": 0.08,
-  "spawnInterval": 0.9,
-  "spawnGrowth": 0.01,
-  "minSpawnInterval": 0.35,
-  "blockMinW": 1,
-  "blockMaxW": 2.6
+ "rounds": 6,
+ "k": 0.22,
+ "noise": 0.05,
+ "interveneRound": 2,
+ "playerCount": {
+  "inf": 40,
+  "arc": 30,
+  "cav": 30
+ },
+ "enemyCount": {
+  "inf": 50,
+  "arc": 40,
+  "cav": 30
+ },
+ "baseHp": 40,
+ "baseHit": 0.12,
+ "typeAdv": 1.3,
+ "typeDis": 0.8,
+ "beats": {
+  "inf": "cav",
+  "cav": "arc",
+  "arc": "inf"
+ },
+ "terrain": {
+  "inf": {
+   "hill": 1.0,
+   "gorge": 1.2,
+   "river": 0.9,
+   "plain": 1.0
+  },
+  "arc": {
+   "hill": 1.25,
+   "gorge": 1.1,
+   "river": 1.1,
+   "plain": 0.9
+  },
+  "cav": {
+   "hill": 0.7,
+   "gorge": 0.6,
+   "river": 0.5,
+   "plain": 1.3
+  }
+ },
+ "enemyZoneWeight": {
+  "hill": 0.15,
+  "gorge": 0.2,
+  "river": 0.35,
+  "plain": 0.3
+ },
+ "high": {
+  "atk": 1.3,
+  "def": 0.85
+ },
+ "choke": {
+  "def": 0.65
+ },
+ "trap": {
+  "atk": 1.5,
+  "enemyAtk": 0.8
+ },
+ "exit": {
+  "gorge": "plain",
+  "river": "plain",
+  "plain": "hill"
+ },
+ "fireEnemy": 0.1,
+ "fireSelf": 0.05,
+ "backfire": 0.12,
+ "fireFrom": 2,
+ "srcTrue": {
+  "high": 0.92,
+  "mid": 0.7,
+  "low": 0.35
+ },
+ "srcWeight": {
+  "high": 0.3,
+  "mid": 0.4,
+  "low": 0.3
+ },
+ "windEast": 0.5,
+ "winEnemyLeft": 0.4,
+ "goodEnemyLeft": 0.75,
+ "perfectEnemyLeft": 0.2,
+ "perfectOwn": 0.5
 }
