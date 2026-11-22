@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>言葉の星座</title>
+<style>
+:root{--bg:#f6f3ee;--ink:#26221f;--sub:#6b625a;--card:#fffdf9;--line:#d8cfc3;--c1:#2f6f8f;--c2:#b5532c;--c3:#5d7a3a;--warn:#a23b2a;--warnbg:#fbeee9}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#191715;--ink:#ece6dd;--sub:#a3988c;--card:#24211e;--line:#3d3833;--c1:#6fb0cf;--c2:#e08a60;--c3:#9cc06e;--warn:#ee7a66;--warnbg:#2e201c}}
+:root[data-theme="dark"]{--bg:#191715;--ink:#ece6dd;--sub:#a3988c;--card:#24211e;--line:#3d3833;--c1:#6fb0cf;--c2:#e08a60;--c3:#9cc06e;--warn:#ee7a66;--warnbg:#2e201c}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.55}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:20px;margin:0 0 4px}
+.lead{color:var(--sub);font-size:14px;margin:0 0 18px}
+.head{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:var(--sub);margin-bottom:6px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;position:relative}
+.col{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:8px;padding:10px 12px;font-size:13px}
+.col h3{margin:0 0 6px;font-size:14px;color:var(--c)}
+.col ul{margin:0;padding-left:1.1em}
+.col li{margin:2px 0}
+.flip{font-weight:700;font-size:15px;color:var(--c)}
+.arrow{text-align:center;color:var(--sub);font-size:20px;margin:-6px 0 6px}
+.concept{background:var(--card);border:2px solid var(--ink);border-radius:10px;padding:14px;text-align:center;font-size:18px;font-weight:700;margin:6px 0 18px}
+.warn{background:var(--warnbg);border:1px solid var(--warn);border-radius:8px;padding:12px 14px;font-size:13px;margin-top:10px}
+.warn b{color:var(--warn)}
+@media (max-width:680px){.head{display:none}.row{grid-template-columns:1fr}.col::before{content:attr(data-k);display:block;font-size:11px;color:var(--sub);margin-bottom:2px}}
+</style>
+</head>
+<body>
+<main>
+<h1>議論から結論までの道筋</h1>
+<p class="lead">悪口を3つの束に分け、ズラした付箋から「本音」を拾い、裏返したものを1行にした。</p>
+
+<div class="head"><div>① 悪口（段階1）</div><div>② ズラして出た付箋（段階2）</div><div>③ 裏返すと</div></div>
+
+<div class="row" style="--c:var(--c1)">
+  <div class="col" data-k="① 悪口"><h3>一人になる</h3><ul>
+    <li>同じ食卓で全員が別々の画面。「いただきます」は私だけ（母）</li>
+    <li>観覧車のてっぺんでスタミナ消費（恋人）</li>
+    <li>孫が知らない誰かと遊んでいて、顔も見ない（祖父）</li>
+    <li>ギルドの人の本名も顔も知らない（やめた人）</li></ul></div>
+  <div class="col" data-k="② ズラした付箋"><h3>本音</h3><ul>
+    <li>「いただきます」が、この家で唯一のマルチプレイ</li>
+    <li>本音は「一口目の顔を見たい」</li>
+    <li>食卓が麻雀卓なら、全員の判断が見えるから顔を上げるしかない</li></ul></div>
+  <div class="col" data-k="③ 裏返すと"><p class="flip">同じ卓で、顔を上げる</p></div>
+</div>
+
+<div class="row" style="--c:var(--c2)">
+  <div class="col" data-k="① 悪口"><h3>悔しくない</h3><ul>
+    <li>ガチャは負けても誰のせいでもないから虚しい。麻雀は自分の判断だから悔しくてまた打つ</li>
+    <li>デイリーはゲームの事務仕事（実在の声：作業ゲー）</li>
+    <li>運営のシフトに入ってるだけ</li></ul></div>
+  <div class="col" data-k="② ズラした付箋"><h3>本音</h3><ul>
+    <li>負けた理由を語れないゲームは、飲み会の話題にならない</li>
+    <li>本音は「悔しい顔を誰かに見られたい」</li>
+    <li>将棋の感想戦みたいに、誰かと反省会</li></ul></div>
+  <div class="col" data-k="③ 裏返すと"><p class="flip">自分の判断で負ける</p></div>
+</div>
+
+<div class="row" style="--c:var(--c3)">
+  <div class="col" data-k="① 悪口"><h3>何も残らない・終わらない</h3><ul>
+    <li>半年貢いだゲームがサ終。3万円とキャラはどこへ</li>
+    <li>終わりがないから、やめ時も達成感もない</li>
+    <li>積み上げたものがもったいなくて、やめられない（実在の声）</li></ul></div>
+  <div class="col" data-k="② ズラした付箋"><h3>本音</h3><ul>
+    <li>終わりがある前提なら、それはもう公演。千秋楽</li>
+    <li>残らないから貢げた。花火に3万払う人はいる</li>
+    <li>起動画面に「○年○月に消えます」と書けばいい</li></ul></div>
+  <div class="col" data-k="③ 裏返すと"><p class="flip">その夜で終わる</p></div>
+</div>
+
+<div class="arrow">↓ 3つを1行に</div>
+<div class="concept">顔を上げて、自分の判断で負ける遊び</div>
+
+<div class="warn"><b>議論から出ていない部分（飛躍）</b><br>
+・「手札に複数の指標、お題、同時に出す、使ったら戻らない」という遊び方は、議論からではなく、オーナーが前に見せたカードゲームの例から持ち込んだもの。議論が決めたのは「何を体験させるか」までで、「どう遊ばせるか」はまだ検討していない。<br>
+・「食卓」「家族」という場面は、悪口を集める人選（食卓の母、孫に無視される祖父）を私が決めた時点で、すでに寄っていた可能性がある。<br>
+・「その夜で終わる」は3つ目の束から来ているが、コンセプトの1行には入っていない。</div>
+</main>
+</body>
+</html>
