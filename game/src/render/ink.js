@@ -15,7 +15,7 @@ function hatch(s, x0, y0, n, dx, dy, op, w = 1.3) {
   for (let i = 0; i < n; i++) { const x = x0 + jit(s, i, 14) + (i * 7) % 40, y = y0 + jit(s + 1, i, 8) + (i * 5) % 30; d += `M${f1(x)} ${f1(y)}l${dx + jit(s + 2, i, 1.5)} ${dy}`; }
   return `<path d="${d}" fill="none" stroke="var(--ink)" stroke-opacity="${op}" stroke-width="${w}" stroke-linecap="round"/>`;
 }
-const frame = (s) => `<path d="${pl([[3, 3 + jit(s, 1, 1)], [80, 2.5], [157, 3 + jit(s, 2, 1)], [157.5, 48], [157, 93 + jit(s, 3, 1)], [80, 93.5], [3, 93], [2.5, 48]])}Z" fill="none" stroke="var(--ink)" stroke-opacity=".7" stroke-width="2" vector-effect="non-scaling-stroke" filter="url(#zr)"/>`;
+const frame = (s) => `<path d="${pl([[3, 3 + jit(s, 1, 1)], [80, 2.5], [157, 3 + jit(s, 2, 1)], [157.5, 48], [157, 93 + jit(s, 3, 1)], [80, 93.5], [3, 93], [2.5, 48]])}Z" fill="none" stroke="var(--ink)" stroke-opacity=".6" stroke-width="1.6" vector-effect="non-scaling-stroke" filter="url(#zr)"/>`;
 const mist = (cx, cy, rx, ry, op) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="var(--paper)" fill-opacity="${op}" filter="url(#zb)"/>`;
 
 function cliff(s, side, w, op) {
@@ -52,7 +52,7 @@ export const FIRE = `<svg class="zfire" viewBox="0 0 160 96" preserveAspectRatio
 export const SPLASH = `<svg class="zsplash" viewBox="0 0 160 96" preserveAspectRatio="none" aria-hidden="true"><g fill="var(--ink)" fill-opacity=".55" filter="url(#zb)"><circle cx="80" cy="48" r="9"/>${[[58, 30, 3], [104, 28, 2.4], [112, 62, 3.2], [50, 66, 2.2], [82, 20, 2], [80, 76, 2.6], [128, 46, 1.8]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g></svg>`;
 
 // 墨の軌跡（軍勢の移動）。zone中心は2x2盤の中心
-export const CENTER = { hill: [25, 25], gorge: [75, 25], river: [25, 75], plain: [75, 75] };
+export const CENTER = { hill: [25, 23], gorge: [75, 23], river: [50, 56], plain: [50, 83] };
 export function trail(from, to) {
   const [x1, y1] = CENTER[from], [x2, y2] = CENTER[to];
   const mx = (x1 + x2) / 2 + (y2 - y1) * 0.18, my = (y1 + y2) / 2 - (x2 - x1) * 0.18;

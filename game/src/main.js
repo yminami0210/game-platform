@@ -2,7 +2,7 @@
 import { createGame, step, macroActions, microActions, snapshot, reportsOf, canDeploy } from './core/game.js';
 import { TYPES, PRINCIPLES } from './core/battle.js';
 import { explain, learnedFrom, principleStatus, checkReports } from './core/explain.js';
-import { chip, zoneHTML, board, reportRow, ZORDER } from './render/view.js';
+import { chip, zoneHTML, board, reportChip, ZORDER } from './render/view.js';
 import { trail } from './render/ink.js';
 import { load, save, record } from './save.js';
 
@@ -15,7 +15,7 @@ let fx = store.fx !== false;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.body.classList.toggle('nofx', !fx);
 
-let screen = 'title', g = null, selected = null, picked = null;
+let screen = 'title', g = null, selected = null, picked = null, hl = null;
 let dg = null; // ダイジェスト再生の状態
 let seedCounter = (Date.now() & 0xffff) + 1;
 const events = [];
@@ -28,7 +28,7 @@ let timer = 0;
 function newGame() {
   clearTimeout(timer);
   g = createGame({ seed: seedCounter++, data });
-  selected = null; picked = null; dg = null;
+  selected = null; picked = null; dg = null; hl = null;
   screen = 'gunji';
 }
 
@@ -53,20 +53,22 @@ function viewTitle() {
 
 function missing() {
   const m = [];
-  const un = TYPES.filter((t) => !g.place[t]).map((t) => T.types[t]);
+  const un = TYPES.filter((t) => !g.place[t]).map((t) => T.typeChar[t]);
   if (un.length) m.push(`${un.join('・')}が未配置`);
-  if (g.principles.length < 2) m.push(`原則をあと${2 - g.principles.length}つ選ぶ`);
-  if (g.principles.includes('spy') && !g.spyTarget) m.push('用間の対象（確かめる報告）を選ぶ');
+  if (g.principles.length < 2) m.push(`原則あと${2 - g.principles.length}つ`);
+  if (g.principles.includes('spy') && !g.spyTarget) m.push('用間の対象を選ぶ');
   return m;
 }
+const emptyInner = () => Object.fromEntries(ZORDER.map((z) => [z, { e: {}, p: {} }]));
 function viewGunji() {
   const reports = reportsOf(g);
   const spyNow = g.principles.includes('spy') && !g.spyTarget;
-  const rows = reports.map((r) => reportRow(T, r, { spy: spyNow })).join('');
-  const marks = {}; for (const z of ZORDER) marks[z] = '';
-  for (const r of reports) if (r.subject !== 'wind') marks[r.claim] += chip(T, 'e', r.subject, null, { src: r.source });
-  const placed = (z) => TYPES.filter((t) => g.place[t] === z).map((t) => chip(T, 'p', t, B.playerCount[t], { act: `chip:${t}`, sel: selected === t })).join('');
-  const cells = ZORDER.map((z) => zoneHTML(T, z, marks[z] + placed(z), { target: !!selected })).join('');
+  // 盤: 敵は報告どおりの「残像」（破線・薄墨・印字 確/概/疑）、味方は置いた駒
+  const inner = emptyInner();
+  for (const r of reports) if (r.subject !== 'wind') inner[r.claim].e[r.subject] = chip(T, 'e', r.subject, T.source[r.source].mark, { src: r.source, ghost: true, hl: hl === r.subject, bad: !r.feasible });
+  for (const t of TYPES) if (g.place[t]) inner[g.place[t]].p[t] = chip(T, 'p', t, B.playerCount[t], { act: `chip:${t}`, sel: selected === t });
+  const cells = ZORDER.map((z) => zoneHTML(T, z, inner[z], { target: !!selected })).join('');
+  const rows = reports.map((r) => reportChip(T, r, { spy: spyNow, hl: hl === r.subject })).join('');
   const tray = TYPES.filter((t) => !g.place[t]).map((t) => chip(T, 'p', t, B.playerCount[t], { act: `select:${t}`, sel: selected === t })).join('');
   const cards = PRINCIPLES.map((p) => {
     const on = g.principles.includes(p), lock = p === 'spy' && g.spyTarget;
@@ -76,35 +78,57 @@ function viewGunji() {
   }).join('');
   const miss = missing();
   const hint = miss.length ? `開戦するには: ${miss.join('／')}` : '準備よし。開戦できる';
-  return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>軍議</span></div><div class="scroll">
-  <h2>配置（敵の印は報告のとおり）</h2>${board(cells)}
-  <h2>斥候報告 <small class="legend">${T.sourceLegend}</small></h2>${rows}</div>
+  const rl = spyNow ? '用間: 確かめる報告をタップ' : `${T.sourceLegend}　取消線=偽の報せ`;
+  return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>軍議</span></div>
+  <div class="bwrap">${board(cells)}</div>
+  <div class="reps">${rows}</div><div class="legend rl">${rl}</div>
   <div class="dock"><div class="tray" data-act="tray">${tray || '<span class="hint">全て配置済み。駒をタップで選び直せる</span>'}</div>
-  <div class="cards">${cards}</div><div class="legend">${T.statusLegend}</div>
+  <div class="cards">${cards}</div>
   <div class="need ${miss.length ? 'warn' : ''}">${hint}</div></div>
   <div class="bar"><button class="btn sub" data-act="undo">${T.ui.undo}</button><button class="btn main" data-act="deploy" ${canDeploy(g) ? '' : 'disabled'}>${T.ui.deploy}</button></div></div>`;
 }
 
 function viewDigest() {
   const d = dg, v = d.view;
-  const cells = ZORDER.map((z) => {
-    const ps = TYPES.filter((t) => v.p[t].zone === z).map((t) => chip(T, 'p', t, Math.round(v.p[t].count), { dead: v.p[t].count < 0.5, act: picked == null && d.waiting ? `pick:${t}` : (d.waiting && picked === t ? `pick:${t}` : undefined), sel: d.waiting && picked === t })).join('');
-    const es = TYPES.filter((t) => v.e[t].zone === z).map((t) => chip(T, 'e', t, Math.round(v.e[t].count), { dead: v.e[t].count < 0.5 })).join('');
-    return zoneHTML(T, z, es + ps, { act: d.waiting && picked ? `izone:${z}` : `noop:${z}`, target: d.waiting && picked && g.plan.place[picked] !== z, flash: fx && d.flash === z, splash: d.splash, fire: v.fire && (z === 'river' || z === 'plain') });
-  }).join('');
+  const inner = emptyInner();
+  for (const t of TYPES) {
+    const u = v.p[t];
+    inner[u.zone].p[t] = chip(T, 'p', t, Math.round(u.count), { dead: u.count < 0.5, act: picked == null && d.waiting ? `pick:${t}` : (d.waiting && picked === t ? `pick:${t}` : undefined), sel: d.waiting && picked === t });
+    const e = v.e[t];
+    if (e) inner[e.zone].e[t] = chip(T, 'e', t, Math.round(e.count), { dead: e.count < 0.5 });
+  }
+  const cells = ZORDER.map((z) => zoneHTML(T, z, inner[z], { act: d.waiting && picked ? `izone:${z}` : `noop:${z}`, target: d.waiting && picked && g.plan.place[picked] !== z, flash: fx && d.flash === z, splash: d.splash, fire: v.fire && (z === 'river' || z === 'plain') })).join('');
   const round = Math.min(B.rounds, Math.max(0, d.round));
   const dots = Array.from({ length: B.rounds }, (_, i) => `<span class="${i < round ? 'on' : ''}"></span>`).join('');
   const baseW = Math.round((v.baseHp / B.baseHp) * 100);
   let panel;
   if (d.waiting) {
     const chips = TYPES.map((t) => chip(T, 'p', t, null, { act: `pick:${t}`, sel: picked === t })).join('');
-    panel = `<div class="panel pulse"><div class="row"><span class="ki">機</span><span>${picked ? '送る先の地形をタップ' : '号令で動かす部隊を選べ（1部隊）'}</span></div><div class="row">${chips}</div><div class="row" style="margin-top:8px"><button class="btn sub" data-act="skip">${T.ui.skip}</button></div></div>`;
+    panel = `<div class="panel pulse"><div class="row"><span class="ki">機</span><span>${picked ? '送る先の地形をタップ' : '号令で動かす部隊を選べ（1部隊）'}</span></div><div class="row">${chips}<button class="btn sub" data-act="skip" style="flex:none;padding:0 16px">${T.ui.skip}</button></div></div>`;
   } else {
     panel = `<div class="bar"><button class="btn sub" data-act="ff">${T.ui.fast}${d.speed > 1 ? ' ●' : ''}</button>${d.manual ? `<button class="btn main" data-act="next">${T.ui.next}</button>` : ''}</div>`;
   }
   return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span class="dots" aria-label="第${round}合">${dots}</span></div>
   <div class="hp" title="本陣" aria-label="本陣の守り"><div style="width:${baseW}%"></div></div>
-  <div class="caption"><span>${d.mark ? `<span class="seal ${d.mark.k}">${esc(d.mark.t)}</span>` : ''}${esc(d.caption)}</span>${d.sub ? `<small>${esc(d.sub)}</small>` : ''}</div><div class="scroll roll"><i class="rod"></i>${board(cells, d.trail ? trail(d.trail[0], d.trail[1]) : '')}<i class="rod"></i></div>${panel}</div>`;
+  <div class="bwrap roll big-board"><i class="rod"></i>${board(cells, d.trail ? trail(d.trail[0], d.trail[1]) : '')}<i class="rod"></i></div>
+  <div class="caption"><span>${d.mark ? `<span class="seal ${d.mark.k}">${esc(d.mark.t)}</span>` : ''}${esc(d.caption)}</span>${d.sub ? `<small>${esc(d.sub)}</small>` : ''}</div>${panel}</div>`;
+}
+
+// 解説用: 最終局面（イベントを最後まで適用した駒の位置と兵数）
+function finalBoard() {
+  const p = {}, e = {};
+  for (const t of TYPES) p[t] = { zone: g.plan.place[t], count: B.playerCount[t] };
+  for (const u of g.sc.enemy) e[u.type] = { zone: u.zone, count: u.count };
+  for (const ev of g.result.events) {
+    if (ev.kind === 'intervene') p[ev.unit].zone = ev.to;
+    else if (ev.kind === 'clash') { for (const [t, n] of ev.p) p[t].count = n; for (const [t, n] of ev.e) e[t].count = n; }
+  }
+  const inner = emptyInner();
+  for (const t of TYPES) {
+    inner[p[t].zone].p[t] = chip(T, 'p', t, null, { dead: p[t].count < 0.5 });
+    if (e[t]) inner[e[t].zone].e[t] = chip(T, 'e', t, null, { dead: e[t].count < 0.5 });
+  }
+  return board(ZORDER.map((z) => zoneHTML(T, z, inner[z], { act: null })).join(''), '', 'mini');
 }
 
 function viewResult() {
@@ -118,9 +142,9 @@ function viewResult() {
   const checkHTML = `<h2>${T.check.title}</h2>${rowsHTML}<p class="legend">${T.check.tally.replace('{s}', tallyS)}</p>`;
   const help = T.scoreHelp.replace('{g}', Math.round((1 - B.goodEnemyLeft) * 100)).replace('{w}', Math.round((1 - B.winEnemyLeft) * 100)).replace('{p}', Math.round((1 - B.perfectEnemyLeft) * 100)).replace('{o}', Math.round(B.perfectOwn * 100));
   const newly = g.newLearned?.length ? `<div class="learn">習得: ${g.newLearned.map((p) => T.principles[p].name).join('・')}</div>` : '';
-  return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>解説</span></div><div class="scroll">
-  <div class="stamp ${sc >= 2 ? '' : 'lose'}" aria-label="落款 ${T.scoreLabel[sc]}"><span>${['惜', '善', '勝', '完'][sc]}</span></div>
-  <div class="squares" aria-label="評価 ${sc}/3">${sq}</div><div class="big" style="font-size:24px;margin:0">${T.scoreLabel[sc]}</div>
+  return `<div class="screen"><div class="info"><b>${T.battle.name}</b><span>解説</span></div>
+  <div class="bwrap mw" aria-label="最終局面">${finalBoard()}</div><div class="scroll">
+  <div class="rhead"><div class="stamp ${sc >= 2 ? '' : 'lose'}" aria-label="落款 ${T.scoreLabel[sc]}"><span>${['惜', '善', '勝', '完'][sc]}</span></div><div><div class="big" style="font-size:24px;margin:0">${T.scoreLabel[sc]}</div><div class="squares" aria-label="評価 ${sc}/3">${sq}</div></div></div>
   <p class="lead">${T.scoreLead[sc]}</p>${why}${checkHTML}${newly}<p class="legend">${help}</p></div>
   <div class="bar" style="flex-direction:column"><button class="btn main" data-act="retry" style="flex:none">${T.ui.retry}</button><button class="btn sub" data-act="title" style="flex:none">${T.ui.toTitle}</button></div></div>`;
 }
@@ -227,7 +251,9 @@ function dispatch(act) {
   else if (act === 'title') { clearTimeout(timer); screen = 'title'; }
   else if (act === 'fx') { fx = !fx; store = { ...store, fx }; save(store); document.body.classList.toggle('nofx', !fx); }
   else if (screen === 'gunji') {
-    if (k === 'select') selected = selected === a ? null : a;
+    if (k === 'hl') hl = hl === a ? null : a;
+    else if (k === 'spy') { step(g, act); hl = null; }
+    else if (k === 'select') selected = selected === a ? null : a;
     else if (k === 'chip') { // 置いた駒: 別の駒を選択中なら、その駒の地形へ置く。そうでなければ選び直し
       if (selected && selected !== a) { step(g, `place:${selected}:${g.place[a]}`); selected = null; vibrate(8); }
       else selected = selected === a ? null : a;
